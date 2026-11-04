@@ -1,7 +1,7 @@
-// Punt: pick an option, stake a share of the pot (every bet pays 2×), or pass (rules in punt-gen.js).
+// Punt: pick an option, commit a share of your purse (a right answer doubles it), or hold (rules in punt-gen.js).
 // Solo sessions are saved in this browser. At a table (a pair's match, or a party of up to six) everyone gets the
-// same question and stakes on their own phone: Against, each on a pot of their own; Together, on one pot for the
-// table. A question settles once everyone at the table has staked, and the reveal shows what each did and where
+// same question and commitments on their own phone: Against, each on a purse of their own; Together, on one purse for the
+// table. A question settles once everyone at the table has committed, and the reveal shows what each did and where
 // everyone stands (punt-table.js has the rules of the table).
 import { makeSession, moreQuestions, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, topicsOf, dealsEverything, isPresetMix, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
 import { picksOf, judged, lengthOf, logOf, settleRound, advance, runOver, stake as stakeAt, pressNext, goOn, carryOn, waitingFor, goOnAt, presentIds, seatedIds, potOf, isBust, maxShare, modeOf, MODES, peopleFor, standingsAfter, resultFor, averageFor } from "./punt-table.js";
@@ -262,7 +262,7 @@ function place(passing) {
   const q = question(), need = rightCount(q), typing = typedNow(q), answered = typing ? !!typed.trim() : pick.length === need;
   // a pass is a bet of 0%: it needs an answer like any other (what you'd have said, and whether it was right, counts)
   if (!answered || (!passing && pct <= 0)) {
-    toast(!answered ? (typing ? "Type your answer first" : need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass at 0%");
+    toast(!answered ? (typing ? "Type your answer first" : need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a share to commit, or hold at 0%");
     return;
   }
   const share = passing ? 0 : Math.min(pct, maxPct());
@@ -280,7 +280,7 @@ function place(passing) {
   }
   // at a table it's timed on the database's clock (the slow are gone on without once the others have waited a while)
   const at = here(), when = now();
-  together.act(g => g.index === index && stakeAt(g, id, { ...bet, at: when }, at)).then(ok => { if (!ok && S.index === index) toast("The table went on without that stake"); });
+  together.act(g => g.index === index && stakeAt(g, id, { ...bet, at: when }, at)).then(ok => { if (!ok && S.index === index) toast("The table went on without your commitment"); });
 }
 /** A run's last bet settled (or the pot gone): its average is final, so it counts at once, not when its summary is
  *  opened. An endless run goes on until you stop it, and counts then. */
@@ -457,7 +457,7 @@ function wakeForGrace() {
 function waitButton(btn, w) {
   const go = graceOver(), bust = S.phase === "bet" && isBust(S, me());
   btn.disabled = !go;
-  btn.textContent = go ? `Go on without ${w.ids.length ? whoText(w) : "them"}` : `${bust ? "Bust · waiting" : "Waiting"} for ${whoText(w)}`;
+  btn.textContent = go ? `Go on without ${w.ids.length ? whoText(w) : "them"}` : `${bust ? "Broke · waiting" : "Waiting"} for ${whoText(w)}`;
   btn.dataset.go = go ? "1" : "";
 }
 
@@ -485,7 +485,7 @@ function drawTyped(q, reveal, last) {
   box.replaceChildren(card);
 }
 // the most of a shared pot one player may stake, by its name (the share: half for two, a third for three…)
-const SHARE = { 100: "All in", 50: "Half", 33: "A third", 25: "A quarter", 20: "A fifth", 16: "A sixth" };
+const SHARE = { 100: "Everything", 50: "Half", 33: "A third", 25: "A quarter", 20: "A fifth", 16: "A sixth" };
 function drawBetting(q, waiting) {
   const typing = typedNow(q), max = maxPct(), bust = !!together.room && isBust(S, me());
   const slider = $("stake");
@@ -507,17 +507,17 @@ function drawBetting(q, waiting) {
   // the Bet button says it all: the stake, and what comes back if right (every bet pays double); at a table, once
   // yours is in, who it waits for
   if (w) waitButton(bet, w);
-  else bet.textContent = bust ? "Bust: watching the others" : waiting ? "Waiting" : stake > 0 ? `Bet ${showChips(stake)} · pays ${showChips(stake * ODDS)}` : "Pays double";
+  else bet.textContent = bust ? "Broke: watching the others" : waiting ? "Waiting" : stake > 0 ? `Commit ${showChips(stake)} · returns ${showChips(stake * ODDS)}` : "Doubles if right";
 }
 
 /** What one player did at a question, in a few words: their pick (✓ or ✗), and what they staked. */
 function didText(q, id, b) {
   if (!b) return "";
-  if (b.none) return isBust(S, id) && !b.pot ? "bust" : "no stake";
+  if (b.none) return isBust(S, id) && !b.pot ? "broke" : "nothing committed";
   const p = picksOf(b.pick), right = judged(q, b).right;
   const what = b.typed != null ? `"${b.typed}"` : p?.map(i => q.options[i]?.label).filter(Boolean).join(" + ");
   const mark = right == null ? "" : right ? "✓ " : "✗ ";
-  return `${mark}${what || "nothing picked"} · ${b.pct ? `${showChips(b.stake)} (${b.pct}%)` : "passed"}`;
+  return `${mark}${what || "nothing picked"} · ${b.pct ? `${showChips(b.stake)} (${b.pct}%)` : "held"}`;
 }
 /** The table after a question: everyone's pick, stake and gain or loss, ranked by pot (Together: by what each added). */
 function drawStandings(q, last) {
@@ -538,15 +538,15 @@ function drawResult(q, last) {
   v.className = "pt-verdict" + (changeOf(last) > 0 ? " won" : changeOf(last) < 0 ? " lost" : "");
   const sign = n => `${n > 0 ? "+" : n < 0 ? "−" : ""}${showChips(Math.abs(n))}`;
   const yours = () => {
-    if (mine?.none) return isBust(S, me()) && !mine.pot ? "You're bust: watching the others." : "No stake: the table went on.";
+    if (mine?.none) return isBust(S, me()) && !mine.pot ? "You're broke: watching the others." : "Nothing committed: the table went on.";
     if (!mine || !mine.pct) {
       const would = judged(q, mine).right;
-      return would == null ? "Passed." : would ? "Passed: your pick was right." : "Passed: your pick was wrong.";
+      return would == null ? "Held." : would ? "Held: your pick was right." : "Held: your pick was wrong.";
     }
     return mine.change > 0 ? `Right! ${sign(mine.change)}` : `Wrong. ${sign(mine.change)}`;
   };
   // at a table, what everyone did is in the standings under it; Together, the verdict says what the pot did too
-  v.textContent = together.room && modeOf(S) === "together" ? `${yours().replace(/\.$/, "")} · pot ${sign(last.change)}` : yours();
+  v.textContent = together.room && modeOf(S) === "together" ? `${yours().replace(/\.$/, "")} · purse ${sign(last.change)}` : yours();
   drawStandings(q, last);
   $("notes").replaceChildren(...q.notes.map(n => {
     const li = document.createElement("li"), b = document.createElement("b"), t = document.createElement("span");
@@ -572,15 +572,15 @@ function showDone() {
   $("doneNew").textContent = "New session";
   const bets = S.log.flatMap(r => Object.entries(r.bets).filter(([id]) => id === me()).map(([, b]) => b));   // a pass is a bet of 0%
   const won = bets.filter(b => b.change > 0).length;
-  $("doneTitle").textContent = S.pot <= 0 ? "Bust" : S.pot > START_POT ? "Up on the house" : S.pot < START_POT ? "Down on the day" : "Level";
+  $("doneTitle").textContent = S.pot <= 0 ? "Broke" : S.pot > START_POT ? "Up on the voyage" : S.pot < START_POT ? "Down on the voyage" : "Level";
   const avg = averageReturn(S.log) ?? 0;
-  const stats = [["Final pot", showChips(S.pot)], ["A question", showReturn(avg)], ["Bets won", `${won} of ${bets.length}`]];
+  const stats = [["Final purse", showChips(S.pot)], ["A question", showReturn(avg)], ["Ventures won", `${won} of ${bets.length}`]];
   const best = recordBest(avg);
   if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);   // today's run, or a preset with every difficulty: it counts for your best
   drawDoneStats(stats);
   const passes = S.log.filter(r => !r.bets[me()]?.pct).length;
   const what = `${LEVELS[S.level].label}, ${LENGTHS[lengthOf(S)].label.toLowerCase()}`;
-  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}, ${passes} pass${passes === 1 ? "" : "es"}. ` +
+  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}, ${passes} hold${passes === 1 ? "" : "s"}. ` +
     `Your best average on ${what}: ${showReturn(best)} a question. The same run for anyone with the link: ` +
     `${location.origin}${location.pathname}${linkOf(S)}`;
   if (!$("doneDlg").open) $("doneDlg").showModal();
@@ -603,18 +603,18 @@ function showTableDone() {
   if (against) {
     $("doneTitle").textContent = first.length > 1 ? (first.some(r => r.id === me()) ? "A draw" : `${whoText({ ids: first.map(r => r.id), seats: 0 })} share it`)
       : first[0]?.id === me() ? "You win" : `${first[0]?.name || "Player"} wins`;
-    drawDoneStats([["Your pot", showChips(myPot())], ["A question", showReturn(averageFor(S, me()) ?? 0)], ["Bets won", `${won(me())} of ${staked(me())}`]]);
+    drawDoneStats([["Your purse", showChips(myPot())], ["A question", showReturn(averageFor(S, me()) ?? 0)], ["Ventures won", `${won(me())} of ${staked(me())}`]]);
   } else {
-    $("doneTitle").textContent = S.pot <= 0 ? "Bust" : S.pot > START_POT ? "Up on the house" : S.pot < START_POT ? "Down on the day" : "Level";
-    drawDoneStats([["Final pot", showChips(S.pot)], ["A question", showReturn(averageReturn(S.log) ?? 0)], ["Bets won", `${won(me())} of ${staked(me())}`]]);
+    $("doneTitle").textContent = S.pot <= 0 ? "Broke" : S.pot > START_POT ? "Up on the voyage" : S.pot < START_POT ? "Down on the voyage" : "Level";
+    drawDoneStats([["Final purse", showChips(S.pot)], ["A question", showReturn(averageReturn(S.log) ?? 0)], ["Ventures won", `${won(me())} of ${staked(me())}`]]);
   }
   $("doneTable").hidden = false;
   $("doneTable").replaceChildren(leaderboard(rows.map(r => ({
     name: r.id === me() ? "You" : r.name, value: r.value, shown: against ? showChips(r.value) : signed(r.value, showChips),
     ...(against && { delta: r.value - START_POT }), seat: r.slot, me: r.id === me(),
-    note: `${won(r.id)} of ${staked(r.id)} bets won${against ? ` · ${showReturn(averageFor(S, r.id) ?? 0)} a question` : ""}`,
+    note: `${won(r.id)} of ${staked(r.id)} ventures won${against ? ` · ${showReturn(averageFor(S, r.id) ?? 0)} a question` : ""}`,
   })), { format: showChips }));
-  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}${against ? ", each on a pot of their own" : ", one pot for the table"}.`;
+  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}${against ? ", each on a purse of their own" : ", one purse for the table"}.`;
   $("doneNew").textContent = "Play again";
   $("doneSolo").hidden = false;
   if (!$("doneDlg").open) $("doneDlg").showModal();
@@ -828,39 +828,39 @@ function openStats(scope = "run") {
     b.setAttribute("aria-pressed", String(scope === id));
     b.addEventListener("click", () => openStats(id));
   }
-  if (!st.bets) { add("p", "stats", "No bets settled yet: stats appear once you've staked on a few questions."); if (!$("statsDlg").open) $("statsDlg").showModal(); return; }
+  if (!st.bets) { add("p", "stats", "No ventures settled yet: stats appear once you've committed on a few questions."); if (!$("statsDlg").open) $("statsDlg").showModal(); return; }
 
   add("h3", null, "Expected outcome");
-  add("p", "stats", "What your picks earn per chip, ignoring compounding: the view that matters over a fixed run.");
+  add("p", "stats", "What your picks earn per mark committed, ignoring compounding: the view that matters over a fixed run.");
   const grid = add("dl", "pt-stats");
-  for (const [label, value] of [["Bets right", `${st.right} of ${st.bets}`], ["Edge a bet", showReturn(st.edge)], ["On staked chips", showReturn(st.roi)]]) {
+  for (const [label, value] of [["Ventures right", `${st.right} of ${st.bets}`], ["Edge a venture", showReturn(st.edge)], ["On marks committed", showReturn(st.roi)]]) {
     const box = add("div", null, null, grid), dd = add("dd", null, value, box);
     add("dt", null, label, box);
     void dd;
   }
-  add("p", "stats", `You were right on ${pctText(st.hitRate)} of your bets; their prices needed ${pctText(st.needed)} to break even. ` +
-    `Edge a bet is what each chip would have earned at equal stakes (${showReturn(st.edge)}); on staked chips is what your actual stakes earned (${showReturn(st.roi)}).` +
-    (st.passes ? ` Your ${st.passes} pass${st.passes === 1 ? " was a bet" : "es were bets"} of 0%: right ${st.passRight} of ${st.passes}.` : ""));
+  add("p", "stats", `You were right on ${pctText(st.hitRate)} of your ventures; doubling needs ${pctText(st.needed)} to break even. ` +
+    `Edge a venture is what each mark would have earned at equal commitments (${showReturn(st.edge)}); on marks committed is what your actual commitments earned (${showReturn(st.roi)}).` +
+    (st.passes ? ` Your ${st.passes} hold${st.passes === 1 ? " was a venture" : "s were ventures"} of 0%: right ${st.passRight} of ${st.passes}.` : ""));
 
   add("h3", null, "Kelly");
-  add("p", "stats", "How big you bet against how often bets that size came off. Kelly is the stake that grows a pot fastest in the long run, so this is the view for endless runs.");
+  add("p", "stats", "How much you committed against how often ventures that size came off. Kelly is the share of a purse that grows it fastest in the long run, so this is the view for endless runs.");
   const table = add("table", "pt-kelly");
   const head = add("tr", null, null, add("thead", null, null, table));
-  for (const h of ["You staked", "Bets", "Right", "Kelly says"]) add("th", null, h, head);
+  for (const h of ["You committed", "Ventures", "Right", "Kelly says"]) add("th", null, h, head);
   const tb = add("tbody", null, null, table);
   for (const b of st.bands) {
     const tr = add("tr", null, null, tb);
     add("td", null, b.label, tr);
     add("td", null, String(b.n), tr);
     add("td", null, b.n ? pctText(b.hit) : "–", tr);
-    add("td", null, b.n ? (b.kelly > 0 ? pctText(b.kelly) : "pass") : "–", tr);
+    add("td", null, b.n ? (b.kelly > 0 ? pctText(b.kelly) : "hold") : "–", tr);
   }
-  const verdict = st.sizing == null ? "Kelly would pass on bets like yours: at those hit rates and prices there was no edge."
-    : st.sizing > 1.4 ? `You staked about ${st.sizing.toFixed(1)}× what Kelly would: over-betting, which risks more than your knowledge earns.`
-    : st.sizing < 0.7 ? `You staked about ${st.sizing.toFixed(1)}× what Kelly would: you could back yourself harder when you're this sure.`
-    : `You staked about ${st.sizing.toFixed(1)}× what Kelly would: close to the growth-optimal size.`;
+  const verdict = st.sizing == null ? "Kelly would hold on ventures like yours: at those hit rates and returns there was no edge."
+    : st.sizing > 1.4 ? `You committed about ${st.sizing.toFixed(1)}× what Kelly would: over-committing, which risks more than your knowledge earns.`
+    : st.sizing < 0.7 ? `You committed about ${st.sizing.toFixed(1)}× what Kelly would: you could back yourself harder when you're this sure.`
+    : `You committed about ${st.sizing.toFixed(1)}× what Kelly would: close to the growth-optimal size.`;
   add("p", "stats", `${verdict} Growth a question: yours ${showReturn(st.growth)}, Kelly on your own hit rates ${showReturn(st.kellyGrowth)} (with hindsight). ` +
-    `${recs.length < 30 ? "With this few bets the numbers swing a lot; they settle over 100 or more." : ""}`);
+    `${recs.length < 30 ? "With this few ventures the numbers swing a lot; they settle over 100 or more." : ""}`);
   if (!$("statsDlg").open) $("statsDlg").showModal();
 }
 
@@ -876,7 +876,7 @@ function drawPartner() {
   if (!together.room || !S?.players) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append(waitMark(), "Reconnecting… stakes made now may not reach the table."); return; }
+  if (!together.online) { el.append(waitMark(), "Reconnecting… commitments made now may not reach the table."); return; }
   const others = together.others(), p = together.partner();
   if (others.length <= 1 && p?.game) {
     const b = document.createElement("b"), go = document.createElement("a");
@@ -888,7 +888,7 @@ function drawPartner() {
   }
   if (!others.length) { el.append(waitMark(), "Waiting for the others to sit down"); return; }
   const against = modeOf(S) === "against", ready = id => (S.phase === "reveal" ? !!S.next?.[id] : !!S.bets?.[id]);
-  if (!against) el.append("Sharing a pot with ");
+  if (!against) el.append("Sharing a purse with ");
   others.forEach((o, i) => {
     if (i) el.append(" · ");
     const who = document.createElement("span"), dot = document.createElement("i"), b = document.createElement("b");
@@ -958,7 +958,7 @@ const together = createTogether({
 async function switchMode(mode) {
   if (modeOf(S) === mode) return;
   const started = !S.done && (S.index > 0 || S.log.length || Object.keys(S.bets || {}).length);
-  if (started && !(await sure(`Start a new run ${mode === "against" ? "with a pot each" : "with one pot for the table"}? This one isn't finished.`))) { drawMenu(); return; }
+  if (started && !(await sure(`Start a new run ${mode === "against" ? "with a purse each" : "with one purse for the table"}? This one isn't finished.`))) { drawMenu(); return; }
   dealTable({ level: S.level, length: lengthOf(S), picks: S.mix || S.maths || null, mode });
 }
 
@@ -1028,8 +1028,8 @@ function drawMenu() {
     })] : []));
   if (together.room) {
     const max = maxShare(S);
-    part(body, "together").append(choice("Pots", Object.entries(MODES), modeOf(S), switchMode),
-      line(modeOf(S) === "against" ? "A pot each: the most at the end wins." : `One pot for the table: each stakes up to ${(SHARE[max] || `${max}%`).toLowerCase()} of it.`),
+    part(body, "together").append(choice("Purses", Object.entries(MODES), modeOf(S), switchMode),
+      line(modeOf(S) === "against" ? "A purse each: the most at the end wins." : `One purse for the table: each commits up to ${(SHARE[max] || `${max}%`).toLowerCase()} of it.`),
       action("Back to solo", () => together.leave(), "link"));
   }
   if ($("avg").textContent && !$("avg").hidden) part(body, "about").append(line($("avg").textContent));

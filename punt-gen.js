@@ -1,6 +1,6 @@
 // Punt: a question from the Crates bank or a subject bank, four options (sometimes more than one right, and then
 // you're told how many and must pick all of them), or, for a name-it question with typing on, the answer typed. You
-// pick and stake part of your pot, or pass; every bet pays 2× (ODDS), so the only thing to weigh is how sure you are.
+// pick and commit part of your purse, or hold; a right answer doubles it (ODDS = 2), so the only thing to weigh is how sure you are.
 //
 // Runs are dealt in balanced batches, so they're comparable: within a batch the mix of question kinds and clue
 // difficulties is exactly the level's mix. Runs differ in which questions they get, nothing else.
@@ -66,8 +66,8 @@ export const BATCH = 20;
 const KINDS = { off: ["clue", "clue", "clue", "answer", "answer"], known: ["clue", "clue", "clue", "answer", "answer", "name", "name"], all: ["name"] };
 export const NAME_MODES = { off: "Off", known: "Known", all: "All" };
 export const START_POT = 1000;
-/** What every bet pays: twice the stake back if right (October 2026: the odds used to run from 1.1× to 4×, by how hard
- *  the house thought a question was; a bet is now only about how sure you are). */
+/** What every venture returns: twice the commitment back if right (October 2026: it used to run from 1.1× to 4×, by how
+ *  hard a question was thought to be; a venture is now only about how sure you are). */
 export const ODDS = 2;
 /** Every multiple-choice question's options: four, filling the 2×2 grid. */
 const OPTIONS = 4;
@@ -389,7 +389,7 @@ export const showChips = n => Math.round(n).toLocaleString("en-US");
 // A pass is a bet of 0%: it counts as a bet, believing no more than the price.
 
 /** Stake bands, by how much of the pot was staked: the size of a bet is how sure the player says they are. */
-export const BANDS = [{ label: "passed (0%)", lo: -1, hi: 0 }, { label: "up to 10%", lo: 0, hi: 0.1 }, { label: "10% to 30%", lo: 0.1, hi: 0.3 }, { label: "over 30%", lo: 0.3, hi: 1 }];
+export const BANDS = [{ label: "held (0%)", lo: -1, hi: 0 }, { label: "up to 10%", lo: 0, hi: 0.1 }, { label: "10% to 30%", lo: 0.1, hi: 0.3 }, { label: "over 30%", lo: 0.3, hi: 1 }];
 
 /** The Kelly stake for a chance p at odds o (the share of the pot that grows it fastest in the long run). */
 export const kellyStake = (p, o) => Math.max(0, Math.min(1, (p * o - 1) / (o - 1)));

@@ -1,8 +1,7 @@
-/* Punt: a betting slip. The question sits on a ticket with a torn top edge; the odds are the loudest thing on
-   the page; the pot is a running ledger figure. Turf green for the house's colours, the suite's red and green
-   for wins and losses. */
+/* Punt: a merchant's venture. The question sits on a tally slip with a torn top edge; the purse is a running
+   ledger figure. Green enamel for Punt's colours, the suite's red and green for gains and losses. */
 :root {
-  --pt-turf: #2F6B4F;       /* racing green, enamelled */
+  --pt-turf: #2F6B4F;       /* verdigris, enamelled */
   --pt-turf-ink: #F5EFE1;
   --pt-ticket: var(--tile);
   --pt-ticket-edge: var(--tile-edge);
@@ -36,7 +35,7 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-pot b.up { color: var(--pt-win); }
 .pt-pot b.down { color: var(--pt-loss); }
 
-/* the ticket: a torn top edge, the question, the selections */
+/* the tally slip: a torn top edge, the question, the options */
 .pt-slip { --star-top: .3rem; --star-right: .5rem; --star-bg: transparent; position: relative; background: var(--pt-ticket); border: 1px solid var(--pt-ticket-edge); border-radius: 0 0 14px 14px;
   padding: 0; margin-top: .4rem; display: flex; flex-direction: column; }
 /* the ticket's torn edge sits outside the slip, so the scrolling happens on a body inside it */
@@ -72,7 +71,7 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-option.wrong { border-color: var(--pt-loss); background: color-mix(in srgb, var(--pt-loss) 14%, var(--sheet)); }
 .pt-option:disabled { cursor: default; color: inherit; }
 
-/* the stake */
+/* the commitment */
 .pt-betting { margin-top: .7rem; }
 #stake { width: 100%; margin: .55rem 0 .25rem; accent-color: var(--pt-turf); height: 1.75rem; }
 .pt-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .35rem; }
