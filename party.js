@@ -40,7 +40,7 @@ const opts = { pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
 // it: the page wears that game's name and logo, it's the game picked when this phone opens a party, and an invite opens
 // the party at once
 const params = new URLSearchParams(location.search);
-let asked = playable(params.get("game"));
+let asked = playable(params.get("game") === "snap" ? "shoe" : params.get("game"));   // Snap's old link lands on Shoe, which replaced it
 const inviting = !!asked && params.has("invite");
 if (asked) { opts.pick = asked.id; write(OPTS, opts); }
 // a game also played on one phone (Higher or Lower: solo in its module) opens on this phone from its tile, until a
@@ -164,7 +164,7 @@ function restoreTyped(before, fresh) {
 }
 
 const appOf = id => APPS.find(a => a.id === id) || null;
-const PICTURE_GAMES = new Set(["snap", "sketch"]);
+const PICTURE_GAMES = new Set(["sketch"]);
 /** The header: the game being played (or, before a party's open, the one this page was opened for), else Party. */
 let branded = "";
 function brand() {
@@ -177,7 +177,7 @@ function brand() {
   if (name && app) name.textContent = app.name;
   $("appsBtn").classList.toggle("long", (app?.name || "").length >= 13);   // Higher or Lower: two lines, no taller than its logo
   if (app) document.title = app.name;
-  $("app").classList.toggle("titled", !PICTURE_GAMES.has(id));   // Snap and Sketch are pictures: full screen, no name in the band (docs/full-screen.md)
+  $("app").classList.toggle("titled", !PICTURE_GAMES.has(id));   // Sketch is a picture: full screen, no name in the band (docs/full-screen.md)
 }
 
 function draw() {

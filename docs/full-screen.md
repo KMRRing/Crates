@@ -5,7 +5,7 @@
 Then, 20:46 the same evening: "I may have gone too far asking every game to be full screen without the title. in reality, a lot of the games look better with the title there - just maybe not some of the card and idle games that should be a bit more ambient. the puzzles however, should probably keep the title layout ... Punt for instance to me looks odd without the Punt title." And, 20:54, on the list: "Harbour should go to idle, then yes implement as suggested".
 
 So a page with a header has `full` on its `#app` (no logo or header buttons; the Codex mark alone at the top right, which opens the menu; Back to menu first in the menu) in one of two states. How to adopt either is in CLAUDE.md, "Full screen"; `tests/full-screen.mjs` holds the lists.
-- **`full`**: ambient, nothing but the picture. Card and dice games, board games, idle games, pictures (Manifest, Almanac, Guilloché, Timegrapher), and Party's Snap and Sketch.
+- **`full`**: ambient, nothing but the picture. Card and dice games, board games, idle games, pictures (Manifest, Almanac, Guilloché, Timegrapher), and Party's Sketch.
 - **`full titled`**: the same quiet band with the game's name in it, in the suite's name lettering, left. Puzzles, quizzes, text and form pages, courses, tools and word games, Party and its games, Crates and Lots. A new game takes the state of its family (a puzzle or quiz page is titled, a card table or picture is full).
 
 Not a rule for the page's content: its own status and buttons stay, inside the picture.
