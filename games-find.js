@@ -59,7 +59,7 @@ export const AKA = {
   ladder: "doublets word ladder", calcudoku: "kenken", kakuro: "cross sums", bridges: "hashiwokakero", slitherlink: "loop", sudoku: "number place digits nonet killer sudoku jigsaw sudoku diagonal sudoku x sudoku", hitori: "shade repeats numbers", masyu: "pearls loop", nurikabe: "islands sea", moor: "tents trees camping tents and trees docks barges boats harbour",
   party: "lobby room friends evening", undercover: "spy social deduction", whoami: "guess identity forehead", gauge: "estimate dial",
   fuse: "bomb", snap: "match cards pairs", sketch: "drawing pictionary", whispers: "telephone chinese whispers",
-  forger: "forgery drawing bluff", gallery: "art drawing", hilo: "higher lower cards", coup: "bluff secret roles influence",
+  forger: "forgery drawing bluff", gallery: "art drawing", hilo: "higher lower cards", coup: "bluff secret roles influence", pewter: "skull bluff bid coins discs tavern",
   cue: "charades word forehead acting", river: "xiangqi chinese chess puzzle rush", gambit: "chess school lessons course learn to play beginner openings tactics checkmate endgame puzzle rush", boast: "liar's dice perudo chinese dice bluff", yacht: "five dice score sheet generala poker dice roll hold straight full house",
   bigtwo: "deuces climbing cards", hearts: "black lady queen of spades shoot the moon tricks", landlord: "dou dizhu fight the landlord", banquet: "finger game huaquan morra puzzle rush", gammon: "backgammon puzzle rush",
   jass: "schieber chibre swiss cards tricks trumps weis obenabe undenufe", belote: "coinche french cards tricks trumps", schafkopf: "bavarian cards tricks sauspiel wenz solo puzzle rush", contract: "bridge contract bridge auction", quest: "hidden roles traitors company hanse vitalian",
