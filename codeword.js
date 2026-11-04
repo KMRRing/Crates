@@ -1,10 +1,13 @@
 // Codeword: a crossword grid with no clues, every cell a number, the same number always the same letter, all 26 letters
-// somewhere in it; a few are given and the rest you crack from the shapes of the words. Tap a cell, then a letter:
+// somewhere in it. It opens on a question whose answer is one easy word; the letters of that word are given, and the rest
+// you crack from the shapes of the words. Tap a cell, then a letter:
 // every cell of that number takes it. The rules are codeword-rules.js's; making a grid and a hint
 // pace need the word lists and run in a worker (codeword-worker.js, codeword-engine.js). Together: a race on the same
 // grid (duel.js), or the split key for a pair, each holding half the numbers (codeword-room.js, on together.js).
-import { SIZES, LEVEL_NAMES, GIVENS, DAILY, HINT, CHECK, holderOf, pack, unpack, layoutOf, mysteryNums, newRun, letterOf, isFixed, isGiven, holding, place, erase, undo, filled, isFull, isSolved, rightOf, check, show, score } from "./codeword-rules.js";
-import { BRANCH, freshTable, isTable, marker, puzzleOf, letterAt, holdingAt, isFixedAt, suggestionFor, filledAt, solvedAt, isMarked, whyNot, writeIn, takeOut, takeBack, suggest, wave, checkAt, hintAt, rightAt, newGrid, resultOf, tableScore } from "./codeword-room.js";
+import { SIZES, LEVEL_NAMES, DAILY, HINT, CHECK, MISS, holderOf, pack, unpack, layoutOf, mysteryNums, newRun, letterOf, isFixed, isGiven, clueOpen, answerClue, skipClue, holding, place, erase, undo, filled, isFull, isSolved, rightOf, check, show, score } from "./codeword-rules.js";
+import { BRANCH, freshTable, isTable, marker, puzzleOf, letterAt, holdingAt, isFixedAt, isGivenAt, clueOpenAt, answerAt, skipAt, suggestionFor, filledAt, solvedAt, isMarked, whyNot, writeIn, takeOut, takeBack, suggest, wave, checkAt, hintAt, rightAt, newGrid, resultOf, tableScore } from "./codeword-room.js";
+import { cluePool, cleanSources, sourcesFromSubjects, ALL_SOURCES, KIND_LABEL, starOf } from "./codeword-clues.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -23,7 +26,6 @@ dropdown(document.getElementById("level"));   // the header dropdown in the suit
 const $ = id => document.getElementById(id);
 const RUN = "codeword:run", TIMES = "codeword:times", OPTS = "codeword:opts";
 const SAVE_EVERY = 5000;                     // ms between saves of a grid in play (a partner watching sees it that often)
-const KINDS = { "": "Off", countries: "Country", commodities: "Commodity", cities: "City" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -34,11 +36,14 @@ const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 const first = name => String(name || "Your partner").split(" ")[0];
 
-// the menu's choices for the next grid, and how a pair plays together
-let opts = { level: "medium", size: "medium", mystery: "", pair: "split", ...read(OPTS, {}) };
+// the menu's choices for the next grid (a saved one may carry choices that have gone: the mystery word, how a pair plays)
+let opts = { level: "medium", size: "medium", ...read(OPTS, {}) };
 if (!LEVEL_NAMES[opts.level]) opts.level = "medium";
 if (!SIZES[opts.size]) opts.size = "medium";
-if (!(opts.mystery in KINDS)) opts.mystery = "";
+delete opts.mystery;
+delete opts.pair;
+/** What the next random grid is dealt from: the knowledge Settings has on, and whether what's marked for removal is in. */
+const dealSpec = () => ({ src: sourcesFromSubjects(subjectsOn()), inc: markedIn() ? 1 : 0 });
 const keepOpts = () => write(OPTS, opts);
 $("level").value = opts.level;
 
@@ -65,8 +70,7 @@ function work(msg, which = "now") {
 async function inPage(msg) {
   const E = await import("./codeword-engine.js");
   if (msg.make) {
-    const T = msg.make.mystery ? (await import("./codeword-themes.js")).themeOf(msg.make.mystery, msg.make.level) : null;
-    const p = E.makePuzzle(msg.make.seed, { level: msg.make.level, size: msg.make.size, split: !!msg.make.split, mystery: T });
+    const p = E.makePuzzle(msg.make.seed, { level: msg.make.level, size: msg.make.size, split: !!msg.make.split, clues: msg.make.clues });
     return { puzzle: p ? pack(p) : null };
   }
   if (msg.hint) return { hint: E.hintFor(unpack(msg.hint.puzzle), msg.hint.right) };
@@ -74,13 +78,19 @@ async function inPage(msg) {
 }
 // a grid made ahead for the next random one with the same choices, so New grid is at once
 const spare = new Map();
-const optKey = o => `${o.level}/${o.size}/${o.mystery || ""}/${o.split ? 1 : 0}`;
+const optKey = o => `${o.level}/${o.size}/${o.src}/${o.inc ? 1 : 0}/${o.split ? 1 : 0}`;
+/** The make message for a grid: its candidate questions come from the knowledge Settings has on (they need Crates' bank, so
+ *  they're made here, not in the worker). */
+async function makeMsg(o, seed) {
+  const clues = await cluePool(seed, { src: o.src, inc: !!o.inc, max: SIZES[o.size].n });
+  return { make: { seed, level: o.level, size: o.size, split: !!o.split, clues } };
+}
 async function makeGrid(o, seed, words = "Setting the grid") {
   const k = optKey(o), ready = spare.get(k);
   if (ready && seed == null) { spare.delete(k); return ready; }
   const done = busy(words);
   try {
-    const r = await work({ make: { seed: seed ?? randomSeed(), level: o.level, size: o.size, mystery: o.mystery || "", split: !!o.split } });
+    const r = await work(await makeMsg(o, seed ?? randomSeed()));
     return r.puzzle;
   } finally { done(); }
 }
@@ -88,14 +98,14 @@ function makeSpare(o) {
   const k = optKey(o);
   if (spare.has(k) || IN_FRAME) return;
   spare.set(k, null);
-  work({ make: { seed: randomSeed(), level: o.level, size: o.size, mystery: o.mystery || "", split: !!o.split } }, "ahead")
+  makeMsg(o, randomSeed()).then(m => work(m, "ahead"))
     .then(r => { if (r.puzzle) spare.set(k, r.puzzle); else spare.delete(k); }, () => spare.delete(k));
 }
 // a grid made ahead is a promise of one until it's there
 const takeSpare = o => { const k = optKey(o), p = spare.get(k); if (p) { spare.delete(k); return p; } return null; };
 
 // ---------- what's on the board ----------
-// S: a solo grid or a race's: { mode ("random", "daily", "link" or "duel"), opts ({ level, size, mystery }), puzzle
+// S: a solo grid or a race's: { mode ("random", "daily", "link" or "duel"), opts ({ level, size, src, inc }), puzzle
 // (packed), run (codeword-rules.js), fresh (a new best), at (the cursor: { k, dir }) }.
 // T: the split key's table, when playing it (codeword-room.js). P: the puzzle unpacked; LAY its layout.
 let S = null, T = null, P = null, LAY = null;
@@ -110,7 +120,8 @@ const B = {
   get split() { return !!T; },
   letter: n => (T ? letterAt(T, P, n) : letterOf(P, S.run, n)),
   fixed: n => (T ? isFixedAt(T, P, n) : isFixed(P, S.run, n)),
-  given: n => isGiven(P, n),
+  given: n => (T ? isGivenAt(T, P, n) : isGiven(P, n, S.run)),
+  clueOpen: () => !!P && (T ? clueOpenAt(T, P) : !!S && clueOpen(P, S.run)),
   marked: n => (T ? isMarked(T, n) : S.run.marks.includes(n)),
   mine: n => !T || holderOf(n) === mySlot(),                       // a number this player sees and writes in
   sug: n => (T ? suggestionFor(T, n) : null),
@@ -160,7 +171,7 @@ function recordBest(sc) {
 }
 
 // ---------- starting ----------
-const hashFor = s => (s.mode === "daily" ? `#d=${unpack(s.puzzle).seed}` : `#s=${unpack(s.puzzle).seed}&l=${s.opts.level}&z=${s.opts.size}${s.opts.mystery ? `&m=${s.opts.mystery}` : ""}`);
+const hashFor = s => (s.mode === "daily" ? `#d=${unpack(s.puzzle).seed}` : `#s=${unpack(s.puzzle).seed}&l=${s.opts.level}&z=${s.opts.size}&t=${cleanSources(s.opts.src)}${s.opts.inc ? "&i=1" : ""}`);
 /** Puts a grid on the board: `s` is { mode, opts, puzzle, … }, `run` what's written in it so far. */
 function begin(s, run = newRun()) {
   S = { at: null, ...s, run };
@@ -183,7 +194,8 @@ function begin(s, run = newRun()) {
 /** A new grid: a random one with the menu's choices (the level from the header), or today's, the same for everyone. */
 async function start(mode, level = opts.level) {
   const daily = mode === "daily";
-  const o = daily ? { level: DAILY.level, size: DAILY.size, mystery: DAILY.mystery } : { level, size: opts.size, mystery: opts.mystery };
+  // today's grid is dealt from every source with nothing marked for removal, the same for everyone
+  const o = daily ? { level: DAILY.level, size: DAILY.size, src: ALL_SOURCES, inc: 0 } : { level, size: opts.size, ...dealSpec() };
   const puzzle = daily ? await makeGrid(o, today(), "Setting today's grid") : takeSpare(o) || await makeGrid(o, null);
   if (!puzzle) { toast("Couldn't make a grid: try again"); return; }
   begin({ mode, opts: o, puzzle });
@@ -242,6 +254,7 @@ function say(text, tone = "") { message = text ? { text, tone } : null; drawLine
 /** A letter key: the cursor's number takes it (in the split key, a suggestion when the number is the other's). */
 function key(ch) {
   if (!P || B.done() || IN_FRAME || paused || at.k < 0) return;
+  if (B.clueOpen()) { say("Answer the question first, or skip it.", "bad"); return; }
   const n = P.num[at.k];
   if (T) { tableKey(n, ch); return; }
   const r = place(P, S.run, n, ch);
@@ -276,7 +289,7 @@ function back() {
   changed();
 }
 async function useHint() {
-  if (!P || B.done() || IN_FRAME || paused) return;
+  if (!P || B.done() || IN_FRAME || paused || B.clueOpen()) return;
   const right = T ? rightAt(T) : rightOf(P, S.run);
   const done = busy("Looking for a way in", { delay: 400 });
   let h = null;
@@ -290,11 +303,35 @@ async function useHint() {
   if (!T) changed(); else render();
 }
 function useCheck() {
-  if (!P || B.done() || IN_FRAME || paused) return;
+  if (!P || B.done() || IN_FRAME || paused || B.clueOpen()) return;
   if (T) { const wrong = wrongCount(); together.act(g => checkAt(g)).then(ok => { if (ok) sayChecked(wrong); }); return; }
   check(P, S.run);
   sayChecked(S.run.marks.length);
   changed();
+}
+/** An option of the question: the answer opens the grid; a wrong one is struck out and costs MISS seconds. */
+function pickOption(i) {
+  if (!P || IN_FRAME || paused || !B.clueOpen()) return;
+  if (T) {
+    const wrong = i !== P.clue.a;
+    together.act(g => answerAt(g, i));
+    if (wrong) say(`Not ${P.clue.options[i]}: +${MISS} s.`, "bad"); else openedBy();
+    return;
+  }
+  const r = answerClue(P, S.run, i);
+  if (r.wrong) { say(`Not ${P.clue.options[i]}: +${MISS} s.`, "bad"); navigator.vibrate?.(12); save(); render(); }
+  else if (r.ok) { openedBy(); changed(); }
+}
+async function skipOption() {
+  if (!P || IN_FRAME || paused || !B.clueOpen()) return;
+  if (!(await sure(`Show the answer? It adds ${HINT} seconds.`))) return;
+  if (T) { await together.act(g => skipAt(g)); openedBy(); return; }
+  if (skipClue(P, S.run)) { openedBy(); changed(); }
+}
+/** The question is answered: where it began, the answer and what it was about, and the cursor on the first number to crack. */
+function openedBy() {
+  at = firstAt();
+  message = { text: `${P.mystery.word.toUpperCase()}: ${P.clue.note || "its letters are in."}`, tone: "good" };
 }
 const wrongCount = () => [...Array(26).keys()].map(i => i + 1).filter(n => !B.fixed(n) && B.letter(n) && B.letter(n) !== P.letters[n]).length;
 function sayChecked(wrong) {
@@ -408,8 +445,8 @@ function drawBoard() {
   }
 }
 function drawKeys() {
-  const n0 = at.k >= 0 ? P?.num[at.k] : 0, sug = n0 && B.mine(n0) ? B.sug(n0) : null, off = !P || B.done() || IN_FRAME;
-  $("kbd").classList.toggle("off", !!P && B.done());
+  const n0 = at.k >= 0 ? P?.num[at.k] : 0, sug = n0 && B.mine(n0) ? B.sug(n0) : null, off = !P || B.done() || IN_FRAME || B.clueOpen();
+  $("kbd").classList.toggle("off", !!P && (B.done() || B.clueOpen()));
   for (const b of $("kbd").querySelectorAll("button[data-ch]")) {
     const ch = b.dataset.ch, on = P ? B.holding(ch) : 0;
     const cls = `${on ? "used" : ""}${on && B.fixed(on) ? " fixed" : ""}${on && on === n0 ? " on" : ""}${sug?.l === ch ? " sug" : ""}`.trim();
@@ -421,14 +458,36 @@ function drawKeys() {
   }
   for (const b of $("kbd").querySelectorAll("button.wide")) b.disabled = off;
 }
+/** The question under the grid, in the keys' room while it is to answer. */
+let clueFor = "";
+function drawClue() {
+  const box = $("clue"), open = B.clueOpen();
+  box.hidden = !open;
+  if (!open) return;
+  const c = P.clue, key = `${P.seed}/${P.mystery.word}`;
+  if (clueFor !== key) {
+    clueFor = key;
+    const esc = t => String(t).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    $("clueAsk").innerHTML = `${c.ask ? `<span>${esc(c.ask)}</span> ` : ""}<b>${esc(c.prompt)}</b>${starOf(c)}`;
+    $("clueOpts").replaceChildren(...c.options.map((label, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.addEventListener("click", () => pickOption(i));
+      return b;
+    }));
+  }
+  const struck = (T ? T.struck : S.run.struck) || 0;
+  [...$("clueOpts").children].forEach((b, i) => { const on = !!((struck >> i) & 1); b.disabled = on; b.classList.toggle("struck", on); });
+}
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
 function drawStrip() {
   if (!P) { put("clock", "0:00"); put("found", ""); for (const id of ["undoBtn", "hintBtn", "checkBtn"]) $(id).disabled = true; return; }
-  const hints = T ? T.hints || 0 : S.run.hints, checks = T ? T.checks || 0 : S.run.checks;
-  put("clock", fmt(elapsed() / 1000 + HINT * hints + CHECK * checks));   // the score as it stands: a hint and a check are on the clock
-  put("found", `${B.filled()} of 26`);
-  const off = B.done() || IN_FRAME;
+  const hints = T ? T.hints || 0 : S.run.hints, checks = T ? T.checks || 0 : S.run.checks, misses = (T ? T.miss : S.run.miss) || 0;
+  put("clock", fmt(elapsed() / 1000 + HINT * hints + CHECK * checks + MISS * misses));   // the score as it stands: a hint, a check and a wrong pick are on the clock
+  put("found", B.clueOpen() ? "Question" : `${B.filled()} of 26`);
+  const off = B.done() || IN_FRAME || B.clueOpen();
   $("undoBtn").disabled = off || (!T && !S.run.log.length);
   $("hintBtn").disabled = off;
   $("checkBtn").disabled = off;
@@ -438,6 +497,7 @@ function drawLine() {
   let text, tone = message?.tone || "";
   if (message) text = message.text;
   else if (!P) text = duel.on ? "The same grid for everyone at the table." : "";
+  else if (B.clueOpen()) text = `No letters yet: name the answer, or skip it for +${HINT} s.`;
   else if (B.done()) text = mysteryLine() || `${LEVEL_NAMES[P.level]}, ${P.grid.length} by ${P.grid.length}${!T && S.mode === "daily" ? ": today's grid" : ""}.`;
   else if (T) {
     const n = at.k >= 0 ? P.num[at.k] : 0, partner = first(together.partner()?.name), s = n && B.mine(n) ? B.sug(n) : null;
@@ -459,16 +519,17 @@ function drawLine() {
 function mysteryLine() {
   if (!P?.mystery) return "";
   const nums = mysteryNums(P), got = nums.every(n => B.letter(n) === P.letters[n]);
-  return got ? `The mystery ${KINDS[P.mystery.kind]?.toLowerCase() || "word"}: ${P.mystery.word.toUpperCase()}.` : "";
+  return got ? `The answer: ${P.mystery.word.toUpperCase()}.` : "";
 }
 function drawMystery() {
   const box = $("mystery");
   if (!P?.mystery) { box.hidden = true; return; }
   box.hidden = false;
+  box.classList.toggle("wait", B.clueOpen());   // its room is kept while the question is open, so nothing moves when it is answered
   const nums = mysteryNums(P), key = `${P.seed}/${P.mystery.word}/${T ? mySlot() : ""}`;
   if (box.dataset.key !== key) {
     box.dataset.key = key;
-    box.replaceChildren(Object.assign(document.createElement("span"), { textContent: `${KINDS[P.mystery.kind] || "Mystery"}` }),
+    box.replaceChildren(Object.assign(document.createElement("span"), { textContent: KIND_LABEL[P.mystery.kind] || "Answer" }),
       ...nums.map(() => { const e = document.createElement("em"); e.append(document.createElement("i"), document.createElement("b")); return e; }));
   }
   const ems = box.querySelectorAll("em");
@@ -485,12 +546,13 @@ function drawResult() {
   if (!done) return;
   const v = $("verdict");
   if (T) {
-    v.textContent = `Cracked together in ${fmt(tableScore(T))}.${T.hints || T.checks ? ` (${[T.hints ? plural(T.hints, "hint") : "", T.checks ? plural(T.checks, "check") : ""].filter(Boolean).join(", ")} in that.)` : ""}`;
+    v.textContent = `Cracked together in ${fmt(tableScore(T))}.${T.hints || T.checks || T.miss ? ` (${[T.hints ? plural(T.hints, "hint") : "", T.checks ? plural(T.checks, "check") : "", T.miss ? plural(T.miss, "wrong pick") : ""].filter(Boolean).join(", ")} in that.)` : ""}`;
     $("nextBtn").textContent = "A new grid";
   } else {
     const r = S.run, sc = score(r), bits = [];
     if (r.hints) bits.push(plural(r.hints, "hint"));
     if (r.checks) bits.push(plural(r.checks, "check"));
+    if (r.miss) bits.push(plural(r.miss, "wrong pick"));
     const best = read(TIMES, {})[bestKey(S.opts)];
     v.textContent = `Cracked: ${fmt(sc)}${bits.length ? ` (${bits.join(", ")})` : ""}.${S.duel ? "" : S.fresh ? " A new best." : best != null ? ` Your best: ${fmt(best)}.` : ""}`;
     $("nextBtn").textContent = S.duel ? "The result" : S.mode === "daily" ? "A random grid" : "Another grid";
@@ -499,12 +561,13 @@ function drawResult() {
 }
 function render() {
   if (!P) { lobby(); return; }
-  drawBoard(); drawTable(); drawKeys(); drawStrip(); drawLine(); drawMystery(); drawResult();
+  drawBoard(); drawTable(); drawKeys(); drawStrip(); drawLine(); drawMystery(); drawClue(); drawResult();
 }
 /** Before a race starts, or while a table is joined: no grid yet. */
 function lobby() {
   $("board").replaceChildren();
   $("mystery").hidden = true;
+  $("clue").hidden = true;
   $("result").hidden = true;
   drawKeys(); drawStrip(); drawLine();
 }
@@ -516,15 +579,15 @@ function lobby() {
 const duel = createDuel({
   game: "codeword", name: "Codeword", accent: "--cw-in", line: $("others"), toast, lower: true,
   deal: async () => {
-    const o = { level: $("level").value, size: opts.size, mystery: opts.mystery };
+    const o = { level: $("level").value, size: opts.size, ...dealSpec() };
     const puzzle = takeSpare(o) || await makeGrid(o, null, "Setting the grid for everyone");
-    return { level: o.level, size: o.size, mystery: o.mystery, puzzle };
+    return { level: o.level, size: o.size, puzzle };
   },
   describe: m => `${LEVEL_NAMES[m.level] || "Medium"}, ${SIZES[m.size]?.n || 13} by ${SIZES[m.size]?.n || 13}: the same grid for everyone, the fastest to crack it wins`,
   play: (match, { begun, kept }) => {
     if (!unpack(match.puzzle)) { toast("That match's grid didn't arrive whole"); return; }
     const same = kept && kept.puzzle?.key === match.puzzle.key && kept.puzzle.nums === match.puzzle.nums && valid(kept);
-    begin({ mode: "duel", duel: true, opts: { level: match.level, size: match.size, mystery: match.mystery || "" }, puzzle: match.puzzle, begun, at: same ? kept.at : null }, same ? kept.run : newRun());
+    begin({ mode: "duel", duel: true, opts: { level: match.level, size: match.size, src: ALL_SOURCES, inc: 0 }, puzzle: match.puzzle, begun, at: same ? kept.at : null }, same ? kept.run : newRun());
     tell(S.run.done);
   },
   onLobby: match => { S = null; P = null; $("level").value = LEVEL_NAMES[match.level] ? match.level : "medium"; render(); },
@@ -552,7 +615,7 @@ const together = createTogether({
   slots: 2,
   // the table, with the one who deals it already seated (sitDown hands a new table over as it's dealt)
   fresh: async players => {
-    const puzzle = await makeGrid({ level: $("level").value, size: opts.size, mystery: opts.mystery, split: true }, null, "Setting the grid for you both");
+    const puzzle = await makeGrid({ level: $("level").value, size: opts.size, ...dealSpec(), split: true }, null, "Setting the grid for you both");
     return freshTable(players, { app: 1, puzzle, asked: Number(new URLSearchParams(location.search).get("new")) || 0, now: now() });
   },
   onState: g => {
@@ -583,7 +646,7 @@ function tableKey(n, ch) {
   const why = whyNot(T, slot, n, ch);
   if (why) {
     say(why === "fixed" ? `${n} is ${B.given(n) ? "given" : "shown"}: ${P.letters[n].toUpperCase()}.` : why === "taken" ? `${ch.toUpperCase()} is fixed on another number.`
-      : why === "partner" ? `${ch.toUpperCase()} is on one of ${partner}'s numbers: theirs to move.` : "", "bad");
+      : why === "partner" ? `${ch.toUpperCase()} is on one of ${partner}'s numbers: theirs to move.` : why === "clue" ? "Answer the question first, or skip it." : "", "bad");
     navigator.vibrate?.(12);
     return;
   }
@@ -615,7 +678,7 @@ async function arrive(code) {
     if (!fresh) return isTable(cur) ? "split" : "race";
     let mode = cur?.asked === at0 ? (cur.mode === "race" ? "race" : "split") : null;
     if (!mode) {
-      const r = await sync.tx(`crates/rooms/${code}/${BRANCH}`, now => (now?.asked === at0 ? undefined : marker(opts.pair, at0)));
+      const r = await sync.tx(`crates/rooms/${code}/${BRANCH}`, now => (now?.asked === at0 ? undefined : marker("split", at0)));
       mode = r.value?.mode === "race" ? "race" : "split";
     }
     return mode;
@@ -645,18 +708,17 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const sizeChoice = () => choice("Size", Object.entries(SIZES).map(([k, v]) => [k, v.label]), opts.size, v => { opts.size = v; keepOpts(); });
-  const kindChoice = () => choice("Mystery word", Object.entries(KINDS), opts.mystery, v => { opts.mystery = v; keepOpts(); });
   if (T) {                                                    // the split key: the table's own
     const t = part(body, "together"), partner = first(together.partner()?.name);
     t.append(line(`The split key with ${partner}: you hold ${mySlot() ? "14 to 26" : "1 to 13"}, ${partner} the rest.`),
       action(T.done ? "A new grid" : "A new grid now", () => tableNewGrid(), T.done ? "primary" : ""), action("Back to solo", () => together.leave(), "link"));
-    part(body, "content").append(mirror("Level", $("level")), sizeChoice(), kindChoice());
+    part(body, "content").append(mirror("Level", $("level")), sizeChoice());
     showMenu(body);
     return;
   }
   if (duel.on) {                                              // a race: the table's own, and what the next one deals
     duel.menu(part(body, "together"));
-    part(body, "content").append(mirror("Level", $("level")), sizeChoice(), kindChoice());
+    part(body, "content").append(mirror("Level", $("level")), sizeChoice());
     showMenu(body);
     return;
   }
@@ -664,9 +726,8 @@ function openMenu() {
   part(body, "play").append(action("New grid", () => confirmStart(pick), "primary"));
   const content = part(body, "content");
   content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") content.append(mirror("Level", $("level")), sizeChoice(), kindChoice());
+  if (pick === "random") content.append(mirror("Level", $("level")), sizeChoice());
   else content.append(line("Today's grid is Medium, 13 by 13: the same for everyone."));
-  part(body, "together").append(choice("A pair plays", [["split", "Split key"], ["race", "Race"]], opts.pair, v => { opts.pair = v; keepOpts(); }));
   const best = S ? read(TIMES, {})[bestKey(S.opts)] : null;
   part(body, "about").append(
     line(S ? `${LEVEL_NAMES[S.opts.level]}, ${SIZES[S.opts.size].n} by ${SIZES[S.opts.size].n}: ${best != null ? `best ${fmt(best)}` : "not cracked yet"}. A hint adds ${HINT} s, a check ${CHECK} s.` : "A crossword with no clues."),
@@ -685,22 +746,21 @@ function showMenu(body) {
 function showRules() {
   const sizes = Object.values(SIZES).map(s => `${s.label} ${s.n} by ${s.n}`).join(", "), day = SIZES[DAILY.size].n;
   $("rulesBody").innerHTML = `
-    <p>A crossword with no clues. Every white cell holds a number from 1 to 26: the same number is always the same letter, two numbers are never the same letter, and every letter of the alphabet is somewhere in the grid. A few letters are given; crack the rest from the shapes of the words.</p>
+    <p>A crossword with no clues. Every white cell holds a number from 1 to 26: the same number is always the same letter, two numbers are never the same letter, and every letter of the alphabet is somewhere in the grid. You crack the letters from the shapes of the words.</p>
+    <p><b>The question.</b> A grid opens on a question with one easy word for its answer, a country, a capital, a flag, a commodity, drawn from the topics you have on in Settings. Pick the answer from the four: its letters are the ones given, and its word shows under the grid in its numbers. A wrong pick is struck out and adds ${MISS} seconds. Skip it and the answer shows, at a hint's price. Nothing can be written in until it is answered.</p>
     <p><b>For example.</b> Say 12 is T and 7 is E, and a word of three cells reads 12, 3, 7. T?E is THE, TIE or TOE, never TEE, since 3 isn't 7. Find a 3 in a word that only one of H, I and O fits, and every 3 in the grid takes that letter.</p>
     <p><b>Playing.</b> Tap a cell, then a letter: every cell of that number takes it, and the cursor moves on to the word's next empty cell. Tap the cell again, or ↔, to turn between across and down. A letter already on another number moves to this one, and that number goes blank, unless the letter is fixed there. ⌫ takes the cursor's letter out, and Undo takes back the last change. The keys show each letter in use with its number; where there's room (a tall phone, or held sideways) the key table lists 1 to 26 with their letters, and a tap on a number goes to it. On a keyboard: letters, Backspace, the arrows, and Space to turn.</p>
     <p><b>Hint and Check.</b> Hint shows the letter a strong solver would find next, for good: it's fixed like a given, marked with a corner, and the cursor goes to its word. It adds ${HINT} seconds, and nothing before it can be undone. Check strikes through, in red, every letter written in wrong, until it changes, and adds ${CHECK} seconds.</p>
-    <p><b>Score.</b> The time plus the hints' and checks' seconds, lower being better; the clock shows it as it stands, and on a grid of your own it stands still while the menu or these rules are open. A grid counts the moment its last letter is right, and bests are kept for each level and size.</p>
-    <p><b>Levels.</b> In the menu: Easy gives ${inWords(GIVENS.easy)} letters and never asks you to weigh more than four words at once; Medium gives ${inWords(GIVENS.medium)}, and up to eight words; Hard ${inWords(GIVENS.hard)}, and sixteen or more somewhere; Expert ${inWords(GIVENS.expert)}, and thirty or more. Size: ${sizes}. Every grid has exactly one answer.</p>
-    <p><b>Mystery word.</b> In the menu, Country, Commodity or City: a row of numbered boxes under the grid spells a name of that kind, filling in as you crack its letters. Knowing the kind is a way in.</p>
-    <p><b>Race the computer.</b> In Settings: Steady, Sharp or Ace solves the same grid beside you at a person's pace, how many letters it has showing under the clock, and the end says who was quicker. Not on today's grid.</p>
-    <p><b>Today's grid.</b> ${LEVEL_NAMES[DAILY.level]}, ${day} by ${day}, the same for everyone, and a new one at midnight UTC. It counts the moment its last letter is right.</p>
-    <p><b>Together.</b> The split key: one of you holds the numbers 1 to 13, the other 14 to 26. Each sees only their own numbers and writes letters in only for them; tap one of your partner's cells and a letter to suggest it, and they tap it to write it in. Hints and checks are the team's. Or a race: the same grid for everyone, the lowest score winning.</p>`;
+    <p><b>Score.</b> The time plus the hints', checks' and wrong picks' seconds, lower being better; the clock shows it as it stands, and on a grid of your own it stands still while the menu or these rules are open. A grid counts the moment its last letter is right, and bests are kept for each level and size.</p>
+    <p><b>Levels.</b> In the menu: how much a grid asks of you once the answer's letters are in. Easy never asks you to weigh more than four words at once; Medium up to eight; Hard sixteen or more somewhere; Expert thirty or more. Size: ${sizes}. Every grid has exactly one answer.</p>
+    <p><b>Today's grid.</b> ${LEVEL_NAMES[DAILY.level]}, ${day} by ${day}, the same for everyone with the same question, whatever your topics, and a new one at midnight UTC. It counts the moment its last letter is right.</p>
+    <p><b>Together.</b> The split key: one of you holds the numbers 1 to 13, the other 14 to 26. Each sees only their own numbers and writes letters in only for them; tap one of your partner's cells and a letter to suggest it, and they tap it to write it in. The question, hints and checks are the team's. In a party, a race: the same grid for everyone, the lowest score winning.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 async function tableNewGrid() {
   if (!T) return;
   if (!T.done && filledAt(T, P) > P.givens.length && !(await sure("Start a new grid? This one isn't cracked."))) return;
-  const puzzle = await makeGrid({ level: $("level").value, size: opts.size, mystery: opts.mystery, split: true }, null, "Setting the grid for you both");
+  const puzzle = await makeGrid({ level: $("level").value, size: opts.size, ...dealSpec(), split: true }, null, "Setting the grid for you both");
   if (puzzle) together.act(g => newGrid(g, puzzle, now()));
 }
 async function confirmStart(mode) {
@@ -740,7 +800,8 @@ $("board").addEventListener("click", e => {
 addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || !P) return;
   const k = e.key;
-  if (/^[a-z]$/i.test(k)) { e.preventDefault(); key(k.toLowerCase()); }
+  if (B.clueOpen() && /^[1-4]$/.test(k)) { e.preventDefault(); pickOption(Number(k) - 1); }
+  else if (/^[a-z]$/i.test(k)) { e.preventDefault(); key(k.toLowerCase()); }
   else if (k === "Backspace" || k === "Delete") { e.preventDefault(); del(); }
   else if (k === "ArrowLeft") { e.preventDefault(); step([0, -1]); }
   else if (k === "ArrowRight") { e.preventDefault(); step([0, 1]); }
@@ -758,6 +819,7 @@ $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("undoBtn").addEventListener("click", back);
 $("hintBtn").addEventListener("click", useHint);
+$("clueSkip").addEventListener("click", skipOption);
 $("checkBtn").addEventListener("click", useCheck);
 $("nextBtn").addEventListener("click", () => { if (T) tableNewGrid(); else if (duel.on) duel.open(); else start("random"); });
 $("level").addEventListener("change", async () => {
@@ -778,14 +840,14 @@ setInterval(() => {
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
 }, 250);
 
-/** The grid a link names (#s=SEED&l=LEVEL&z=SIZE&m=KIND, or #d=DAY for a day's), or null. */
+/** The grid a link names (#s=SEED&l=LEVEL&z=SIZE&t=SOURCES&i=1, or #d=DAY for a day's), or null. */
 function hashGrid() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
-  if (h.get("d")) return { seed, mode: "daily", opts: { level: DAILY.level, size: DAILY.size, mystery: DAILY.mystery } };
-  return { seed, mode: "link", opts: { level: LEVEL_NAMES[h.get("l")] ? h.get("l") : "medium", size: SIZES[h.get("z")] ? h.get("z") : "medium", mystery: h.get("m") in KINDS ? h.get("m") : "" } };
+  if (h.get("d")) return { seed, mode: "daily", opts: { level: DAILY.level, size: DAILY.size, src: ALL_SOURCES, inc: 0 } };
+  return { seed, mode: "link", opts: { level: LEVEL_NAMES[h.get("l")] ? h.get("l") : "medium", size: SIZES[h.get("z")] ? h.get("z") : "medium", src: cleanSources(h.get("t")), inc: h.get("i") === "1" ? 1 : 0 } };
 }
-const same = h => !!S && unpack(S.puzzle)?.seed === h.seed && S.opts.level === h.opts.level && S.opts.size === h.opts.size && (S.opts.mystery || "") === h.opts.mystery && (S.mode === "daily") === (h.mode === "daily");
+const same = h => !!S && unpack(S.puzzle)?.seed === h.seed && S.opts.level === h.opts.level && S.opts.size === h.opts.size && cleanSources(S.opts.src) === h.opts.src && (S.opts.inc ? 1 : 0) === h.opts.inc && (S.mode === "daily") === (h.mode === "daily");
 async function openHash(h) {
   const puzzle = await makeGrid(h.opts, h.seed, h.mode === "daily" ? "Setting today's grid" : "Setting the grid");
   if (puzzle) begin({ mode: h.mode, opts: h.opts, puzzle });

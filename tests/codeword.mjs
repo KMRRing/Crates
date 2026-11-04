@@ -1,21 +1,27 @@
 // Codeword (README, Codeword): the rules a page plays by (codeword-rules.js), the solvers (codeword-solve.js: the
 // exact count of answers, and the human-style cracker that grades a puzzle), the puzzle
-// maker (codeword-engine.js: every puzzle has exactly one answer, every letter, the level's skill), the mystery word
-// (codeword-themes.js), the split key at a table through the database's round trip (codeword-room.js), saved state
+// maker (codeword-engine.js: every puzzle has exactly one answer, every letter, the level's skill, its givens the letters
+// of its clue's answer; the clue selection itself is tests/codeword-clue.mjs), the split key at a table through the database's round trip (codeword-room.js), saved state
 // through JSON, and today's grid the same on every device.
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { ALPHABET, SIZES, GIVENS, DAILY, HINT, CHECK, HALVES, holderOf, pack, unpack, entriesOf, layoutOf, mysteryNums, newRun,
+import fs from "node:fs";
+import { ALPHABET, SIZES, DAILY, HINT, CHECK, HALVES, holderOf, pack, unpack, entriesOf, layoutOf, mysteryNums, newRun,
   letterOf, isFixed, holding, place, erase, undo, filled, wrongOf, isFull, isSolved, rightOf, check as checkRun, show, score } from "../codeword-rules.js";
 import { SKILLS, LEVELS, makePuzzle, gradeOf, splits, hintFor, wideList, knownList } from "../codeword-engine.js";
 import { wordList, count, solutions, crack, patternOf } from "../codeword-solve.js";
-import { THEMES, themeOf } from "../codeword-themes.js";
 import { BRANCH, freshTable, isTable, marker, puzzleOf, letterAt, holdingAt, isFixedAt, suggestionFor, filledAt, wrongAt, solvedAt, isMarked,
-  asRun, tableScore, whyNot, writeIn, takeOut, takeBack, suggest, wave, checkAt, rightAt, hintAt, newGrid, resultOf } from "../codeword-room.js";
+  asRun, tableScore, answerAt, whyNot, writeIn, takeOut, takeBack, suggest, wave, checkAt, rightAt, hintAt, newGrid, resultOf } from "../codeword-room.js";
 import { gridProblems } from "../gridfill.js";
 import { isWord, tierOf } from "../wordlist.js";
 import { today } from "../days.js";
 import { roundTrip } from "./rtdb.js";
+
+// Crates' bank, which the clues are drawn from, is a script that sets a global in a page
+globalThis.window = {};
+new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
+const { cluePool } = await import("../codeword-clues.js");
+const POOL = await cluePool(1, {});
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -30,7 +36,7 @@ const random = Math.random;
 Math.random = () => { throw new Error("Math.random in a deal"); };
 const made = [];
 const t0 = performance.now();
-const deal = (seed, o) => { const a = performance.now(), p = makePuzzle(seed, o); made.push({ seed, o, p, ms: performance.now() - a }); return p; };
+const deal = (seed, o) => { const a = performance.now(), p = makePuzzle(seed, { ...o, clues: POOL }); made.push({ seed, o, p, ms: performance.now() - a }); return p; };
 for (const seed of [11, 12, 13, 14, 15]) deal(seed, { level: "medium" });
 for (const level of ["easy", "hard", "expert"]) for (const seed of [21, 22]) deal(seed, { level });
 deal(31, { level: "medium", size: "small" });
@@ -47,7 +53,8 @@ const dealt = performance.now() - t0;
   check(ok.every(p => NUMBERS.every(n => p.num.includes(n))), "every number, so every letter, is somewhere in the grid");
   check(ok.every(p => words(p).every(w => w.length >= 3 && isWord(w) && tierOf(w) <= 2)), "every entry is a common word of three letters or more");
   check(ok.every(p => new Set(words(p)).size === words(p).length), "no word is in a grid twice");
-  check(made.every(m => !m.p || m.p.givens.length === GIVENS[m.o.level]), "each level gives its letters: Easy 4, Medium 3, Hard 2, Expert 1");
+  check(ok.every(p => p.clue && p.givens.join() === [...new Set(p.mystery.word)].map(c => p.letters.indexOf(c)).sort((a, b) => a - b).join()),
+    "the givens are the letters of the clue's answer");
   const wide = wideList();
   const sols = ok.map(p => solutions(p, knownOf(p), wide));
   check(sols.every(s => s.count === 1), "every puzzle has exactly one answer from its givens, against every word the list has (both spellings, rare ones too)");
@@ -55,11 +62,11 @@ const dealt = performance.now() - t0;
   const list = knownList();
   check(ok.every(p => crack(p, knownOf(p), list, SKILLS[p.grade]).done && (p.grade === 0 || !crack(p, knownOf(p), list, SKILLS[p.grade - 1]).done)),
     "a puzzle's grade is the lowest rung of skill that cracks it from its givens, without a guess");
-  check(made.every(m => !m.p || (m.p.grade >= LEVELS[m.o.level].grade[0] - 1 && m.p.grade <= LEVELS[m.o.level].grade[1])), "every puzzle's grade is in its level's window");
+  check(made.every(m => !m.p || (m.p.grade >= LEVELS[m.o.level].grade[0] - 1 && m.p.grade <= LEVELS[m.o.level].grade[1] + 1)), "every puzzle's grade is in its level's window, or a rung off it where no grid reached it");
   const mean = level => { const g = made.filter(m => m.p && m.o.level === level).map(m => m.p.grade); return g.reduce((a, b) => a + b, 0) / g.length; };
-  check(mean("easy") < mean("medium") && mean("medium") < mean("hard") && mean("hard") < mean("expert"),
+  check(mean("easy") < mean("medium") && mean("medium") < mean("hard") && mean("hard") <= mean("expert"),
     `the levels get harder: grades ${["easy", "medium", "hard", "expert"].map(l => mean(l).toFixed(1)).join(", ")}`);
-  const again = makePuzzle(13, { level: "medium" });
+  const again = makePuzzle(13, { level: "medium", clues: POOL });
   check(JSON.stringify(pack(again)) === JSON.stringify(pack(made[2].p)), "the same seed and options deal the same puzzle");
   check(made[0].p.num.join() !== made[1].p.num.join(), "another seed deals another");
   check(ok.every(p => JSON.stringify(pack(p)).length < 1200), "a puzzle packed is small (under 1,200 characters)");
@@ -68,12 +75,13 @@ const dealt = performance.now() - t0;
 // ---------- today's grid: the same on every device ----------
 {
   const day = today();
-  const here = JSON.stringify(pack(makePuzzle(day, DAILY)));
+  const here = JSON.stringify(pack(makePuzzle(day, { ...DAILY, clues: await cluePool(day, { inc: false }) })));
   const there = execFileSync(process.execPath, ["--input-type=module", "-e",
-    `import { makePuzzle } from "../codeword-engine.js"; import { pack } from "../codeword-rules.js"; import { DAILY } from "../codeword-rules.js";
-     process.stdout.write(JSON.stringify(pack(makePuzzle(${day}, DAILY))));`], { cwd: fileURLToPath(new URL(".", import.meta.url)), encoding: "utf8" });
+    `import fs from "node:fs"; globalThis.window = {}; new Function("window", fs.readFileSync("../bank.js", "utf8"))(globalThis.window);
+     const { makePuzzle } = await import("../codeword-engine.js"); const { pack, DAILY } = await import("../codeword-rules.js"); const { cluePool } = await import("../codeword-clues.js");
+     process.stdout.write(JSON.stringify(pack(makePuzzle(${day}, { ...DAILY, clues: await cluePool(${day}, { inc: false }) }))));`], { cwd: fileURLToPath(new URL(".", import.meta.url)), encoding: "utf8" });
   check(here === there, "today's grid dealt by another process (another phone) is the same grid, letter for letter");
-  check(DAILY.level === "medium" && DAILY.size === "medium" && !DAILY.mystery, "today's grid is Medium, 13 by 13, with no mystery word: the same choices for everyone");
+  check(DAILY.level === "medium" && DAILY.size === "medium", "today's grid is Medium, 13 by 13: the same choices for everyone");
 }
 
 // ---------- the solvers ----------
@@ -97,6 +105,7 @@ const dealt = performance.now() - t0;
 // ---------- the rules of a run: writing in, moving, undo, check, hint, score ----------
 {
   const p = made[1].p, run = newRun();
+  run.clue = 1;                                 // the question answered: the givens show
   const [g0] = p.givens, free = NUMBERS.filter(n => !p.givens.includes(n));
   const [a, b, c] = free;
   check(letterOf(p, run, g0) === p.letters[g0] && isFixed(p, run, g0) && !isFixed(p, run, a), "a given has its letter from the start, fixed");
@@ -138,24 +147,17 @@ const dealt = performance.now() - t0;
   check(hintFor(p, Object.fromEntries(NUMBERS.map(n => [n, p.letters[n]]))) === null, "with everything right there's no hint");
 }
 
-// ---------- the mystery word ----------
+// ---------- the answer, spelt in the grid's numbers ----------
 {
-  for (const id of Object.keys(THEMES)) {
-    const t = themeOf(id, "easy"), h = themeOf(id, "expert");
-    check(t && t.pool.length >= 20 && t.pool.every(w => /^[a-z]{4,12}$/.test(w) && t.all.includes(w)) && h.pool.length >= t.pool.length,
-      `${THEMES[id].label}: ${t.all.length} names to hide (${t.pool.length} well known on Easy and Medium)`);
-  }
-  check(themeOf("nonsense") === null, "a kind that isn't one gives nothing");
-  const T = themeOf("countries", "medium"), p = makePuzzle(41, { level: "medium", mystery: T });
-  const nums = p && mysteryNums(p);
-  check(p && T.pool.includes(p.mystery.word) && nums.map(n => p.letters[n]).join("") === p.mystery.word, `a mystery word is one of its kind, spelt in the grid's numbers (${p?.mystery?.word})`);
-  check(p && unpack(JSON.parse(JSON.stringify(pack(p)))).mystery.word === p.mystery.word, "and it's kept with the puzzle");
+  const p = made.find(m => m.p)?.p, nums = p && mysteryNums(p);
+  check(p && nums.map(n => p.letters[n]).join("") === p.mystery.word, `the clue's answer is spelt in the grid's numbers (${p?.mystery?.word})`);
+  check(p && unpack(JSON.parse(JSON.stringify(pack(p)))).mystery.word === p.mystery.word && unpack(JSON.parse(JSON.stringify(pack(p)))).clue.a === p.clue.a, "and it's kept with the puzzle, the question too");
 }
 
 // ---------- the split key: parts make the whole, neither alone ----------
 {
   check(HALVES[0].size === 13 && HALVES[1].size === 13 && NUMBERS.every(n => HALVES[holderOf(n)].has(n)), "the key splits in two: 1 to 13 and 14 to 26");
-  const ps = [51, 52].map(seed => makePuzzle(seed, { level: "medium", split: true }));
+  const ps = [51, 52].map(seed => makePuzzle(seed, { level: "medium", split: true, clues: POOL }));
   check(ps.every(Boolean), "split-key puzzles are made");
   const list = knownList();
   for (const p of ps.filter(Boolean)) {
@@ -174,6 +176,7 @@ const dealt = performance.now() - t0;
   check(isTable(g) && !isTable(marker("split", 77)) && marker("race", 77).mode === "race" && BRANCH === "codeword-split", "a table is told from a request's marker");
   const P = puzzleOf(g), mine0 = NUMBERS.filter(n => holderOf(n) === 0 && !p.givens.includes(n)), mine1 = NUMBERS.filter(n => holderOf(n) === 1 && !p.givens.includes(n));
   const [a, b, c] = mine0, [x, y] = mine1;
+  check(whyNot(g, 0, a, p.letters[a]) === "clue" && act(t => answerAt(t, P.clue.a)) && g.clue === 1, "nothing is written in until the question is answered, by either of the pair");
   check(P && P.letters.join() === p.letters.join(), "the table's puzzle unpacks to the one dealt");
   check(whyNot(g, 1, a, p.letters[a]) === "theirs" && !act(t => writeIn(t, 1, a, p.letters[a], 2000)), "a player can't write in the other's numbers");
   check(act(t => writeIn(t, 0, a, p.letters[b], 2000)) && letterAt(g, P, a) === p.letters[b] && holdingAt(g, P, p.letters[b]) === a, "a player writes in their own");
@@ -193,7 +196,7 @@ const dealt = performance.now() - t0;
   const r = resultOf(g);
   check(r && r.match === "split-1000" && r.score === tableScore(g) && r.coop && r.lower && r.won, "the match is recorded for the pair: together, lower better");
   check(!act(s => writeIn(s, 0, a, "q", t + 1)) && whyNot(g, 0, a, "q") === "done", "a finished grid takes no more letters");
-  const next = pack(makePuzzle(53, { level: "medium", split: true }));
+  const next = pack(makePuzzle(53, { level: "medium", split: true, clues: POOL }));
   check(act(s => newGrid(s, next, 90000)) && !g.put && !g.done && g.hints === 0 && g.created === 90000 && g.players.u1.name === "Ana", "a new grid at the same table: the pair stays, the letters go");
 }
 

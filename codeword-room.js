@@ -7,10 +7,11 @@
 //
 //   { v: 1, mode: "split", app, created, asked, puzzle (packed: codeword-engine.js), put: { n7: { l, by } },
 //     sug: { n7: { l, by, at } }, shown: { n7: 1 }, hints, checks, marks: { n7: 1 }, log: { s0: [{ n, b, a, m }] },
+//     clue (0 to answer, 1 answered, 2 skipped), struck (the options picked wrong, a bit each), miss (how many),
 //     done, players: { uid: { name, slot, pid, online } } }
 // Numbers are keyed n1 to n26, never 1 to 26, which the database would hand back as a list with holes; and nothing
 // empty is relied on (the database keeps no empty object).
-import { unpack, holderOf, HINT, CHECK } from "./codeword-rules.js";
+import { unpack, holderOf, HINT, CHECK, MISS } from "./codeword-rules.js";
 
 export const BRANCH = "codeword-split";
 const K = n => `n${n}`;
@@ -18,7 +19,7 @@ const LOG = 40;                       // undo steps kept for each player
 
 /** A new table for the pair: this puzzle (packed), dealt now, for the request asked (its time) or none. */
 export function freshTable(players, { app = 1, puzzle, asked = 0, now = Date.now() }) {
-  return { v: 1, mode: "split", app, created: now, asked: asked || 0, puzzle, hints: 0, checks: 0, done: 0, players };
+  return { v: 1, mode: "split", app, created: now, asked: asked || 0, puzzle, hints: 0, checks: 0, clue: 0, struck: 0, miss: 0, done: 0, players };
 }
 export const isTable = g => g?.v === 1 && g.mode === "split" && !!g.puzzle && Number.isFinite(g.created);
 /** The marker a request leaves before its table is dealt: which match it's for (README: a request is routed). */
@@ -32,7 +33,10 @@ export function puzzleOf(g) {
   if (!seen.has(g.puzzle)) seen.set(g.puzzle, unpack(g.puzzle));
   return seen.get(g.puzzle);
 }
-export const isFixedAt = (g, p, n) => p.givens.includes(n) || !!g.shown?.[K(n)];
+/** Whether the question the grid opens on is still to answer (the givens, its answer's letters, show once it isn't). */
+export const clueOpenAt = (g, p) => !!p.clue && !g.clue;
+export const isGivenAt = (g, p, n) => p.givens.includes(n) && !clueOpenAt(g, p);
+export const isFixedAt = (g, p, n) => isGivenAt(g, p, n) || !!g.shown?.[K(n)];
 /** A number's letter at the table: given, shown by a hint, or written in by its holder; null if none. */
 export const letterAt = (g, p, n) => (isFixedAt(g, p, n) ? p.letters[n] : g.put?.[K(n)]?.l || null);
 /** The number a letter is on at the table, or 0. */
@@ -48,10 +52,10 @@ export function asRun(g) {
   const put = {}, shown = {};
   for (const [k, v] of Object.entries(g.put || {})) if (v?.l) put[Number(k.slice(1))] = v.l;
   for (const k of Object.keys(g.shown || {})) shown[Number(k.slice(1))] = 1;
-  return { put, shown, log: [], marks: Object.keys(g.marks || {}).map(k => Number(k.slice(1))), hints: g.hints || 0, checks: g.checks || 0, ms: 0, done: !!g.done };
+  return { put, shown, log: [], marks: Object.keys(g.marks || {}).map(k => Number(k.slice(1))), hints: g.hints || 0, checks: g.checks || 0, clue: g.clue || 0, struck: g.struck || 0, miss: g.miss || 0, ms: 0, done: !!g.done };
 }
 /** The team's score once it's done: seconds from the deal to the last right letter, and the hints' and checks'. */
-export const tableScore = g => (g.done ? Math.round((g.done - g.created) / 1000) + HINT * (g.hints || 0) + CHECK * (g.checks || 0) : null);
+export const tableScore = g => (g.done ? Math.round((g.done - g.created) / 1000) + HINT * (g.hints || 0) + CHECK * (g.checks || 0) + MISS * (g.miss || 0) : null);
 
 // ---------- what a player does (each inside a transaction: false leaves the table as it was) ----------
 /**
@@ -61,6 +65,7 @@ export const tableScore = g => (g.done ? Math.round((g.done - g.created) / 1000)
 export function whyNot(g, slot, n, ch) {
   const p = puzzleOf(g);
   if (!p || g.done) return "done";
+  if (clueOpenAt(g, p)) return "clue";
   if (holderOf(n) !== slot) return "theirs";
   if (isFixedAt(g, p, n)) return "fixed";
   const m = holdingAt(g, p, ch);
@@ -116,7 +121,7 @@ export function takeBack(g, slot) {
 /** Suggests ch for one of the other's numbers (n), for them to write in or wave away; "" takes a suggestion back. */
 export function suggest(g, slot, n, ch, now = Date.now()) {
   const p = puzzleOf(g);
-  if (!p || g.done || holderOf(n) === slot || isFixedAt(g, p, n) || (ch && letterAt(g, p, n) === ch)) return false;
+  if (!p || g.done || clueOpenAt(g, p) || holderOf(n) === slot || isFixedAt(g, p, n) || (ch && letterAt(g, p, n) === ch)) return false;
   g.sug = { ...(g.sug || {}) };
   if (ch) g.sug[K(n)] = { l: ch, by: slot, at: now }; else delete g.sug[K(n)];
   if (!Object.keys(g.sug).length) delete g.sug;
@@ -132,7 +137,7 @@ export function wave(g, slot, n) {
 /** A check, for the team: the numbers written in wrong are marked until they change. */
 export function checkAt(g) {
   const p = puzzleOf(g);
-  if (!p || g.done) return false;
+  if (!p || g.done || clueOpenAt(g, p)) return false;
   g.checks = (g.checks || 0) + 1;
   const wrong = wrongAt(g, p);
   if (wrong.length) g.marks = Object.fromEntries(wrong.map(n => [K(n), 1])); else delete g.marks;
@@ -150,7 +155,7 @@ export function rightAt(g) {
  */
 export function hintAt(g, n, now = Date.now()) {
   const p = puzzleOf(g);
-  if (!p || g.done || !(n >= 1 && n <= 26) || isFixedAt(g, p, n)) return false;
+  if (!p || g.done || clueOpenAt(g, p) || !(n >= 1 && n <= 26) || isFixedAt(g, p, n)) return false;
   const ch = p.letters[n], m = holdingAt(g, p, ch);
   g.put = { ...(g.put || {}) };
   if (m && m !== n) delete g.put[K(m)];
@@ -163,10 +168,26 @@ export function hintAt(g, n, now = Date.now()) {
   settle(g, now);
   return true;
 }
+/** The pair picks an option of the question (either of them; it is the team's): the answer opens the grid, a wrong pick is struck out for both and costs MISS seconds. */
+export function answerAt(g, i) {
+  const p = puzzleOf(g);
+  if (!p || g.done || !clueOpenAt(g, p) || !(i >= 0 && i < 4) || ((g.struck || 0) >> i) & 1) return false;
+  if (i === p.clue.a) g.clue = 1;
+  else { g.struck = (g.struck || 0) | (1 << i); g.miss = (g.miss || 0) + 1; }
+  return true;
+}
+/** Gives the question up for the team: the answer shows, at a hint's price. */
+export function skipAt(g) {
+  const p = puzzleOf(g);
+  if (!p || g.done || !clueOpenAt(g, p)) return false;
+  g.clue = 2;
+  g.hints = (g.hints || 0) + 1;
+  return true;
+}
 /** A new grid at the same table (the pair stays seated): every letter, suggestion and penalty goes. */
 export function newGrid(g, puzzle, now = Date.now()) {
   for (const k of ["put", "sug", "shown", "marks", "log"]) delete g[k];
-  Object.assign(g, { puzzle, created: now, hints: 0, checks: 0, done: 0 });
+  Object.assign(g, { puzzle, created: now, hints: 0, checks: 0, clue: 0, struck: 0, miss: 0, done: 0 });
   return true;
 }
 /** The match as this player saw it, once solved, for the pair's record: a team result, lower better. */

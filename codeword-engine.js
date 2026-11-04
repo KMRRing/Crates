@@ -4,9 +4,9 @@
 //
 // A puzzle is made from its seed and options alone, so a link or today's grid is the same grid on every device: a
 // dense grid (gridfill.js) filled with common words and all 26 letters, a cipher that numbers the letters in a shuffled
-// order, and the given letters, chosen so that a solver of the level's skill cracks it without guessing (crack,
-// codeword-solve.js) and that it has one answer against the widest word list (count). A mystery word, when asked for,
-// is a thing of one kind from the knowledge base spelt in the grid's numbers under it (codeword-themes.js). For the
+// order, and the given letters: the letters of the answer to the question the grid opens on (codeword-clues.js), chosen
+// so that a solver of the level's skill cracks it without guessing (crack, codeword-solve.js) and that it has one answer
+// against the widest word list (count). The answer is spelt in the grid's numbers under it. For the
 // split key (two players, each holding half the numbers) the cipher is also chosen so that each holds about half the
 // cells, and that the two crack it together while neither can alone.
 import { makeGrid, fillGrid, wordSource, seeded, mix, shuffled } from "./gridfill.js";
@@ -27,13 +27,18 @@ export const SKILLS = [
   { sift: 32, pencil: 6 },
   { sift: 64, pencil: 8 },    // 6
 ];
-/** The levels: how many letters are given, and the rungs of skill a puzzle of the level may need. */
+/**
+ * The levels: the rungs of skill a puzzle of the level may need, measured with the answer's letters given (a grid
+ * opens on a clue whose answer's letters are the givens: three to nine of them). The candidates are tried for the one
+ * whose letters leave the grid in the window, so Hard and Expert take words poor in the common letters (cocoa, Iraq).
+ */
 export const LEVELS = {
-  easy: { givens: 4, grade: [0, 2] },     // never more than four words to weigh
-  medium: { givens: 3, grade: [3, 3] },   // somewhere up to eight, or a cross-check between two short lists
-  hard: { givens: 2, grade: [4, 5] },     // somewhere sixteen or more
-  expert: { givens: 1, grade: [5, 6] },   // one letter to start from, and thirty or more to weigh
+  easy: { grade: [0, 2] },     // never more than four words to weigh
+  medium: { grade: [3, 3] },   // somewhere up to eight, or a cross-check between two short lists
+  hard: { grade: [4, 5] },     // somewhere sixteen or more
+  expert: { grade: [5, 6] },   // thirty or more
 };
+const levelOf = level => (LEVELS[level] ? level : "medium");
 // Words the list has that would read as mistakes in a grid (plurals of little words, odd verb forms); they're left out
 // of the fill, never out of what's checked for a second answer.
 const ODD = ["mys", "mes", "pis", "sics", "drys", "mads", "hows", "hims", "shes", "geed", "bani", "ains", "ays", "ems", "ens", "nus",
@@ -60,14 +65,20 @@ export function gradeOf(puzzle, givens, list = knownList()) {
   return lo;
 }
 /**
- * A puzzle (codeword-rules.js says what one is), made from the seed and these: level, size, mystery (a kind's words,
- * themeOf in codeword-themes.js, to choose the mystery word from; or null), split (a puzzle for the split key). The
- * same arguments make the same puzzle everywhere; null if every try failed (it never has in the tests).
+ * A puzzle (codeword-rules.js says what one is), made from the seed and these: level, size, clues (the candidates,
+ * codeword-clues.js: a word and the question it answers), split (a puzzle for the split key). The same arguments make
+ * the same puzzle everywhere; null if every try failed (it never has in the tests).
+ *
+ * The clue is chosen with the grid: for each grid and cipher the candidates are tried in the seed's order, each with
+ * its word's letters as the givens, and the first that a solver of the level's skill cracks (the lowest rung that does
+ * is in the level's window) and that leaves one answer is the puzzle's. A level whose window no grid reaches (Hard,
+ * mostly) settles for the nearest found, after four grids once one is within a rung.
  */
-export function makePuzzle(seed, { level = "medium", size = "medium", mystery = null, split = false, tries = 16 } = {}) {
-  const lv = LEVELS[level] ? level : "medium", sz = SIZES[size] ? size : "medium", L = LEVELS[lv], Z = SIZES[sz];
-  const known = knownList(), wide = wideList();
-  const word = mystery?.pool?.length ? shuffled(mystery.pool.filter(w => w.length <= Z.n), seeded(mix(seed, 0x3157)))[0] : null;
+export function makePuzzle(seed, { level = "medium", size = "medium", clues = [], split = false, tries = 16 } = {}) {
+  const lv = levelOf(level), sz = SIZES[size] ? size : "medium", L = LEVELS[lv], Z = SIZES[sz], [lo, hi] = L.grade;
+  const known = knownList(), wide = wideList(), pool = clues.filter(c => c.word.length <= Z.n);
+  if (!pool.length) return null;
+  let best = null;
   for (let t = 0; t < tries; t++) {
     const s = mix(seed, t), rnd = seeded(mix(s, 0xC0DE));
     const grid = makeGrid({ size: Z.n, style: "dense", seed: s });
@@ -79,42 +90,25 @@ export function makePuzzle(seed, { level = "medium", size = "medium", mystery = 
       const order = shuffled([...ALPHABET], rnd), numOf = Object.fromEntries(order.map((ch, i) => [ch, i + 1]));
       const puzzle = { grid, num: fill.grid.join("").split("").map(ch => (ch === "#" ? 0 : numOf[ch])), letters: ["", ...order] };
       if (split) { const mine = puzzle.num.filter(k => k >= 1 && k <= 13).length / puzzle.num.filter(k => k > 0).length; if (mine < 0.42 || mine > 0.58) continue; }
-      const givens = chooseGivens(puzzle, L, rnd, known);
-      if (!givens) continue;
-      const knownGivens = Object.fromEntries(givens.list.map(k => [k, puzzle.letters[k]]));
-      if (split && !splits(puzzle, knownGivens, known, SKILLS[Math.min(L.grade[1] + 1, SKILLS.length - 1)])) continue;
-      if (count(puzzle, knownGivens, wide) !== 1) continue;
-      return { seed, level: lv, size: sz, split: !!split, ...puzzle, givens: givens.list.sort((a, b) => a - b), grade: givens.grade, mystery: word ? { kind: mystery.id, word } : null };
+      for (const cand of shuffled(pool, rnd).slice(0, 30)) {
+        const givens = [...new Set(cand.word)].map(ch => numOf[ch]).sort((a, b) => a - b), grade = gradeOf(puzzle, givens, known);
+        if (grade >= SKILLS.length) continue;
+        const off = grade < lo ? lo - grade : grade > hi ? grade - hi : 0;
+        if (best && off >= best.off && off) continue;
+        const knownGivens = Object.fromEntries(givens.map(k => [k, puzzle.letters[k]]));
+        if (split && !splits(puzzle, knownGivens, known, SKILLS[Math.min(hi + 1, SKILLS.length - 1)])) continue;
+        if (count(puzzle, knownGivens, wide) !== 1) continue;
+        const made = { seed, level: lv, size: sz, split: !!split, ...puzzle, givens, grade, mystery: { kind: cand.kind, word: cand.word }, clue: cand.clue, off };
+        if (!off) return strip(made);
+        best = made;
+      }
     }
+    if (best && best.off <= 1 && t >= 3) break;
   }
-  return null;
+  return best && strip(best);
 }
-/**
- * Givens for a level: { list, grade }, or null. Sets of the level's size are drawn at random until one falls in the
- * level's window of skill (it cracks at the window's top rung and not below its bottom one: two cracks at most); if
- * none does, one is built a letter at a time, each the one of a few that lets a solver at the window's top get
- * furthest, which makes the easiest opening the level allows.
- */
-function chooseGivens(puzzle, L, rnd, list, sets = 16) {
-  const [lo, hi] = L.grade, numbers = [...Array(26).keys()].map(i => i + 1);
-  const known = ns => Object.fromEntries(ns.map(n => [n, puzzle.letters[n]]));
-  const fits = ns => crack(puzzle, known(ns), list, SKILLS[hi]).done && (lo === 0 || !crack(puzzle, known(ns), list, SKILLS[lo - 1]).done);
-  for (let i = 0; i < sets; i++) {
-    const ns = shuffled(numbers, rnd).slice(0, L.givens);
-    if (fits(ns)) return { list: ns, grade: gradeOf(puzzle, ns, list) };
-  }
-  const ns = [];
-  while (ns.length < L.givens) {
-    let best = null, most = -1;
-    for (const n of shuffled(numbers.filter(k => !ns.includes(k)), rnd).slice(0, 8)) {
-      const r = crack(puzzle, known([...ns, n]), list, SKILLS[hi]), got = Object.keys(r.known).length + (r.done ? 100 : 0);
-      if (got > most) { most = got; best = n; }
-    }
-    ns.push(best);
-  }
-  const grade = gradeOf(puzzle, ns, list);
-  return grade <= hi && grade >= lo - 1 ? { list: ns, grade } : null;
-}
+const strip = ({ off, ...p }) => p;
+
 /** Whether the split key works: the two halves crack it together, and neither half alone finishes its own numbers. */
 export function splits(puzzle, known, list, skill) {
   return crack(puzzle, known, list, { ...skill, views: HALVES }).done

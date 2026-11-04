@@ -1,23 +1,25 @@
 // Codeword's rules (README, Codeword), pure and light: what a page needs to play, with no word list in it (making a
 // puzzle and finding a hint need one, and run in a worker: codeword-engine.js). A codeword is a crossword grid with no
 // clues: every white cell holds a number from 1 to 26, the same number is always the same letter, two numbers are never
-// the same letter, and every letter of the alphabet is somewhere in the grid. A few letters are given; the rest you
-// crack from the shapes of the words.
+// the same letter, and every letter of the alphabet is somewhere in the grid. The grid opens on a question whose
+// answer is one easy word (a country, a capital); its letters are the ones given, and the rest you crack from the
+// shapes of the words.
 //
 // A puzzle here is { seed, level, size, split, grid (rows of "#" and "."), num (each cell's number, 0 for a black
-// one), letters (the answer: letters[n] for number n), givens (the numbers given), grade, mystery ({ kind, word }:
-// spelt under the grid in its numbers, or null) }, kept and sent packed (pack, unpack).
+// one), letters (the answer: letters[n] for number n), givens (the numbers given once the question is answered: the
+// letters of its answer), grade, mystery ({ kind, word }: the question's answer, spelt under the grid in its numbers, or
+// null), clue ({ ask, prompt, options (four), a (the right one), note, mk }, or null for a grid made before there were
+// clues, whose givens show from the start) }, kept and sent packed (pack, unpack).
 
 export const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 /** Grid sizes: the side of the square. */
 export const SIZES = { small: { label: "Small", n: 11 }, medium: { label: "Medium", n: 13 }, large: { label: "Large", n: 15 } };
-/** The levels' names and how many letters each gives (the skill each needs is the engine's). */
+/** The levels' names (the skill each needs is the engine's). */
 export const LEVEL_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard", expert: "Expert" };
-export const GIVENS = { easy: 4, medium: 3, hard: 2, expert: 1 };
 /** Today's grid is the same for everyone, so its options are fixed. */
-export const DAILY = { level: "medium", size: "medium", mystery: "" };
-/** Seconds a hint and a check add to the time. */
-export const HINT = 30, CHECK = 20;
+export const DAILY = { level: "medium", size: "medium" };
+/** Seconds a hint and a check add to the time; a wrong pick of the clue's answer; skipping the clue is a hint. */
+export const HINT = 30, CHECK = 20, MISS = 10;
 /** The split key: who holds a number (seat 0 the numbers 1 to 13, seat 1 the rest). */
 export const holderOf = n => (n <= 13 ? 0 : 1);
 export const HALVES = [new Set([...Array(13).keys()].map(i => i + 1)), new Set([...Array(13).keys()].map(i => i + 14))];
@@ -31,7 +33,7 @@ const NUMBERS = [...Array(26).keys()].map(i => i + 1);
  */
 export const pack = p => ({ v: 1, seed: p.seed, level: p.level, size: p.size, split: !!p.split, rows: p.grid,
   nums: p.num.map(n => (n ? String.fromCharCode(64 + n) : "#")).join(""), key: p.letters.slice(1).join(""), givens: p.givens, grade: p.grade,
-  kind: p.mystery?.kind || "", word: p.mystery?.word || "" });
+  kind: p.mystery?.kind || "", word: p.mystery?.word || "", ...(p.clue ? { clue: p.clue } : {}) });
 /** A kept puzzle back to the one made, or null if it isn't one. */
 export function unpack(o) {
   if (!o || o.v !== 1 || !Array.isArray(o.rows) || typeof o.nums !== "string" || typeof o.key !== "string" || !/^[a-z]{26}$/.test(o.key)) return null;
@@ -42,7 +44,12 @@ export function unpack(o) {
   const word = /^[a-z]{3,15}$/.test(o.word || "") ? o.word : "";
   return { seed: o.seed, level: LEVEL_NAMES[o.level] ? o.level : "medium", size: SIZES[o.size] ? o.size : "medium", split: !!o.split,
     grid: o.rows, num, letters: ["", ...o.key], givens: Object.values(o.givens || {}).filter(n => n >= 1 && n <= 26), grade: o.grade ?? 0,
-    mystery: word ? { kind: o.kind || "", word } : null };
+    mystery: word ? { kind: o.kind || "", word } : null, clue: clueOf(o.clue) };
+}
+/** A kept clue made whole, or null: a prompt, four options of text, the right one's index. */
+function clueOf(c) {
+  if (!c || typeof c.prompt !== "string" || !Array.isArray(c.options) || c.options.length !== 4 || c.options.some(o => typeof o !== "string") || !(c.a >= 0 && c.a < 4)) return null;
+  return { ask: String(c.ask || ""), prompt: c.prompt, options: c.options.slice(), a: c.a | 0, note: String(c.note || ""), ...(c.mk ? { mk: String(c.mk) } : {}) };
 }
 
 // ---------- the board ----------
@@ -78,10 +85,32 @@ export const mysteryNums = p => (p.mystery ? [...p.mystery.word].map(ch => p.let
  * log (what undo takes back: [number, its letter before, its letter after, the number the letter moved from]), hints,
  * checks, marks (the numbers the last check found wrong, until they change), ms (time on the clock), done }.
  */
-export const newRun = () => ({ put: {}, shown: {}, log: [], hints: 0, checks: 0, marks: [], ms: 0, done: false });
-export const isGiven = (p, n) => p.givens.includes(n);
+export const newRun = () => ({ put: {}, shown: {}, log: [], hints: 0, checks: 0, marks: [], ms: 0, done: false, clue: 0, struck: 0, miss: 0 });
+// ---------- the clue: the question the grid opens on ----------
+// run.clue: 0 while it is to answer, 1 once answered, 2 once skipped; run.struck the options picked wrong (a bit each),
+// run.miss how many wrong picks. The givens are the answer's letters and show only when it is no longer open; a grid with
+// no clue (one made before there were) shows them from the start.
+/** Whether the question is still to answer (nothing can be written in until it is). */
+export const clueOpen = (p, run) => !!p.clue && !run.clue;
+/** Picks an option: { ok } if it is the answer; else it is struck out and costs MISS seconds ({ ok: false, wrong: true }). */
+export function answerClue(p, run, i) {
+  if (!clueOpen(p, run) || !(i >= 0 && i < 4) || (run.struck >> i) & 1) return { ok: false };
+  if (i === p.clue.a) { run.clue = 1; return { ok: true }; }
+  run.struck |= 1 << i;
+  run.miss++;
+  return { ok: false, wrong: true };
+}
+/** Gives the question up: the answer shows, at a hint's price. */
+export function skipClue(p, run) {
+  if (!clueOpen(p, run)) return false;
+  run.clue = 2;
+  run.hints++;
+  return true;
+}
+/** Whether n is one of the given numbers and the grid is showing them (`run` omitted: whether it is one of them at all). */
+export const isGiven = (p, n, run) => p.givens.includes(n) && !(run && clueOpen(p, run));
 /** Whether a number's letter can't change: given, or shown by a hint. */
-export const isFixed = (p, run, n) => isGiven(p, n) || !!run.shown?.[n];
+export const isFixed = (p, run, n) => isGiven(p, n, run) || !!run.shown?.[n];
 /** A number's letter as it stands: given, shown or written in; null if it has none. */
 export const letterOf = (p, run, n) => (isFixed(p, run, n) ? p.letters[n] : run.put[n] || null);
 /** The number a letter is on now, or 0. */
@@ -151,4 +180,4 @@ export function show(p, run, n) {
   return true;
 }
 /** A run's score: seconds on the clock, and the hints' and checks' seconds; lower is better. */
-export const score = run => Math.round(run.ms / 1000) + HINT * run.hints + CHECK * run.checks;
+export const score = run => Math.round(run.ms / 1000) + HINT * run.hints + CHECK * run.checks + MISS * (run.miss || 0);
