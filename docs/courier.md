@@ -14,7 +14,7 @@ A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Bri
 - A cut can be moved in flight: "it should be possible to jump up, then left and right mid air to correct the answer bird" and "up -> left -> left if done fast enough should go from attacking the right bird to the left bird".
 - Flyers follow my height: "quite easy to gain vertical height in this game. Enemy flyers slowly rise or fall closer to the player if the player is far above or below them. If the player is a bit above and next to them then the player can hit them with left/right swipes, or if the player is just slightly above in the same lane, up will work. Otherwise down slam will work". (`drift()`; a question's gulls and a pit's do not move.)
 - Foes telegraph: "enemy units should telegraph their attacks" (he had first said there was no need): sees me, winds up, launches, by seconds to contact.
-- Grace: "should get more grace time: immediately after swipe is complete, hero should be immune to attack from that direction" (0.4 s, towards the side swiped).
+- Grace: "should get more grace time: immediately after swipe is complete, hero should be immune to attack from that direction" (0.4 s towards the side swiped; replaced on 4 November, below).
 - The question stands "above the player near the top of the screen somewhere under the hearts with the answers", with "more time to think about right answer"; "the questions should be capped in length" (70 characters, answers 34); "getting a question wrong costs 2 lives; right restored one".
 - "units when hit should fly back" (he wrote "Rennt units"; read as every unit). Drawing only.
 - "redesign the enemy melee unit, idk what that's supposed to be but looks weird": the crab.
@@ -26,7 +26,7 @@ A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Bri
 - 4 November 2026: the grog joke goes (no drinking in the suite); section 13 is Timber Wharf.
 - 4 November 2026, Korbi: a Feel lab, very few clicks per test, to generate feedback.
 - 4 November 2026, Korbi, on the to-do list: "using enemies to gain altitude and traverse pits is a core component of the game" (the gull chains, the question gulls, the balloon stair stay; the work is making them read right). Questions may be answered every way, "running, cutting, whatever else". A stumble on a hit gets "a brief slow down in time". Knowledge waits: "we work on knowledge later. knowledge comes from knowledge chart."
-- 4 November 2026, Korbi, decisions on the to-do list: a wrong answer stays 2 hearts. A gull in my own lane attacks ("rolling or moving after they launched (very close) can dodge"). A wall run from the middle lane takes one swipe. A roll gets a short recovery. The guard: "a foe that you are attacking cannot hurt you, even if they are mid attack and you are *quite* late to do the swipe" (this replaces the blanket 0.4 s guard). Coins buy upgrades, outfits and a revive in a Counting-house.
+- 4 November 2026, Korbi, decisions on the to-do list: a wrong answer stays 2 hearts. A gull in my own lane attacks ("rolling or moving after they launched (very close) can dodge"; a jump at it is a jump attack, from the moment it has seen me). A wall run from the middle lane takes one swipe. A roll gets a short recovery (`ROLL_REC`). The guard: "a foe that you are attacking cannot hurt you, even if they are mid attack and you are *quite* late to do the swipe" (this replaces the blanket 0.4 s guard: only the swipe's target, and the foes a sweep goes on to, are safe; a foe that is hitting me waits `LATE_WIN` before the hit lands, and a swipe at it in that time wins). Coins buy upgrades, outfits and a revive in a Counting-house.
 - Wall running, same message: "if I'm in the middle lane and there's a wall on the right of the right lane, if I jump up then right mid air, it'll do a wall run, then most walls won't allow me to get higher but sometimes always [read: also] I get a second jump from this, so if the wall is higher, or if there's a wall opposite, then you can jump again and then left or right and you'll wall run on a higher level."
 
 ## The wall run
@@ -35,7 +35,8 @@ Korbi's words (4 November 2026) read as: a wall run resets the jump; most walls 
 | From | Swipe or event | To |
 |---|---|---|
 | run | sideways towards a wall in the edge lane I am in | wall, feet at `WALL_Y` (2 m) |
-| run, middle lane | sideways towards the wall | a lane change; the wall run is the next swipe |
+| run, middle lane | sideways towards a wall in the edge lane, no foe to cut in it | wall, by way of the lane, in the one swipe (a foe in that lane to cut makes it the cut; the wall run is the next swipe) |
+| air, middle lane | sideways towards the wall, feet under its top | wall, at the height I was |
 | air (any jump) | towards a wall in my edge lane, feet under its top | wall, at the height I was (never above top - 0.5); the jump is mine again |
 | air, above the top | towards the wall | a lane change attempt; no wall (an ordinary wall, `WALL_TOP` 3.2 m, gives no height) |
 | wall | up | air, `WALLJUMP_V`, and `kick` is set |
@@ -48,6 +49,8 @@ Korbi's words (4 November 2026) read as: a wall run resets the jump; most walls 
 A wall's `top` is its height (`WALL_TOP` when it has none); the ship's side stands 8.5 m over water, so it takes two jumps and two crossings.
 
 ## Traps
+- A gull dives only while I am on the ground and not flying at something; a roll goes under it (it is not cut), and `rollRec` is the recovery after the last roll of a chain (a down in it waits its `BUFFER`, so a longer recovery eats the swipe).
+- Swipes at a foe have no earliest time any more (a lane change is as quick as the cut), and a foe in `threat` (hitting me, `f.threat` the time it began) is still a target until `LATE_WIN` is out. Barrels and balloons are inert and hit at once.
 - Swipe windows are in seconds to contact, not metres, so they are the same at 10 m/s and at 16. A foe's `aim` is fixed at its launch.
 - The world is drawn in a group mirrored in x (`world`), and the camera gets the mirrored x. Lane +1 is the hero's right.
 - The hero's lane x is a critically damped spring (`LANE_OMEGA`), so `h.x` is mid-arc during a change and `h.vx` carries its speed; a save from before has no `vx` (read it `|| 0`). A cut's y is eased; its x is the same spring.

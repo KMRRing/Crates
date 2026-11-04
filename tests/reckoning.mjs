@@ -83,7 +83,7 @@ const events = S => take(S).map(e => e.type);
   [S, f] = trial(0, -1, 0.4, "left", "gull", true);
   check(!f.alive && S.hero.lane === -1, "in the air a gull in the next lane is cut down the same way");
   [S, f] = trial(0, -1, 0.4, "left", "gull", false);
-  check(f.alive && S.hearts === 3 && S.hero.lane === -1, "from the ground a swipe changes lane only: a gull flies over my head");
+  check(f.alive && S.hearts === 2 && S.hero.lane === -1, "from the ground a swipe changes lane only, and the gull, still winding, then dives down my new lane");
   [S, f] = trial(0, -1, 0.9, "left");
   check(f.alive && S.hearts === 2, "too early to count as an attack: only a lane change, into its path");
 }
@@ -95,7 +95,7 @@ const events = S => take(S).map(e => e.type);
   check(!f.alive && S.hero.vy > 5 && S.hero.y > 1.2 && S.chain === 1, "a gull above in my lane: up is a jump attack, and I am thrown up again");
   const T = scene(), g = foeAt(T, "gull", 0, 0.4);
   run(T, 1.2);
-  check(g.alive && T.hearts === 3, "walking under it is harmless");
+  check(g.alive && g.ph === 3 && T.hearts === 2, "walking under it is not harmless: it dives down my lane (tests/courier-rules.mjs has the dodges)");
 }
 
 // ---------- 4. the bonk ----------
@@ -212,7 +212,7 @@ const events = S => take(S).map(e => e.type);
   [S, f] = trial(-1, 1, 0.4, "left");
   check(f.alive && S.hero.lane === -1, "a swipe the other way leaves it alone");
   [S, f] = trial(-1, 1, 0.12, "right");
-  check(f.alive && S.hero.lane === 0, "too close to cross two lanes in time: only the one lane");
+  check(!f.alive && S.hero.lane === 1 && S.hearts === 3, "even this late the swipe wins: both lanes are crossed and it is cut down");
   [S, f] = trial(-1, 1, 0.9, "right");
   check(f.alive && S.hero.lane === 0, "too far off to count as an attack: only a lane change");
   {
@@ -325,7 +325,7 @@ const events = S => take(S).map(e => e.type);
   [S, f] = gull([[0.96, "down"]]);
   check(S.hearts === 3 && f.alive, "and so does a roll: it goes under the dive");
   [S, f] = gull([], 1.2, 0);
-  check(S.hearts === 3 && !f.ph, "a gull in my own lane never attacks: I run under it");
+  check(S.hearts === 2 && f.ph === 3 && f.aim === 0, "a gull in my own lane attacks too: it dives down the lane");
   {
     const U = scene({ hero: { lane: 0, y: 6, mode: "air", vy: 9 } }), g = foeAt(U, "gull", -1, 1.2);
     run(U, 1.0);
@@ -361,7 +361,7 @@ const events = S => take(S).map(e => e.type);
   [S, f] = dive(1.1);
   check(!f.alive && S.hearts === 3, "right up to the last moments before it hits (0.1 s before)");
   [S, f] = dive(0.7);
-  check(f.alive && S.hearts === 3, "before the launch it is only a lane change: it has not dived yet, and I am in its lane");
+  check(f.alive && S.hearts === 2, "before the launch it is only a lane change: it has not dived yet, and it dives down the lane I am in");
   [S, f] = dive(0.95, "right", -1);
   check(f.alive && S.hearts === 3, "a swipe away from it still only dodges");
 }
@@ -487,38 +487,12 @@ const events = S => take(S).map(e => e.type);
   [S, f] = trial(3, -2, -1, 0.45, "right");
   check(f.alive && S.hero.lane === 1, "the other way, a dodge");
   [S, f] = trial(3, -2, 1, 0.05, "right");
-  check(f.alive, "too late for the swoop to arrive");
+  check(!f.alive, "even this late the swoop arrives (a swipe is never too late to win)");
   {
     const T = scene({ hero: { y: 3, vy: -2, mode: "air", lane: -1, x: -LANE_W } }), c = foeAt(T, "crab", 1, 0.45);
     run(T, 0.005); swipe(T, "right"); run(T, 1.2);
     check(!c.alive && T.hero.lane === 1, "and so is one two lanes across");
   }
-}
-
-// ---------- the guard after a swipe ----------
-{
-  // 0.085 s of running is 0.85 m: just outside a foe's reach, and just inside the window of a swipe sideways, which the
-  // first step of the run leaves
-  let S = scene({ hero: { lane: 0 } }), f = foeAt(S, "crab", -1, 0.085);
-  run(S, 0.005); swipe(S, "left"); run(S, 1);
-  check(S.hearts === 3 && S.hero.lane === -1, "a swipe towards a foe a moment too late to cut it does not leave me hit by it");
-  S = scene({ hero: { lane: -1, x: -LANE_W } }); f = foeAt(S, "crab", 0, 0.085);
-  run(S, 0.005); swipe(S, "up"); run(S, 1);
-  check(S.hearts === 2, "but it guards only the side it was made towards: a foe beside me hits as it did");
-  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.3);
-  run(S, 0.005); swipe(S, "left"); run(S, 1);
-  check(S.hearts === 3 && f.alive, "(and a swipe away from it, in time, still dodges)");
-  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.085);
-  run(S, 0.005); swipe(S, "left"); run(S, 1);
-  check(S.hearts === 2, "(but one that has launched at my lane is not dodged in the last moment: it hits where it aimed)");
-  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.9);
-  run(S, 0.005); swipe(S, "right"); run(S, 1.3);
-  check(S.hearts === 2, "the guard ends: a foe that arrives after it hits");
-  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 0, 0.5);
-  run(S, 0.005); swipe(S, "up"); run(S, 0.2);
-  check(S.hero.guard && S.hero.guard.dir === "up", "a swipe that is made sets the guard");
-  S = scene(); swipe(S, "up"); run(S, 0.3); swipe(S, "up"); 
-  check(!S.hero.guard || S.hero.guard.until < S.t + 0.1 || S.hero.mode === "air", "(a swipe that does nothing sets none)");
 }
 
 // ---------- the wall ----------
@@ -542,7 +516,7 @@ const events = S => take(S).map(e => e.type);
   check(S.hero.mode !== "wall", "at the wall's end the hero comes off it");
   S = scene(); S.world.walls.push({ side: 1, z0: -5, z1: 60 });
   swipe(S, "right");
-  check(S.hero.lane === 1 && S.hero.mode === "run", "from the middle lane the same swipe is only a lane change");
+  check(S.hero.lane === 1 && S.hero.mode === "wall", "from the middle lane the same swipe is the wall run, by way of the lane");
   S = wallScene({ y: 1.2, mode: "air", vy: 3 });
   swipe(S, "right");
   check(S.hero.mode === "wall", "or jump first, then swipe into the wall");

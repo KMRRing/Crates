@@ -27,7 +27,7 @@ export function bot(S, st) {
   if (free !== null && h.mode === "run" && h.lane !== free) return act(free > h.lane ? "right" : "left", 0.05);
   if (st.slamAfter && h.mode === "air" && h.y > SLAM_MIN_Y && h.vy < 0 && h.z > st.slamAfter) { st.slamAfter = 0; return act("down"); }
   // a gull one lane over that has wound up is about to dive: a roll goes under it (and a run of them leaves no gap)
-  const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) === 1);
+  const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) <= 1);
   if (dive && h.mode === "run" && !h.roll) return act("down");
   // crabs
   const f = W.foes.find(f => f.alive && !f.spent && f.kind === "crab" && ttc(f.z) > 0 && ttc(f.z) < 0.5 && Math.abs(f.lane - h.lane) <= 1);
@@ -183,7 +183,7 @@ export function rowBot(S, st) {
   if (z === undefined || z < h.z) return false;
   const row = cellsAt(S, z), t = ttc(z);
   // a gull one lane over that has wound up is about to dive: a roll goes under it
-  const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) === 1);
+  const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) <= 1);
   if (dive && h.mode === "run" && !h.roll) return act("down");
   const mine = row[h.lane + 1];
   const has = (cell, fn) => cell.some(fn);

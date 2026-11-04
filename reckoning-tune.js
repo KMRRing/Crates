@@ -11,6 +11,8 @@ export const DEFAULTS = Object.freeze({
   BUFFER: 0.14,       // s a swipe with nothing to work on yet is kept
   LAND_BUFFER: 0.32,  // the most an up swiped in the air is kept for the landing, s
   ROLL_T: 0.45,       // s a roll lasts
+  ROLL_REC: 0.16,     // s of recovery after a roll, or a chain of them, in which another roll cannot start (4 November 2026)
+  LATE_WIN: 0.18,     // s a foe that is hitting me waits before the hit lands, in which a swipe at it still wins (the swipe is "quite late")
   FRONT_WIN: 0.28,    // up cuts a ground foe in my lane within this many seconds of contact
   ABOVE_WIN: 0.55,    // up cuts a flyer in my lane within this
   SIDE_WIN: 0.6,      // a swipe sideways cuts a foe in the next lane within this

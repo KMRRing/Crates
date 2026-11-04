@@ -39,7 +39,7 @@ export function heroText(S) {
   else bits.push("running");
   if (h.roll > 0) bits.push(`rolling ${f2(h.roll)}s`);
   if (h.jumps > 0) bits.push("jump in hand");
-  if (h.guard && S.t < h.guard.until) bits.push(`guarded ${h.guard.dir} ${f2(h.guard.until - S.t)}s`);
+  if (h.rollRec > 0) bits.push(`roll recovery ${f2(h.rollRec)}s`);
   if (h.hurt > 0) bits.push(`hurt-grace ${f2(h.hurt)}s`);
   return bits.join(", ");
 }

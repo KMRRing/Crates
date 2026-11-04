@@ -695,6 +695,7 @@ export function createRunner(host) {
   const FALL  = [-0.5, 0.45, 0.45, 0.4, -0.2, 0.9, -0.3, -0.2, -0.5, -0.3, 0.1, 0, 0, 0];
   const READY = [-0.75, 0.25, -0.3, 0.2, 0.3, 0.5, -0.3, 0.2, -0.3, -0.3, 0.12, 0, 0, 0];             // reaching for the planks
   const ROLLP = [-1.55, 2.3, -1.55, 2.3, -1.2, 0.2, -1.7, -1.2, -0.2, -1.7, 0, 0, 0.5, 0];
+  const RECP = [-0.95, 1.7, -0.95, 1.7, -0.7, 0.15, -0.6, -0.7, -0.15, -0.6, 0.6, 0, 0.35, 0];      // coming up out of a roll (ROLL_REC): low, bent, arms hanging
   const SLAMP = [0.1, 0.25, 0.2, 0.25, 0.7, 0.2, -0.4, 0.15, -0.2, 0, 0.4, 0, 0, 0];
   const mixP = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
   const idlePose = t => [-0.08 + 0.02 * Math.sin(t * 1.7), 0.12, 0.1 - 0.02 * Math.sin(t * 1.7), 0.14, 0.06, 0.15, -0.25, -0.45, 0, -1.15,
@@ -727,6 +728,7 @@ export function createRunner(host) {
       return ["air", v];
     }
     if (c.rolling) return ["roll", ROLLP];
+    if (h.rollRec > 0 && h.mode === "run") return ["recover", RECP];
     if (c.idle) return ["idle", idlePose(c.t)];
     return ["run", stride()];
   }

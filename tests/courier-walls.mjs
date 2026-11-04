@@ -84,9 +84,37 @@ const atZ = z => S => S.hero.z >= z;
 {
   const S = scene({ lane: 0, walls: [{ side: 1, z0: 10, z1: 90 }] });
   go(S, atZ(8)); sw(S, "right");
-  check(S.hero.mode === "run" && S.hero.lane === 1, "from the middle lane a swipe towards the wall is a lane change; the wall run is the next swipe");
+  check(S.hero.mode === "wall" && S.hero.wall === 1 && S.hero.lane === 1, "from the middle lane a swipe towards a wall is the wall run, in one swipe, by way of the lane");
+  go(S, S => S.hero.y > 1.9);
+  check(Math.abs(S.hero.y - WALL_Y) < 0.1 && S.hearts === 3 && log.some(e => e.type === "wallrun" && e.via), "and it lifts me to the same height as from the edge lane");
+}
+{
+  const S = scene({ lane: 0, walls: [{ side: -1, z0: 10, z1: 90 }] });
+  go(S, atZ(8)); sw(S, "right");
+  check(S.hero.lane === 1 && S.hero.mode === "run", "a swipe away from the wall is a lane change");
   go(S, S => S.hero.z > 20); sw(S, "left");
-  check(S.hero.lane === 0 && S.hero.mode === "run", "a swipe away from a wall is a lane change");
+  check(S.hero.lane === 0 && S.hero.mode === "run", "and back again too");
+  sw(S, "left");
+  check(S.hero.mode === "wall" && S.hero.wall === -1, "and from the middle lane, towards the wall, one swipe");
+}
+{
+  const S = scene({ lane: 0, walls: [{ side: 1, z0: 10, z1: 90 }] });
+  go(S, atZ(4)); sw(S, "up");
+  go(S, S => S.hero.vy < 0 && S.hero.y > 1.0);
+  sw(S, "right");
+  check(S.hero.mode === "wall" && S.hero.wall === 1 && S.hero.wallY < 1.7, "in a jump from the middle lane the same, at the height I was (Korbi's first words)");
+}
+{
+  const S = scene({ lane: 0, walls: [{ side: 1, z0: 10, z1: 90 }] });
+  const f = { id: 77, kind: "crab", lane: 1, x: LANE_W, z: 8 + 10 * 0.4 + 0.1, y: 0, h: 1, alive: true, spent: false, gate: null };
+  S.world.foes.push(f);
+  go(S, atZ(8.1)); sw(S, "right");
+  check(S.hero.mode !== "wall" && S.hero.lane === 1, "with a foe to cut in the edge lane the swipe is the cut, not the wall run (the next one is)");
+}
+{
+  const S = scene({ lane: 0, walls: [{ side: 1, z0: 10, z1: 90, top: 2.4 }] });
+  go(S, atZ(8)); sw(S, "right");
+  check(S.hero.mode === "wall" && S.hero.wallY <= 1.9 + 1e-9, "and a low wall lifts me no higher than its top allows");
 }
 {
   const S = scene({ lane: 1, walls: [{ side: 1, z0: 10, z1: 40 }] });
