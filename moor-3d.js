@@ -11,7 +11,7 @@ import * as THREE from "./vendor/three.js";
 
 const DEG = Math.PI / 180;
 const MIN_EL = 32 * DEG, MAX_EL = 86 * DEG, FOV = 30 * DEG;
-const HOME_EL = 62 * DEG;
+const HOME_UP = 72 * DEG, HOME_SIDE = 58 * DEG;      // the first view's elevation: higher on a tall card, lower on a wide one
 const MAX_ZOOM = 3.2;
 const SLIP = 9;                                 // pixels a finger may stray and still tap
 const FRAME_MS = 1000 / 24;
@@ -19,9 +19,9 @@ const QUAY = 1.1, LAND = 70;                    // the quay's width round the ba
 const WAVE = (x, z, t) => 0.012 * Math.sin(x * 1.1 + t * 0.9) + 0.01 * Math.sin(z * 1.4 - t * 0.7);
 
 const SKINS = {
-  day: { sea: 0x4a8fb5, foam: 0xffffff, quay: 0xb89a6a, quayLo: 0x8a6c42, ground: 0x93a872, plaza: 0xc9c2ad, wood: 0x9a6a3b, woodLo: 0x5e3f20, hull: 0x2f4f66, deck: 0xd9b97a, gilt: 0xe6b93a, red: 0xb5432f,
+  day: { sea: 0x4a8fb5, foam: 0xffffff, quay: 0xb89a6a, quayLo: 0x8a6c42, ground: 0x93a872, plaza: 0xc9c2ad, wood: 0x9a6a3b, woodLo: 0x5e3f20, hull: 0x2f4f66, deck: 0xcfd8de, gilt: 0xe6b93a, red: 0xb5432f,
     crates: [0xb5432f, 0xc8923a, 0x3f7f78], walls: [0xd8cfb8, 0xb9a98a, 0x9aa6ae], roof: 0x8a4b3a, lampOff: 0x6f6f6f, lampOn: 0x3fbf7a, hemi: 1.15, sky: 0xfff4dc, under: 0x6d8fa6, key: 0xfff0d2, keyI: 2.3, exposure: 1.0 },
-  night: { sea: 0x34607f, foam: 0xdfeaf5, quay: 0x8d7a58, quayLo: 0x65563c, ground: 0x56694a, plaza: 0x8f8a7b, wood: 0xb5854d, woodLo: 0x7a5430, hull: 0x86a9c2, deck: 0xe0c58e, gilt: 0xf4cf6a, red: 0xd8705a,
+  night: { sea: 0x34607f, foam: 0xdfeaf5, quay: 0x8d7a58, quayLo: 0x65563c, ground: 0x56694a, plaza: 0x8f8a7b, wood: 0xb5854d, woodLo: 0x7a5430, hull: 0x86a9c2, deck: 0xdfe8ee, gilt: 0xf4cf6a, red: 0xd8705a,
     crates: [0xd8705a, 0xe2b865, 0x6fbdb3], walls: [0x9c9585, 0x857a63, 0x7b8790], roof: 0x7a4a3d, lampOff: 0x8a8a8a, lampOn: 0x6ff0a8, hemi: 1.3, sky: 0xa5b4d2, under: 0x1c2a38, key: 0xcfdcf6, keyI: 1.9, exposure: 1.1 },
 };
 function skinNow() {
@@ -130,13 +130,15 @@ export function createModel(host, opts = {}) {
     for (const d of P.docks) {
       const [x, z] = cellXZ(d), g = new THREE.Group();
       g.position.set(x, 0, z);
-      g.add(box(0.8, 0.1, 0.8, M.wood, 0, 0.22, 0));
-      for (const dz of [-0.17, 0.17]) g.add(box(0.78, 0.014, 0.03, M.woodLo, 0, 0.275, dz));
-      for (const [dx, dz] of [[-0.34, -0.34], [0.34, -0.34], [-0.34, 0.34], [0.34, 0.34]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.8, 8), M.woodLo); p.position.set(dx, -0.05, dz); g.add(p); }
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.34, 6), M.woodLo); post.position.set(-0.3, 0.44, -0.3); g.add(post);
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), new THREE.MeshBasicMaterial({ color: 0x6f6f6f }));
-      lamp.position.set(-0.3, 0.64, -0.3); g.add(lamp);
-      g.add(box(0.2, 0.16, 0.2, M.crate[hash(d) * 3 | 0], 0.18, 0.35, 0.16));
+      // a pier: a timber deck well over the water on four piles, a mooring post, a hut with a roof, and a lamp on a post
+      g.add(box(0.82, 0.1, 0.82, M.wood, 0, 0.36, 0));
+      for (const dz of [-0.2, 0.2]) g.add(box(0.8, 0.014, 0.03, M.woodLo, 0, 0.415, dz));
+      for (const [dx, dz] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.9, 8), M.woodLo); p.position.set(dx, -0.02, dz); g.add(p); }
+      const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.16, 8), M.woodLo); bollard.position.set(0.26, 0.5, 0.26); g.add(bollard);
+      g.add(box(0.34, 0.3, 0.28, M.wall[hash(d) * 3 | 0], 0.06, 0.56, -0.1), box(0.42, 0.07, 0.36, M.roof, 0.06, 0.74, -0.1));
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 6), M.woodLo); post.position.set(-0.3, 0.66, 0.28); g.add(post);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x6f6f6f }));
+      lamp.position.set(-0.3, 0.9, 0.28); g.add(lamp);
       world.add(g);
       docks.push({ cell: d, g, lamp, on: false });
     }
@@ -178,14 +180,14 @@ export function createModel(host, opts = {}) {
   // ---------- a barge: a slate hull along its dock's edge, a timber deck, two crates, a ring of foam ----------
   const hullGeo = (() => {
     const s = new THREE.Shape();
-    [[-0.41, -0.2], [0.2, -0.2], [0.42, 0], [0.2, 0.2], [-0.41, 0.2]].forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+    [[-0.44, -0.23], [0.22, -0.23], [0.45, 0], [0.22, 0.23], [-0.44, 0.23]].forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
     s.closePath();
-    const g = new THREE.ExtrudeGeometry(s, { depth: 0.2, bevelEnabled: false });
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.3, bevelEnabled: false });
     g.rotateX(-Math.PI / 2);
     g.translate(0, -0.09, 0);
     return g;
   })();
-  const deckGeo = new THREE.BoxGeometry(0.68, 0.025, 0.3), foamGeo = new THREE.BoxGeometry(0.98, 0.006, 0.62), crateGeo = new THREE.BoxGeometry(0.2, 0.15, 0.2);
+  const deckGeo = new THREE.BoxGeometry(0.74, 0.025, 0.34), foamGeo = new THREE.BoxGeometry(1.02, 0.006, 0.68), crateGeo = new THREE.BoxGeometry(0.22, 0.17, 0.24);
   function angleOf(x) {
     const [r, c] = [Math.floor(x / N), x % N];
     if ((r > 0 && P.dock[x - N]) || (r < N - 1 && P.dock[x + N])) return 0;
@@ -196,9 +198,9 @@ export function createModel(host, opts = {}) {
     const [px, pz] = cellXZ(x), g = new THREE.Group(), hull = new THREE.Mesh(hullGeo, solid(skin?.hull ?? 0x2f4f66));
     g.add(hull);
     const foam = new THREE.Mesh(foamGeo, M.foam); foam.position.y = 0.012; g.add(foam);
-    const deck = new THREE.Mesh(deckGeo, M.deck); deck.position.set(-0.05, 0.115, 0); g.add(deck);
-    const c1 = new THREE.Mesh(crateGeo, M.crate[hash(x) * 3 | 0]); c1.position.set(-0.2, 0.2, 0); g.add(c1);
-    const c2 = new THREE.Mesh(crateGeo, M.crate[hash(x + 77) * 3 | 0]); c2.position.set(0.06, 0.2, 0); c2.scale.set(0.8, 0.9, 0.9); g.add(c2);
+    const deck = new THREE.Mesh(deckGeo, M.deck); deck.position.set(-0.05, 0.215, 0); g.add(deck);
+    const c1 = new THREE.Mesh(crateGeo, M.crate[hash(x) * 3 | 0]); c1.position.set(-0.2, 0.3, 0); g.add(c1);
+    const c2 = new THREE.Mesh(crateGeo, M.crate[hash(x + 77) * 3 | 0]); c2.position.set(0.06, 0.3, 0); c2.scale.set(0.8, 0.9, 0.9); g.add(c2);
     g.rotation.y = angleOf(x) * DEG;
     g.position.set(px, 0, pz);
     world.add(g);
@@ -251,7 +253,7 @@ export function createModel(host, opts = {}) {
   function celebrate() { won = true; M.deck.color.setHex(skin.gilt); wake(); }
 
   // ---------- the camera: round the board under a finger ----------
-  let width = 1, height = 1, rem = 16, az = 0, el = HOME_EL, dist = 14, fitDist = 14, zoom = 1, dirty = true;
+  let width = 1, height = 1, rem = 16, az = 0, el = HOME_UP, dist = 14, fitDist = 14, zoom = 1, dirty = true, orbited = false;
   const pan = { x: 0, z: 0 };
   const LOOK = new THREE.Vector3(), V = new THREE.Vector3(), G = new THREE.Vector3();
   function pose() {
@@ -285,13 +287,14 @@ export function createModel(host, opts = {}) {
     pose();
     dirty = true;
   }
-  function orbit(a, e) { az = a; el = Math.max(MIN_EL, Math.min(MAX_EL, e)); fit(); wake(); }
-  function reset() { zoom = 1; pan.x = pan.z = 0; az = 0; el = HOME_EL; resize(); }
+  function orbit(a, e) { orbited = true; az = a; el = Math.max(MIN_EL, Math.min(MAX_EL, e)); fit(); wake(); }
+  function reset() { zoom = 1; pan.x = pan.z = 0; az = 0; orbited = false; resize(); }
   function resize() {
     const r = host.getBoundingClientRect();
     width = Math.max(1, Math.round(r.width)); height = Math.max(1, Math.round(r.height));
     rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     renderer.setSize(width, height, false);
+    if (!orbited) el = height > width ? HOME_UP : HOME_SIDE;
     fit(); wake();
   }
   const ro = new ResizeObserver(() => { if (shown) resize(); });
@@ -426,5 +429,11 @@ export function createModel(host, opts = {}) {
     renderer.dispose();
   }
   restyle();
-  return { set, update, show, hold, celebrate, dispose: destroy, orbit, get angles() { return { az, el, zoom }; } };
+  /** Where a cell's middle is on the page, for tests that tap it as a finger would. */
+  function cellScreen(x) {
+    const [px, pz] = cellXZ(x), r = canvas.getBoundingClientRect();
+    V.set(px, 0.1, pz).applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix);
+    return { x: r.left + ((V.x + 1) / 2) * r.width, y: r.top + ((1 - V.y) / 2) * r.height };
+  }
+  return { set, update, show, hold, celebrate, dispose: destroy, orbit, cellScreen, get angles() { return { az, el, zoom }; } };
 }

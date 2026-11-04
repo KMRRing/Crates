@@ -253,7 +253,7 @@ function useHint() {
     set = [[h.step.x, BARGE]];
     focus = h.step.focus || [];
     const said = explain(h.step);
-    text = `Hint: ${said[0].toLowerCase()}${said.slice(1)}`;
+    text = `Hint: ${said}`;
   } else {
     set = [[h.reveal, BARGE]];
     text = "Hint: a barge goes here.";
@@ -299,6 +299,7 @@ function drawBoard() {
       svgEl("rect", { x: c + 0.12, y: r + 0.12, width: 0.76, height: 0.76, rx: 0.06, class: "mr-plat" }, g);
       svgEl("path", { d: `M${c + 0.16} ${r + 0.37}H${c + 0.84}M${c + 0.16} ${r + 0.63}H${c + 0.84}`, class: "mr-plank" }, g);
       for (const [dx, dy] of [[0.22, 0.22], [0.78, 0.22], [0.22, 0.78], [0.78, 0.78]]) svgEl("circle", { cx: c + dx, cy: r + dy, r: 0.075, class: "mr-pile" }, g);
+      svgEl("circle", { cx: c + 0.5, cy: r + 0.5, r: 0.12, class: "mr-post" }, g);
     } else {
       svgEl("path", { d: `M${c + 0.22} ${r + 0.4}q.14-.14 .28 0t.28 0M${c + 0.22} ${r + 0.62}q.14-.14 .28 0t.28 0`, class: "mr-wave" }, g);
       // a barge lying along its dock: the hull points along the edge it is moored to (turned in paint)

@@ -46,6 +46,7 @@ html[data-theme="modern"] { --mr-logo-tint: #DCEBEE; --mr-logo-edge: #2D5E88; }
 .mr-plat { fill: var(--mr-wood); stroke: var(--mr-wood-lo); stroke-width: .05; }
 .mr-plank { fill: none; stroke: var(--mr-wood-lo); stroke-width: .035; opacity: .7; }
 .mr-pile { fill: var(--mr-wood-lo); }
+.mr-post { fill: var(--mr-wood-lo); stroke: color-mix(in srgb, var(--mr-wood) 65%, #fff); stroke-width: .04; }
 .mr-c.moored .mr-pile { fill: var(--mr-good); }
 .mr-c.moored .mr-plat { stroke: var(--mr-good); stroke-width: .07; }
 /* a barge: a slate hull, a timber deck, a crate */
