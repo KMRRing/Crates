@@ -109,3 +109,4 @@ html[data-theme="office"][data-mode="night"] { --pg-in: #479EF5; }
   #app.pegs .pg-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
 }
 html[data-theme="office"] .pg-table { border-radius: 4px; }
+.ln-sheet.pg { --ln-in: var(--pg-in); }

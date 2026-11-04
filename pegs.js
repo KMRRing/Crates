@@ -4,6 +4,9 @@
 // with the count, and each count of the show itemised; your cards along the foot.
 import { rules, TO, SHOW_MS, RANKS, rankOf, suitOf, value, short, cardName, playable } from "./pegs-rules.js";
 import { LEVEL_NAMES } from "./pegs-bot.js";
+import { createCourse, progressOf } from "./course.js";
+import { cardStage } from "./course-cards.js";
+import { COURSE, judge, face as lessonFace, label as lessonLabel, hold } from "./pegs-course.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -235,13 +238,27 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (the Menu): Cribbage taught from the deal (pegs-course.js) on the course's sheet (course.js); its last lesson
+// starts a game against Easy. The Rules sheet opens from the course's map and the menu.
+const course = createCourse({
+  id: "pegs", course: COURSE, stage: cardStage({ face: lessonFace, label: lessonLabel, judge, hold }), cls: "pg", inFrame: IN_FRAME, onRules: showRules,
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.level = "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
-  play.append(action("The rules on one page", showRules, "link"));
+  const cp = progressOf("pegs", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Cribbage, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
@@ -259,6 +276,6 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
-window.__pegs = { page, get view() { return V; }, opts };
+window.__pegs = { page, get view() { return V; }, opts, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
