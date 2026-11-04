@@ -15,7 +15,7 @@ const g0 = 8 * 1.6 / (0.72 * 0.72), pk = h => Math.sqrt(2 * g0 * h);
 check(T.G === g0 && G === g0 && T.JUMP_V === g0 * 0.72 / 2 && JUMP_V === T.JUMP_V, "gravity and the jump's speed come out as they did");
 check(T.HOP_V === pk(0.9) && T.CHAIN_V === pk(1.7) && T.BONK_V === pk(1.9) && T.WALLJUMP_V === pk(2.4) && T.PAD_V === pk(4.3), "the hop, chain, bonk, wall jump and pad");
 check(HOP_V === T.HOP_V && CHAIN_V === T.CHAIN_V && BONK_V === T.BONK_V && WALLJUMP_V === T.WALLJUMP_V && PAD_V === T.PAD_V && SLAM_MIN_Y === T.SLAM_MIN_Y && LANE_T === T.LANE_T, "and the engine's exported ones agree");
-check(T.LANE_OMEGA === 34 && T.BUFFER === 0.14 && T.LAND_BUFFER === 0.32 && T.ROLL_T === 0.45 && T.FRONT_WIN === 0.28 && T.ABOVE_WIN === 0.55 && T.SIDE_WIN === 0.6 && T.FALL === 1 && T.COYOTE === 0, "the windows and times");
+check(T.LANE_OMEGA === 34 && T.BUFFER === 0.14 && T.LAND_BUFFER === 0.32 && T.ROLL_T === 0.45 && T.FRONT_WIN === 0.28 && T.ABOVE_WIN === 0.55 && T.SIDE_WIN === 0.6 && T.FALL === 1 && T.COYOTE === 0.1, "the windows and times");
 
 // 2. a plain jump is the same in every step with the defaults, and different when tuned
 function jumpTrace() {
@@ -49,6 +49,20 @@ function edgeJump(coyote, wait) {
 check(!edgeJump(0, 0.06), "with no coyote time a jump just after the edge does nothing");
 check(edgeJump(0.1, 0.06), "with 0.1 s a jump 0.06 s after the edge is a jump");
 check(!edgeJump(0.1, 0.25), "and not 0.25 s after it");
+
+// the default: a jump pressed at the very end of the grace still clears the widest gap Courier lays (6.5 m), at the speed it is laid for
+function clears(wait, width) {
+  resetTune();
+  const S = newGame({ seed: 5 }); S.world.foes = []; S.world.walls = []; S.world.gates = []; S.world.z1 = 1e9;
+  S.world.pits = [{ z0: 3, z1: 3 + width }];
+  while (S.hero.mode === "run") { step(S, DT); take(S); }
+  for (let t = 0; t < wait; t += DT) { step(S, DT); take(S); }
+  swipe(S, "up");
+  for (let t = 0; t < 3 && !S.over && S.hero.z < 3 + width + 2; t += DT) { step(S, DT); take(S); }
+  return !S.over && S.hearts === S.maxHearts && S.hero.z > 3 + width;
+}
+check(clears(0.09, 6.5), "with the default grace a jump 0.09 s after the lip clears a 6.5 m gap");
+check(!clears(0.25, 6.5), "and one 0.25 s after it does not");
 
 // 4. the search converges on a simulated answerer
 const rng = seed => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };

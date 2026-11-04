@@ -17,7 +17,7 @@ export const DEFAULTS = Object.freeze({
   ABOVE_WIN: 0.55,    // up cuts a flyer in my lane within this
   SIDE_WIN: 0.6,      // a swipe sideways cuts a foe in the next lane within this
   WALLJUMP_H: 2.4,    // the height of a jump off a wall, m
-  COYOTE: 0,          // s after the quay ends in which a jump is still allowed (new: 0 is no grace, as before)
+  COYOTE: 0.1,        // s after the quay ends in which a jump is still allowed: 0.1 s is 1 to 1.6 m of run (10 to 16 m/s) of a 7 to 11.5 m jump, so every gap (4 to 6.5 m) is still cleared by one pressed at the lip, and a lip missed by a finger-width is not a swim (4 November 2026)
   HITSTOP: 0,         // s the whole picture freezes on a kill (the page's; new)
   CAM_FOLLOW: 1,      // how quickly the camera follows (a factor on its springs; the view's)
   CAM_KICK: 1,        // how hard a landing, a cut or a dive jolts the camera (a factor; the view's)

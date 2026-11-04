@@ -72,9 +72,10 @@ function palette() {
   const dark = night();
   const moon = c => (dark ? mix(c, [150, 172, 200], 0.3) : c);
   const glow = c => (dark ? mix(c, [235, 140, 105], 0.35) : c);        // the foes are lit more than the quay by night: they have to be seen       // by night things are lit by a moon: the same colours, lifted towards a cool grey
+  const stone = moon(mix(sheet, yard, 0.35));
   return {
     sky: sky_(yard, dark),
-    stone: moon(mix(sheet, yard, 0.35)),
+    stone,
     seam: mix(ink, yard, dark ? 0.75 : 0.8),
     plank: moon(mix(brass, yard, 0.62)),
     water: mix(mix(token("--c2"), yard, 0.3), [30, 70, 110], dark ? 0.3 : 0.2),
@@ -103,7 +104,12 @@ function palette() {
     ink,
     good: mix(e[1], yard, 0.1),
     ring: mix(brass, sheet, 0.3),
-    plank2: moon(mix(mix(sheet, yard, 0.35), mix(ink, yard, 0.8), 0.1)),     // every other plank a shade darker, so the quay strobes under the eye as it goes by
+    plank2: mix(stone, [0, 0, 0], 0.2),     // every other plank a shade darker than the stone, in every theme (it was mixed towards the ink, which is pale at night: the slabs came out lighter)
+    chalk: [250, 244, 226],                                                // the gap's signals: paint on the lips, pale wood where a plank broke, a lit lantern, and water that is lighter than the planks
+    hazard: [214, 66, 42],
+    splint: dark ? [232, 204, 160] : [196, 150, 96],
+    pitwater: dark ? [74, 142, 190] : [28, 104, 152],
+    beacon: [255, 176, 48],
     dust: dark ? [178, 196, 224] : mix([255, 252, 244], brass, 0.12),     // what the planks give up: a pale warm dust, a cool one by night
     spray: mix(mix(token("--c2"), [255, 255, 255], 0.7), yard, 0.1),
     streak: dark ? mix(sky_(yard, dark), [215, 230, 255], 0.55) : mix(sky_(yard, dark), [255, 255, 255], 0.75),
@@ -137,6 +143,11 @@ export function createRunner(host) {
   const mats = {};
   const mat = (key, opts = {}) => (mats[key] = curved(new THREE.MeshLambertMaterial(opts)));
   const box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 12), sph = new THREE.SphereGeometry(0.5, 14, 10);
+  // The bend moves vertices only, so a long box with eight of them is bent as a straight chord while the planks on it (a vertex every
+  // 1.2 m) follow the true curve and ride up out of it: the quay showed as pale slabs where the stone stood between them. Long things
+  // need a vertex a metre or so along their length (not a texture or a pattern: the geometry).
+  const longBox = n => new THREE.BoxGeometry(1, 1, 1, 1, 1, n);
+  const quayBox = longBox(96), deckBox = longBox(48);
   const disc = new THREE.CircleGeometry(0.5, 20).rotateX(-Math.PI / 2);
   const cone = new THREE.ConeGeometry(0.5, 1, 10);
 
@@ -146,7 +157,8 @@ export function createRunner(host) {
     banner: mat("banner"), skin: mat("skin"), good: mat("good"), claw: mat("claw"), belly: mat("belly"), eye: mat("eye"), pupil: mat("pupil"),
     markBg: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), markSees: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
     markWind: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
-    plank2: mat("plank2"), pole: mat("pole"),
+    plank2: mat("plank2"), pole: mat("pole"), chalk: mat("chalk"), hazard: mat("hazard"), splint: mat("splint"),
+    pitwater: curved(new THREE.MeshBasicMaterial()), beacon: curved(new THREE.MeshBasicMaterial({ fog: false })),
     dust: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false })),
     spray: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false })),
     streak: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, fog: false })),
@@ -162,6 +174,7 @@ export function createRunner(host) {
     set(M.banner, pal.banner); set(M.skin, pal.skin);
     set(M.scarf, pal.scarf); set(M.boot, pal.boot); set(M.steel, pal.steel); set(M.hair, pal.hair); set(M.shirt, pal.shirt); set(M.good, pal.good); set(M.ring, pal.ring);
     set(M.claw, pal.claw); set(M.belly, pal.belly); set(M.eye, pal.eye); set(M.pupil, pal.pupil);
+    set(M.chalk, pal.chalk); set(M.hazard, pal.hazard); set(M.splint, pal.splint); set(M.pitwater, pal.pitwater); set(M.beacon, pal.beacon);
     set(M.plank2, pal.plank2); set(M.pole, pal.timber); set(M.dust, pal.dust); set(M.spray, pal.spray); set(M.streak, pal.streak);
     set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
     models.retheme(pal, col, night());
@@ -177,13 +190,22 @@ export function createRunner(host) {
 
   // the quay: solid stretches between the pits, seams across it, water below
   const solids = [];
-  const solid = () => { const m = new THREE.Mesh(box, M.stone); m.frustumCulled = false; world.add(m); solids.push(m); return m; };
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(60, 400).rotateX(-Math.PI / 2), M.water);
+  const solid = () => { const m = new THREE.Mesh(quayBox, M.stone); m.frustumCulled = false; world.add(m); solids.push(m); return m; };
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(60, 400, 1, 100).rotateX(-Math.PI / 2), M.water);
   water.position.y = WATER_Y; water.frustumCulled = false; world.add(water);
   const SEAMS = Math.ceil((AHEAD + BEHIND) / SEAM) + 2;
   const seams = new THREE.InstancedMesh(box, M.seam, SEAMS); seams.frustumCulled = false; world.add(seams);
   const edge = new THREE.InstancedMesh(box, M.plank, 2 * SEAMS);                         // a rail of planking down each side
   edge.frustumCulled = false; world.add(edge);
+
+  // what says "gap ahead" from far off (4 November 2026, Korbi: the gaps "are only visible very late"): water lighter than the planks
+  // in the pit, paint across the planks closing in on the lip, paint and pale splintered ends on both lips, and lit lanterns on posts,
+  // a gantry with a striped board 24 m before the lip (a tall thing: the planks are a few pixels deep that far off) and short ones at it
+  const MAXP = 6, WARN_AT = [10, 7, 4.5], FAR_POST = 24;
+  const mk = (geo, m, n) => { const i = new THREE.InstancedMesh(geo, m, n); i.frustumCulled = false; world.add(i); return i; };
+  const pitWaters = Array.from({ length: MAXP }, () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 1, 16).rotateX(-Math.PI / 2), M.pitwater); m.frustumCulled = false; m.visible = false; world.add(m); return m; });
+  const warnBars = mk(box, M.chalk, MAXP * WARN_AT.length), lipA = mk(box, M.chalk, MAXP * 9), lipB = mk(box, M.hazard, MAXP * 9), beams = mk(box, M.timber, MAXP);
+  const splints = mk(box, M.splint, MAXP * 14), gPosts = mk(cyl, M.pole, MAXP * 4), beacons = mk(box, M.beacon, MAXP * 4);
 
   // every other plank a shade darker, so the deck strobes under the eye as it goes by; and tall posts with lanterns standing in the
   // water beside the quay: what sweeps past at the edges of the picture is what tells the eye how fast it is going
@@ -239,7 +261,7 @@ export function createRunner(host) {
   };
   const deckGroups = [], padMeshes = [];
   const deckGroup = () => {
-    const g = new THREE.Group(), flat = new THREE.Mesh(box, M.timber), top = new THREE.Mesh(box, M.plank);
+    const g = new THREE.Group(), flat = new THREE.Mesh(deckBox, M.timber), top = new THREE.Mesh(deckBox, M.plank);
     for (const m of [flat, top]) { m.frustumCulled = false; g.add(m); }
     g.userData = { up: rampMeshes(g), down: rampMeshes(g), flat, top }; g.frustumCulled = false; world.add(g); deckGroups.push(g);
     return g;
@@ -252,7 +274,7 @@ export function createRunner(host) {
   const dropLine = new THREE.Mesh(box, M.ring); dropLine.frustumCulled = false; dropLine.visible = false; world.add(dropLine);
   // walls that can be run along
   const wallBoxes = [];
-  const wallBox = () => { const m = new THREE.Mesh(box, M.wall); m.frustumCulled = false; world.add(m); wallBoxes.push(m); return m; };
+  const wallBox = () => { const m = new THREE.Mesh(deckBox, M.wall); m.frustumCulled = false; world.add(m); wallBoxes.push(m); return m; };
 
   // The hero (reckoning-models.js): built round named joints, so that a run, a jump, a thrust and a roll are only poses of them (poseHero),
   // and a glTF with joints of these names can take over.
@@ -276,6 +298,45 @@ export function createRunner(host) {
     mark.visible = false; mark.traverse(o => { o.frustumCulled = false; });
     world.add(g, shadow, mark);
     return { group: g, parts, shadow, mark, markParts: [bar, dot], kind: f.kind, heavy: !!f.heavy };
+  }
+
+  /** Lays the signals of the gaps in view (see where they are made). */
+  function gapSigns(list, m4, q, v, nil) {
+    const set = (mesh, i, x, y, z, sx, sy, sz, ry = 0, rx = 0) => {
+      m4.compose(v.set(x, y, z), q.setFromEuler(new THREE.Euler(rx, ry, 0)), new THREE.Vector3(sx, sy, sz));
+      mesh.setMatrixAt(i, m4);
+    };
+    const wipe = (mesh, from) => { for (let i = from; i < mesh.count; i++) { m4.compose(v.set(0, -9, 0), q.identity(), nil); mesh.setMatrixAt(i, m4); } mesh.instanceMatrix.needsUpdate = true; };
+    let w = 0, a = 0, b = 0, sp = 0, po = 0;
+    const E = QUAY_W / 2, pulse = 1 + 0.12 * Math.sin(now * 6);
+    pitWaters.forEach((m, i) => {
+      const p = list[i];
+      m.visible = !!p;
+      if (!p) return;
+      m.scale.set(QUAY_W, 1, p.z1 - p.z0); m.position.set(0, -0.35, (p.z0 + p.z1) / 2);
+      for (const d of WARN_AT) set(warnBars, w++, 0, 0.03, p.z0 - d, QUAY_W, 0.03, 0.16);
+      for (let k = 0; k < 6; k++) {                                                   // blocks of paint along each lip, red and chalk by turns
+        const x = (k - 2.5) * (QUAY_W / 6), c = k & 1;
+        set(c ? lipB : lipA, c ? b++ : a++, x, 0.035, p.z0 - 0.3, QUAY_W / 6, 0.04, 0.6);
+        set(c ? lipA : lipB, c ? a++ : b++, x, 0.035, p.z1 + 0.3, QUAY_W / 6, 0.04, 0.6);
+      }
+      for (const [z, dir] of [[p.z0, 1], [p.z1, -1]]) for (let k = 0; k < 7; k++) {   // broken planks: pale ends, uneven, dipping into the gap
+        const r1 = hash(Math.floor(z * 3) + k * 17), r2 = hash(Math.floor(z * 5) + k * 31 + 7), len = 0.35 + r2 * 0.7;
+        set(splints, sp++, (k - 3) * 0.85 + (r1 - 0.5) * 0.3, -0.02 - r1 * 0.04, z + dir * (len / 2 - 0.1), 0.26 + r1 * 0.12, 0.08, len, (r2 - 0.5) * 0.5, dir * (0.12 + r1 * 0.25));
+      }
+      for (const side of [-1, 1]) for (const [z, h, sz] of [[p.z0 - FAR_POST, 5.4, 0.5], [p.z0 - 0.9, 1.15, 0.3]]) {
+        set(gPosts, po, side * (E - 0.1), h / 2, z, 0.2, h, 0.2);
+        set(beacons, po, side * (E - 0.1), h + sz * 0.45, z, sz * pulse, sz * pulse, sz * pulse);
+        po++;
+      }
+      set(beams, i, 0, 5.2, p.z0 - FAR_POST, QUAY_W, 0.24, 0.24);
+      for (let k = 0; k < 6; k++) {                                                   // the board hung from it, striped like the lips
+        const c = k & 1;
+        set(c ? lipB : lipA, c ? b++ : a++, (k - 2.5) * (QUAY_W / 6), 4.55, p.z0 - FAR_POST, QUAY_W / 6, 0.9, 0.08);
+      }
+    });
+    wipe(warnBars, w); wipe(beams, list.length); wipe(lipA, a); wipe(lipB, b); wipe(splints, sp); wipe(gPosts, po); wipe(beacons, po);
+    for (const mesh of [warnBars, lipA, lipB, splints, gPosts, beacons, beams]) mesh.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- a section's things: what blocks the quay, what is picked up, the finish ----------
@@ -809,22 +870,27 @@ export function createRunner(host) {
     });
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), nil = new THREE.Vector3(0, 0, 0);
     const inSpan = z => spans.some(s => z >= s[0] && z <= s[1]);
+    // a plank is cut to the stretch it lies on: one that began on the planks and ran past a pit's lip was drawn floating over the gap
+    const clip = (a, b) => { for (const s of spans) { const lo = Math.max(a, s[0]), hi = Math.min(b, s[1]); if (hi - lo > 0.04) return [lo, hi]; } return null; };
     const first = Math.floor(z0 / SEAM);
     let dark = 0;
     for (let i = 0; i < SEAMS; i++) {
       const z = (first + i) * SEAM, on = inSpan(z);
       m4.compose(v.set(0, 0.017, z), q, on ? v.clone().set(QUAY_W, 0.02, 0.05) : nil);
       seams.setMatrixAt(i, m4);
+      const c = clip(z + 0.015, z + SEAM - 0.015);
       if (((first + i) & 1) === 0 && dark < darkPlanks.count) {
-        m4.compose(v.set(0, 0.01, z + SEAM / 2), q, on ? v.clone().set(QUAY_W - 0.02, 0.02, SEAM - 0.03) : nil);
+        m4.compose(v.set(0, 0.01, c ? (c[0] + c[1]) / 2 : z), q, c ? v.clone().set(QUAY_W - 0.02, 0.02, c[1] - c[0]) : nil);
         darkPlanks.setMatrixAt(dark++, m4);
       }
+      const e = clip(z + 0.04, z + SEAM - 0.04);
       for (const s of [-1, 1]) {
-        m4.compose(v.set(s * (QUAY_W / 2 - 0.12), 0.05, z + SEAM / 2), q, on ? v.clone().set(0.24, 0.1, SEAM - 0.08) : nil);
+        m4.compose(v.set(s * (QUAY_W / 2 - 0.12), 0.05, e ? (e[0] + e[1]) / 2 : z), q, e ? v.clone().set(0.24, 0.1, e[1] - e[0]) : nil);
         edge.setMatrixAt(2 * i + (s > 0 ? 1 : 0), m4);
       }
     }
     for (; dark < darkPlanks.count; dark++) { m4.compose(v.set(0, -9, 0), q, nil); darkPlanks.setMatrixAt(dark, m4); }
+    gapSigns(pits, m4, q, v, nil);
     seams.instanceMatrix.needsUpdate = edge.instanceMatrix.needsUpdate = darkPlanks.instanceMatrix.needsUpdate = true;
 
     // scenery, by slot: slot k is the house k * 11 metres along, the same wherever the hero is
