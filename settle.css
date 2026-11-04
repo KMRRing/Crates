@@ -154,12 +154,3 @@ html[data-mode="night"] { --st-danger: #E8806F; }
 .st3-tag, .st3-pop { font-size: 1.05rem; font-weight: 800; paint-order: stroke; -webkit-text-stroke: .18rem var(--sheet); }
 .st3-pop { position: absolute; transform: translate(-50%, -50%); font-size: 1.25rem; font-weight: 800; color: var(--ink); paint-order: stroke; -webkit-text-stroke: .18rem var(--sheet); }
 .st3-pop.big { font-size: 1.7rem; }
-
-/* the Farm's flat view: nine tank tops in a 3x3, each cell the tank's eight levels as bands (heaviest at the foot), its number faint in the corner */
-.st-board.farm { width: min(100cqw, 100cqh * 80 / 96); height: min(100cqh, 100cqw * 96 / 80); }
-.st-board.farm .st-parcel:not(.st-cargo) text.st-letter { font-size: 2.3px; }
-.st-board.farm .st-parcel > rect { stroke-width: .2; }
-.st-board.farm .st-ring { stroke-width: .45; }
-.st-board text.st-num { font-size: 2.6px; font-weight: 700; fill: var(--ink-soft); opacity: .6; pointer-events: none; }
-.st-board.farm .st-shell { fill: color-mix(in srgb, var(--sheet) 80%, var(--brass)); }
-.st-board.farm .st-shell.aim { fill: var(--st-soft); }
