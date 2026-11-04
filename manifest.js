@@ -12,7 +12,7 @@ import { LEVELS, CHAPTERS, COUNT, seedOf, recipeAt, starsFor, mendCamp, isOpen }
 import { stage, wareIcon, playOut, ready } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line, onPause } from "./menu.js";
+import { part, choice, action, line, onPause, todayPart } from "./menu.js";
 import { today, arrivedForToday } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -64,7 +64,7 @@ function start(mode, lv = null, seed = null) {
   if (level) { camp.at = lv; camp.played[lv]++; saveCamp(); }
   S = { v: 3, seed: seed ?? (mode === "daily" ? today() : level && camp.played[lv] === 1 ? seedOf(lv) : randomSeed()), mode, ...(level ? { lv } : {}),
     round: 1, score: 0, lives: level ? LEVELS[lv].lives : LIVES, right: 0, wrong: 0, passed: 0 };
-  write(TRACK, mode === "level" ? "levels" : mode);
+  if (mode !== "daily") write(TRACK, level ? "levels" : mode);   // Today's is a button (todayPart), never the mode last chosen
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : level ? `#lv=${lv}&s=${S.seed}` : `#s=${S.seed}`);
   openRound();
 }
@@ -988,8 +988,8 @@ function toast(msg, ms = 2600) {
 // ---------- menu and messages ----------
 // the menu: Play (start what you've chosen, the cargo list), Content (Random, Levels or Today's; in Levels the ladder),
 // About (your bests, or the stars); at a table, its own
-let track = read(TRACK, "random");                            // what the menu will start: "random", "levels" or "daily"
-if (!["random", "levels", "daily"].includes(track)) track = "random";
+let track = read(TRACK, "random");                            // what the menu will start: "random" or "levels" (a "daily" kept from before reads as Random)
+if (!["random", "levels"].includes(track)) track = "random";
 /** The levels, three to a row under their chapter: its number, the stars won and its name. A level not open yet is dimmed;
  *  any open one can be played at any time. */
 function levelList() {
@@ -1018,11 +1018,12 @@ function openMenu() {
   if (T) { tableMenu(body); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
   const play = part(body, "play"), content = part(body, "content"), about = part(body, "about");
   if (track === "levels") play.append(action(`Level ${camp.at + 1}: ${LEVELS[camp.at].name}`, () => confirmStart("level", camp.at), "primary"));
-  else play.append(action(track === "daily" ? "Today's manifest" : "Start a run", () => confirmStart(track === "daily" ? "daily" : "random"), "primary"));
+  else play.append(action("Start a run", () => confirmStart("random"), "primary"));
   play.append(action("The cargo list", showCargo, "link"));
-  content.append(choice("Play", [["random", "Random"], ["levels", "Levels"], ["daily", "Today's"]], track, v => { track = v; write(TRACK, v); openMenu(); }));
+  content.append(choice("Play", [["random", "Random"], ["levels", "Levels"]], track, v => { track = v; write(TRACK, v); openMenu(); }));
   if (track === "levels") content.append(levelList());
-  else content.append(line(track === "daily" ? "Twelve rounds, the same stacks for everyone today." : "Twelve rounds and three lives; the cargo widens as the rounds go."));
+  else content.append(line("Twelve rounds and three lives; the cargo widens as the rounds go."));
+  todayPart(body, { app: "manifest", play: () => confirmStart("daily"), playing: S?.mode === "daily" && S.phase !== "over" });   // confirmStart asks before it leaves a run
   const best = read(BEST, 0), daily = read(DAILY, {})[today()];
   if (track === "levels") about.append(line(`${camp.stars.filter(Boolean).length} of ${COUNT} levels passed, ${camp.stars.reduce((a, b) => a + b, 0)} stars. Three stars for every question right.`));
   else about.append(line(`${best ? `Best ${money(best)}` : "No finished run yet"}${daily != null ? `, today ${money(daily)}` : ""}`));

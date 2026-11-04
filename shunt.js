@@ -14,7 +14,7 @@ import { sound as sfx } from "./shunt-sound.js";
 import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, choice, onPause } from "./menu.js";
+import { part, action, line, toggle, choice, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { roundOver } from "./random.js";
@@ -41,6 +41,11 @@ sfx.on = read(SOUND, true) !== false;
 let view = createView2d({ board: $("board"), tray: $("tray") });
 
 let mode = readMode(kp);
+// Today's is a button (todayPart, menu.js), not a mode you choose: a "daily" kept from before lands on today's plate only while it is
+// still being played, else on Levels; and what is kept is the mode you had (`rest`), never "daily"
+if (mode === "daily" && (readDaily(kp)[today()] != null || !savedRunOf(kp, "daily", 0, today()))) mode = "levels";
+let rest = mode === "daily" ? "levels" : mode;
+const keepMode = () => { if (mode !== "daily") rest = mode; write(MODE, mode === "daily" ? rest : mode); };
 let camp = readCamp(kp);
 let diff = readDiff(kp);
 let coachOn = readCoach(kp);
@@ -91,7 +96,7 @@ function playLevel(n) {
   keepCamp();
   write(SEL, null);
   mode = "levels";
-  write(MODE, mode);
+  keepMode();
   const r = savedRun();
   enter(r || { kind: "level", n: camp.at, moves: [] }, LEVELS[camp.at]);
 }
@@ -126,7 +131,7 @@ async function resume() {
 async function setMode(next) {
   if (next === mode) return;
   mode = next;
-  write(MODE, mode);
+  keepMode();
   write(SEL, null);
   await resume();
 }
@@ -483,13 +488,14 @@ function openMenu() {
   play.append(action(run.kind === "level" ? `Replay level ${levelNo()}` : run.kind === "random" ? "New plate" : "Replay today's plate", () => (run.kind === "random" ? newRandomAsk() : replay()), "primary"));
   if (!IN_FRAME) play.append(action(view.kind === "3d" ? "Play in 2D" : "Play in 3D", () => setView(view.kind !== "3d", true), "link"));
   const content = part(body, "content");
-  content.append(choice("Mode", [["levels", "Levels"], ["random", "Random"], ["daily", "Daily"]], mode, v => { $("menuDlg").close(); setMode(v); }));
+  content.append(choice("Mode", [["levels", "Levels"], ["random", "Random"]], mode, v => { $("menuDlg").close(); setMode(v); }));
   if (mode === "levels") content.append(levelList());
   else if (mode === "random") content.append(choice("Difficulty", DIFFS.map(d => [d, DIFF_NAMES[d]]), diff, v => { diff = v; write(DIFF, v); $("menuDlg").close(); newRandomAsk(); }));
-  else {
-    const got = readDaily(kp)[today()];
-    content.append(line(got != null ? `Today's plate: you scored ${fmt(got)}. It is the same for everyone, and a better score replaces it.` : "Today's plate is the same for everyone. Your score counts the moment the plate is judged."));
-  }
+  const got = readDaily(kp)[today()];
+  todayPart(body, {
+    done: got != null, result: got != null ? fmt(got) : "", play: () => setMode("daily"), playing: mode === "daily",
+    back: mode === "daily" ? { text: `Back to ${rest === "levels" ? "the levels" : "a random plate"}`, fn: () => setMode(rest) } : null,
+  });
   const settings = part(body, "settings");
   settings.append(toggle("Coach lines (levels 1 to 8)", coachOn, on => { coachOn = on; write(COACH, on); coachFor(); render(); }));
   if (view.kind === "3d") settings.append(toggle("Sound", sfx.on, on => { sfx.on = on; write(SOUND, on); if (on) { sfx.unlock(); sfx.play("tick"); } }));
@@ -508,7 +514,7 @@ function openMenu() {
 }
 async function newRandomAsk() {
   if (run.kind === "random" && run.moves.length && !done && !(await sure("Start a new plate? Your moves on this one are lost.", { yes: "New plate" }))) return;
-  if (mode !== "random") { mode = "random"; write(MODE, mode); }
+  if (mode !== "random") { mode = "random"; keepMode(); }
   await newRandom();
 }
 
@@ -530,13 +536,13 @@ window.__shunt = {
 
 (async () => {
   const wantsDaily = arrivedForToday() && !IN_FRAME;     // the games screen's tile opens today's plate while it is still to play
-  if (wantsDaily) { mode = "daily"; write(MODE, mode); }
+  if (wantsDaily) mode = "daily";
   if (wantsView()) await setView(true);
   try { await resume(); } catch (e) {
     // a kept value that passed its checks and still broke the page: let go of the runs and start at the first level
     console.warn("Shunt: starting afresh", e);
     for (const k of [...Object.values(RUN_KEY), SEL]) write(k, null);
-    mode = "levels"; write(MODE, mode); camp = readCamp(kp);
+    mode = "levels"; keepMode(); camp = readCamp(kp);
     await resume();
   }
 })();
