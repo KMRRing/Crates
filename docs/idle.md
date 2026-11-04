@@ -5,7 +5,7 @@ Games to play without much thought (October 2026): no puzzle to work out, but as
 - **Shunt** (push in, line up): a rail yard of wagons; match-3's swap replaced by the push of the board game Labyrinth, which moves a whole row and with it the lines in every column it crosses.
 - **Polder** (enclose to clear): dyke pieces on an 8×8 sea; a pocket of sea cut off drains into farmland and clears. Block Blast completes lines; this completes areas.
 - **Topple** (set up the chain, then push it): standing dominoes on a table of hexagons in 3D, set up and then pushed; waiting for a bigger chain fills the table.
-- **Columbiad** (aim and fire one shot): a cannon on a real-gravity Earth, later with a moving Moon, one drag back like a slingshot and a Fire button; a design doc (`docs/columbiad.md`), built in milestones.
+- **Columbiad** (aim and fire one shot): a launch from a big Earth past a big Moon, the ring hidden behind it, one drag back like a slingshot and a Launch button; a design doc (`docs/columbiad.md`), built in milestones.
 - **Orrery** (real-time, in 3D, on a beat): four hoops of planets always going round a sun, their speeds set so that planets of a colour come into line.
 - **Avalanche** (you set off the chain reaction, and where it runs matters): a slope of snow on the sandpile model.
 - **Netting** (lines replaced by loops): obligations between six counterparties; a cycle nets out and scores; a party past its credit limit defaults.

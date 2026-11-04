@@ -13,7 +13,7 @@ export const periodOf = lvl => (worldOf(lvl).moving ? lvl.period ?? Math.max(...
 /**
  * The angles and charges the sweep tries: the legal half turn about the site's up and 0 to the level's barrels, or, for a level
  * with a `band` ({ lean (degrees either side of up), charge: [from, to] }), the part of the dial where its solutions lie: the
- * Moon is reached only in the top tenth of the powder, so the share of the whole dial that wins would say nothing of the level.
+ * Moon is reached only in the top tenth of the power, so the share of the whole dial that wins would say nothing of the level.
  */
 export function axes(lvl, da = 1, dc = 0.1) {
   const site = lvl.site ?? 90, cap = lvl.barrels ?? BARRELS, band = lvl.band || {}, lean = band.lean ?? 90, [lo, hi] = band.charge || [0, cap], angles = [], charges = [];

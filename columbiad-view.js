@@ -212,7 +212,7 @@ export function createView(canvas, hooks = {}) {
     const c = cone, n = c.centre.length / 2, a = coneAlpha;
     if (n < 2) return;
     const X0 = sx(c.centre[0]), Y0 = sy(c.centre[1]), X1 = sx(c.centre[2 * n - 2]), Y1 = sy(c.centre[2 * n - 1]);
-    // one gradient along the shot, from a faint tint at the muzzle to nothing at the far end (no closing rule, no hard edge)
+    // one gradient along the shot, from a faint tint at the pad to nothing at the far end (no closing rule, no hard edge)
     const along = (alpha, hi) => {
       const g = ctx.createLinearGradient(X0, Y0, X1, Y1), col = hi ? BRASS_HI : BRASS;
       g.addColorStop(0, `rgba(${col},${alpha * a})`); g.addColorStop(0.45, `rgba(${col},${alpha * 0.55 * a})`); g.addColorStop(1, `rgba(${col},0)`);

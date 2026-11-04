@@ -1,7 +1,7 @@
 /* Columbiad fills the whole screen: the scene is a canvas (columbiad-view.js) in the same night colours in every theme, the way a
    game's board is, and every control is drawn over it, not beside it: the level and the stars a hit would earn at the top left, the
-   menu's button at the top right, the aim's readouts, the barrels of powder, the four nudges and the Fire plate along the bottom
-   (down the right side held sideways), and after a hit, in the same box, how it went. The accent is ochre, the brass of the gun. */
+   menu's button at the top right, the aim's readouts, the power gauge, the four nudges and the Launch plate along the bottom
+   (down the right side held sideways), and after a hit, in the same box, how it went. The accent is ochre, the brass of the launch pad. */
 :root {
   --cb-in: var(--c0);
   --cb-soft: color-mix(in srgb, var(--cb-in) 15%, var(--sheet));
@@ -42,7 +42,7 @@
 .cb-say.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .cb-say { transition: none; } }
 
-/* the bottom: the aim in numbers, the powder as barrels, the nudges and Fire, on a glass panel. Its box is fixed, so a hit's words take the same one */
+/* the bottom: the aim in numbers, the power as a gauge, the nudges and Launch, on a glass panel. Its box is fixed, so a hit's words take the same one */
 .cb-bottom { position: absolute; z-index: 3; left: var(--cb-l); right: var(--cb-r); bottom: var(--cb-b); display: grid; box-sizing: border-box; padding: .5rem .6rem .6rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass);
   box-shadow: 0 .3rem 1.2rem rgba(0, 0, 0, .55); min-height: 7.3rem; }
 .cb-deck, .cb-result { grid-area: 1 / 1; min-height: 0; }
@@ -55,7 +55,7 @@
 .cb-read small { margin-left: .25em; font-size: .72rem; font-weight: 700; letter-spacing: 0; color: var(--ink-soft); }
 .cb-r { white-space: nowrap; }
 
-/* the barrels of powder: a cell for each, filled as the pull loads it (hatched, so the fill is told from the empty by its pattern as well as its colour) */
+/* the power gauge: a cell for each, filled as the pull loads it (hatched, so the fill is told from the empty by its pattern as well as its colour) */
 .cb-gauge { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .18rem; height: 1.05rem; }
 .cb-gauge i { position: relative; border: 1px solid var(--brass); border-radius: 2px; background: var(--yard); overflow: hidden; }
 .cb-gauge i::before { content: ""; position: absolute; inset: 0 auto 0 0; width: calc(var(--f, 0) * 100%); background: repeating-linear-gradient(135deg, var(--cb-in) 0 .24rem, color-mix(in srgb, var(--cb-in) 62%, var(--ink)) .24rem .36rem); }
@@ -85,7 +85,7 @@
 .cb-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; min-height: 2.5rem; }
 .cb-go[hidden] { display: none; }
 
-/* held sideways: the picture has all of it, the controls stand down the right side, the nudges and Fire low where a thumb is */
+/* held sideways: the picture has all of it, the controls stand down the right side, the nudges and Launch low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
   .cb-bottom { left: auto; width: 16.5rem; top: auto; }
   .cb-deck { gap: .6rem; }
@@ -96,7 +96,7 @@
   .cb-hint { right: auto; width: min(24rem, calc(100% - 22rem)); }
 }
 
-/* the menu's levels: three to a row, each its place in miniature (the Earth, the gun, the ring), its number and name, and its stars */
+/* the menu's levels: three to a row, each its place in miniature (the Earth, the pad, the Moon, the ring), its number and name, and its stars */
 .cb-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0; }
 .cb-levels button { display: grid; grid-template-rows: auto auto 1fr; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
 .cb-sec { margin: .7rem 0 0; }

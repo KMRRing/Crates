@@ -1,5 +1,5 @@
-// Columbiad's control in numbers (pure, so Node tests it): one slingshot-style drag back from the cannon. The shell goes
-// the way opposite the pull, and its powder is how long the pull is; the pull is relative (it starts from the aim that
+// Columbiad's control in numbers (pure, so Node tests it): one slingshot-style drag back from the launch pad. The shot goes
+// the way opposite the pull, and its power is how long the pull is; the pull is relative (it starts from the aim that
 // stands, wherever the finger lands), so a small drag nudges and a long one swings, and a thumb at the foot of the screen
 // can reach every aim. Screen coordinates here: x right, y down, in pixels; the engine's are x right, y up.
 import { clampAim, direction, ANGLE_STEP, CHARGE_STEP, BARRELS } from "./columbiad-engine.js";
@@ -48,7 +48,7 @@ export function move(lvl, drag, dx, dy, full, dead) {
   drag.aim = next;
   return { aim: next, ticks };
 }
-/** One step of direction (+1 turns it counter-clockwise, as seen) or of powder. */
+/** One step of direction (+1 turns it counter-clockwise, as seen) or of power. */
 export function nudge(lvl, aim, dAngle, dCharge, k = 1) {
   return clampAim(lvl, { angle: aim.angle + dAngle * NUDGE_ANGLE * k, charge: aim.charge + dCharge * NUDGE_CHARGE * k });
 }

@@ -8,7 +8,7 @@
 // (columbiad-levels.js: units are the Earth's radius over three, so a body is large on the screen).
 //
 // Determinism: the same level, seed, aim and firing time give the same path on every device, so the integrator, the
-// gravity, the Moon's rail, the muzzle and the draws use only + - * / and sqrt (exact in every engine) and never Math.sin,
+// gravity, the Moon's rail, the launch and the draws use only + - * / and sqrt (exact in every engine) and never Math.sin,
 // cos, pow, exp or atan2, which JavaScriptCore and V8 do not promise to round alike. A flight's step is a function of the
 // state alone, never of frame time. A last-bit difference near a threshold could flip a hit, so every authored level is
 // robust enough (columbiad-levels.js) that none can decide it.
