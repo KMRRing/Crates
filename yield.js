@@ -1,9 +1,9 @@
-// Yield (README, Yield): seven letters on a tray, or nine tiles on a plate; words of four letters or more from them,
-// each with the key letter; points for each, ranks from Dry hole to Last drop. The rules, the
+// Fathom (id yield; README, Yield): seven letters on a tray, or nine tiles on a plate; words of four letters or more from them,
+// each with the key letter; points for each, ranks from Aground to Blue water, a leadsman's line paying out. The rules, the
 // puzzles and the computer player are yield-engine.js's; this file keeps the runs, draws the board and takes the taps.
 // Today's puzzle and a random one are kept apart, so switching between them loses neither. Together (duel.js): a race,
 // the same letters for everyone against the clock, or a team, the same letters with a key letter each.
-import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, CUTS, cutOf, columnOf, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
+import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, MARKS, RANK_FATHOMS, lineDepth, castOf, callOf, groupOf, GROUPS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
   outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -17,6 +17,7 @@ import { branchPath } from "./rooms.js";
 import { waitMark } from "./loading.js";
 import { sideways } from "./wide.js";
 import * as sfx from "./yield-sound.js";
+import { W as CHART_W, H as CHART_H, LAND_PATH, COAST_LINE, BANDS, SOUNDINGS, LIGHT } from "./yield-chart.js";
 
 dropdown(document.getElementById("pick"));   // the header dropdown in the suite's style (dropdown.js)
 
@@ -47,7 +48,7 @@ if (!LEVELS[prefs.level]) prefs.level = "medium";
 if (!BOARDS[prefs.board]) prefs.board = "hive";
 const keepPrefs = () => write(PREFS, prefs);
 
-// ---------- the dictionary, for the words Yield doesn't count (wordlist.js, loaded once it's wanted) ----------
+// ---------- the dictionary, for the words Fathom doesn't count (wordlist.js, loaded once it's wanted) ----------
 let dict = null, dictLoading = null;
 function loadDict() {
   dictLoading ??= import("./wordlist.js").then(m => { dict = { isWord: m.isWord, isVariant: m.isVariant }; return dict; }).catch(e => { console.error(e); dictLoading = null; return null; });
@@ -58,7 +59,7 @@ function loadDict() {
 // S: { kind ("day", "run", "race" or "team"), p (the puzzle), found (in the order found), extra (words typed that
 // don't count), typed, picks (a wheel's tile for each typed letter, -1 for none free), outer (the letters round the
 // centre, as shown), used (ms on the clock), secs (a sprint's length, 0 untimed), top (the best rank reached),
-// over, shown (the words were revealed), slate (the column was balanced: a mark, never points) } and, in a match, begun and n.
+// over, shown (the words were revealed) } and, in a match, begun and n. (Runs kept as Yield (the refinery) have a slate flag: ignored.)
 let S = null;
 let P = null;          // what the run's puzzle gives: { words (a team's: everyone's), set, total, need, mine (this player's words), centre }
 let team = null;       // a team match as the table has it: { found: Map(word -> slot), people (seats), over }
@@ -212,14 +213,12 @@ function shuffle() {
 }
 
 // ---------- a word entered ----------
-/** Whether the column is balanced now (half of every cut the crude has found). */
-const slatedNow = () => !!P && columnOf(P.words, new Set(foundMap().keys())).slate;
 async function enter() {
   if (!canType() || !S.typed) return;
   const word = S.typed;
   const p = boardP(), have = foundMap(), seats = S.kind === "team" ? new Map(people().filter(o => o.slot !== (duel.together.slot ?? 0)).map(o => [o.slot, centreFor(S.p, o.slot)])) : null;
   let r = judge(p, word, { have, centre: p.centre, seats, dict });
-  if (r.kind === "unknown" && !dict) {                   // the first word Yield doesn't count: the dictionary, then judge again
+  if (r.kind === "unknown" && !dict) {                   // the first word Fathom doesn't count: the dictionary, then judge again
     say("", "", null, true);
     await loadDict();
     if (S?.typed !== word) return;
@@ -230,22 +229,22 @@ async function enter() {
   const nameOf = slot => first(people().find(o => o.slot === slot)?.name);
   switch (r.kind) {
     case "word": {
-      const before = rankOf(pointsNow(), P.total), slated = slatedNow();
+      const before = rankOf(pointsNow(), P.total);
       S.found.push(word);
-      const after = rankOf(pointsNow(), P.total), balanced = !slated && slatedNow();
-      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Full set!") : after > before ? `${RANKS[after][1]}!` : balanced ? "Balanced slate!" : CUTS[cutOf(word)].name, "good", r.points);
-      if (balanced || after > before) sfx.slate(); else sfx.draw(cutOf(word), r.full);
+      const after = rankOf(pointsNow(), P.total), cast = castOf(word);
+      say(r.full ? "No bottom!" : after > before ? `${RANKS[after][1]}! ${callOf(word)}` : callOf(word), "good", r.points);
+      sfx.cast(cast.fathom, { mark: !!cast.mark, rank: after > before, full: r.full });
       found();
       break;
     }
-    case "short": refuse("Too light: four letters at least"); break;
+    case "short": refuse("Too shallow: four letters at least"); break;
     case "letters": refuse(p.board === "wheel" ? "Not on the plate: only its letters" : "Not on the tray: only its letters"); break;
     case "tiles": refuse("Each tile once only"); break;
-    case "centre": refuse(r.by != null ? `That one's ${nameOf(r.by)}'s: it has their ${up(centreFor(S.p, r.by))}, not your ${up(p.centre)}` : `Off spec: no key letter, ${up(p.centre)}`); break;
-    case "found": refuse(r.by != null && r.by !== (duel.together.slot ?? 0) ? `${nameOf(r.by)} found that one` : "Already logged"); break;
+    case "centre": refuse(r.by != null ? `That one's ${nameOf(r.by)}'s: it has their ${up(centreFor(S.p, r.by))}, not your ${up(p.centre)}` : `No key letter: every word has ${up(p.centre)}`); break;
+    case "found": refuse(r.by != null && r.by !== (duel.together.slot ?? 0) ? `${nameOf(r.by)} found that one` : "Already sounded"); break;
     case "variant": noteExtra(word); refuse("One side of the Atlantic's spelling only: not counted", ""); break;
-    case "rare": noteExtra(word); refuse("A word, but rarer than Yield counts", ""); break;
-    default: refuse("Not in Yield's list");
+    case "rare": noteExtra(word); refuse("A word, but rarer than Fathom counts", ""); break;
+    default: refuse("Not in Fathom's list");
   }
   drawWord(); drawUsed(); render(); save();
 }
@@ -255,7 +254,7 @@ function refuse(text, tone = "bad") {
   const w = $("word");
   w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake");
   navigator.vibrate?.(tone === "bad" ? 18 : 0);
-  sfx.shut();
+  sfx.foul();
 }
 /** A word that counts: the daily's figure, the record, the table, and the end once everything is found. */
 function found() {
@@ -263,11 +262,10 @@ function found() {
   const master = S.top < MASTER && rank >= MASTER;                 // the rank to aim for, reached with this word
   if (S.kind === "day") noteDaily(pts);
   if (rank > S.top) { noteRank(S.top, rank); S.top = rank; }
-  if (!S.slate && slatedNow()) { S.slate = true; noteSlate(); }
   if (S.kind === "team") { tell(); if (all) endTeam(); return; }
   if (S.kind === "race") { if (all) S.over = true; tell(all); return; }     // a race's result sheet is duel.js's
   if (all) finish("full");
-  else if (master) roundOver("yield");                             // a puzzle with no end of its own: Supergiant is one
+  else if (master) roundOver("yield");                             // a puzzle with no end of its own: Deep sea is one
 }
 /** Today's points so far, for the games screen (and your partner's): every word counts the moment it's found. */
 function noteDaily(pts) {
@@ -276,13 +274,7 @@ function noteDaily(pts) {
   const keepDays = Object.fromEntries(Object.entries(d).filter(([k]) => Number(k) >= S.p.day - 400));   // a year or so is plenty
   write(DAILY_KEY, { ...keepDays, [S.p.day]: pts });
 }
-/** The record: how often a column was balanced (each solo puzzle counts once). */
-function noteSlate() {
-  if (S.kind === "race" || S.kind === "team") return;
-  const st = read(STATS, {}) || {};
-  write(STATS, { ...st, slate: (st.slate || 0) + 1 });
-}
-/** The record: how often the coveted rank and the last drop were reached (each puzzle counts once). */
+/** The record: how often Deep sea and Blue water were reached (each puzzle counts once). */
 function noteRank(from, to) {
   if (S.kind === "race" || S.kind === "team") return;
   const st = read(STATS, {}) || {};
@@ -355,7 +347,6 @@ function drawGauge() {
   $("rank").textContent = RANKS[rank][1];
   $("points").replaceChildren(String(pts), ...(total ? [el("small", "", ` / ${total}`)] : []));
   scaleTicks.forEach((t, i) => t.classList.toggle("on", !!total && pts >= P.need[i]));
-  $("slate").hidden = !S?.slate;
   myIndex.style.left = `${placeOf(pts) * 100}%`;
   drawTheirIndexes();
   $("gauge").setAttribute("aria-label", `${RANKS[rank][1]}: ${pts} of ${total} points. The ranks`);
@@ -389,43 +380,85 @@ function drawClock() {
   c.textContent = fmt(Math.max(0, left));
   c.classList.toggle("low", left <= 30);
 }
-// the column beside the tray: a vessel of five cuts, light ends at the top, the residue at the foot. Each cut's bar
-// fills with the words found there (of all the crude holds), a tick marks half of them, the slate's target.
-const cutEls = CUTS.map((c, i) => {
-  const b = el("span", "yd-cut"), nm = el("span", "nm", c.name), ct = el("span", "ct"), bar = el("span", "bar"), fill = el("i", "fill"), mark = el("i", "mark");
-  b.style.setProperty("--cut", `var(--cut${i})`);
-  bar.append(fill, mark);
-  b.append(nm, ct, bar);
-  return { b, ct, fill, mark };
+// the lead line beside the tray: the surface at the top, a mark tied at the fathom of every rank, the lead hanging at
+// the line's depth (the ranks are evenly spaced down it, as on the gauge). Beside it, under the tray, the chart of the
+// approach: a sounding appears for every fathom the line has reached, the bands of deeper water tinting in as it goes.
+const markSvg = m => {
+  const svg = svgEl("svg", { viewBox: "0 0 30 14", class: `mk ${m.kind}`, "aria-hidden": "true" });
+  const add = (tag, a) => svg.append(svgEl(tag, a));
+  if (m.kind === "knots") { add("circle", { cx: 15, cy: 4, r: 2.6 }); add("circle", { cx: 15, cy: 10, r: 2.6 }); return svg; }
+  if (m.kind === "leather") {
+    const xs = m.tails === 2 ? [10, 18] : [8.5, 13.5, 18.5];
+    for (const x of xs) add("rect", { x, y: 5, width: 3.4, height: 8, rx: 1 });
+    add("rect", { x: 7, y: 1, width: 16, height: 6, rx: 1 });
+    return svg;
+  }
+  add("rect", { x: 7, y: 2, width: 16, height: 10, rx: 1.5 });
+  if (m.kind === "hole") add("circle", { cx: 15, cy: 7, r: 2.4, class: "hole" });
+  return svg;
+};
+const depthEls = MARKS.map((m, i) => {
+  const b = el("span", "yd-mark-at"), n = el("b", "", String(m.at));
+  b.style.top = `${((i + 1) / TOP) * 100}%`;
+  b.append(markSvg(m), n);
+  return b;
 });
-$("column").replaceChildren(...cutEls.map(x => x.b));
-let drawnCol = null;
-function drawColumn() {
-  const col = S && P ? columnOf(P.words, new Set(foundMap().keys())) : null, key = S ? `${S.p.letters}${S.p.centre}` : "";
-  const fresh = drawnCol && drawnCol.key === key ? drawnCol.have : null;
-  cutEls.forEach((x, i) => {
-    const c = col?.cuts[i], have = c?.have ?? 0, has = !!c?.n;
-    x.b.classList.toggle("none", !has);
-    x.b.classList.toggle("met", has && c.met);
-    x.ct.textContent = !has ? "–" : c.met ? `✓ ${have}` : `${have}/${c.target}`;
-    x.fill.style.width = has ? `${(100 * have) / c.n}%` : "0";
-    x.mark.style.left = has ? `${(100 * c.target) / c.n}%` : "0";
-    if (fresh && have > fresh[i]) { x.b.classList.remove("drew"); void x.b.offsetWidth; x.b.classList.add("drew"); }
-  });
-  drawnCol = { key, have: cutEls.map((_, i) => col?.cuts[i].have ?? 0) };
-  $("column").setAttribute("aria-label", col ? `The column: ${col.cuts.filter(c => c.n).map(c => `${c.name} ${c.have} of ${c.target}`).join(", ")}${col.slate ? ". Balanced slate" : ""}` : "The column");
+const rope = el("i", "yd-rope"), weight = el("span", "yd-weight");
+weight.innerHTML = `<svg viewBox="0 0 20 28" aria-hidden="true"><path d="M7 2h6l1.6 3.2L18.5 22Q19 26 15 26H5Q1 26 1.5 22L5.4 5.2Z"/><path class="hi" d="M7.2 8.5L5.2 21"/><ellipse class="cup" cx="10" cy="25.6" rx="4.4" ry="1.3"/></svg>`;
+const run = el("span", "yd-run");
+run.append(rope, ...depthEls, weight);
+const surface = el("span", "yd-surface");
+surface.innerHTML = `<svg viewBox="0 0 40 8" preserveAspectRatio="none" aria-hidden="true"><path d="M0 4Q5 0 10 4T20 4T30 4T40 4V8H0Z"/></svg>`;
+$("lead").replaceChildren(surface, run);
+// the chart, built once: paper, the tints, the land with its hatching, the shore, the contours and every sounding
+// (shown or not by what the line has reached)
+const sea = svgEl("svg", { viewBox: `0 0 ${CHART_W} ${CHART_H}`, preserveAspectRatio: "xMidYMid slice", role: "presentation" });
+{
+  const g = (cls, ...kids) => { const n = svgEl("g", { class: cls }); n.append(...kids); return n; };
+  const hatch = svgEl("pattern", { id: "ydHatch", width: 4, height: 4, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  hatch.append(svgEl("path", { d: "M0 0V4", class: "hatch" }));
+  const defs = svgEl("defs"); defs.append(hatch);
+  const bands = [svgEl("rect", { class: "tint t0", width: CHART_W, height: CHART_H }), ...BANDS.map(b => svgEl("path", { class: "tint", d: b.d }))];
+  bands.forEach((n, i) => { n.dataset.at = String(i ? BANDS[i - 1].at : 0); });
+  sea.append(defs, svgEl("rect", { class: "paper", width: CHART_W, height: CHART_H }), g("tints", ...bands),
+    svgEl("path", { class: "land", d: LAND_PATH }), svgEl("path", { class: "land hatched", d: LAND_PATH, fill: "url(#ydHatch)" }),
+    g("contours", ...BANDS.map(b => { const n = svgEl("path", { class: "contour", d: b.line }); n.dataset.at = String(b.at); return n; })),
+    svgEl("path", { class: "shore", d: COAST_LINE }),
+    g("light", svgEl("circle", { cx: LIGHT.x, cy: LIGHT.y, r: 2.6 }), svgEl("circle", { cx: LIGHT.x, cy: LIGHT.y, r: 5.4, class: "ray" })),
+    g("rose", svgEl("path", { d: "M224 64V78M217 71H231" }), svgEl("path", { class: "n", d: "M224 61.5L222.2 65.5H225.8Z" })),
+    g("soundings", ...SOUNDINGS.map(s => { const t = svgEl("text", { x: s.x, y: s.y }); t.textContent = String(s.n); t.dataset.n = String(s.n); return t; })));
 }
-function openColumn() {
+$("sea").replaceChildren(sea);
+const soundingEls = [...sea.querySelectorAll(".soundings text")], bandEls = [...sea.querySelectorAll("[data-at]")];
+let drawnLine = null;
+function drawLead() {
+  const depth = S && P ? lineDepth(pointsNow(), P.total) : 0, place = S && P ? placeOf(pointsNow()) : 0, key = S ? `${S.p.letters}${S.p.centre}` : "";
+  weight.style.top = `${place * 100}%`;
+  rope.style.height = `${place * 100}%`;
+  depthEls.forEach((b, i) => b.classList.toggle("out", depth >= MARKS[i].at - 1e-6));
+  const fresh = drawnLine && drawnLine.key === key ? drawnLine.depth : null;
+  bandEls.forEach(n => n.classList.toggle("on", depth >= Number(n.dataset.at) + (n.dataset.at === "0" ? 2 : 0) - 1e-6));
+  soundingEls.forEach(t => {
+    const on = depth >= Number(t.dataset.n) - 1e-6, was = t.classList.contains("on");
+    t.classList.toggle("on", on);
+    if (on && !was && fresh != null) { t.classList.remove("new"); void t.getBoundingClientRect(); t.classList.add("new"); }
+  });
+  drawnLine = { key, depth };
+  const reached = soundingEls.filter(t => t.classList.contains("on")).length, name = RANKS[S && P ? rankOf(pointsNow(), P.total) : 0][1];
+  $("lead").setAttribute("aria-label", `The lead line: ${depth.toFixed(1)} fathoms out, ${name}`);
+  $("sea").setAttribute("aria-label", `The chart of the approach: ${reached} of ${SOUNDINGS.length} soundings`);
+}
+function openLine() {
   if (!S || !P) return;
-  const col = columnOf(P.words, new Set(foundMap().keys())), body = sheet("The column");
-  body.append(el("p", "yd-note", "Your words are drawn off by length, as a column cuts a crude. This crude's assay is what it holds in each cut; half of every cut is a balanced slate. Points and ranks don't change."));
-  const ul = el("ul", "yd-ranks");
-  col.cuts.forEach(c => {
-    const li = el("li", c.n && c.met ? "done" : "");
-    li.append(el("b", "", c.name), el("span", "", !c.n ? "none in this crude" : `${c.have} of ${c.n} found${c.met ? "" : `, ${c.target - c.have} to the target`} · ${c.max === Infinity ? `${c.min}+` : c.min} letters`));
+  const pts = pointsNow(), depth = lineDepth(pts, P.total), rank = rankOf(pts, P.total), body = sheet("The lead line");
+  body.append(el("p", "yd-note", "Every word is a cast of the lead, and the line pays out as your points come in: a mark for each rank, tied at the fathom a hand lead's line carries it. A cast's call is its length in fathoms (a fathom is six feet): by the mark at a marked fathom, by the deep at the others. The chart fills with a sounding for every fathom the line reaches. Points and ranks are as they were."));
+  const ul = el("ul", "yd-ranks yd-marks");
+  RANK_FATHOMS.forEach((f, i) => {
+    const m = MARKS[i - 1], li = el("li", `${i === rank ? "on" : ""}${i < rank ? " done" : ""}`);
+    li.append(el("b", "", RANKS[i][1]), el("span", "", m ? `${m.name} at ${f} · ${P.need[i]}` : `the surface · ${P.need[i]}`));
     ul.append(li);
   });
-  body.append(ul, el("p", "yd-sum", col.slate ? "Balanced slate." : "Not balanced yet: the cuts short of target are the ones to hunt."));
+  body.append(ul, el("p", "yd-sum", `${depth.toFixed(1)} fathoms out of ${RANK_FATHOMS.at(-1)}: ${SOUNDINGS.filter(x => x.n <= depth + 1e-6).length} of ${SOUNDINGS.length} soundings on the chart.`));
   openSheet();
 }
 function drawFound() {
@@ -445,7 +478,7 @@ function drawFound() {
 function render() {
   const p = boardP();
   if (S && P) $("pick").value = S.kind === "day" ? "today" : LEVELS[S.p.level] ? S.p.level : "medium";
-  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawColumn(); drawFound(); drawClock();
+  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawLead(); drawFound(); drawClock();
   const off = !canType();
   setBoardOff(off);
   for (const id of ["delBtn", "enterBtn"]) $(id).disabled = off;
@@ -463,7 +496,7 @@ function save() {
 }
 const validRun = s => !!s && !!s.p && BOARDS[s.p.board] && typeof s.p.letters === "string" && typeof s.p.centre === "string" && Array.isArray(s.found);
 /** A run made whole: what an older save or the database's round trip leaves out. */
-const tidy = s => ({ typed: "", picks: [], extra: [], used: 0, secs: 0, top: 0, over: false, shown: false, slate: null, ...s, found: [...(s.found || [])] });
+const tidy = s => ({ typed: "", picks: [], extra: [], used: 0, secs: 0, top: 0, over: false, shown: false, ...s, found: [...(s.found || [])] });
 const started = s => !!s && !s.over && (s.found.length > 0 || s.used > 20000);
 
 // ---------- starting ----------
@@ -473,7 +506,6 @@ function show(s) {
   S = tidy(s);
   if (!S.outer || S.outer.length !== S.p.letters.length - 1) S.outer = outerOf(boardP());
   derive();
-  S.slate ??= slatedNow();                      // a run kept before the column existed: its mark, without a fanfare
   drawnFor = null;
   message = null;
   if (S.kind === "day" || S.kind === "run") write(ON, S.kind);
@@ -544,7 +576,7 @@ function finish(how) {
 }
 function openDone() {
   const pts = pointsNow(), rank = rankOf(pts, P.total), map = foundMap(), got = [...map.keys()].filter(w => P.set.has(w));
-  const body = sheet(S.kind === "team" ? "The team's yield" : S.secs && !S.shown ? "Time" : RANKS[rank][1]);
+  const body = sheet(S.kind === "team" ? "The team's words" : S.secs && !S.shown ? "Time" : RANKS[rank][1]);
   body.append(stats([[pts, `of ${P.total} points`], [got.length, `of ${P.words.length} words`], [S.kind === "race" || S.kind === "team" ? RANKS[rank][1] : fmtLong(usedMs()), S.kind === "race" || S.kind === "team" ? "rank" : "on the clock"]]));
   if (S.kind === "run" && S.secs) {
     const best = read(STATS, {})?.sprints?.[`${S.secs}:${S.p.board}:${S.p.level}`];
@@ -567,8 +599,8 @@ function stats(items) {
 /** The words, alphabetical, in columns: found ones as they are (a team's in their finder's colour), missed ones faint. */
 function wordList(words, map, { missed = false } = {}) {
   const box = el("div", "yd-cuts"), p = boardP();
-  CUTS.forEach((c, i) => {
-    const ul = el("ul", `yd-words${missed ? " shown" : ""}`), here = words.filter(w => cutOf(w) === i);
+  GROUPS.forEach((name, i) => {
+    const ul = el("ul", `yd-words${missed ? " shown" : ""}`), here = words.filter(w => groupOf(w) === i);
     for (const w of [...here].sort()) {
       const got = map.has(w);
       if (!got && !missed) continue;
@@ -581,8 +613,8 @@ function wordList(words, map, { missed = false } = {}) {
     }
     if (!ul.childElementCount) return;
     const head = el("h5", "yd-cut-h"), have = here.filter(w => map.has(w)).length;
-    head.style.setProperty("--cut", `var(--cut${i})`);
-    head.append(el("span", "", c.name), el("small", "", `${have} of ${here.length}`));
+    head.style.setProperty("--cut", `var(--sea${i})`);
+    head.append(el("span", "", name), el("small", "", `${have} of ${here.length}`));
     box.append(head, ul);
   });
   return box;
@@ -635,7 +667,7 @@ function openChart() {
       return;
     }
   }
-  const body = sheet("Yield chart");
+  const body = sheet("What's left");
   body.append(el("p", "yd-note", "What's left to find, by first letter and length, and by the first two letters."));
   chartInto(body, chartOf(P.words, new Set(map.keys())));
   openSheet();
@@ -664,7 +696,7 @@ function chartInto(body, c) {
 function openRanks() {
   if (!S || !P) return;
   const pts = pointsNow(), rank = rankOf(pts, P.total), body = sheet("Ranks");
-  body.append(el("p", "yd-note", `A well's career, from a dry hole to the last drop: each rank a share of the puzzle's points. ${RANKS[MASTER][1]} is the one to aim for; ${RANKS[TOP][1]} is every word.`));
+  body.append(el("p", "yd-note", `From aground to blue water: each rank a share of the puzzle's points, and a mark on the lead line. ${RANKS[MASTER][1]} is the one to aim for; ${RANKS[TOP][1]} is every word.`));
   const ul = el("ul", "yd-ranks");
   RANKS.forEach(([, name], i) => { const li = el("li", `${i === rank ? "on" : ""}${i < rank ? " done" : ""}`); li.append(el("b", "", name), el("span", "", String(P.need[i]))); ul.append(li); });
   body.append(ul);
@@ -687,10 +719,10 @@ function people() {
   return Object.values(g.players || {}).filter(x => x && x.slot != null).map(x => ({ slot: x.slot, name: x.name, me: x.slot === me })).sort((a, b) => a.slot - b.slot);
 }
 const matchText = m => (m.mode === "team"
-  ? `Team: ${BOARDS[m.board]} at ${LEVELS[m.level]}. The same letters, a key letter each: one yield between you`
+  ? `Team: ${BOARDS[m.board]} at ${LEVELS[m.level]}. The same letters, a key letter each: one set of words between you`
   : `Race: ${BOARDS[m.board]} at ${LEVELS[m.level]}, ${m.secs / 60} minutes. The same letters for everyone: the most points wins`);
 const duel = createDuel({
-  game: "yield", name: "Yield", accent: "--yd-in", line: $("duelLine"), toast,
+  game: "yield", name: "Fathom", accent: "--yd-in", line: $("duelLine"), toast,
   deal: () => ({ seed: randomSeed(), mode: togetherMode(), board: prefs.board, level: prefs.level, secs: prefs.raceSecs || 180 }),
   describe: matchText,
   play: (m, { begun, kept, done, run, n }) => playMatch(m, { begun, kept, done, run, n }),
@@ -804,7 +836,7 @@ function openMenu() {
   part(body, "settings").append(toggle("Sound", prefs.sound !== false, v => { prefs.sound = v; sfx.setSound(v); keepPrefs(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
-  part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; ${RANKS[MASTER][1]} ${st.master || 0} times, ${RANKS[TOP][1]} ${st.full || 0}, balanced slate ${st.slate || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
+  part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; ${RANKS[MASTER][1]} ${st.master || 0} times, ${RANKS[TOP][1]} ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
     line("Words: SCOWL, with wordfreq's frequencies (CC BY-SA 4.0)."));
   showMenu(body);
 }
@@ -815,7 +847,7 @@ function showMenu(body) {
 }
 
 // ---------- the rules ----------
-// The header's Rules and the menu's The rules: Yield as it's played here, its numbers the engine's own, so the sheet
+// The header's Rules and the menu's The rules: Fathom as it's played here, its numbers the engine's own, so the sheet
 // can't drift from the game. A sprint's clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
   const ranks = RANKS.map(([share, name], i) => (i === 0 ? name : i === TOP ? `${name} (every word)` : `${name} (${Math.round(share * 100)}%)`));
@@ -823,10 +855,10 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Make as many words as you can from the seven letters on the tray. Every word has ${inWords(MIN_LEN)} letters or more and uses the key letter, the one on the keyed plate; a letter may be used as often as you like. Every puzzle has at least one full set, a word that uses all seven.</p>
     <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a full set ${FULL_BONUS} more: a six-letter word scores 6, a full set of seven letters ${7 + FULL_BONUS}.</p>
-    <p><b>The column.</b> A refinery draws a crude off in cuts. Yours are by length: light ends ${inWords(MIN_LEN)} letters, naphtha five, kerosene six, gasoil seven, residue eight or more. The column beside the tray shows each cut filling, a tick at half of what this crude holds there. Half of every cut it holds is a balanced slate, marked beside your rank; it adds no points. Some crudes have no residue.</p>
-    <p><b>Ranks.</b> Your points climb a well's career, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs in this puzzle.</p>
-    <p><b>The words.</b> Ordinary English, the same on both sides of the Atlantic: the letters never include an S, or every plural would count, and a spelling only one side uses (colour or color) never counts. A word that doesn't count is told apart: a word, but rarer than Yield counts; one side of the Atlantic's spelling only; or not in Yield's list.</p>
-    <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle moves the outer letters about. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. The Chart is the hints grid: what's left by first letter and length, and by the first two letters.</p>
+    <p><b>The lead line.</b> Every word is a cast of the lead: a longer word sounds deeper water, which is better for a ship coming in. The line beside the tray pays out as your points come in, with the traditional marks of a hand lead tied on it, one at the fathom of each rank: ${MARKS.map(m => `${m.name} at ${m.at}`).join(", ")}. A fathom is six feet. The leadsman calls each cast by its length: <i>by the mark</i> at a fathom with a mark (five, seven, ten), <i>by the deep</i> at the others, <i>and a half</i> when a letter is used twice, and a full set finds <i>no bottom</i>. The chart under the tray is the approach to a harbour: a sounding is printed for every fathom the line reaches, and the deeper water tints in. None of it changes the points.</p>
+    <p><b>Ranks.</b> Your points take you from the shoals to blue water, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs in this puzzle, or the line for its marks.</p>
+    <p><b>The words.</b> Ordinary English, the same on both sides of the Atlantic: the letters never include an S, or every plural would count, and a spelling only one side uses (colour or color) never counts. A word that doesn't count is told apart: a word, but rarer than Fathom counts; one side of the Atlantic's spelling only; or not in Fathom's list.</p>
+    <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle moves the outer letters about. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. Hints is the grid of what's left, by first letter and length, and by the first two letters.</p>
     <p><b>The Plate.</b> The menu's Board: nine tiles from one nine-letter word in place of the tray. Every word uses the key tile in the middle and each tile once at most (a letter on two tiles may be used twice), and the nine-letter word scores as a full set.</p>
     <p><b>Levels.</b> Light, Medium and Heavy, the menu's Puzzle: how far down the vocabulary ${RANKS[MASTER][1]} takes you. Light gets there on everyday words; Heavy needs words people rarely use.</p>
     <p><b>Clock.</b> In Settings: untimed, or a sprint of ${sprints} minutes on the next random puzzle, the most points before time is up. It stands still while the menu or these rules are open.</p>
@@ -863,7 +895,8 @@ $("gauge").addEventListener("click", openRanks);
 $("duelLine").addEventListener("click", e => { if (S?.kind === "team") { e.stopImmediatePropagation(); openWords(); } }, true);
 $("foundBtn").addEventListener("click", () => { if (!sideways()) openWords(); });
 $("chartBtn").addEventListener("click", openChart);
-$("column").addEventListener("click", openColumn);
+$("lead").addEventListener("click", openLine);
+$("sea").addEventListener("click", openLine);
 $("enterBtn").addEventListener("click", enter);
 $("mixBtn").addEventListener("click", shuffle);
 // Delete: a tap takes a letter off, a hold clears the word

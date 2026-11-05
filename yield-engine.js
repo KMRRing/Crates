@@ -1,4 +1,4 @@
-// Yield (README, Yield): seven letters on a tray, words of four letters or more that use only them, each with the key
+// Fathom (id yield; README, Yield): seven letters on a tray, words of four letters or more that use only them, each with the key
 // letter, letters as often as you like; at least one full set uses all seven. The Plate (id "wheel") is the other
 // board: nine tiles, each used once at most, and a nine-letter word among them. The words that count are yield-words.js's (ordinary English, the same on both sides of the Atlantic);
 // a puzzle's yield is every one of them its letters make, found exhaustively here. Pure: no page, tested in Node.
@@ -11,8 +11,8 @@ export const DAILY = { board: "hive", level: "medium" };   // today's, the same 
 export const MIN_LEN = 4, FULL_BONUS = 7;
 const A = 97;
 
-// The crude grades: a level is the depth of vocabulary its Supergiant needs (depth, below), with a size and a
-// full set that suit it. Light reaches the coveted rank on everyday words; Heavy needs words people use less.
+// The levels: a level is the depth of vocabulary its Deep sea needs (depth, below), with a size and a
+// full set that suit it. Light reaches the rank to aim for on everyday words; Heavy needs words people use less.
 // Sizes are counts of words: a tray gives more than a plate, whose letters are spent as they're used.
 const BANDS = {
   hive: {
@@ -74,9 +74,9 @@ function index() {
 }
 /** Every tray's letters that have a full set, each as its seven letters: the sets a tray is dealt from. */
 export const hiveSets = () => index().sets.map(lettersOf);
-/** Whether Yield counts a word anywhere (any case). */
+/** Whether Fathom counts a word anywhere (any case). */
 export const counts = w => index().zipf.has(String(w || "").toLowerCase());
-/** How often a counted word is used: its Zipf frequency (0 for a word Yield doesn't count). */
+/** How often a counted word is used: its Zipf frequency (0 for a word Fathom doesn't count). */
 export const zipfOf = w => index().zipf.get(w) ?? 0;
 /** How readily a person thinks of a word: how common it is, less for every letter past four. */
 export const ease = w => zipfOf(w) - 0.2 * (w.length - MIN_LEN);
@@ -110,8 +110,8 @@ export const totalOf = (p, words) => words.reduce((s, w) => s + pointsOf(p, w), 
 // ---------- difficulty ----------
 /**
  * How deep a puzzle's vocabulary goes: finding its words in order of ease (the commonest and shortest first, as a
- * person tends to), the ease of the word that takes the points past the Supergiant's 70%. A low depth means the
- * coveted rank needs words people use rarely; it is the level's measure, the size only a range for it.
+ * person tends to), the ease of the word that takes the points past the 70% of Deep sea. A low depth means the
+ * rank to aim for needs words people use rarely; it is the level's measure, the size only a range for it.
  */
 export function depthOf(p, words) {
   const total = totalOf(p, words), sorted = [...words].sort((a, b) => ease(b) - ease(a) || (a < b ? -1 : 1));
@@ -224,7 +224,7 @@ export function dealTeam({ seed, level = "medium", board = "hive" }) {
   return best?.p || { ...deal({ seed, level, board }), centres: null };
 }
 /**
- * A team's words, from every seat's run at the table (duel.js keeps each seat's run, s<slot>, and Yield puts in it
+ * A team's words, from every seat's run at the table (duel.js keeps each seat's run, s<slot>, and Fathom puts in it
  * words: { word: ms into the match }): Map(word -> the seat that found it first, the lower seat on a tie). Each phone
  * writes only its own run, so two finds at once never collide; the team's yield is all of them together.
  */
@@ -251,38 +251,58 @@ export const centreFor = (p, slot) => (p.centres?.length ? p.centres[(slot ?? 0)
 export const centresIn = (p, people) => (p.centres?.length ? p.centres.slice(0, Math.max(1, Math.min(people, p.centres.length))) : [p.centre]);
 
 
-// ---------- the column: the words as a crude's cuts ----------
-// Korbi, 4 November 2026 (docs/yield.md): a twist that isn't spelling bee's. A distillation column draws a crude off
-// in cuts by boiling range; here a word's cut is its length, the light ends at the top (four letters) to the residue
-// at the bottom (eight or more). Every puzzle is an assay, a count of its words in each cut. A balanced slate is half
-// of every cut the crude has found. It is a mark beside the rank, never points, so the 70% walk is untouched.
-export const CUTS = [
-  { id: "light", name: "Light ends", min: 4, max: 4 }, { id: "naphtha", name: "Naphtha", min: 5, max: 5 },
-  { id: "kerosene", name: "Kerosene", min: 6, max: 6 }, { id: "gasoil", name: "Gasoil", min: 7, max: 7 },
-  { id: "residue", name: "Residue", min: 8, max: Infinity },
+// ---------- the lead line: sounding the approach ----------
+// Korbi, 4 November 2026 (docs/yield.md): Fathom, a leadsman's sounding line. Every word is a cast of the lead and
+// the line pays out as the points come in. The ranks are rungs on the line: each of the nine above Aground sits at one
+// of a hand lead's traditional marks, so the line's depth is read off the rank scale (evenly spaced, as the gauge is)
+// and between two ranks in proportion to the points. A word's own call is its length in fathoms (a fathom is six feet,
+// the unit of a lead line's depth), the leadsman's way: a marked fathom "by the mark", an unmarked one "by the deep".
+// None of it is points: ranks, the 70% and the dailies' walk are untouched.
+/** The marks of a hand lead's line, by the fathom they stand at: what the leadsman feels in the dark. */
+export const MARKS = [
+  { at: 2, kind: "leather", tails: 2, name: "leather, two tails" }, { at: 3, kind: "leather", tails: 3, name: "leather, three tails" },
+  { at: 5, kind: "calico", name: "white calico" }, { at: 7, kind: "bunting", name: "red bunting" },
+  { at: 10, kind: "hole", name: "leather with a hole" }, { at: 13, kind: "serge", name: "blue serge" },
+  { at: 15, kind: "calico", name: "white calico" }, { at: 17, kind: "bunting", name: "red bunting" },
+  { at: 20, kind: "knots", name: "cord, two knots" },
 ];
-export const SLATE_SHARE = 0.5;
-/** The cut a word is drawn off in: its index in CUTS. */
-export const cutOf = w => Math.min(CUTS.length - 1, Math.max(0, w.length - MIN_LEN));
-/**
- * The column for a puzzle's words and what's found: for each cut, n (words the crude has there), have (found), target
- * (half of n, rounded up; 0 for a cut the crude doesn't have) and met. slate: every cut the crude has is at target.
- */
-export function columnOf(words, found = new Set()) {
-  const cuts = CUTS.map(c => ({ ...c, n: 0, have: 0, target: 0, met: true }));
-  for (const w of words) { const c = cuts[cutOf(w)]; c.n++; if (found.has(w)) c.have++; }
-  for (const c of cuts) { c.target = Math.ceil(c.n * SLATE_SHARE); c.met = c.have >= c.target; }
-  return { cuts, slate: cuts.every(c => c.met) };
+export const markAt = n => MARKS.find(m => m.at === n) || null;
+/** The fathoms of the line at each rank: Aground (the lead at the surface) then one mark for each rank above. */
+export const RANK_FATHOMS = [0, ...MARKS.map(m => m.at)];
+/** How deep the line is out with `points` of `total`: between the marks of the ranks either side, in proportion. */
+export function lineDepth(points, total) {
+  const need = needed(total), top = need.length - 1;
+  if (points >= need[top]) return RANK_FATHOMS[top];
+  let i = 0;
+  while (i < top && points >= need[i + 1]) i++;
+  const span = need[i + 1] - need[i], f = span > 0 ? (points - need[i]) / span : 0;
+  return RANK_FATHOMS[i] + f * (RANK_FATHOMS[i + 1] - RANK_FATHOMS[i]);
 }
+const FATHOM_WORDS = ["nought", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen"];
+/** A word's cast: its length is the water it sounds (a longer word, deeper water); a letter used twice finds the bottom
+ *  shelving, a half fathom more. { fathom, half, mark } */
+export function castOf(w) {
+  const fathom = Math.min(FATHOM_WORDS.length - 1, w.length), half = new Set(w).size < w.length;
+  return { fathom, half, mark: half ? null : markAt(fathom) };
+}
+/** What the leadsman calls for a word: a full set finds no bottom; a letter twice "and a half"; else the mark or the deep. */
+export function callOf(w, full = false) {
+  if (full) return "No bottom!";
+  const { fathom, half, mark } = castOf(w), n = FATHOM_WORDS[fathom];
+  return half ? `And a half ${n}` : mark ? `By the mark ${n}` : `By the deep ${n}`;
+}
+/** How a word is grouped in the lists: by its length, four to seven then eight and more (an index). */
+export const groupOf = w => Math.min(4, Math.max(0, w.length - MIN_LEN));
+export const GROUPS = ["Four letters", "Five letters", "Six letters", "Seven letters", "Eight or more"];
 
 // ---------- ranks ----------
-// A well's career, from a dry hole to the last drop: each rank a share of the puzzle's points. Last drop is every
-// word; Supergiant, the one to aim for, 70% (the levels' grading and the dailies' walk are measured at it).
-export const RANKS = [[0, "Dry hole"], [0.03, "Spudded"], [0.06, "Seeping"], [0.1, "Shows"], [0.18, "Flowing"], [0.28, "Producing"],
-  [0.4, "Plateau"], [0.55, "Gusher"], [0.7, "Supergiant"], [1, "Last drop"]];
-/** Where Supergiant (the rank to aim for) and Last drop (every word) are in RANKS. */
+// A passage from the shoals to blue water, each rank a share of the puzzle's points. Blue water is every word; Deep
+// sea, the one to aim for, 70% (the levels' grading and the dailies' walk are measured at it).
+export const RANKS = [[0, "Aground"], [0.03, "Shoal"], [0.06, "Soundings"], [0.1, "Mid-channel"], [0.18, "Fairway"], [0.28, "Offing"],
+  [0.4, "Open sea"], [0.55, "Deep water"], [0.7, "Deep sea"], [1, "Blue water"]];
+/** Where Deep sea (the rank to aim for) and Blue water (every word) are in RANKS. */
 export const MASTER = 8, TOP = RANKS.length - 1;
-/** The points each rank needs, for a puzzle of `total` points (rounded, as players count them; Last drop is all). */
+/** The points each rank needs, for a puzzle of `total` points (rounded, as players count them; Blue water is all). */
 export const needed = total => RANKS.map(([f], i) => (i === TOP ? total : Math.round(f * total)));
 /** The rank reached with `points` of `total`: its index in RANKS. */
 export function rankOf(points, total) {
@@ -298,7 +318,7 @@ export function rankOf(points, total) {
  *   short (fewer than four letters), letters (a letter not on the board), tiles (a wheel's tile used twice),
  *   centre (no key letter: by is the seat whose letter it has, at a team's table), found (already found: by
  *   whoever found it), word (it counts: its points), variant (one side of the Atlantic's spelling only), rare (a
- *   word, but rarer than Yield counts), unknown (not in Yield's list).
+ *   word, but rarer than Fathom counts), unknown (not in Fathom's list).
  * have: what's been found, Map(word -> seat) or a Set; centre: this player's letter; seats: the other players'
  * centres by seat at a team's table; dict: wordlist.js's isWord and isVariant, once loaded (else every word Yield
  * doesn't count is unknown).

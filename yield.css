@@ -1,5 +1,5 @@
-/* Yield: seven letters on a brass-framed tray (or nine tiles on a plate), a gauge of the run's ranks across the top,
-   the words found under it. Its enamel is cobalt; the key letter sits on a keyed plate, the suite's primary-action
+/* Fathom (id yield): seven letters on a brass-framed tray (or nine tiles on a plate), a gauge of the run's ranks across the top,
+   the words found under it, a leadsman's line beside the tray and the chart of the approach under it. Its enamel is cobalt; the key letter sits on a keyed plate, the suite's primary-action
    colours (navy lettered in gilt by day, brass lettered in navy by night). */
 :root {
   --yd-in: #2C5B8A;                     /* lines and words in the game's colour, dark enough to read on the page */
@@ -7,13 +7,13 @@
   --yd-on-key: var(--plate-ink);
   --yd-in-soft: color-mix(in srgb, var(--yd-in) 15%, var(--sheet));
   --yd-good: #2F7D5B; --yd-bad: #A8382B;
-  --cut0: #E2C15A; --cut1: #D49A22; --cut2: #B8741E; --cut3: #8A5A2B; --cut4: #4A3A2E;   /* the cuts, pale light ends to black residue */
+  --sea0: #A9C4DA; --sea1: #6F9BC0; --sea2: #3F77A3; --sea3: #2C5B8A; --sea4: #1E3F63;   /* the water by the length of word: shallow to deep */
   --yd-logo-tint: #D5E1EC; --yd-logo-edge: var(--logo-edge);   /* the header dropdown wears the logo's colours */
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; --cut4: #8C7560; --cut3: #A8743A; }
+  html:not([data-mode="day"]) { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; --sea0: #35597C; --sea1: #4D7AA3; --sea2: #6F9BC4; --sea3: #8DB4DC; --sea4: #B5D0EA; }
 }
-html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; --cut4: #8C7560; --cut3: #A8743A; }
+html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; --sea0: #35597C; --sea1: #4D7AA3; --sea2: #6F9BC4; --sea3: #8DB4DC; --sea4: #B5D0EA; }
 
 .yd-mark { display: inline-block; }
 .yd-mark svg { width: 100%; height: 100%; display: block; }
@@ -26,9 +26,6 @@ html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806
   font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
 .yd-points { flex: none; font-weight: 800; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
 .yd-points small { font-weight: 650; color: var(--ink-soft); font-size: .8rem; }
-.yd-slate { flex: none; align-self: center; padding: .08rem .4rem; border: 1.5px solid var(--brass); border-radius: 3px; color: var(--ink); font-size: .6rem; font-weight: 800;
-  font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); background: color-mix(in srgb, var(--cut1) 22%, var(--sheet)); }
-.yd-slate[hidden] { display: none; }
 .yd-clock { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--yd-in); }
 .yd-clock.low { color: var(--yd-bad); }
 .yd-clock[hidden] { display: none; }
@@ -84,25 +81,61 @@ html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806
 .yd-line .ld { width: 1rem; height: 1rem; }
 
 .yd-rig { display: flex; gap: .75rem; min-height: 8rem; }
-/* the column: a vessel of five cuts beside the tray; each cut a tray of the column with its draw-off pipe on the right */
-.yd-column { flex: none; display: flex; flex-direction: column; width: 5.7rem; margin: 0 .5rem 0 0; padding: 0; position: relative; max-height: 17rem; align-self: center; height: 100%;
-  border: 1.5px solid var(--brass); border-radius: .9rem; background: color-mix(in srgb, var(--brass) 8%, var(--sheet)); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.yd-cut { position: relative; flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; align-items: end; column-gap: .3rem; padding: .3rem .45rem .35rem; border-top: 1px solid var(--rule); }
-.yd-cut:first-child { border-top: 0; }
-.yd-cut::after { content: ""; position: absolute; right: -.5rem; bottom: .5rem; width: .5rem; height: .375rem; background: var(--cut); border: 1px solid var(--brass); border-left: 0; box-sizing: border-box; border-radius: 0 2px 2px 0; }
-.yd-cut .nm { grid-column: 1 / span 2; align-self: start; font-size: .56rem; font-weight: 800; line-height: 1.1; text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.yd-cut .ct { grid-column: 2; grid-row: 2; justify-self: end; align-self: center; font-size: .58rem; font-weight: 800; line-height: 1.1; min-width: 1.5rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
-.yd-cut .bar { grid-column: 1; grid-row: 2; position: relative; height: .62rem; margin-top: .12rem; border: 1px solid var(--brass); border-radius: 2px; background: var(--yard); overflow: visible; }
-.yd-cut .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cut); transition: width .35s ease; border-radius: 1px; }
-.yd-cut .mark { position: absolute; top: -.18rem; bottom: -.18rem; width: 0; border-left: 2px solid var(--ink); margin-left: -1px; }
-.yd-cut.met .mark { border-color: var(--yd-good); }
-.yd-cut.none { opacity: .45; }
-.yd-cut.none .bar { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--rule) 3px 4px); }
-.yd-cut.none .mark, .yd-cut.none .fill { display: none; }
-.yd-cut.drew .fill { animation: yd-draw .6s ease; }
-@keyframes yd-draw { 0% { filter: brightness(1.6); } 100% { filter: none; } }
-@media (prefers-reduced-motion: reduce) { .yd-cut.drew .fill { animation: none; } .yd-cut .fill { transition: none; } }
-.yd-board { flex: 1 1 0; min-width: 0; position: relative; min-height: 8rem; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+/* the lead line: the surface at the top, a mark tied at the fathom of every rank, the lead hanging at the line's depth.
+   The marks stand on the rope, their fathom beside them; those the line hasn't reached yet are faint. */
+.yd-lead { flex: none; position: relative; display: flex; flex-direction: column; width: 3.5rem; margin: 0; padding: 0 0 1.7rem; align-self: stretch;
+  border: 1.5px solid var(--brass); border-radius: 5px; background: color-mix(in srgb, var(--brass) 8%, var(--sheet)); color: var(--ink); font: inherit; cursor: pointer; overflow: hidden; }
+.yd-surface { flex: none; display: block; height: .7rem; }
+.yd-surface svg { display: block; width: 100%; height: 100%; fill: color-mix(in srgb, var(--yd-in) 38%, transparent); }
+.yd-run { position: relative; flex: 1 1 0; min-height: 0; display: block; margin-top: .45rem; }
+.yd-run::before { content: ""; position: absolute; left: 1.25rem; top: 0; bottom: 0; border-left: 1px dashed var(--rule); }
+.yd-rope { position: absolute; left: 1.25rem; top: 0; width: 0; height: 0; margin-left: -1px; border-left: 2px solid var(--brass); transition: height .6s cubic-bezier(.3, .1, .3, 1); }
+.yd-mark-at { position: absolute; left: 1.25rem; width: 0; height: 0; opacity: .38; transition: opacity .4s; }
+.yd-mark-at.out { opacity: 1; }
+.yd-mark-at svg { position: absolute; left: -.8rem; top: -.37rem; width: 1.6rem; height: .75rem; overflow: visible; }
+.yd-mark-at b { position: absolute; left: .95rem; top: -.42rem; font-size: .62rem; font-weight: 800; line-height: .85rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.yd-mark-at.out b { color: var(--ink); }
+.yd-mark-at .mk * { stroke: var(--ink); stroke-width: .9px; }
+.yd-mark-at .leather :is(rect) { fill: #8A5A2B; }
+.yd-mark-at .hole rect { fill: #8A5A2B; }
+.yd-mark-at .hole .hole { fill: var(--sheet); }
+.yd-mark-at .calico rect { fill: #F4EEDC; }
+.yd-mark-at .bunting rect { fill: #B8492A; }
+.yd-mark-at .serge rect { fill: #2D5E88; }
+.yd-mark-at .knots circle { fill: var(--ink); stroke: none; }
+.yd-weight { position: absolute; left: 1.25rem; width: 1.1rem; height: 1.55rem; margin-left: -.55rem; transition: top .6s cubic-bezier(.3, .1, .3, 1); }
+.yd-weight svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.yd-weight path { fill: var(--ink); stroke: var(--ink); stroke-width: 1px; stroke-linejoin: round; }
+.yd-weight .hi { fill: none; stroke: var(--sheet); stroke-width: 1.4px; stroke-linecap: round; opacity: .55; }
+.yd-weight .cup { fill: var(--brass); stroke: var(--ink); stroke-width: .8px; }
+@media (prefers-reduced-motion: reduce) { .yd-rope, .yd-weight, .yd-mark-at { transition: none; } }
+
+/* the stage: the tray over the chart of the approach */
+.yd-stage { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
+.yd-stage .yd-board { flex: 1 1 0; min-height: 5.5rem; }
+.yd-sea { flex: 0 1 6.2rem; min-height: 3.4rem; position: relative; display: block; padding: 0; border: 1.5px solid var(--brass); border-radius: 5px; overflow: hidden;
+  background: none; color: var(--ink); cursor: pointer; }
+.yd-sea svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.yd-sea .paper { fill: color-mix(in srgb, var(--brass) 9%, var(--sheet)); }
+.yd-sea .tint { fill: var(--yd-in); opacity: 0; transition: opacity .7s; }
+.yd-sea .tint.on { opacity: .17; }
+.yd-sea .land:not(.hatched) { fill: color-mix(in srgb, var(--brass) 26%, var(--yard)); }
+.yd-sea .hatched { stroke: none; }
+.yd-sea .hatch { stroke: var(--brass); stroke-width: .8px; opacity: .55; }
+.yd-sea .shore { fill: none; stroke: var(--ink); stroke-width: 1.1px; stroke-linejoin: round; opacity: .8; }
+.yd-sea .contour { fill: none; stroke: var(--yd-in); stroke-width: .8px; stroke-dasharray: 3 2; opacity: 0; transition: opacity .7s; }
+.yd-sea .contour.on { opacity: .75; }
+.yd-sea .light circle { fill: var(--brass); stroke: var(--ink); stroke-width: .8px; }
+.yd-sea .light .ray { fill: none; stroke: var(--brass); stroke-dasharray: 1.5 1.5; opacity: .7; }
+.yd-sea .rose path { fill: none; stroke: var(--ink-soft); stroke-width: .9px; }
+.yd-sea .rose .n { fill: var(--ink-soft); stroke: none; }
+.yd-sea .soundings text { fill: var(--ink); font-family: var(--font); font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; opacity: 0; transition: opacity .4s;
+  font-variant-numeric: tabular-nums; pointer-events: none; transform-box: fill-box; transform-origin: center; }
+.yd-sea .soundings text.on { opacity: .85; }
+.yd-sea .soundings text.new { animation: yd-ping .9s ease-out; }
+@keyframes yd-ping { 0% { opacity: 0; transform: scale(2.2); fill: var(--yd-in); } 40% { opacity: 1; fill: var(--yd-in); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .yd-sea .soundings text.new { animation: none; } .yd-sea .tint, .yd-sea .contour { transition: none; } }
+.yd-board { flex: 1 1 0; min-width: 0; position: relative; min-height: 5.5rem; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .yd-board * { -webkit-tap-highlight-color: transparent; }
 .yd-board svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
 .yd-cell { cursor: pointer; }
@@ -196,8 +229,10 @@ dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
 @media (orientation: landscape) and (min-width: 700px) {
   #app.yield { --beside: 21rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.yield .yd-gauge { grid-column: 2; grid-row: 2; margin-top: .9rem; }
-  #app.yield .yd-column { width: 8rem; max-height: 26rem; }
-  #app.yield .yd-cut .nm, #app.yield .yd-cut .ct { font-size: .7rem; }
+  #app.yield .yd-lead { width: 4.6rem; }
+  #app.yield .yd-run::before, #app.yield .yd-rope, #app.yield .yd-mark-at, #app.yield .yd-weight { left: 1.7rem; }
+  #app.yield .yd-mark-at b { left: 1.05rem; font-size: .72rem; }
+  #app.yield .yd-sea { flex-basis: 10rem; }
   #app.yield .yd-play { grid-column: 1; grid-row: 2 / span 2; display: flex; flex-direction: column; min-height: 0; padding-top: .4rem; }
   #app.yield .yd-side { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; min-height: 0; padding-bottom: .1rem; }
   #app.yield .yd-found-row { flex: 1 1 auto; min-height: 0; flex-direction: column; }

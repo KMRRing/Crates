@@ -67,7 +67,7 @@ export const GAMES = {
   bridges: { name: "Bridges", page: "./bridges.html" },
   bulls: { name: "Conjunction", page: "./bulls.html" },
   assay: { name: "Assay", page: "./assay.html" },
-  yield: { name: "Yield", page: "./yield.html" },
+  yield: { name: "Fathom", page: "./yield.html" },
   speedmaths: { name: "Speed maths", page: "./speedmaths.html" },
   isomer: { name: "Isomer", page: "./isomer.html" },
   ladder: { name: "Ladder", page: "./ladder.html" },

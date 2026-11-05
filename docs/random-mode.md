@@ -13,7 +13,7 @@ Traps:
 **A new game hooks in** in `random-core.js`: `ROUNDS` with what its round is, or `LEFT_OUT` with why; `tests/random.mjs` fails until it is one or the other, and checks that every game dealt calls `roundOver` from its own files and names itself. A game says its round is over with `roundOver(id)` (its id on the games screen) from its own end-of-round code, after counting it; a game on `seats.js` gives every view to `seatRounds(id, steps)`, which counts the game's end and, where it's dealt hand by hand, the steps that end a hand, only as they change. A change to either module runs every test (`tools/pick-tests.mjs`), since every game loads them.
 
 What counts as a round is each game's own, the natural unit you'd stop at (`ROUNDS` has each): a puzzle solved or given up, a hand or a deal settled, a run's last answer, an idle game's game over after its last move has played out. The exceptions:
-- Nonogram's round waits for the picture's name when naming is on; Yield, whose puzzles have no end of their own, ends at Supergiant (70% of the puzzle's points) or when the puzzle is over.
+- Nonogram's round waits for the picture's name when naming is on; Fathom, whose puzzles have no end of their own, ends at Supergiant (70% of the puzzle's points) or when the puzzle is over.
 - A deal thrown in or passed out and dealt again isn't a round (Big Two, Dou Dizhu, Cribbage, Contract bridge); Avalanche's lesson day isn't one; Topple in Levels is the level; Slipway is a part carved to a star; Courier is a run over (the hearts gone).
 - A puzzle rush (Chess's page of its own, or a rush in Mahjong, Guandan, Xiangqi or on a sheet) is a mode of its game and ends no round.
 - A game left mid-match is there as it was when random mode comes back to it.

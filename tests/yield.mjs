@@ -5,7 +5,8 @@
 // kept through JSON.
 import { BOARDS, LEVELS, DAILY, RANKS, MASTER, TOP, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
   chartOf, outerOf, statsOf, depthOf, centreFor, centresIn, teamFound, onlyMine, counts, zipfOf, hiveSets, makesDaily,
-  maskOf, FIRST_DAY, CUTS, cutOf, columnOf } from "../yield-engine.js";
+  maskOf, FIRST_DAY, MARKS, RANK_FATHOMS, markAt, lineDepth, castOf, callOf, groupOf, GROUPS } from "../yield-engine.js";
+import { W as CW, H as CH, SOUNDINGS, reachedBy, coastY } from "../yield-chart.js";
 import { WORDS, DAYS, BLOCKED } from "../yield-words.js";
 import { isWord, isVariant, tierOf } from "../wordlist.js";
 import { roundTrip } from "./rtdb.js";
@@ -55,12 +56,12 @@ check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted wo
 }
 
 // ---------- ranks ----------
-check(RANKS.length === 10 && RANKS[0][1] === "Dry hole" && RANKS[MASTER][1] === "Supergiant" && RANKS[MASTER][0] === 0.7 && RANKS[TOP][1] === "Last drop" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]),
-  "ten ranks from Dry hole to Last drop, rising, Supergiant at 70%");
+check(RANKS.length === 10 && RANKS[0][1] === "Aground" && RANKS[1][1] === "Shoal" && RANKS[MASTER][1] === "Deep sea" && RANKS[MASTER][0] === 0.7 && RANKS[TOP][1] === "Blue water" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]),
+  "ten ranks from Aground to Blue water, rising, Deep sea at 70%");
 {
   const need = needed(200);
   check(need[8] === 140 && need[9] === 200 && need[1] === 6, "the points each rank needs, rounded (70% of 200 is 140)");
-  check(rankOf(0, 200) === 0 && rankOf(139, 200) === 7 && rankOf(140, 200) === 8 && rankOf(199, 200) === 8 && rankOf(200, 200) === 9, "Supergiant at 70%; Last drop only with every point");
+  check(rankOf(0, 200) === 0 && rankOf(139, 200) === 7 && rankOf(140, 200) === 8 && rankOf(199, 200) === 8 && rankOf(200, 200) === 9, "Deep sea at 70%; Blue water only with every point");
 }
 
 // ---------- a puzzle's yield: every word its letters make ----------
@@ -169,17 +170,31 @@ check(RANKS.length === 10 && RANKS[0][1] === "Dry hole" && RANKS[MASTER][1] === 
     "a word with only your partner's letter is theirs to enter, and says whose it is");
 }
 
-// ---------- the column: words as cuts by length, half of each a balanced slate ----------
+// ---------- the lead line: marks, the line's depth, the leadsman's calls ----------
 {
-  check(CUTS.length === 5 && [4, 5, 6, 7, 8, 9, 12].map(n => cutOf("a".repeat(n))).join() === "0,1,2,3,4,4,4", "five cuts by length: light ends 4, naphtha 5, kerosene 6, gasoil 7, residue 8 and up");
-  const p = deal({ seed: 4242, level: "medium" }), words = yieldOf(p), none = columnOf(words);
-  check(none.cuts.reduce((s, c) => s + c.n, 0) === words.length && none.cuts.every(c => c.target === Math.ceil(c.n / 2)), "the assay counts every word once; a cut's target is half, rounded up");
-  check(!none.slate && columnOf(words, new Set(words)).slate, "no words, no slate; every word, a slate");
-  const half = new Set(words.filter((w, i) => i % 2 === 0));
-  const some = columnOf(words, half), lone = columnOf(words, new Set(words.filter(w => cutOf(w) !== 0)));
-  check(columnOf([], new Set()).slate && lone.slate === (lone.cuts[0].n === 0), "a cut the crude doesn't hold needs nothing; one it holds needs its half");
-  check(some.cuts.every(c => c.have <= c.n), "found counts never pass the assay");
-  check(totalOf(p, words) === words.reduce((s, w) => s + pointsOf(p, w), 0), "the slate is a mark: points are still the words' alone");
+  check(MARKS.slice(0, 6).map(m => `${m.at}:${m.kind}${m.tails || ""}`).join() === "2:leather2,3:leather3,5:calico,7:bunting,10:hole,13:serge", "the marks of a hand lead: leather two tails 2, three tails 3, white calico 5, red bunting 7, leather with a hole 10, blue serge 13");
+  check(RANK_FATHOMS.length === RANKS.length && RANK_FATHOMS[0] === 0 && RANK_FATHOMS.every((f, i) => !i || f > RANK_FATHOMS[i - 1]) && RANK_FATHOMS.slice(1).every(f => markAt(f)), "every rank above Aground sits at a mark, deeper each time");
+  const total = 200, need = needed(total);
+  check(lineDepth(0, total) === 0 && lineDepth(total, total) === 20 && RANK_FATHOMS.every((f, i) => lineDepth(need[i], total) === f), "the line is at each rank's mark exactly when its points are reached, at the surface with none, run out at every word");
+  let rising = true, last = -1;
+  for (let pt = 0; pt <= total; pt++) { const d = lineDepth(pt, total); if (d < last) rising = false; last = d; }
+  check(rising, "the line only pays out as points come in");
+  check(lineDepth(10, 10) === 20 && lineDepth(0, 0) === 20 && Number.isFinite(lineDepth(1, 3)), "a tiny puzzle doesn't divide by nothing");
+  check(callOf("clean") === "By the mark five" && callOf("claim") === "By the mark five" && callOf("liana") === "And a half five" && callOf("canine") === "And a half six" && callOf("planet") === "By the deep six" && callOf("graphite") === "By the deep eight" && callOf("plain") === "By the mark five",
+    "five letters by the mark, six by the deep, a letter used twice and a half");
+  check(callOf("alpine", true) === "No bottom!" && castOf("lacing").fathom === 6 && castOf("lacing").mark === null && castOf("clean").mark.name === "white calico" && castOf("pencil").fathom === 6, "a full set finds no bottom; a word's cast is its length");
+  check(castOf("ab".repeat(15)).fathom <= 15 && ["lacing", "pancakes", "caplin"].every(w => callOf(w).length > 4), "a long word still has a call");
+  check(GROUPS.length === 5 && [4, 5, 6, 7, 8, 9, 12].map(n => groupOf("a".repeat(n))).join() === "0,1,2,3,4,4,4", "words are listed by length: four to seven letters, then eight or more");
+}
+// ---------- the chart of the approach ----------
+{
+  check(SOUNDINGS.length >= 36 && SOUNDINGS.every(s => s.n >= 1 && s.n <= 20 && Number.isInteger(s.n) && s.x > 0 && s.x < CW && s.y > 0 && s.y < CH), `${SOUNDINGS.length} soundings, each a whole number of fathoms inside the chart`);
+  check(SOUNDINGS.every(s => s.y > coastY(s.x) || (s.y < 16 && s.x > 96 && s.x < 150) || (Math.abs(s.x - 122) < 8)), "every sounding is in the water: the sea, the entrance or the basin");
+  check(SOUNDINGS.every((s, i) => !i || s.n >= SOUNDINGS[i - 1].n) && SOUNDINGS.some(s => s.n <= 3) && SOUNDINGS.some(s => s.n >= 18), "from shoal water to deep, shallowest first");
+  let closest = 99;
+  for (const a of SOUNDINGS) for (const b of SOUNDINGS) if (a !== b) closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
+  check(closest >= 8, `no two overprint (closest ${closest.toFixed(1)})`);
+  check(reachedBy(0) === 0 && reachedBy(20) === SOUNDINGS.length && [2, 5, 10, 15].every((d, i, ds) => !i || reachedBy(d) > reachedBy(ds[i - 1])), "soundings fill in depth by depth, every one once the line is out");
 }
 
 // ---------- a run kept ----------

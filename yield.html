@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Codex">
-<title>Yield</title>
+<title>Fathom</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -22,7 +22,7 @@
 <div id="app" class="yield full titled fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <span class="mark-icon yd-mark" aria-hidden="true"></span>Yield</button></h1>
+      <span class="mark-icon yd-mark" aria-hidden="true"></span>Fathom</button></h1>
     <div class="top-right">
       <select id="pick" class="pool" data-accent="yd" aria-label="Puzzle">
         <option value="today" disabled data-note="The same seven letters for everyone, Medium">Today's</option>
@@ -36,7 +36,7 @@
   </header>
 
   <button id="gauge" class="yd-gauge" type="button" aria-haspopup="dialog">
-    <span class="yd-rank"><b id="rank">Crude</b><span id="slate" class="yd-slate" hidden>Slate</span><span id="clock" class="yd-clock" hidden></span><span id="points" class="yd-points">0</span></span>
+    <span class="yd-rank"><b id="rank">Aground</b><span id="clock" class="yd-clock" hidden></span><span id="points" class="yd-points">0</span></span>
     <span id="scale" class="yd-scale" aria-hidden="true"></span>
   </button>
 
@@ -46,8 +46,8 @@
         <span class="yd-found-head"><b id="foundCount">0 words</b><span id="foundLeft"></span></span>
         <span id="foundList" class="yd-found-list"></span>
       </button>
-      <button id="chartBtn" class="yd-chart-btn" type="button" aria-haspopup="dialog" aria-label="The yield chart: what's left, by first letter and length">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5h16M4 9.5h16M4 14.5h16M4 19.5h16M9 4.5v15M14.5 4.5v15"/></svg><span>Chart</span></button>
+      <button id="chartBtn" class="yd-chart-btn" type="button" aria-haspopup="dialog" aria-label="Hints: what's left, by first letter and length">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5h16M4 9.5h16M4 14.5h16M4 19.5h16M9 4.5v15M14.5 4.5v15"/></svg><span>Hints</span></button>
     </div>
     <p id="duelLine" class="yd-rival" hidden></p>
   </section>
@@ -56,8 +56,11 @@
     <p id="word" class="yd-word" aria-live="polite"></p>
     <p id="line" class="yd-line" aria-live="polite"></p>
     <div class="yd-rig fit-grow">
-      <button id="column" class="yd-column" type="button" aria-haspopup="dialog" aria-label="The column"></button>
-      <div id="board" class="yd-board" role="group" aria-label="Letters"></div>
+      <button id="lead" class="yd-lead" type="button" aria-haspopup="dialog" aria-label="The lead line"></button>
+      <div class="yd-stage">
+        <div id="board" class="yd-board" role="group" aria-label="Letters"></div>
+        <button id="sea" class="yd-sea" type="button" aria-haspopup="dialog" aria-label="The chart of the approach"></button>
+      </div>
     </div>
     <div class="yd-keys">
       <button id="delBtn" class="yd-key" type="button" aria-label="Delete a letter (hold to clear)">Delete</button>
