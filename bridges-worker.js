@@ -3,6 +3,6 @@
 import { generate } from "./bridges-engine.js";
 
 self.onmessage = e => {
-  const { id, seed, size, level, twist } = e.data;
-  self.postMessage({ id, puzzle: generate(seed, size, level, twist) });
+  const { id, seed, size, level, twist, shape } = e.data;
+  self.postMessage({ id, puzzle: generate(seed, size, level, twist, shape) });
 };

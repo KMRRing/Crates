@@ -21,6 +21,13 @@
 // counted (a double counts twice), given by a sixth string, `straits`: one character a gap between two rows (`size - 1`
 // of them, top to bottom) and then one a gap between two columns (left to right), "." for none or the digit. No loops:
 // the bridges never close a ring (a double bridge is no ring), so each realm's islands are joined by a tree.
+//
+// The hex board (5 November 2026, bridges-lattice.js): the same grid string, but the points are a triangular lattice in a hexagon,
+// so an island has up to six links (along a row and down both slants) and may read up to twelve. A puzzle on it says `shape: "hex"`,
+// and the layout is built with `more.hex`. Links are numbered as before, each island's links in the order row, down-right, down-left.
+// Two links cross when they pass over one lattice point; the twists mean what they meant (a strait is a gap between two lines of
+// the lattice, in three families instead of two), so the solver is the same one.
+import { axesOf, stepsOf, onBoard, pointsOf, gapsOf, lineOf, gapAt } from "./bridges-lattice.js";
 
 export const SIZES = [7, 9, 11];
 export const LEVELS = { easy: "Easy", medium: "Medium", hard: "Hard" };
@@ -37,6 +44,7 @@ export const twistOn = t => { const f = flagsOf(t), out = TWIST_ORDER.filter(k =
 export const numOf = ch => parseInt(ch, 16);
 const charOf = n => n.toString(16);
 const TRIES = 600;                 // layouts tried towards a level before the nearest is dealt
+const HEX_DENSITY = 1.5;          // a hex board holds this many times the islands of a square one with as many points (more neighbours each, so fewer are free to stand)
 
 // ---------- the board ----------
 const LAYOUTS = new Map();
@@ -47,7 +55,7 @@ const LAYOUTS = new Map();
  * `cons` is every sum the bridges must make, the islands' (`at` the island) and the straits' (`strait` the group), `tree` whether a ring is forbidden.
  */
 function buildLayout(size, grid, kinds = "", realms = "", hills = "", roads = "", more = {}) {
-  const isl = [], at = new Int16Array(size * size).fill(-1);
+  const hex = !!more.hex, axes = axesOf(hex), isl = [], at = new Int16Array(size * size).fill(-1);
   for (let i = 0; i < grid.length; i++) {
     if (grid[i] === ".") continue;
     const n = numOf(grid[i]), kind = kinds[i] === "+" ? 1 : kinds[i] === "-" ? 2 : 0;
@@ -55,48 +63,69 @@ function buildLayout(size, grid, kinds = "", realms = "", hills = "", roads = ""
     at[i] = isl.length; isl.push({ r: Math.floor(i / size), c: i % size, n, kind, mn: kind === 2 ? 0 : n, mx: kind === 1 ? 12 : n, realm: realms[i] === "1" ? 1 : 0, hill: hills[i] === "1" });
   }
   const links = [], byIsl = isl.map(() => []);
-  const add = (a, b, vertical) => { byIsl[a].push(links.length); byIsl[b].push(links.length); links.push({ a, b, vertical, high: isl[a].hill && isl[b].hill, cap: +(roads[links.length] || 2) }); };
+  const add = (a, b, dir) => { byIsl[a].push(links.length); byIsl[b].push(links.length); links.push({ a, b, dir, vertical: dir === 1, high: isl[a].hill && isl[b].hill, cap: +(roads[links.length] || 2) }); };
   isl.forEach((x, a) => {
-    // the first island along the row or column is the only one a bridge can reach (joined only if a cell of water lies between and it is of the same realm)
-    for (let c = x.c + 1; c < size; c++) { const b = at[x.r * size + c]; if (b >= 0) { if (c - x.c >= 2 && isl[b].realm === x.realm) add(a, b, false); break; } }
-    for (let r = x.r + 1; r < size; r++) { const b = at[r * size + x.c]; if (b >= 0) { if (r - x.r >= 2 && isl[b].realm === x.realm) add(a, b, true); break; } }
-  });
-  // two links cross when one's row is strictly inside the other's rows and its column inside the other's columns; a high bridge goes over a low one, so
-  // those two don't hinder each other (two high ones, or two low ones, do)
-  const cross = links.map(() => []);
-  links.forEach((h, i) => {
-    if (h.vertical) return;
-    links.forEach((v, j) => {
-      if (!v.vertical) return;
-      const r = isl[h.a].r, c = isl[v.a].c;
-      if (c > isl[h.a].c && c < isl[h.b].c && r > isl[v.a].r && r < isl[v.b].r && h.high === v.high) { cross[i].push(j); cross[j].push(i); }
+    // the first island along each axis is the only one a bridge can reach (joined only if a point of water lies between and it is of the same realm)
+    axes.forEach(([dr, dc], dir) => {
+      for (let s = 1; ; s++) {
+        const r = x.r + dr * s, c = x.c + dc * s;
+        if (!onBoard(size, hex, r, c)) break;
+        const b = at[r * size + c];
+        if (b >= 0) { if (s >= 2 && isl[b].realm === x.realm) add(a, b, dir); break; }
+      }
     });
   });
+  const cross = links.map(() => []);
+  if (!hex) {
+    // two links cross when one's row is strictly inside the other's rows and its column inside the other's columns; a high bridge goes over a low one, so
+    // those two don't hinder each other (two high ones, or two low ones, do)
+    links.forEach((h, i) => {
+      if (h.vertical) return;
+      links.forEach((v, j) => {
+        if (!v.vertical) return;
+        const r = isl[h.a].r, c = isl[v.a].c;
+        if (c > isl[h.a].c && c < isl[h.b].c && r > isl[v.a].r && r < isl[v.b].r && h.high === v.high) { cross[i].push(j); cross[j].push(i); }
+      });
+    });
+  } else {
+    // on the lattice two links of different axes meet at a lattice point or not at all: they cross when both pass over the same point (a high one and a low one pass each other)
+    const over = new Map();
+    links.forEach((l, i) => {
+      const [dr, dc] = axes[l.dir], x = isl[l.a], s = Math.max(Math.abs(isl[l.b].r - x.r), Math.abs(isl[l.b].c - x.c));
+      for (let t = 1; t < s; t++) { const key = (x.r + dr * t) * size + x.c + dc * t; (over.get(key) || over.set(key, []).get(key)).push(i); }
+    });
+    for (const list of over.values()) for (let p = 0; p < list.length; p++) for (let q = p + 1; q < list.length; q++) {
+      const i = list[p], j = list[q];
+      if (links[i].high === links[j].high && !cross[i].includes(j)) { cross[i].push(j); cross[j].push(i); }
+    }
+  }
   const realmSize = [0, 0], first = [-1, -1];
   isl.forEach((x, i) => { realmSize[x.realm]++; if (first[x.realm] < 0) first[x.realm] = i; });
   const groups = [];
-  for (let g = 0; g < 2 * (size - 1); g++) {
+  for (let g = 0; g < gapsOf(size, hex); g++) {
     const ch = more.straits?.[g];
     if (!ch || ch === ".") continue;
-    const across = g >= size - 1, gap = across ? g - (size - 1) : g;           // a gap between two columns is crossed by the row's links, between two rows by the column's
+    const { fam, gap } = gapAt(size, g), across = fam === 1;           // a gap between two columns is crossed by the row's links, between two rows by the column's (the hex board has a third family, between slants)
     const ls = [];
-    links.forEach((l, i) => { const a = isl[l.a], b = isl[l.b]; if (across ? !l.vertical && a.c <= gap && gap < b.c : l.vertical && a.r <= gap && gap < b.r) ls.push(i); });
-    groups.push({ ls, mn: +ch, mx: +ch, across, gap, g });
+    links.forEach((l, i) => { const a = lineOf(size, fam, isl[l.a].r, isl[l.a].c), b = lineOf(size, fam, isl[l.b].r, isl[l.b].c); if (Math.min(a, b) <= gap && gap < Math.max(a, b)) ls.push(i); });
+    groups.push({ ls, mn: +ch, mx: +ch, across, fam, gap, g });
   }
   const cons = [...isl.map((x, i) => ({ ls: byIsl[i], mn: x.mn, mx: x.mx, at: i })), ...groups.map((x, k) => ({ ls: x.ls, mn: x.mn, mx: x.mx, strait: k }))];
-  return { size, isl, at, links, byIsl, cross, realmSize, first, groups, cons, tree: !!more.tree };
+  return { size, hex, isl, at, links, byIsl, cross, realmSize, first, groups, cons, tree: !!more.tree };
 }
-/** The layout of a grid (and, for the twists, its kinds, realms, hills, roads and `more`: { straits, tree }), made once. */
+/** The layout of a grid (and, for the twists, its kinds, realms, hills, roads and `more`: { straits, tree, hex }), made once. */
 export function layoutOf(size, grid, kinds = "", realms = "", hills = "", roads = "", more = {}) {
-  const key = `${size}:${grid}:${kinds}:${realms}:${hills}:${roads}:${more.straits || ""}:${more.tree ? 1 : 0}`;
+  const key = `${size}:${grid}:${kinds}:${realms}:${hills}:${roads}:${more.straits || ""}:${more.tree ? 1 : 0}${more.hex ? ":hex" : ""}`;
   if (!LAYOUTS.has(key)) LAYOUTS.set(key, buildLayout(size, grid, kinds, realms, hills, roads, more));
   return LAYOUTS.get(key);
 }
 /** A puzzle from its grid and, if known, its answer (a character a link, the bridges there); `kinds`, `realms`, `hills`, `roads` and `more.straits` are the twists' strings, "" for none, `more.tree` forbids a ring. */
 export function puzzleOf(size, grid, sol = null, kinds = "", realms = "", hills = "", roads = "", more = {}) {
   const lay = layoutOf(size, grid, kinds, realms, hills, roads, more);
-  return { size, grid, kinds, realms, hills, roads, straits: more.straits || "", tree: !!more.tree, lay, sol: sol && Uint8Array.from(sol, Number), solMarks: sol };
+  return { size, grid, kinds, realms, hills, roads, straits: more.straits || "", tree: !!more.tree, ...(more.hex ? { shape: "hex" } : {}), lay, sol: sol && Uint8Array.from(sol, Number), solMarks: sol };
 }
+/** The `more` of layoutOf and puzzleOf for a saved or generated puzzle (a run, a match, a shared board): its straits, whether it forbids rings, whether it is on the hex board. */
+export const moreOf = p => ({ straits: p.straits || "", tree: !!flagsOf(p.twist || "none").tree, hex: p.shape === "hex" });
 
 // ---------- the rules, as a solver follows them ----------
 const freshState = lay => ({
@@ -296,12 +325,14 @@ const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]];
  * are triples), a narrow road one (only where the answer has no more than one), the board's `roads` string saying which.
  * The draws for them come after every other, so a board without them is the board it always was.
  */
-export function randomBoard(size, rng, wanted, extra, realms = false, hills = false, widths = null) {
-  const occ = new Uint8Array(size * size);                         // 0 water, 1 island, 2 a bridge over it
-  const isl = [], bridges = [], colour = [];
+export function randomBoard(size, rng, wanted, extra, realms = false, hills = false, widths = null, hex = false) {
+  const occ = new Uint8Array(size * size);                         // 0 water, 1 island, 2 a bridge over it, 9 off the board (a hex board's cut corners)
+  const isl = [], bridges = [], colour = [], dirs = hex ? stepsOf(true) : DIRS, fwd = axesOf(hex), inb = (r, c) => r >= 0 && r < size && c >= 0 && c < size;
+  if (hex) for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (!onBoard(size, true, r, c)) occ[r * size + c] = 9;
   const place = (r, c, k = 0) => { occ[r * size + c] = 1; isl.push([r, c]); colour.push(k); };
-  place(Math.floor(rng() * size), Math.floor(rng() * size));
-  const touchesIsland = (r, c) => DIRS.some(([dr, dc]) => { const y = r + dr, x = c + dc; return y >= 0 && y < size && x >= 0 && x < size && occ[y * size + x] === 1; });
+  if (hex) { for (;;) { const r = Math.floor(rng() * size), c = Math.floor(rng() * size); if (!occ[r * size + c]) { place(r, c); break; } } }
+  else place(Math.floor(rng() * size), Math.floor(rng() * size));
+  const touchesIsland = (r, c) => dirs.some(([dr, dc]) => { const y = r + dr, x = c + dc; return inb(y, x) && occ[y * size + x] === 1; });
   if (realms) {
     for (let guard = 0; guard < 200; guard++) {
       const r = Math.floor(rng() * size), c = Math.floor(rng() * size);
@@ -310,11 +341,11 @@ export function randomBoard(size, rng, wanted, extra, realms = false, hills = fa
     if (isl.length < 2) return null;
   }
   for (let guard = 0; isl.length < wanted && guard < wanted * 40; guard++) {
-    const parent = Math.floor(rng() * isl.length), [r0, c0] = isl[parent], [dr, dc] = DIRS[Math.floor(rng() * 4)];
+    const parent = Math.floor(rng() * isl.length), [r0, c0] = isl[parent], [dr, dc] = dirs[Math.floor(rng() * dirs.length)];
     const reach = 2 + Math.floor(rng() * 4), ends = [];
     for (let s = 1; s <= reach; s++) {
       const r = r0 + dr * s, c = c0 + dc * s;
-      if (r < 0 || r >= size || c < 0 || c >= size || occ[r * size + c]) break;
+      if (!inb(r, c) || occ[r * size + c]) break;
       if (s >= 2 && !touchesIsland(r, c)) ends.push(s);
     }
     if (!ends.length) continue;
@@ -325,42 +356,45 @@ export function randomBoard(size, rng, wanted, extra, realms = false, hills = fa
   }
   // extra bridges between islands side by side, over water only (and, with two realms, of one colour)
   const index = new Map(isl.map(([r, c], k) => [r * size + c, k]));
-  isl.forEach(([r0, c0], from) => { for (const [dr, dc] of [[0, 1], [1, 0]]) {
+  isl.forEach(([r0, c0], from) => { for (const [dr, dc] of fwd) {
     let s = 1;
     while (true) {
       const r = r0 + dr * s, c = c0 + dc * s;
-      if (r >= size || c >= size || occ[r * size + c] !== 0) break;
+      if (!inb(r, c) || occ[r * size + c] !== 0) break;
       s++;
     }
     const r = r0 + dr * s, c = c0 + dc * s;
-    if (s < 2 || r >= size || c >= size || occ[r * size + c] !== 1 || colour[index.get(r * size + c)] !== colour[from] || rng() >= extra) continue;
+    if (s < 2 || !inb(r, c) || occ[r * size + c] !== 1 || colour[index.get(r * size + c)] !== colour[from] || rng() >= extra) continue;
     for (let t = 1; t < s; t++) occ[(r0 + dr * t) * size + c0 + dc * t] = 2;
     bridges.push([r0, c0, r, c, rng() < 0.4 ? 2 : 1]);
   } });
   if (realms && (colour.filter(k => k === 0).length < 3 || colour.filter(k => k === 1).length < 3)) return null;
   let hillStr = "";
   if (hills) {
-    // what passes over each cell: bit 1 a low bridge along a row, 2 a low one down a column, 4 and 8 the same, high (between two hills)
+    // what passes over each cell: a bit for a low bridge along each axis (1 a row, 2 a column, on the hex board 4 the third), and the same bits shifted up by the
+    // number of axes for a high one (between two hills)
+    const A = fwd.length, lowAll = (1 << A) - 1;
     const passOf = high => {
       const pass = new Uint8Array(size * size);
       for (const [ra, ca, rb, cb] of bridges) {
-        const r1 = Math.min(ra, rb), c1 = Math.min(ca, cb), r2 = Math.max(ra, rb), c2 = Math.max(ca, cb), horizontal = ra === rb;
-        const bit = (horizontal ? 1 : 2) << (high(index.get(r1 * size + c1), index.get(r2 * size + c2)) ? 2 : 0);
-        for (let r = r1, c = c1; ; ) { if (r !== r1 || c !== c1) { if (r === r2 && c === c2) break; pass[r * size + c] |= bit; } if (horizontal) c++; else r++; }
+        const dr = Math.sign(rb - ra), dc = Math.sign(cb - ca), axis = fwd.findIndex(([x, y]) => (x === dr && y === dc) || (x === -dr && y === -dc));
+        const bit = (1 << axis) << (high(index.get(ra * size + ca), index.get(rb * size + cb)) ? A : 0);
+        for (let r = ra + dr, c = ca + dc; r !== rb || c !== cb; r += dr, c += dc) pass[r * size + c] |= bit;
       }
       return pass;
     };
-    // the island a hill at (r0, c0) would reach going (dr, dc), if the way is clear, and how many low bridges pass under it on the way
-    const spanFrom = (pass, from, dr, dc) => {
-      const [r0, c0] = isl[from], along = dr === 0 ? 1 : 2, over = dr === 0 ? 2 : 1;      // my own direction's low bit, and the other direction's
+    // the island a hill at (r0, c0) would reach along axis k, if the way is clear, and how many low bridges pass under it on the way
+    const spanFrom = (pass, from, k) => {
+      const [r0, c0] = isl[from], [dr, dc] = fwd[k], along = 1 << k, over = lowAll & ~along;      // my own axis's low bit, and the other axes'
       let s = 1, crossing = 0;
       for (; ; s++) {
         const r = r0 + dr * s, c = c0 + dc * s;
-        if (r >= size || c >= size) return null;
-        const k = r * size + c;
-        if (occ[k] === 1) break;                                                           // an island
-        if (pass[k] & (along | (along << 2) | (over << 2))) return null;                   // along a bridge, or across a high one
-        if (pass[k] & over) crossing++;
+        if (!inb(r, c)) return null;
+        const at = r * size + c;
+        if (occ[at] === 1) break;                                                          // an island
+        if (occ[at] === 9) return null;
+        if (pass[at] & (along | (lowAll << A))) return null;                               // along a bridge, or across a high one
+        if (pass[at] & over) crossing++;
       }
       const to = index.get((r0 + dr * s) * size + c0 + dc * s);
       return s < 2 || to == null || colour[to] !== colour[from] || !crossing ? null : { to, s, along };
@@ -368,17 +402,17 @@ export function randomBoard(size, rng, wanted, extra, realms = false, hills = fa
     // Where two islands of a colour face each other over a low bridge a viaduct could go; hills are drawn so that some of them
     // are hills at both ends (else a board with a viaduct is rare, and the generator wastes its tries), the rest by chance.
     const spans = [], flat = passOf(() => false);
-    isl.forEach((_, from) => { for (const [dr, dc] of [[0, 1], [1, 0]]) { const sp = spanFrom(flat, from, dr, dc); if (sp) spans.push([from, sp.to]); } });
+    isl.forEach((_, from) => { for (let k = 0; k < A; k++) { const sp = spanFrom(flat, from, k); if (sp) spans.push([from, sp.to]); } });
     if (!spans.length) return null;
     const hill = isl.map(() => rng() < 0.25);
     for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0 && spans.length; n--) { const [x, y] = spans.splice(Math.floor(rng() * spans.length), 1)[0]; hill[x] = hill[y] = true; }
     const pass = passOf((x, y) => hill[x] && hill[y]);
     let crossings = 0;
-    isl.forEach(([r0, c0], from) => { if (!hill[from]) return; for (const [dr, dc] of [[0, 1], [1, 0]]) {
-      const sp = spanFrom(pass, from, dr, dc);
+    isl.forEach(([r0, c0], from) => { if (!hill[from]) return; for (let ax = 0; ax < A; ax++) {
+      const sp = spanFrom(pass, from, ax), [dr, dc] = fwd[ax];
       if (!sp || !hill[sp.to] || rng() >= 0.85) continue;
       const { to, s, along } = sp, r = r0 + dr * s, c = c0 + dc * s;
-      for (let t = 1; t < s; t++) { const k = (r0 + dr * t) * size + c0 + dc * t; pass[k] |= along << 2; if (!occ[k]) occ[k] = 2; }
+      for (let t = 1; t < s; t++) { const k = (r0 + dr * t) * size + c0 + dc * t; pass[k] |= along << A; if (!occ[k]) occ[k] = 2; }
       bridges.push([r0, c0, r, c, rng() < 0.4 ? 2 : 1]);
       crossings++;
     } });
@@ -393,11 +427,12 @@ export function randomBoard(size, rng, wanted, extra, realms = false, hills = fa
   }
   const numbers = new Map(isl.map(([r, c]) => [r * size + c, 0]));
   for (const [r1, c1, r2, c2, k] of bridges) { numbers.set(r1 * size + c1, numbers.get(r1 * size + c1) + k); numbers.set(r2 * size + c2, numbers.get(r2 * size + c2) + k); }
+  if (hex && [...numbers.values()].some(n => n > 12)) return null;       // an island reads twelve at most (six links of a double each; a wide road's triples could pass it)
   const grid = Array.from({ length: size * size }, (_, i) => (numbers.has(i) ? charOf(numbers.get(i)) : ".")).join("");
   const colours = realms ? Array.from({ length: size * size }, (_, i) => (index.has(i) ? String(colour[index.get(i)]) : ".")).join("") : "";
   let roads = "";
   if (widths && (widths.wide || widths.narrow)) {
-    const lay = buildLayout(size, grid, "", colours, hillStr), by = new Map(bridges.map(b => [roadKey(b), b[4]]));
+    const lay = buildLayout(size, grid, "", colours, hillStr, "", { hex }), by = new Map(bridges.map(b => [roadKey(b), b[4]]));
     const caps = lay.links.map(l => {
       const v = by.get(keyOf(lay.isl[l.a].r * size + lay.isl[l.a].c, lay.isl[l.b].r * size + lay.isl[l.b].c)) || 0, k = keyOf(lay.isl[l.a].r * size + lay.isl[l.a].c, lay.isl[l.b].r * size + lay.isl[l.b].c);
       if (wide.has(k)) return 3;
@@ -408,16 +443,16 @@ export function randomBoard(size, rng, wanted, extra, realms = false, hills = fa
     if (widths.narrow && !caps.includes(1)) { const at = lay.links.findIndex((l, i) => caps[i] === 2 && (by.get(keyOf(lay.isl[l.a].r * size + lay.isl[l.a].c, lay.isl[l.b].r * size + lay.isl[l.b].c)) || 0) <= 1); if (at < 0) return null; caps[at] = 1; }
     roads = caps.some(c => c !== 2) ? caps.join("") : "";
   }
-  return { grid, sol: answerFrom(size, grid, "", colours, bridges, hillStr, roads), bridges, realms: colours, hills: hillStr, roads };
+  return { grid, sol: answerFrom(size, grid, "", colours, bridges, hillStr, roads, hex), bridges, realms: colours, hills: hillStr, roads, ...(hex ? { hex: true } : {}) };
 }
 /** The answer of a board as a character a link, from the bridges it was made with: [r1, c1, r2, c2, bridges]. */
-function answerFrom(size, grid, kinds, realms, bridges, hills = "", roads = "") {
-  const lay = buildLayout(size, grid, kinds, realms, hills, roads), keyOf = (x, y) => `${Math.min(x, y)}:${Math.max(x, y)}`;
+function answerFrom(size, grid, kinds, realms, bridges, hills = "", roads = "", hex = false) {
+  const lay = buildLayout(size, grid, kinds, realms, hills, roads, { hex }), keyOf = (x, y) => `${Math.min(x, y)}:${Math.max(x, y)}`;
   const by = new Map(bridges.map(([r1, c1, r2, c2, k]) => [keyOf(r1 * size + c1, r2 * size + c2), k]));
   return lay.links.map(l => by.get(keyOf(lay.isl[l.a].r * size + lay.isl[l.a].c, lay.isl[l.b].r * size + lay.isl[l.b].c)) || 0).join("");
 }
 /** The layout of a board as the generator has it so far, with its own kinds or `kinds`. */
-const layOfBoard = (size, b, kinds = "") => buildLayout(size, b.grid, kinds, b.realms, b.hills, b.roads, { straits: b.straits, tree: b.tree });
+const layOfBoard = (size, b, kinds = "") => buildLayout(size, b.grid, kinds, b.realms, b.hills, b.roads, { straits: b.straits, tree: b.tree, hex: b.hex });
 /**
  * The clues of one kind (`field`: "roads", the narrow and wide ones, or "straits") taken away again, in random order,
  * wherever the puzzle can still be finished by reasoning at no more than `most`: a clue left is one the puzzle needs (a
@@ -437,8 +472,8 @@ function pare(size, board, rng, most, field) {
 }
 /** Every strait a board could have, as the answer crosses it (a count of ten or more is left out: it wants a digit): the `straits` string. */
 function straitsOf(size, board) {
-  const lay = buildLayout(size, board.grid, "", board.realms, board.hills, board.roads, { straits: "0".repeat(2 * (size - 1)) });
-  return lay.groups.reduce((out, g) => { const n = g.ls.reduce((t, l) => t + +board.sol[l], 0); return out.slice(0, g.g) + (n < 10 ? String(n) : ".") + out.slice(g.g + 1); }, ".".repeat(2 * (size - 1)));
+  const gaps = gapsOf(size, !!board.hex), lay = buildLayout(size, board.grid, "", board.realms, board.hills, board.roads, { straits: "0".repeat(gaps), hex: board.hex });
+  return lay.groups.reduce((out, g) => { const n = g.ls.reduce((t, l) => t + +board.sol[l], 0); return out.slice(0, g.g) + (n < 10 ? String(n) : ".") + out.slice(g.g + 1); }, ".".repeat(gaps));
 }
 /**
  * Numbers loosened to bounds: islands, in random order, have their number replaced by "at least" or "at most" while the
@@ -454,7 +489,7 @@ function loosen(size, board, rng, share, most) {
     if (done >= want) break;
     const x = lay0.isl[i], at = x.r * size + x.c, pick = rng() < 0.5 ? "+" : "-", n = x.n;
     // "at most 1" says no more than the island's one way in, "at least 8" no more than the 8 itself: nothing is loosened by them
-    const choices = [pick, pick === "+" ? "-" : "+"].filter(k => (k === "+" ? n < 8 : n > 1));
+    const choices = [pick, pick === "+" ? "-" : "+"].filter(k => (k === "+" ? n < (lay0.hex ? 12 : 8) : n > 1));
     for (const k of choices) {
       kinds[at] = k;
       const g = gradeOf(layOfBoard(size, board, kinds.join("")));
@@ -472,12 +507,12 @@ function loosen(size, board, rng, share, most) {
  * `realms`, `hills`, `roads` and `straits` to it as it needs them. The twists that add clues (roads, straits) start from a
  * board with all of them, and keep only those the puzzle needs, so none is decoration.
  */
-export function generate(seed, size, level, twist = "none") {
-  const want = Math.max(0, ORDER.indexOf(level)), rng = rngOf(seed), T = flagsOf(twist), twisted = Object.values(T).some(Boolean);
+export function generate(seed, size, level, twist = "none", shape = "square") {
+  const want = Math.max(0, ORDER.indexOf(level)), rng = rngOf(seed), T = flagsOf(twist), twisted = Object.values(T).some(Boolean), hex = shape === "hex";
   let best = null;
   for (let t = 0; t < TRIES; t++) {
-    const wanted = Math.round(size * size * (0.2 + rng() * 0.14)), extra = [0.45, 0.15, 0.2][want] * (0.5 + rng());
-    let board = randomBoard(size, rng, wanted, T.tree ? 0 : extra, T.realms, T.hills, T.narrow || T.wide ? T : null);
+    const wanted = Math.round((hex ? pointsOf(size, true) * HEX_DENSITY : size * size) * (0.2 + rng() * 0.14)), extra = [0.45, 0.15, 0.2][want] * (0.5 + rng());
+    let board = randomBoard(size, rng, wanted, T.tree ? 0 : extra, T.realms, T.hills, T.narrow || T.wide ? T : null, hex);
     if (!board) continue;
     if (T.tree) board = { ...board, tree: true };
     if (T.straits) board = { ...board, straits: straitsOf(size, board) };
@@ -496,6 +531,7 @@ export function generate(seed, size, level, twist = "none") {
     if (T.tree) { const loose = gradeOf(layOfBoard(size, { ...board, tree: false })); if (loose >= 0 && loose <= want) continue; }       // the rule must be a step the puzzle needs, not a fact about its answer
     if (T.ranges) ({ kinds, grade: got } = loosen(size, board, rng, 0.25 + 0.15 * rng(), want));
     const found = { size, grid, sol, level: ORDER[got] };
+    if (hex) found.shape = "hex";
     if (twisted) { found.twist = twistOn(twist); if (kinds) found.kinds = kinds; if (board.realms) found.realms = board.realms; if (board.hills) found.hills = board.hills; if (board.roads) found.roads = board.roads; if (board.straits) found.straits = board.straits; }
     if (got === want) return found;
     if (!best || Math.abs(got - want) < Math.abs(ORDER.indexOf(best.level) - want)) best = found;

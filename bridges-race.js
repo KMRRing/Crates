@@ -26,10 +26,10 @@ export const matchOf = (seed, lv, puzzle) => ({ ...fixedOf(fromPuzzle("duel", se
 export const matchValid = m => !!m && Number.isInteger(m.lv) && m.lv >= 0 && m.lv < LADDER.length && typeof m.sol === "string"
   && playable({ ...m, v: 1, mode: "duel", ms: 0, marks: "0".repeat(m.sol.length) }) && linksOf(m) === m.sol.length;
 /** How many links the match's board has: its answer is one digit for each. */
-const linksOf = m => { try { return layoutOf(m.size, m.grid, m.kinds || "", m.realms || "", m.hills || "", m.roads || "", { straits: m.straits || "" }).links.length; } catch { return -1; } };
+const linksOf = m => { try { return layoutOf(m.size, m.grid, m.kinds || "", m.realms || "", m.hills || "", m.roads || "", { straits: m.straits || "", hex: m.shape === "hex" }).links.length; } catch { return -1; } };
 
 /** The match in words: the level it comes from and its size. */
-export const nameOf = m => `${LADDER[m.lv]?.name || "Bridges"}, ${m.size}×${m.size}`;
+export const nameOf = m => `${LADDER[m.lv]?.name || "Bridges"}, ${m.shape === "hex" ? `hex ${m.size}` : `${m.size}×${m.size}`}`;
 
 /**
  * How far a run is from the answer, for the others at the table: the bridges laid that the answer has, out of all of
