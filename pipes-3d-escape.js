@@ -196,42 +196,35 @@ export function buildChime(c, group, r, out, goal, k) {
   };
 }
 
-/** What docks a dial, a moon or a date ring to its train, in the train's metal (the sink's module): the same driving wheel as the escapement's on the port side; a flat twin
- *  of the sink's own wheel over the face when the instrument is compact (its face hides the sink wheel, and the driver would mesh with nothing); a bridge arm from the
- *  sink's hub, in a collar on its arbor, to the face's rim when the face stands out in the margin. `o`: { twin: height of the twin above the plate, reach: how far the arm runs along `out`, tab: [from, to] radii of a tab
- *  the other way, drive: false for no driving wheel } Always a picture: the face's own motion works are driven from the sink as before. */
+/** What docks a dial, a moon or a date ring to its train: ONE small gear in the train's metal (the sink's module), the open-work twin of the sink wheel, lying under the
+ *  face so that a toothed part of it sticks out past the face's rim on the side the power comes in by (opposite `out`). A face out in the margin (`mesh`) has it on the
+ *  sink's side of the face, meshed with the sink wheel and turning the other way; a compact face sits on its sink, so its twin turns with the sink wheel. `o`: { y: height
+ *  of its underside, rim: the face's rim radius from the sink, mesh, plain: a solid disc instead of spokes }. Always a picture: the face's own motion works are
+ *  driven from the sink as before. */
 export function buildDock(c, group, r, out, o = {}) {
-  const { THREE, G, M, P, mk } = c, metal = metalOf(r), drive = o.drive === false ? { update() {} } : driverGear(c, group, r, out);
-  const g = new THREE.Group(), turn = new THREE.Group(), a = Math.atan2(out[1], out[0]);
+  const { THREE, G, M, P, mk } = c, metal = metalOf(r), a = Math.atan2(out[1], out[0]), ns = r.n, m = r.m;
+  const g = new THREE.Group(), turn = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -a; g.userData.dock = true; group.add(g); g.add(turn);
-  const top = P.LAYER_Y[r.layer] + P.THICK;
-  if (o.twin != null) {
-    // an open-work twin: the sink wheel's toothed rim, four spokes and a collar, so the face stays readable through it
-    const root = P.rootR(r.n, r.m), hole = Math.max(0.1, root - 0.07), t = 0.03;
-    const rim = G.slab(G.shapeOf(P.toothOutline(r.n, r.m, 2), [G.circle(hole, 40)]), t, 0.006, 1);
-    const spokes = [0, 1, 2, 3].map(i => { const q = i * Math.PI / 2 + 0.4, cx = Math.cos(q), cz = Math.sin(q), w = 0.03; return G.slab(G.shapeOf([[cx * 0.08 - cz * w, cz * 0.08 + cx * w], [cx * (hole + 0.02) - cz * w, cz * (hole + 0.02) + cx * w], [cx * (hole + 0.02) + cz * w, cz * (hole + 0.02) - cx * w], [cx * 0.08 + cz * w, cz * 0.08 - cx * w]]), t, 0.004, 1); });
-    const hub = G.slab(G.shapeOf(G.circle(0.11, 24), [G.circle(0.045, 12)]), t + 0.012, 0.006, 1);
-    const twin = G.tint(G.merge([rim, ...spokes, hub]), metal); G.polish(twin, 2);
-    mk(twin, M.parts, turn, { cast: false }).position.y = o.twin;
+  // a sink wheel too small to reach out from under its face is twinned by a larger one of the same module; a ring's or moon's twin is a smaller, plain one
+  const nt = o.mesh ? ns : o.plain ? Math.max(5, Math.round(ns * 0.7)) : Math.max(ns, Math.ceil(0.32 * 120 / m)), pt = P.pitchR(nt, m), ps = P.pitchR(ns, m);
+  const off = o.mesh ? 0 : Math.max(0, o.rim + (o.stick ?? 0.15) - P.tipR(nt, m));
+  turn.position.x = o.mesh ? ps + pt : -off;
+  c.lifts?.set(r.id, o.mesh || out[1] <= 0 ? 0 : Math.max(0, off + P.tipR(nt, m) - P.tipR(ns, m)));       // the goal chip rides above it when the power comes in at the top of the screen
+  const root = P.rootR(nt, m), hole = o.plain ? 0.07 : Math.max(0.1, root - 0.07), t = 0.03;
+  const parts = [G.slab(G.shapeOf(P.toothOutline(nt, m, 2), [G.circle(hole, 40)]), t, 0.006, 1)];
+  if (!o.plain) {
+    for (let i = 0; i < 4; i++) { const q = i * Math.PI / 2 + 0.4, cx = Math.cos(q), cz = Math.sin(q), w = 0.03; parts.push(G.slab(G.shapeOf([[cx * 0.08 - cz * w, cz * 0.08 + cx * w], [cx * (hole + 0.02) - cz * w, cz * (hole + 0.02) + cx * w], [cx * (hole + 0.02) + cz * w, cz * (hole + 0.02) - cx * w], [cx * 0.08 + cz * w, cz * 0.08 - cx * w]]), t, 0.004, 1)); }
+    parts.push(G.slab(G.shapeOf(G.circle(0.11, 24), [G.circle(0.045, 12)]), t + 0.012, 0.006, 1));
   }
-  if (o.tab) {                                                  // a tab out of a ring's rim on the side the train comes in by (opposite `out`), tipped with a screw
-    const [r0, r1] = o.tab, w = 0.1, tab = G.tint(G.slab(G.shapeOf([[-r0, -w], [-r1 + w, -w], [-r1 - w, 0], [-r1 + w, w], [-r0, w]]), 0.026, 0.006, 1), metal); G.polish(tab, 2);
-    mk(tab, M.parts, g).position.y = top + 0.075;
-    const sc = mk(G.screwGeometry(0.045), M.steel, g, { cast: false }); sc.position.set(-r1 + 0.02, top + 0.1, 0);
-  }
-  if (o.reach) {
-    const L = o.reach, w = 0.055, arm = G.tint(G.slab(G.shapeOf([[0, -w], [L - w, -w], [L + w, 0], [L - w, w], [0, w]]), 0.026, 0.006, 1), metal); G.polish(arm, 2);
-    const collar = G.tint(G.slab(G.shapeOf(G.circle(0.21, 28), [G.circle(0.165, 24)]), 0.04, 0.008, 1), metal); G.polish(collar, 2);
-    const y = top + 0.012;
-    mk(arm, M.parts, g).position.y = y; mk(collar, M.parts, g).position.y = y - 0.004;
-    const sc = mk(G.screwGeometry(0.045), M.steel, g, { cast: false }); sc.position.set(L - 0.02, y + 0.026, 0);
-  }
+  const gear = G.tint(G.merge(parts), metal); G.polish(gear, 2);
+  mk(gear, M.parts, turn, { cast: false }).position.y = o.y;
   return {
     busy: () => true,
     update(cx) {
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
-      if (o.twin != null) turn.rotation.y = a - cx.angle(r.id) * P.DEG;
-      drive.update(cx);
+      const s = cx.angle(r.id) * P.DEG;
+      // meshed: a tooth of the sink at the contact meets a gap here (the driving wheel's rule); otherwise it turns with the sink wheel
+      turn.rotation.y = o.mesh ? a - (a + Math.PI + Math.PI / nt - (ns / nt) * (s - a)) : a - s;
     },
   };
 }

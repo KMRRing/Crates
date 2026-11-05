@@ -17,7 +17,7 @@ export const BRIDGE_Y = { 1: [0.165, 0.245], 2: [0.365, 0.445] };
 /** The plate's room round the board: the barrels and the instruments sit in the side margins, the legend below. */
 export const MARGIN = { l: 0.4, r: 0.4, top: 0.4, bottom: 0.85 };
 /** How far each complication reaches out of its sink's square (world units from the sink wheel's middle): the dial, the moon, the escapement, the chime. */
-export const REACH = { hands: 1.7, dial: 1.7, seconds: 1.7, moon: 1.4, escape: 2.1, chime: 2.1, tourbillon: 1.9 };
+export const REACH = { hands: 1.8, dial: 1.8, seconds: 1.8, moon: 1.4, escape: 2.1, chime: 2.1, tourbillon: 1.9 };
 const SIDES = { N: 0, E: 1, S: 2, W: 3 };
 /** The way out of a sink's square (a unit vector in world x, z): away from the port it meshes through. */
 export function outOf(side) { const s = typeof side === "string" ? SIDES[side] : side; return [[0, 1], [-1, 0], [0, -1], [1, 0]][s ?? 3]; }

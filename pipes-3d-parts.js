@@ -8,6 +8,7 @@ import { buildEscapement, buildTourbillon, buildChime, buildDock } from "./pipes
 
 const TAU = Math.PI * 2;
 /** The width of a compact instrument (the fraction of its full size) so that it stays within about its sink's square. */
+const FACE_AT = 1.22;           // a full-size face: how far from its sink's middle (room for the docking wheel to show between them)
 const COMPACT = { hands: 0.74, dial: 0.74, seconds: 0.74, moon: 0.84, chime: 0.62, escape: 0.58, tourbillon: 0.8 };
 
 export function createParts(env) {
@@ -16,13 +17,14 @@ export function createParts(env) {
   const group = new THREE.Group();
   root.add(group);
   let items = [], owned = [], skin = null, plan = null, frame = null;
+  const lifts = new Map();                                      // sink id -> how far its docking wheel reaches past the sink's tip, for the goal chip
   const own = o => { owned.push(o); return o; };
   const mk = (geo, mat, parent = group, o = {}) => { const m = new THREE.Mesh(geo, mat); m.castShadow = o.cast !== false; m.receiveShadow = o.receive !== false; parent.add(m); own(geo); return m; };
-  const ctxB = { THREE, G, look, P, mk, own, onEvent, M, gearMat };
+  const ctxB = { THREE, G, look, P, mk, own, onEvent, M, gearMat, lifts };
 
   function clear() {
     for (const o of owned) o.dispose?.();
-    owned = []; items = [];
+    owned = []; items = []; lifts.clear();
     group.clear();
   }
 
@@ -85,16 +87,16 @@ export function createParts(env) {
     const g = G.merge([body, eye, hub]); G.polish(g, 2); return G.tint(g, 0xf0cd7a);
   };
   function dial(r, k, o = [1, 0], raised = false) {
-    const g = new THREE.Group();
-    g.position.set(r.wx + o[0] * 1.0, 0, r.wz + o[1] * 1.0);
+    const g = new THREE.Group(), at = raised ? 0 : FACE_AT, lift = raised ? 0 : P.LAYER_Y[r.layer] + 0.055;     // a full face lies just above the docking wheel, which is in the sink's own plane
+    g.position.set(r.wx + o[0] * at, 0, r.wz + o[1] * at);
     group.add(g);
     const R = 0.62, face = G.slab(G.shapeOf(G.circle(R, 72)), 0.034, 0.008, 2);
     G.faceUV(face, R * 2);
     const dm = new THREE.MeshStandardMaterial({ color: 0xffffff, map: dialTexture(R), roughness: 0.4, metalness: 0 });
     own(dm);
-    const faceM = mk(face, dm, g); faceM.position.y = 0.0;
+    const faceM = mk(face, dm, g); faceM.position.y = lift;
     const rim = G.tint(G.slab(G.shapeOf(G.circle(R + 0.035, 72), [G.circle(R - 0.004, 72)]), 0.05, 0.008, 2), 0xd8dade); G.polish(rim, 2);
-    mk(rim, M.parts, g).position.y = 0;
+    mk(rim, M.parts, g).position.y = lift;
     // the motion works: cannon pinion 10 (with the minute hand) turns minute wheel 30, whose pinion 8 turns the hour wheel 32 (with the hour hand): 1:12.
     const m = 1.4, y0 = (raised ? 0 : P.LAYER_Y[r.layer] + P.THICK) + 0.05, dist = 28, dirA = (k % 2 ? 150 : 30) * P.DEG;
     const mx = Math.cos(dirA) * dist / 60, mz = Math.sin(dirA) * dist / 60;
@@ -195,10 +197,10 @@ export function createParts(env) {
       for (const [k, [r, type, goal]] of sinkOf) {
         // an instrument whose sink is not on the board's edge is built compact, on the sink's own square (its parts drawn narrower, its heights kept)
         const compact = !P.fullSize(p, p.trains[k]) && type !== "date" && !r.ring, before = group.children.length, o = compact ? [0, 0] : outOfTrain(k, r);
-        const top = P.LAYER_Y[r.layer] + P.THICK;
-        if (type === "hands" || type === "dial" || type === "seconds") { dial(r, di++, o, compact); items.push(buildDock(ctxB, group, r, outOfTrain(k, r), compact ? { twin: top + 0.075, flat: 0.22 } : { reach: 0.45 })); }
-        else if (type === "date" || r.ring) { dateRing(r); { const R = P.pitchR(r.n, r.m), outer = R + (R - P.rootR(r.n, r.m)) + 0.2; items.push(buildDock(ctxB, group, r, outOfTrain(k, r), { drive: false, tab: [outer - 0.25, outer + 0.3] })); } }
-        else if (type === "moon") { moon(r, o); items.push(buildDock(ctxB, group, r, outOfTrain(k, r), compact ? { twin: top + 0.15 } : { reach: 0.38 })); }
+        const under = P.LAYER_Y[r.layer] - 0.055, dock = o_ => items.push(buildDock(ctxB, group, r, outOfTrain(k, r), { y: under, ...o_ }));     // the docking wheel lies just under the sink's own layer
+        if (type === "hands" || type === "dial" || type === "seconds") { dial(r, di++, o, compact); dock(compact ? { rim: (0.62 + 0.035) * COMPACT[type], stick: 0.2 } : { mesh: true, y: P.LAYER_Y[r.layer] + 0.02 }); }
+        else if (type === "date" || r.ring) { const R = P.pitchR(r.n, r.m); dock({ rim: R + (R - P.rootR(r.n, r.m)) + 0.23, plain: true, stick: 0.3 }); dateRing(r); }
+        else if (type === "moon") { moon(r, o); dock(compact ? { rim: (0.5 + 0.07) * COMPACT.moon, plain: true, stick: 0.26 } : { mesh: true }); }
         else if (type === "chime") items.push(buildChime(ctxB, group, r, outOfTrain(k, r), goal, k));
         else if (type === "escape") items.push(buildEscapement(ctxB, group, r, outOfTrain(k, r), k));
         else if (type === "tourbillon") items.push(buildTourbillon(ctxB, group, r, outOfTrain(k, r), k));
@@ -212,6 +214,7 @@ export function createParts(env) {
     },
     update(ctx) { for (const it of items) it.update(ctx); },
     tint(s) { skin = s; },
+    lifts,
     busy: () => items.some(i => i.busy?.()),
     dispose() { clear(); root.remove(group); },
   };

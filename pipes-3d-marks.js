@@ -92,10 +92,10 @@ export function createMarks({ THREE, G, P, look, root, host }) {
     }
     chipBox.replaceChildren(...chipList.map(x => x.span));
   }
-  /** Puts each chip over its wheel: `screenOf(x, y, z)` gives host pixels, `pxPer` the pixels in a world unit, `w` the host's width. */
-  function placeChips(screenOf, pxPer, w, layerY) {
+  /** Puts each chip over its wheel: `screenOf(x, y, z)` gives host pixels, `pxPer` the pixels in a world unit, `w` the host's width, `lift(id)` how far something stands out past the wheel's tip. */
+  function placeChips(screenOf, pxPer, w, layerY, lift = () => 0) {
     for (const { r, span } of chipList) {
-      const [x, y] = screenOf(r.wx, layerY(r.layer) + 0.1, r.wz), top = y - r.tip * pxPer - 4;
+      const [x, y] = screenOf(r.wx, layerY(r.layer) + 0.1, r.wz), top = y - (r.tip + lift(r.id)) * pxPer - 4;
       const m = span.offsetWidth / 2 + 4;
       span.style.left = `${Math.round(Math.max(m, Math.min(w - m, x)))}px`;
       span.style.top = `${Math.round(Math.max(span.offsetHeight + 4, top))}px`;

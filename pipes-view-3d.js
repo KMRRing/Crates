@@ -363,7 +363,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     sparks.count = ns; sparks.instanceMatrix.needsUpdate = true;
     parts?.update({ tMs, g: turns[0] || 0, beat: k => stepTrains.get(k), phase: id => phases.get(id) || 0, turns: turnsFor, angle: id => { const r = byId.get(id); return r ? angleOf(r) : 0; }, ex, awake: awakeOf, wake0, focus, layerY: l => P.layerY(l, ex) });
     placeBridges();
-    marks.placeChips(screenOf, pxPer(), w, l => P.layerY(l, ex));
+    marks.placeChips(screenOf, pxPer(), w, l => P.layerY(l, ex), id => parts?.lifts?.get(id) || 0);
   }
   /** Host pixels of a point of the movement (the case's lean included), and the pixels in a world unit (the camera is orthographic). */
   const screenOf = (x, y, z) => { _p.set(x, y, z).applyMatrix4(tilter.matrixWorld).project(camera); return [(_p.x + 1) / 2 * w, (1 - _p.y) / 2 * h]; };
