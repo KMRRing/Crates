@@ -31,11 +31,11 @@ const root = new URL("../", import.meta.url).pathname;
   check(mid.az < 200 && mid.az > 80 && mid.pitch < -30 && mid.pitch > -62, "half way down, the head is half way to the table");
 }
 {
-  const d = dragLook({ az: 100, pitch: 10 }, 0, 40, 8);
-  check(d.pitch < 10 && near(d.az, 100), "dragging down looks down (to the table)");
-  check(dragLook({ az: 100, pitch: 10 }, 0, -40, 8).pitch > 10, "dragging up looks up (to the sky)");
+  const d = dragLook({ az: 100, pitch: 10 }, 0, -40, 8);
+  check(d.pitch < 10 && near(d.az, 100), "dragging up looks down (to the table): the sky follows the finger");
+  check(dragLook({ az: 100, pitch: 10 }, 0, 40, 8).pitch > 10, "dragging down looks up (to the sky)");
   check(dragLook({ az: 100, pitch: 10 }, 40, 0, 8).az < 100 && dragLook({ az: 5, pitch: 0 }, 400, 0, 8).az > 300, "dragging sideways turns the head the way the sky is pulled, and wraps through north");
-  check(dragLook({ az: 0, pitch: 80 }, 0, -5000, 8).pitch === PITCH_MAX && dragLook({ az: 0, pitch: -80 }, 0, 5000, 8).pitch === PITCH_MIN, "the head stops at straight up and straight down");
+  check(dragLook({ az: 0, pitch: 80 }, 0, 5000, 8).pitch === PITCH_MAX && dragLook({ az: 0, pitch: -80 }, 0, -5000, 8).pitch === PITCH_MIN, "the head stops at straight up and straight down");
   let a = 350;
   for (let i = 0; i < 80; i++) a = ease(a, 10, 0.05, 3, true);
   check(near(a, 10, 0.05), "a bearing eases the short way round, across north");

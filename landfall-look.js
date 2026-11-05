@@ -33,9 +33,9 @@ export function poseOf(look, table, stand) {
   const yaw = look.az + b * wrapDiff(look.az, table.az);
   return { b, az: yaw, pitch: lerp(look.pitch, table.pitch, b), eye: stand.eye.map((v, i) => lerp(v, table.eye[i], b)) };
 }
-/** A look moved by a drag of (dx, dy) pixels, `ppd` pixels to a degree. Dragging down looks down at the table; sideways turns about the horizon. */
+/** A look moved by a drag of (dx, dy) pixels, `ppd` pixels to a degree. The sky follows the finger on both axes, as on the flat page: dragging up looks down at the table, dragging down looks up at the sky, sideways turns about the horizon. */
 export function dragLook(look, dx, dy, ppd) {
-  return { az: (look.az - dx / ppd + 360) % 360, pitch: clamp(look.pitch - dy / ppd, PITCH_MIN, PITCH_MAX) };
+  return { az: (look.az - dx / ppd + 360) % 360, pitch: clamp(look.pitch + dy / ppd, PITCH_MIN, PITCH_MAX) };
 }
 /** One step of a critically damped approach of `cur` to `target` (degrees, shortest way for a bearing); `rate` is about 1 / the seconds it takes to settle. */
 export function ease(cur, target, dt, rate, wrap = false) {

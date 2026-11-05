@@ -1,8 +1,8 @@
-// Landfall's 3D stage: the scene (landfall-scene.js) and the navigator's body in it. Fingers become looks: drag down to look at the
-// chart table, up to the sky, sideways to turn; a pinch or the wheel looks closer; a tap on a star chooses it, on the chart works the
+// Landfall's 3D stage: the scene (landfall-scene.js) and the navigator's body in it. Fingers become looks (the sky follows the finger): drag up to look at the
+// chart table, down to the sky, sideways to turn; a pinch or the wheel looks closer; a tap on a star chooses it, on the chart works the
 // dividers or the course, on a thing on the table does what its button does. A button does the same for anyone who cannot drag, and
 // the arrow keys turn the head. The phase of the voyage moves the head too (to the table while the dividers are set, up to the sky
-// while a star is found), and a look is kept: dragging down and up again comes back to the bearing it left.
+// while a star is found), and a look is kept: dragging up and down again comes back to the bearing it left.
 import { createScene, TABLE, STAND } from "./landfall-scene.js";
 import { clamp, smooth, lerp, D2R, wrapDiff, poseOf, dragLook, ease, tableBlend, HFOV, adapt, PITCH_MIN, PITCH_MAX, vfovOf, dirOf } from "./landfall-look.js";
 

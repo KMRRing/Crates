@@ -12,6 +12,8 @@ Ruling, 4 November 2026, Korbi, on the Navigation course: it "won't get much lov
 
 Ruling, 4 November 2026, Korbi: "this gamemode is beautiful as is, but not yet 3D. we want it to be 3D. the chart should be what you see when you look down, and the rest when you look up. it should be more immersive and there should be more levels." Built as one scene (`landfall-scene.js`, `landfall-stage.js`, arithmetic in `landfall-look.js`); battery saver and a partner's watching frame keep the flat page (`mode3d.js`; `landfall:view` is written only when the player picks Flat or 3D). Levels 11 to 34 in sections 3 to 9 are in `landfall-voyages.js`.
 
+Ruling, 5 November 2026, Korbi: "controls are inverted for landfall (camera movement)". Read as the vertical drag: the sky now follows the finger on both axes, as the flat page's does, so dragging up looks down at the chart table and down looks up at the sky (it was the other way, with the sideways drag the way the sky is pulled).
+
 ## Traps
 
 - **Polaris gives latitude only.** It sits within a degree of the pole, so a sight of it says how far north, never how far east. The fog collapses north-south and stays long east-west. Do not "fix" that.
