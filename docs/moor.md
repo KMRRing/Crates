@@ -7,6 +7,7 @@ Tents (trees and tents), as docks and barges (4 November 2026). Moor a barge bes
 - 4 November 2026: "in moor 3d I can't scroll around as expected and can't seem to actually place barges." Drag turns, pinch or wheel zooms and pans, two taps beside the board put it back.
 - 4 November 2026: "in moor, when in 3d mode, clicking a square or dragging a row should mark it as water - right now it moves the camera when attempting to do this". A drag that begins on a cell paints exactly as on the flat board (one stroke, one undo); a drag that begins off the board, on the Move switch, or shift-drag, turns the view; two fingers zoom and pan. A tap is the flat board's tap (barge, water, clear).
 - 5 November 2026, Korbi: "Moor 3D theme is a lot more modern than I'd like. more wooden, sail boats, hanseatic please." Read as: oak and tarred timber, brick and half-timbered gabled warehouses, a treadwheel crane, barrels not containers, a stone harbour light; every ship (the barges you moor and the scenery) a cog with a square sail and the red cross, nothing with a funnel or a container on it.
+- 5 November 2026, Korbi: "I like all the twists, implement them all including hex view. Agree with the chapters and mixed gauntlet levels. Dujiang can also have 'at least' or 'at most' islands, this is usable for a few of the games." Four twists (sea walls, double docks, ranges, hex board), a 41-level ladder in six chapters ending in a mixed gauntlet, all drawn in 3D too.
 
 ## Traps
 - **Levels are the hardest step a person needs.** Easy: the plain rules. Medium: also a dock's few places and the cells touching all of them. Hard: also a cell tested at once (a barge here would leave a row without room, or a dock without a partner). Expert: a trial, a cell supposed one way and the plain rules followed until a rule breaks. A 6×6 has no Expert (`levelOn`); where a size cannot give the level, the nearest is dealt and the line says so.
@@ -18,3 +19,14 @@ Tents (trees and tents), as docks and barges (4 November 2026). Moor a barge bes
 - **The harbour's camera looks past the board toward the sea** (`CZ`, `SEA_VIEW`), and the sky is a dome with a fake `Fog` object (the bundled three.js has none; the renderer reads only its fields). A pixel above the horizon has no water under it: `groundAt` answers far off, so no cell is picked.
 
 **4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu has no choices but Today's and the view. Size and level are the hidden ramp (`moor:ramp`, rungs from `ramp-steps.js`, up after a puzzle solved without a hint; first rung the saved size and level).
+
+## Twists, hex and the ladder (5 November 2026)
+- **A sea wall breaks "beside" and "touch" across it, orthogonally only.** Barges either side of a wall do not touch; a diagonal always touches. A wall also cuts a line's run (`P.gap`): barges on both sides of it are still in the line's count but cannot touch.
+- **A double dock takes exactly two barges, each barge one dock.** A barge never serves two docks; the matching in `broken` has capacities.
+- **A range ("3+", "≤3") is the real count, loosened**: the answer's count always meets the bound, so a bound is a weaker clue, never a different answer. `ranges` is one character a line: `=`, `+`, `-`.
+- **Hex lines run three ways** (row, and the two diagonals); every line's count is given, printed at its end. Hex has six neighbours and a barge touches all six. The 3D harbour is a hexagon of hexes cut into a quay, same moles, same town.
+- **Hex levels are measured** (`HEX_LEVELS`): a 5 gives Easy only; a 7 gives Medium and Expert about 60% of seeds, else the nearest; 9 and 11 give every level. No twist is square-only.
+- **The plain generator is seed-exact**: old seeds, links, daily and saves give what they always gave (golden hashes in `tests/moor-twists.mjs`). Twisted and hex puzzles come from `buildTwisted`, a separate search. The daily stays plain classic.
+- **A "+" in a link's hash reads back as a space**; `linked()` turns it back. Links: `#s=SEED&n=8&l=hard&t=walls+doubles&b=hex`, `#lv=N&s=SEED` for a level.
+- **Ladder** (`moor-levels.js`): a level's number is its identity (seed `7001 + 7919 * i`; stars and resume are keyed by it): append levels, never reorder. Saves `moor:camp`, `moor:lruns`, `moor:track`; hidden ramps `moor:ramp` (square) and `moor:ramp:hex`.
+- **Static 3D scenery (walls included) is put before the instance flush at the end of `build`**, or it is silently dropped.

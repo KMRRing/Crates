@@ -776,7 +776,7 @@ function linked() {
   const lv = h.has("lv") ? Number(h.get("lv")) : -1;
   if (Number.isInteger(lv) && lv >= 0 && lv < COUNT) return { seed, mode: "level", lv, k: kindOf(lv) };
   const shape = h.get("b") === "hex" ? "hex" : "square", fallback = shape === "hex" ? 7 : 8;
-  const size = sizeOn(shape, Number(h.get("n"))) ? Number(h.get("n")) : fallback, twist = twistOn(h.get("t"));
+  const size = sizeOn(shape, Number(h.get("n"))) ? Number(h.get("n")) : fallback, twist = twistOn((h.get("t") || "").replace(/ /g, "+"))   /* (a "+" in a hash reads back as a space) */;
   return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium", shape), twist, shape } };
 }
 async function openLinked(l) {

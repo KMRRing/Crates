@@ -89,6 +89,7 @@ html[data-mode="night"] { --mr-in: #7CC4CC; --mr-good: #7FC2A8; --mr-bad: #E8806
 .mr3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; --k: 1; }
 .mr3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: calc(1.2rem * var(--k)); height: calc(1.2rem * var(--k)); box-sizing: border-box; border-radius: 3px;
   background: color-mix(in srgb, var(--sheet) 88%, transparent); border: 1px solid var(--tile-edge); color: var(--ink); font-weight: 800; font-size: calc(.8rem * var(--k)); font-variant-numeric: tabular-nums; line-height: 1; will-change: transform; }
+.mr3-n.rng { background: color-mix(in srgb, var(--mr-bound) 26%, var(--sheet)); border-color: var(--mr-bound); }
 .mr3-n.done { color: var(--mr-good); border-color: var(--mr-good); }
 .mr3-n.over { color: var(--mr-bad); border-color: var(--mr-bad); }
 

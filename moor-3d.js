@@ -11,8 +11,15 @@
 // is on screen and nothing has paused it (the menu, a hidden tab), at most twenty-four frames a second. The scenery is a few
 // instanced meshes (a draw call per material), so it stays cheap on a phone.
 // Throws where there is no WebGL (the page then keeps the chart).
+//
+// The twists and the hex board (docs/moor.md) are drawn too. A hex basin is a hexagon of hexes cut into a quay whose edge is
+// the cells' convex hull, with the harbour mouth opening from its flat near side between two moles; each cell is a hex lying
+// HEXS the width of a square one. A sea wall is a stone wall with timber caps and a post at each end on the edge between two
+// cells; a double dock is a wide landing stage on six piles with two lamps; a bound (3+, ≤3) is painted on the quay on a
+// warm plate. The plain square basin is built exactly as it was.
 import * as THREE from "./vendor/three.js";
 import { createGesture } from "./moor-gesture.js";
+import { cluesOf } from "./moor-engine.js";
 
 const DEG = Math.PI / 180;
 const MIN_EL = 14 * DEG, MAX_EL = 86 * DEG, FOV = 30 * DEG, FAR = 420;
@@ -23,6 +30,7 @@ const FRAME_MS = 1000 / 24;
 const QUAY = 1.1, LAND = 70;                    // the quay's width, and how far the land reaches
 const ARM = 3.4;                                  // how far the moles run out past the basin's open edge
 const SEA_VIEW = 6;                           // how much sea the first view keeps beyond the basin
+const HEXS = 0.64;                              // a hex cell's circumradius, in the units of a square cell's side (so it is 1.1 across)
 const WAVE = (x, z, t) => 0.012 * Math.sin(x * 1.1 + t * 0.9) + 0.01 * Math.sin(z * 1.4 - t * 0.7);
 
 const SKINS = {
@@ -127,13 +135,41 @@ export function createModel(host, opts = {}) {
     }
     col.needsUpdate = true;
     for (const b of barges.values()) b.hull.material.color.setHex(b.bad ? k.red : k.hull);
-    for (const d of docks) d.lamp.material.color.setHex(d.on ? k.lampOn : k.lampOff);
+    for (const d of docks) d.lamps.forEach((l, i) => l.material.color.setHex(i < d.lit ? k.lampOn : k.lampOff));
     dirty = true;
   };
 
   // ---------- the puzzle on show ----------
-  let P = null, N = 0, world = null, barges = new Map(), docks = [], ripples = new Map(), glows = new Map(), clueEls = [], marks = "", won = false, fitPts = [], fx = null;
-  const cellXZ = x => [(x % N) - N / 2 + 0.5, Math.floor(x / N) - N / 2 + 0.5];
+  let P = null, N = 0, hex = false, reachX = 0, reachZ = 0, world = null, barges = new Map(), docks = [], ripples = new Map(), glows = new Map(), clueEls = [], marks = "", won = false, fitPts = [], fx = null;
+  const cellXZ = x => (hex ? [P.g.xy[x][0] * HEXS, P.g.xy[x][1] * HEXS] : [(x % N) - N / 2 + 0.5, Math.floor(x / N) - N / 2 + 0.5]);
+  /** A hex basin's quay: the hull of the cells (cw: half the width of its flat near side, bh: its half depth), the quay's outer edge `out` (QUAY out from the hull), and the path round the quay with the harbour mouth cut out of it. */
+  function hexRing() {
+    const pts = [], seen = new Set();
+    for (let x = 0; x < P.cells; x++) {
+      const [cx, cz] = cellXZ(x);
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 6 + i * Math.PI / 3, q = [cx + HEXS * Math.cos(a), cz + HEXS * Math.sin(a)], k = `${Math.round(q[0] * 1000)},${Math.round(q[1] * 1000)}`;
+        if (!seen.has(k)) { seen.add(k); pts.push(q); }
+      }
+    }
+    pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const half = chain => { const h = []; for (const q of chain) { while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], q) <= 1e-9) h.pop(); h.push(q); } h.pop(); return h; };
+    const hull = [...half(pts), ...half(pts.slice().reverse())];
+    const bz = Math.max(...hull.map(q => q[1])), low = hull.map(q => q).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 2);   // the two lowest points: the ends of the flat near side
+    const br = low.reduce((a, b) => (b[0] > a[0] ? b : a)), bl = low.reduce((a, b) => (b[0] < a[0] ? b : a));
+    const from = hull.indexOf(br), rev = hull.slice().reverse(), at = rev.indexOf(br);
+    const ccw = [...rev.slice(at), ...rev.slice(0, at)];          // from the lower right up the right side, over the top and down the left, to the lower left
+    void from;
+    const n = ccw.length, out = ccw.map((v, i) => {
+      const a = ccw[(i + n - 1) % n], b = ccw[(i + 1) % n];
+      const n1 = (() => { const dx = v[0] - a[0], dz = v[1] - a[1], l = Math.hypot(dx, dz); return [-dz / l, dx / l]; })(), n2 = (() => { const dx = b[0] - v[0], dz = b[1] - v[1], l = Math.hypot(dx, dz); return [-dz / l, dx / l]; })();
+      const k = QUAY / (1 + n1[0] * n2[0] + n1[1] * n2[1]);
+      return [v[0] + (n1[0] + n2[0]) * k, v[1] + (n1[1] + n2[1]) * k];
+    });
+    const cw = br[0], bh = bz, ox = Math.max(...out.map(q => q[0])), oz = -Math.min(...out.map(q => q[1])), zg = bz + QUAY;
+    return { hull: ccw, out, cw, bh, ox, oz, zg, br, bl };
+  }
   const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m; };
   function dispose() {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
@@ -147,8 +183,12 @@ export function createModel(host, opts = {}) {
     world = new THREE.Group();
     scene.add(world);
     const T = 0.34;                                                    // the quay's height over the water
-    const half = N / 2, HX = half + QUAY, L = HX + LAND;
-    const HOOK = N * 0.2 + 0.8;                                       // how far each mole's head bends in: the harbour mouth is what is left
+    // half: the half width the moles stand at; hz: the basin's half depth; HX, HZ: out to the quay's edge at its sides and far side
+    const ring = hex ? hexRing() : null;
+    const half = hex ? ring.cw : N / 2, hz = hex ? ring.bh : half, HX = hex ? ring.ox : half + QUAY, HZ = hex ? ring.oz : HX, L = Math.max(HX, HZ) + LAND;
+    const MX = half + QUAY;                                           // the moles' outer face
+    const HOOK = hex ? 0.4 * half + 0.4 : N * 0.2 + 0.8;              // how far each mole's head bends in: the harbour mouth is what is left
+    reachX = HX; reachZ = Math.max(HZ, hz);
     // ----- scenery as instances of unit shapes: one draw call per shape and material -----
     const prism = (() => { const s = new THREE.Shape(); s.moveTo(-0.5, 0); s.lineTo(0.5, 0); s.lineTo(0, 1); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: 1, bevelEnabled: false }); g.translate(0, 0, -0.5); return g; })();
     const spire = new THREE.ConeGeometry(0.5, 1, 4); spire.rotateY(Math.PI / 4);
@@ -173,46 +213,99 @@ export function createModel(host, opts = {}) {
     // the cells, drawn as pale lines on the water (where a finger may tap)
     const pos = [], idx = [];
     const strip = (x0, z0, x1, z1) => { const n = pos.length / 3, w = 0.018; if (x0 === x1) pos.push(x0 - w, 0.012, z0, x0 + w, 0.012, z0, x0 - w, 0.012, z1, x0 + w, 0.012, z1); else pos.push(x0, 0.012, z0 - w, x0, 0.012, z0 + w, x1, 0.012, z1 - w, x1, 0.012, z1 + w); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); };
-    for (let i = 0; i <= N; i++) { strip(i - half, -half, i - half, half); strip(-half, i - half, half, i - half); }
+    if (hex) {
+      // each hex's six edges, once each
+      const done = new Set();
+      for (let x = 0; x < P.cells; x++) {
+        const [cx, cz] = cellXZ(x), vs = Array.from({ length: 6 }, (_, i) => [cx + HEXS * Math.cos(Math.PI / 6 + i * Math.PI / 3), cz + HEXS * Math.sin(Math.PI / 6 + i * Math.PI / 3)]);
+        for (let i = 0; i < 6; i++) {
+          const a = vs[i], b = vs[(i + 1) % 6], k = [a, b].map(q => `${Math.round(q[0] * 1000)},${Math.round(q[1] * 1000)}`).sort().join("|");
+          if (done.has(k)) continue;
+          done.add(k);
+          const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), nx = -dz / l * 0.018, nz = dx / l * 0.018, n = pos.length / 3;
+          pos.push(a[0] - nx, 0.012, a[1] - nz, a[0] + nx, 0.012, a[1] + nz, b[0] - nx, 0.012, b[1] - nz, b[0] + nx, 0.012, b[1] + nz);
+          idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3);
+        }
+      }
+    } else for (let i = 0; i <= N; i++) { strip(i - half, -half, i - half, half); strip(-half, i - half, half, i - half); }
     const grid = new THREE.BufferGeometry();
     grid.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     grid.setIndex(idx);
     world.add(new THREE.Mesh(grid, M.grid));
     // the quay: the far side and the two moles, each a timber slab with a darker lip on the water side
     const slab = (x0, x1, z0, z1, mat, h = T + 0.3, y = (T - 0.3) / 2) => put(geo.box, mat, x1 - x0, h, z1 - z0, (x0 + x1) / 2, y, (z0 + z1) / 2);
-    const zEnd = half + ARM;
-    slab(-HX, HX, -HX, -half, M.quay);
-    slab(-HX, -half, -HX, zEnd, M.quay); slab(half, HX, -HX, zEnd, M.quay);
-    slab(-HX, -half + 0.0, zEnd - QUAY, zEnd, M.quay);
-    // the quay is planked: a seam every little way across its width, a darker line the counts are painted over
-    for (let x = -HX + 0.55; x < HX - 0.2; x += 0.55) put(geo.box, M.quayLo, 0.024, 0.008, QUAY, x, T + 0.004, -half - QUAY / 2);
-    for (const s of [-1, 1]) for (let z = -half + 0.1; z < zEnd - 0.3; z += 0.55) put(geo.box, M.quayLo, QUAY, 0.008, 0.024, s * (half + QUAY / 2), T + 0.004, z);
-    put(geo.box, M.quayLo, 2 * half + 0.12, T + 0.42, 0.12, 0, (T - 0.42) / 2 + 0.02, -half);
-    for (const s of [-1, 1]) put(geo.box, M.quayLo, 0.12, T + 0.42, zEnd + half, s * half, (T - 0.42) / 2 + 0.02, (zEnd - half) / 2);
+    /** A flat-topped slab on a polygon of the water's plane ([x, z] points), its top at `top`, thick down to y = -0.3. */
+    const poly = (points, mat, top) => {
+      const sh = new THREE.Shape();
+      points.forEach(([x, z], i) => (i ? sh.lineTo(x, -z) : sh.moveTo(x, -z)));
+      sh.closePath();
+      const g = new THREE.ExtrudeGeometry(sh, { depth: top + 0.3, bevelEnabled: false });
+      g.rotateX(-Math.PI / 2); g.translate(0, -0.3, 0);
+      world.add(new THREE.Mesh(g, mat));
+    };
+    /** A box lying along the edge a→b, `w` thick, pushed `out` to its outward side (the ring's lips, plaza and bollards). */
+    const along = (a, b, mat, w, h, y, out = 0, inset = 0) => {
+      const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), nx = -dz / len, nz = dx / len;
+      put(geo.box, mat, len - inset, h, w, (a[0] + b[0]) / 2 + nx * out, y, (a[1] + b[1]) / 2 + nz * out, Math.atan2(-dz, dx));
+    };
+    const zEnd = hz + ARM;
+    if (hex) {
+      // the quay round a hexagonal basin, cut open at its flat near side where the harbour mouth begins
+      const { hull, out, cw, bh, zg } = ring, o0 = out[0], oN = out[out.length - 1];
+      poly([...out, [-cw, zg], ...hull.slice().reverse(), [cw, zg]], M.quay, T);
+      slab(half, MX, hz + QUAY - 0.02, zEnd, M.quay); slab(-MX, -half, hz + QUAY - 0.02, zEnd, M.quay);
+      void o0; void oN; void bh;
+      // a darker lip along the water side of the quay, and the stone wall of the moles' inner faces
+      for (let i = 0; i + 1 < hull.length; i++) along(hull[i], hull[i + 1], M.quayLo, 0.12, T + 0.42, (T - 0.42) / 2 + 0.02);
+      for (const s of [-1, 1]) put(geo.box, M.quayLo, 0.12, T + 0.42, zEnd - hz, s * half, (T - 0.42) / 2 + 0.02, (zEnd + hz) / 2);
+      for (const s of [-1, 1]) for (let z = hz + QUAY; z < zEnd - 0.3; z += 0.55) put(geo.box, M.quayLo, QUAY, 0.008, 0.024, s * (half + QUAY / 2), T + 0.004, z);
+    } else {
+      slab(-HX, HX, -HX, -half, M.quay);
+      slab(-HX, -half, -HX, zEnd, M.quay); slab(half, HX, -HX, zEnd, M.quay);
+      slab(-HX, -half + 0.0, zEnd - QUAY, zEnd, M.quay);
+      // the quay is planked: a seam every little way across its width, a darker line the counts are painted over
+      for (let x = -HX + 0.55; x < HX - 0.2; x += 0.55) put(geo.box, M.quayLo, 0.024, 0.008, QUAY, x, T + 0.004, -half - QUAY / 2);
+      for (const s of [-1, 1]) for (let z = -half + 0.1; z < zEnd - 0.3; z += 0.55) put(geo.box, M.quayLo, QUAY, 0.008, 0.024, s * (half + QUAY / 2), T + 0.004, z);
+      put(geo.box, M.quayLo, 2 * half + 0.12, T + 0.42, 0.12, 0, (T - 0.42) / 2 + 0.02, -half);
+      for (const s of [-1, 1]) put(geo.box, M.quayLo, 0.12, T + 0.42, zEnd + half, s * half, (T - 0.42) / 2 + 0.02, (zEnd - half) / 2);
+    }
     // each mole's head bends in toward the mouth, with a pad for the light
     for (const s of [-1, 1]) {
       slab(s > 0 ? half - HOOK : -half, s > 0 ? half : -(half - HOOK), zEnd - QUAY, zEnd, M.quay);
       put(geo.box, M.quayLo, 1.5, T + 0.42, 1.5, s * (half - HOOK + 0.35), (T - 0.42) / 2 + 0.02, zEnd - 0.4);
     }
     // the land behind and beside: ground, a paved strip along the quay, and a sea wall where it meets the water
-    slab(-L, L, -L, -HX, M.ground, T + 0.3, (T - 0.3) / 2 - 0.02);
-    for (const s of [-1, 1]) slab(s > 0 ? HX : -L, s > 0 ? L : -HX, -HX, half, M.ground, T + 0.3, (T - 0.3) / 2 - 0.02);
-    slab(-(HX + 3.2), HX + 3.2, -(HX + 3.2), -HX, M.plaza, T + 0.3, (T - 0.3) / 2 - 0.005);
-    for (const s of [-1, 1]) {
-      slab(s > 0 ? HX : -(HX + 3.2), s > 0 ? HX + 3.2 : -HX, -HX, half, M.plaza, T + 0.3, (T - 0.3) / 2 - 0.005);
-      slab(s > 0 ? HX : -L, s > 0 ? L : -HX, half, half + 0.3, M.quayLo, T + 0.6, (T - 0.6) / 2 - 0.02);
+    if (hex) {
+      const { out, zg } = ring;
+      poly([[-L, -L], [L, -L], [L, zg], ...out, [-L, zg]], M.ground, T - 0.02);
+      for (let i = 1; i + 1 < out.length; i++) along(out[i], out[i + 1], M.plaza, 3.2, T + 0.3, (T - 0.3) / 2 - 0.005, 1.6 + 0.0);
+      for (const s of [-1, 1]) slab(s > 0 ? out[0][0] : -L, s > 0 ? L : out.at(-1)[0], zg, zg + 0.3, M.quayLo, T + 0.6, (T - 0.6) / 2 - 0.02);
+      // bollards along the quay and the moles
+      for (let i = 0; i + 1 < ring.hull.length; i++) {
+        const a = ring.hull[i], b = ring.hull[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / len, dz = (b[1] - a[1]) / len;
+        for (let d = 1; d < len - 0.4; d += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, a[0] + dx * d - dz * 0.95, T + 0.03, a[1] + dz * d + dx * 0.95);
+      }
+      for (const s of [-1, 1]) for (let z = hz + QUAY + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, s * (half + 0.95), T + 0.03, z);
+    } else {
+      slab(-L, L, -L, -HX, M.ground, T + 0.3, (T - 0.3) / 2 - 0.02);
+      for (const s of [-1, 1]) slab(s > 0 ? HX : -L, s > 0 ? L : -HX, -HX, half, M.ground, T + 0.3, (T - 0.3) / 2 - 0.02);
+      slab(-(HX + 3.2), HX + 3.2, -(HX + 3.2), -HX, M.plaza, T + 0.3, (T - 0.3) / 2 - 0.005);
+      for (const s of [-1, 1]) {
+        slab(s > 0 ? HX : -(HX + 3.2), s > 0 ? HX + 3.2 : -HX, -HX, half, M.plaza, T + 0.3, (T - 0.3) / 2 - 0.005);
+        slab(s > 0 ? HX : -L, s > 0 ? L : -HX, half, half + 0.3, M.quayLo, T + 0.6, (T - 0.6) / 2 - 0.02);
+      }
+      // bollards along the quay and the moles
+      for (let i = 0; i < N; i += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, i - half + 0.5, T + 0.03, -half - 0.95);
+      for (const s of [-1, 1]) for (let z = -half + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, s * (half + 0.95), T + 0.03, z);
     }
-    // bollards along the quay and the moles
-    for (let i = 0; i < N; i += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, i - half + 0.5, T + 0.03, -half - 0.95);
-    for (const s of [-1, 1]) for (let z = -half + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, s * (half + 0.95), T + 0.03, z);
     // rock armour on the right mole's sea face, and a white edge of surf on both
-    for (let z = half + 0.1, i = 0; z < zEnd + 0.8; z += 0.55, i++) {
+    for (let z = hz + 0.1, i = 0; z < zEnd + 0.8; z += 0.55, i++) {
       const sz = 0.5 + hash(i + 9) * 0.35;
-      put(geo.box, M.rock, sz, sz * 0.8, sz, HX + 0.1 + hash(i + 3) * 0.3, 0.05, z, hash(i) * 3, hash(i + 5) * 0.5, hash(i + 7) * 0.5);
-      put(geo.box, M.rock, sz * 0.9, sz * 0.7, sz, -(HX + 0.1 + hash(i + 13) * 0.3), 0.05, z, hash(i + 2) * 3, hash(i + 6) * 0.5, hash(i + 8) * 0.5);
+      put(geo.box, M.rock, sz, sz * 0.8, sz, MX + 0.1 + hash(i + 3) * 0.3, 0.05, z, hash(i) * 3, hash(i + 5) * 0.5, hash(i + 7) * 0.5);
+      put(geo.box, M.rock, sz * 0.9, sz * 0.7, sz, -(MX + 0.1 + hash(i + 13) * 0.3), 0.05, z, hash(i + 2) * 3, hash(i + 6) * 0.5, hash(i + 8) * 0.5);
     }
-    for (const s of [-1, 1]) put(geo.box, M.foam, 0.45, 0.01, ARM + 0.8, s * (HX + 0.35), 0.02, half + (ARM + 0.8) / 2 - 0.1);
-    town(put, geo, frame, T, half, HX);
+    for (const s of [-1, 1]) put(geo.box, M.foam, 0.45, 0.01, ARM + 0.8, s * (MX + 0.35), 0.02, hz + (ARM + 0.8) / 2 - 0.1);
+    town(put, geo, frame, T, half, hz, HX, HZ);
     // the harbour light on the right mole's head, a stone tower with a timber gallery and a fire in a cage; a tarred beacon post on the left
     const lx = half - HOOK + 0.35, lz = zEnd - 0.4, LH = new THREE.Matrix4().makeTranslation(lx, 0, lz);
     for (let i = 0; i < 4; i++) put(geo.cyl, i % 2 ? M.rock : M.plaza, 0.84 - i * 0.09, 0.62, 0.84 - i * 0.09, 0, T + 0.31 + i * 0.62, 0, 0, 0, 0, LH);
@@ -224,6 +317,14 @@ export function createModel(host, opts = {}) {
     put(geo.cyl, M.woodLo, 0.2, 1.0, 0.2, 0, T + 0.5, 0, 0, 0, 0, BK);
     put(geo.cyl, M.wood, 0.36, 0.14, 0.36, 0, T + 1.05, 0, 0, 0, 0, BK);
     put(geo.cyl, M.lantern, 0.26, 0.22, 0.26, 0, T + 1.2, 0, 0, 0, 0, BK);
+    // sea walls: stone with a timber cap and a post at each end, on the edge between two cells
+    for (const key of P.walls) {
+      const a = Math.floor(key / 1024), b = key % 1024, [ax, az] = cellXZ(a), [bx, bz] = cellXZ(b), len = (hex ? HEXS : 1) * 0.94;
+      const mx = (ax + bx) / 2, mz = (az + bz) / 2, ry = Math.atan2(ax - bx, az - bz);   // (the wall lies across the line between the cells)
+      put(geo.box, M.quay, len, 0.46, 0.16, mx, 0.2, mz, ry);
+      put(geo.box, M.woodLo, len + 0.04, 0.05, 0.2, mx, 0.455, mz, ry);
+      for (const sg of [-1, 1]) put(geo.cyl, M.woodLo, 0.17, 0.62, 0.17, mx + Math.cos(ry) * sg * len / 2, 0.26, mz - Math.sin(ry) * sg * len / 2);
+    }
     for (const { g, mat, ms } of acc.values()) {
       const im = new THREE.InstancedMesh(g, mat, ms.length);
       ms.forEach((m, i) => im.setMatrixAt(i, m));
@@ -243,44 +344,62 @@ export function createModel(host, opts = {}) {
     sw.frustumCulled = false;
     world.add(sw);
     fx.swell = { mesh: sw, list: swell };
-    ships(half, HX, zEnd, HOOK);
+    ships(half, hz, MX, zEnd, HOOK);
     for (let i = 0; i < 6; i++) {
       const g = new THREE.Group(), wing = s => { const p = new THREE.Group(); p.add(box(0.1, 0.012, 0.3, M.cream, 0, 0, s * 0.15)); p.position.z = 0; return p; };
       const body = box(0.2, 0.05, 0.07, M.cream, 0, 0, 0), l = wing(1), r = wing(-1);
       g.add(body, l, r);
       g.scale.setScalar(0.75);
       world.add(g);
-      fx.gulls.push({ g, l, r, cx: (hash(i + 200) - 0.5) * N * 0.6, cz: half + 1 + hash(i + 210) * 4, rad: 3 + hash(i + 220) * 5, h: 2.2 + hash(i + 230) * 2.5, sp: 0.25 + hash(i + 240) * 0.2, ph: hash(i + 250) * 6.28 });
+      fx.gulls.push({ g, l, r, cx: (hash(i + 200) - 0.5) * half * 1.2, cz: hz + 1 + hash(i + 210) * 4, rad: 3 + hash(i + 220) * 5, h: 2.2 + hash(i + 230) * 2.5, sp: 0.25 + hash(i + 240) * 0.2, ph: hash(i + 250) * 6.28 });
     }
     // the docks
     for (const d of P.docks) {
-      const [x, z] = cellXZ(d), g = new THREE.Group();
+      const [x, z] = cellXZ(d), g = new THREE.Group(), two = P.cap[d] === 2, lamps = [];
       g.position.set(x, 0, z);
-      // a pier: a timber deck well over the water on four piles, a mooring post, a hut with a roof, and a lamp on a post
-      g.add(box(0.7, 0.1, 0.7, M.wood, 0, 0.36, 0));
-      for (const dz of [-0.2, 0.2]) g.add(box(0.68, 0.014, 0.03, M.woodLo, 0, 0.415, dz));
-      for (const [dx, dz] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.9, 8), M.woodLo); p.position.set(dx, -0.02, dz); g.add(p); }
-      const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.16, 8), M.woodLo); bollard.position.set(0.22, 0.5, 0.22); g.add(bollard);
-      g.add(box(0.28, 0.24, 0.24, M.wall[hash(d) * 4 | 0], 0.04, 0.53, -0.1), box(0.34, 0.06, 0.3, M.roof[0], 0.04, 0.68, -0.1));
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 6), M.woodLo); post.position.set(-0.25, 0.62, 0.24); g.add(post);
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x6f6f6f }));
-      lamp.position.set(-0.25, 0.84, 0.24); g.add(lamp);
+      if (!two) {
+        // a pier: a timber deck well over the water on four piles, a mooring post, a hut with a roof, and a lamp on a post
+        g.add(box(0.7, 0.1, 0.7, M.wood, 0, 0.36, 0));
+        for (const dz of [-0.2, 0.2]) g.add(box(0.68, 0.014, 0.03, M.woodLo, 0, 0.415, dz));
+        for (const [dx, dz] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.9, 8), M.woodLo); p.position.set(dx, -0.02, dz); g.add(p); }
+        const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.16, 8), M.woodLo); bollard.position.set(0.22, 0.5, 0.22); g.add(bollard);
+        g.add(box(0.28, 0.24, 0.24, M.wall[hash(d) * 4 | 0], 0.04, 0.53, -0.1), box(0.34, 0.06, 0.3, M.roof[0], 0.04, 0.68, -0.1));
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 6), M.woodLo); post.position.set(-0.25, 0.62, 0.24); g.add(post);
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x6f6f6f }));
+        lamp.position.set(-0.25, 0.84, 0.24); g.add(lamp);
+        lamps.push(lamp);
+      } else {
+        // a double dock: a wide landing stage on six piles, a hut at its middle, a post and a lamp at each end
+        g.add(box(1.0, 0.1, 0.62, M.wood, 0, 0.36, 0));
+        for (const dz of [-0.2, 0, 0.2]) g.add(box(0.98, 0.014, 0.03, M.woodLo, 0, 0.415, dz));
+        for (const [dx, dz] of [[-0.43, -0.25], [0, -0.25], [0.43, -0.25], [-0.43, 0.25], [0, 0.25], [0.43, 0.25]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.9, 8), M.woodLo); p.position.set(dx, -0.02, dz); g.add(p); }
+        g.add(box(0.3, 0.24, 0.26, M.wall[hash(d) * 4 | 0], 0, 0.53, -0.1), box(0.36, 0.06, 0.32, M.roof[0], 0, 0.68, -0.1));
+        for (const sx of [-1, 1]) {
+          const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.16, 8), M.woodLo); bollard.position.set(sx * 0.3, 0.5, 0.2); g.add(bollard);
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 6), M.woodLo); post.position.set(sx * 0.4, 0.62, 0.2); g.add(post);
+          const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x6f6f6f }));
+          lamp.position.set(sx * 0.4, 0.84, 0.2); g.add(lamp);
+          lamps.push(lamp);
+        }
+      }
+      if (hex) g.scale.setScalar(0.94);
       world.add(g);
-      docks.push({ cell: d, g, lamp, on: false });
+      docks.push({ cell: d, g, lamps, lit: 0 });
     }
     // the counts, painted on the quay: labels of the page that follow the picture
     clueEls = [];
-    for (let i = 0; i < 2 * N; i++) {
+    const texts = cluesOf(P);
+    for (let i = 0; i < P.g.lines.length; i++) {
       const el = document.createElement("div");
       el.className = "mr3-n";
-      el.textContent = P.need[i];
+      el.textContent = texts[i];
       labels.append(el);
-      const c = i < N ? [-half - QUAY / 2, T + 0.12, i - half + 0.5] : [i - N - half + 0.5, T + 0.12, -half - QUAY / 2];
-      clueEls.push({ el, p: new THREE.Vector3(...c), cls: "" });
+      const c = hex ? [P.g.clue[i][0] * HEXS, T + 0.12, P.g.clue[i][1] * HEXS] : i < N ? [-half - QUAY / 2, T + 0.12, i - half + 0.5] : [i - N - half + 0.5, T + 0.12, -half - QUAY / 2];
+      clueEls.push({ el, p: new THREE.Vector3(...c), cls: "", rng: P.ranges[i] === "+" || P.ranges[i] === "-" });
     }
     // what the first view keeps on screen: the quay's corners, the town's first row, and some sea out to the mole's head
     fitPts = [];
-    for (const sx of [-1, 1]) { fitPts.push(new THREE.Vector3(sx * HX, 0, -HX - 2)); fitPts.push(new THREE.Vector3(sx * HX, 0, half + SEA_VIEW)); }
+    for (const sx of [-1, 1]) { fitPts.push(new THREE.Vector3(sx * HX, 0, -HZ - 2)); fitPts.push(new THREE.Vector3(sx * HX, 0, hz + SEA_VIEW)); }
     fitPts.push(new THREE.Vector3(0, 1, 0));
     marks = ""; won = false;
     restyle(); dirty = true;
@@ -304,37 +423,37 @@ export function createModel(host, opts = {}) {
     put(geo.box, M.woodLo, 0.08, 0.08, 0.5, 0, T + h + 0.7, d / 2 + 0.2, 0, 0, 0, P);
   }
   /** The town behind the quay: a street of gabled warehouses facing the water along the far side and both flanks, a second row and a church behind, stacks of barrels and a treadwheel crane. Placed from the puzzle's size, so the same every time. */
-  function town(put, geo, frame, T, half, HX) {
-    const front = HX + 2.9;
+  function town(put, geo, frame, T, half, hz, HX, HZ) {
+    const front = HX + 2.9, farFront = HZ + 2.9, wide = Math.max(half, HX - 2);        // (the square basin's: all the same)
     // the far side, shoulder to shoulder, and the taller row behind it
-    for (let x = -(half + 11), i = 0; x < half + 11; i++) {
+    for (let x = -(wide + 11), i = 0; x < wide + 11; i++) {
       const w = 1.7 + hash(i * 7 + N) * 1.3, h = 1.5 + hash(i * 7 + N + 1) * 1.5, d = 2.4 + hash(i * 7 + N + 2) * 0.8;
-      if (!(x + w / 2 > half * 0.12 && x + w / 2 < half * 0.12 + 3.2)) house(put, geo, frame(x + w / 2, -front - d / 2, 0), T, w, h, d, (hash(i * 7 + N + 3) * 4) | 0, hash(i + 77) < 0.5 ? 0 : 1);
+      if (!(x + w / 2 > wide * 0.12 && x + w / 2 < wide * 0.12 + 3.2)) house(put, geo, frame(x + w / 2, -farFront - d / 2, 0), T, w, h, d, (hash(i * 7 + N + 3) * 4) | 0, hash(i + 77) < 0.5 ? 0 : 1);
       x += w + 0.08;
     }
-    for (let x = -(half + 9), i = 0; x < half + 9; i++) {
+    for (let x = -(wide + 9), i = 0; x < wide + 9; i++) {
       const w = 2 + hash(i * 5 + 300) * 1.6, h = 2.3 + hash(i * 5 + 301) * 1.8, d = 3;
-      house(put, geo, frame(x + w / 2, -front - 6.4 - d / 2, 0), T, w, h, d, (hash(i * 5 + 302) * 4) | 0, hash(i + 177) < 0.5 ? 0 : 1);
+      house(put, geo, frame(x + w / 2, -farFront - 6.4 - d / 2, 0), T, w, h, d, (hash(i * 5 + 302) * 4) | 0, hash(i + 177) < 0.5 ? 0 : 1);
       x += w + 0.2;
     }
-    const ch = new THREE.Matrix4().makeTranslation(-half * 0.55, 0, -front - 4.2);          // the church: a tower and a spire over the roofs
+    const ch = new THREE.Matrix4().makeTranslation(-wide * 0.55, 0, -farFront - 4.2);          // the church: a tower and a spire over the roofs
     put(geo.box, M.wall[0], 1.5, 4.6, 1.5, 0, T + 2.3, 0, 0, 0, 0, ch);
     put(geo.cone, M.roof[1], 1.9, 3.2, 1.9, 0, T + 6.2, 0, 0, 0, 0, ch);
     for (const dx of [-1, 1]) put(geo.box, M.win, 0.18, 0.7, 0.03, dx * 0.3, T + 3.8, 0.76, 0, 0, 0, ch);
     // the flanks, facing inward
-    for (const s of [-1, 1]) for (let z = -HX + 0.5, i = 0; z < half - 2; i++) {
+    for (const s of [-1, 1]) for (let z = -HZ + 0.5, i = 0; z < hz - 2; i++) {
       const w = 1.7 + hash(i * 3 + 500 + s) * 1.2, h = 1.4 + hash(i * 3 + 501 + s) * 1.3, d = 2.2 + hash(i * 3 + 502 + s) * 0.7;
       if (i % 4 !== 3) house(put, geo, frame(s * (front + d / 2), z + w / 2, -s * Math.PI / 2), T, w, h, d, (hash(i * 3 + 503 + s) * 4) | 0, hash(i + 277 + s) < 0.5 ? 0 : 1);
       z += w + 0.1;
     }
     // barrels stacked on the right flank's paving and along the far quay
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) put(geo.cyl, M.crate[(i + j) % 3], 0.44, 0.52, 0.44, HX + 1.0 + j * 0.52, T + 0.26, half - 2.4 - i * 0.56);
-    for (let i = 0; i < 3; i++) put(geo.cyl, M.crate[(i + 1) % 3], 0.44, 0.52, 0.44, HX + 1.26, T + 0.78, half - 2.68 - i * 0.56);
-    for (let i = 0; i < 4; i++) put(geo.cyl, M.crate[i % 3], 0.44, 0.52, 0.44, half * 0.45 + i * 0.5, T + 0.26, -HX - 1.2);
-    for (let i = 0; i < 3; i++) put(geo.cyl, M.crate[(i + 2) % 3], 0.44, 0.52, 0.44, half * 0.45 + 0.25 + i * 0.5, T + 0.78, -HX - 1.2);
-    for (let i = 0; i < 3; i++) put(geo.box, M.crate[1], 0.5, 0.2, 0.34, -half * 0.75 + i * 0.52, T + 0.1 + (i % 2) * 0.01, -HX - 1.2, hash(i + 31) * 0.4 - 0.2);   // sacks
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) put(geo.cyl, M.crate[(i + j) % 3], 0.44, 0.52, 0.44, HX + 1.0 + j * 0.52, T + 0.26, hz - 2.4 - i * 0.56);
+    for (let i = 0; i < 3; i++) put(geo.cyl, M.crate[(i + 1) % 3], 0.44, 0.52, 0.44, HX + 1.26, T + 0.78, hz - 2.68 - i * 0.56);
+    for (let i = 0; i < 4; i++) put(geo.cyl, M.crate[i % 3], 0.44, 0.52, 0.44, wide * 0.45 + i * 0.5, T + 0.26, -HZ - 1.2);
+    for (let i = 0; i < 3; i++) put(geo.cyl, M.crate[(i + 2) % 3], 0.44, 0.52, 0.44, wide * 0.45 + 0.25 + i * 0.5, T + 0.78, -HZ - 1.2);
+    for (let i = 0; i < 3; i++) put(geo.box, M.crate[1], 0.5, 0.2, 0.34, -wide * 0.75 + i * 0.52, T + 0.1 + (i % 2) * 0.01, -HZ - 1.2, hash(i + 31) * 0.4 - 0.2);   // sacks
     // a treadwheel crane on the far quay (Hanseatic harbours had them): a timber tower under a pyramid roof, a jib reaching out over the water on a brace, a big wheel a man walks in, a rope and a barrel
-    const C = frame(-half * 0.3, -(HX + 1.9), 0);
+    const C = frame(-wide * 0.3, -(HZ + 1.9), 0);
     put(geo.box, M.wood, 1.2, 2.3, 1.0, 0, T + 1.15, 0, 0, 0, 0, C);
     put(geo.cone, M.roof[0], 1.75, 1.2, 1.6, 0, T + 2.9, 0, 0, 0, 0, C);
     for (const dx of [-0.66, 0.66]) {
@@ -347,7 +466,7 @@ export function createModel(host, opts = {}) {
     put(geo.cyl, M.crate[0], 0.4, 0.46, 0.4, 0, T + 1.12, 3.1, 0, 0, 0, C);
   }
   /** Cogs at anchor and one moored at the left mole, beyond the puzzle and not to be played: bigger, duller, and rocking on their own. */
-  function ships(half, HX, zEnd, HOOK) {
+  function ships(half, hz, MX, zEnd, HOOK) {
     const hullG = (() => {
       const s = new THREE.Shape();
       [[-0.5, -0.5], [0.22, -0.5], [0.5, 0], [0.22, 0.5], [-0.5, 0.5]].forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
@@ -380,7 +499,7 @@ export function createModel(host, opts = {}) {
     };
     add(sailer(4.4, 1), half * 0.5 + 2.4, zEnd + 8, -0.5, 0.01);
     add(sailer(2.6, 1), -half * 0.12, zEnd + 1.3, 0.3, 0.02);
-    add(sailer(2.2, 1), -(HX + 0.75), half + 1.6, -Math.PI / 2, 0.01);          // moored along the left mole's sea face
+    add(sailer(2.2, 1), -(MX + 0.75), hz + 1.6, -Math.PI / 2, 0.01);          // moored along the left mole's sea face
     add(sailer(6, 2), -4, zEnd + 34, 0.12, 0.006);
     add(sailer(3.4, 1), half * 0.5 - 14, zEnd + 22, 2.5, 0.008);
   }
@@ -391,7 +510,17 @@ export function createModel(host, opts = {}) {
   const hullGeo = flat(outline(1), 0.36, -0.12), rimGeo = flat(outline(1.05), 0.04, 0.215);
   const deckGeo = new THREE.BoxGeometry(0.82, 0.025, 0.62), foamGeo = new THREE.BoxGeometry(1.08, 0.006, 0.88), unitGeo = new THREE.BoxGeometry(1, 1, 1);
   const mastGeo = new THREE.CylinderGeometry(0.02, 0.026, 0.64, 6), barrelGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.11, 8);
+  /** Which way a barge lies, in degrees about the vertical: across the line to the dock beside it (a square board: level for a dock above or below, upright for one at a side). */
   function angleOf(x) {
+    if (hex) {
+      const [bx, bz] = cellXZ(x);
+      for (const d of P.beside[x]) {
+        if (!P.dock[d]) continue;
+        const [dx, dz] = cellXZ(d);
+        return ((Math.atan2(-(dx - bx), -(dz - bz)) / DEG % 180) + 180) % 180;
+      }
+      return 0;
+    }
     const [r, c] = [Math.floor(x / N), x % N];
     if ((r > 0 && P.dock[x - N]) || (r < N - 1 && P.dock[x + N])) return 0;
     if ((c > 0 && P.dock[x - 1]) || (c < N - 1 && P.dock[x + 1])) return 90;
@@ -416,6 +545,7 @@ export function createModel(host, opts = {}) {
     part(barrelGeo, M.crate[hash(x) * 3 | 0], 1, 1, 1, 0.28, 0.3, 0.07); part(barrelGeo, M.crate[hash(x + 77) * 3 | 0], 1, 1, 1, 0.28, 0.3, -0.07);
     g.rotation.y = angleOf(x) * DEG;
     g.position.set(px, 0, pz);
+    if (hex) g.scale.setScalar(0.88);
     world.add(g);
     barges.set(x, { g, hull, bad: false, x: px, z: pz, a: angleOf(x) * DEG, phase: hash(x + 3) * 6.28 });
   }
@@ -428,14 +558,15 @@ export function createModel(host, opts = {}) {
     ripples.set(x, g);
   }
   function glow(x, mat) {
-    const [px, pz] = cellXZ(x), m = box(0.94, 0.016, 0.94, mat, px, 0.04, pz);
+    const [px, pz] = cellXZ(x), m = hex ? new THREE.Mesh(new THREE.CylinderGeometry(HEXS * 0.92, HEXS * 0.92, 0.016, 6), mat) : box(0.94, 0.016, 0.94, mat, px, 0.04, pz);
+    if (hex) m.position.set(px, 0.04, pz);
     world.add(m);
     glows.set(x, m);
   }
 
   /** A new puzzle. */
   function set(puzzle) {
-    P = puzzle; N = puzzle.N;
+    P = puzzle; N = puzzle.N; hex = puzzle.shape === "hex";
     build();
     reset();
   }
@@ -452,10 +583,13 @@ export function createModel(host, opts = {}) {
       if (m !== "2" && ripples.has(x)) { world.remove(ripples.get(x)); ripples.delete(x); }
     }
     for (const [x, b] of barges) { const isBad = bad.has(x); if (b.bad !== isBad) { b.bad = isBad; b.hull.material.color.setHex(isBad ? skin.red : skin.hull); } b.g.rotation.y = angleOf(x) * DEG; }
-    const moored = new Set(br.moored);
-    for (const d of docks) { const on = moored.has(d.cell); if (d.on !== on) { d.on = on; d.lamp.material.color.setHex(on ? skin.lampOn : skin.lampOff); } }
+    const moored = new Set(br.moored), half = new Set(br.partial || []);
+    for (const d of docks) {
+      const lit = moored.has(d.cell) ? d.lamps.length : half.has(d.cell) ? 1 : 0;      // (a double dock's first lamp lights with its first barge, the second with its second)
+      if (d.lit !== lit) { d.lit = lit; d.lamps.forEach((l, k) => l.material.color.setHex(k < lit ? skin.lampOn : skin.lampOff)); }
+    }
     const done = new Set(br.full), over = new Set(br.over);
-    clueEls.forEach((c, i) => { const cls = `mr3-n${over.has(i) ? " over" : done.has(i) ? " done" : ""}`; if (c.cls !== cls) { c.cls = cls; c.el.className = cls; } });
+    clueEls.forEach((c, i) => { const cls = `mr3-n${c.rng ? " rng" : ""}${over.has(i) ? " over" : done.has(i) ? " done" : ""}`; if (c.cls !== cls) { c.cls = cls; c.el.className = cls; } });
     for (const m of glows.values()) world.remove(m);
     glows.clear();
     for (const x of hint?.focus || []) if (!glows.has(x)) glow(x, M.whyMat);
@@ -525,7 +659,7 @@ export function createModel(host, opts = {}) {
     return { x: o.x + (G.x - o.x) * t, z: o.z + (G.z - o.z) * t };
   }
   const canvasPoint = (cx, cy) => { const r = canvas.getBoundingClientRect(); return [(cx - r.left) * (width / (r.width || 1)), (cy - r.top) * (height / (r.height || 1))]; };
-  function clampPan() { const lim = (N / 2) * (1 - 1 / zoom) + 0.5; pan.x = Math.max(-lim, Math.min(lim, pan.x)); pan.z = Math.max(-lim, Math.min(lim, pan.z)); }
+  function clampPan() { const lim = (Math.max(reachX, reachZ) - QUAY) * (1 - 1 / zoom) + 0.5; pan.x = Math.max(-lim, Math.min(lim, pan.x)); pan.z = Math.max(-lim, Math.min(lim, pan.z)); }
   function zoomAt(z, cx, cy) {
     if (!N) return;
     const [sx, sy] = cx == null ? [width / 2, height / 2] : canvasPoint(cx, cy), before = groundAt(sx, sy);
@@ -549,7 +683,13 @@ export function createModel(host, opts = {}) {
   /** The cell under a finger at the page's (clientX, clientY), or -1. */
   function cellAtPoint(cx, cy) {
     if (!N) return -1;
-    const [sx, sy] = canvasPoint(cx, cy), p = groundAt(sx, sy), c = Math.floor(p.x + N / 2), r = Math.floor(p.z + N / 2);
+    const [sx, sy] = canvasPoint(cx, cy), p = groundAt(sx, sy);
+    if (hex) {
+      let best = -1, near = HEXS * 1.02;           // (a hex's middle is at most its circumradius from any point of it)
+      for (let x = 0; x < P.cells; x++) { const [qx, qz] = cellXZ(x), d = Math.hypot(qx - p.x, qz - p.z); if (d < near) { near = d; best = x; } }
+      return best;
+    }
+    const c = Math.floor(p.x + N / 2), r = Math.floor(p.z + N / 2);
     return c < 0 || r < 0 || c >= N || r >= N ? -1 : r * N + c;
   }
   let pinch = null, lastTap = null, reach = null;      // pinch: { zoom0, anchor } while two fingers are down
@@ -635,7 +775,7 @@ export function createModel(host, opts = {}) {
       if (M.beam.visible) fx.beam.rotation.y = t * 0.9;
     }
     if (dirty || clueEls.length) {
-      const k = Math.max(0.8, Math.min(1.35, (width / (N + 3)) / 26));       // the labels grow with the cells, so a number is as big as its room allows
+      const k = Math.max(0.8, Math.min(1.35, (width / ((hex ? reachX * 2 / 1.1 : N) + 3)) / 26));       // the labels grow with the cells, so a number is as big as its room allows
       labels.style.setProperty("--k", k.toFixed(2));
       for (const c of clueEls) project(c);
       dirty = false;
@@ -673,5 +813,7 @@ export function createModel(host, opts = {}) {
     V.set(px, 0.1, pz).applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix);
     return { x: r.left + ((V.x + 1) / 2) * r.width, y: r.top + ((1 - V.y) / 2) * r.height };
   }
-  return { set, update, show, hold, celebrate, dispose: destroy, orbit, reset, cellScreen, get angles() { return { az, el, zoom }; } };
+  /** Whether this model draws the board: every board and twist. */
+  const draws = () => true;
+  return { set, update, show, hold, celebrate, draws, dispose: destroy, orbit, reset, cellScreen, get angles() { return { az, el, zoom }; } };
 }
