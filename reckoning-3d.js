@@ -162,6 +162,7 @@ export function createRunner(host) {
     streak: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, fog: false })),
     shirt: mat("shirt"), pole: mat("pole"), banner: mat("banner"),
     shadow: curved(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })),
+    decal: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide })),         // a lane marked on the planks: where a throw, a barrel or a swing is going
     ring: curved(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })),
   };
   function retheme() {
@@ -172,7 +173,7 @@ export function createRunner(host) {
     set(M.shirt, pal.shirt); set(M.ring, pal.ring);
     set(M.chalk, pal.chalk); set(M.hazard, pal.hazard); set(M.splint, pal.splint); set(M.pitwater, pal.pitwater); set(M.beacon, pal.beacon);
     set(M.plank2, pal.plank2); set(M.dust, pal.dust); set(M.spray, pal.spray); set(M.streak, pal.streak);
-    set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
+    set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert); set(M.decal, pal.alert);
     models.retheme(pal, col, night());
     scene.background = col(pal.sky);
     scene.fog.color = col(pal.sky);
@@ -285,7 +286,7 @@ export function createRunner(host) {
     const bar = put(box, M.markSees, 0.12, 0.3, 0.04, 0, 0.1, -0.05, mark), dot = put(sph, M.markSees, 0.13, 0.13, 0.06, 0, -0.17, -0.05, mark);
     mark.visible = false; mark.traverse(o => { o.frustumCulled = false; });
     world.add(g, shadow, mark);
-    return { group: g, parts, shadow, mark, markParts: [bar, dot], kind: f.kind, heavy: !!f.heavy };
+    return { group: g, parts, shadow, mark, markParts: [bar, dot], kind: f.kind, heavy: !!f.heavy, cart: !!f.cart };
   }
 
   /** Lays the signals of the gaps in view (see where they are made). */
@@ -642,11 +643,15 @@ export function createRunner(host) {
     if (KINDS[f.kind].inert) return poseInert(o, f);
     const g = o.group, rig = o.parts.rig, P = o.parts;
     const ph = f.ph || 0, since = S.t - (f.pt || 0), p = f.p || 0, e3 = ease(p), look = f.look || 0;
-    const crab = f.kind === "crab", id = f.id;
+    const isCrab = f.kind === "crab", man = f.kind === "thrower" || f.kind === "shield" || f.kind === "pirate", roller = f.kind === "roller";
+    const crab = isCrab || man, id = f.id;                                                 // (the men move as a crab does: they rear, and spring at me; the roller does neither)
     let yaw = 0, pitch = 0, hop = 0, adv = 0, rise = 0, shiver = 0, marked = 0;
     if (ph === 1) { yaw = look * 0.75 * ease(since / 0.15); marked = 1; }
     else if (ph === 2) { yaw = look * 0.75; pitch = -(crab ? 0.4 : 0.55) * ease(since / 0.2); rise = crab ? 0 : 0.45 * ease(since / 0.25); shiver = Math.sin(now * 70) * 0.03; marked = 2; }
     else if (ph === 3) { yaw = look * 0.5 * (1 - e3); pitch = (crab ? 0.5 : 1.0) * e3 - (crab ? 0.4 : 0.55) * (1 - e3); hop = crab ? 0.45 * Math.sin(Math.PI * p) : 0; adv = crab ? 0.8 * e3 : 0; rise = crab ? 0 : 0.45 * (1 - e3); }
+    if (roller) { pitch = 0; hop = 0; shiver = ph === 2 ? Math.sin(now * 70) * 0.04 : 0; }
+    if (f.kind === "pirate") { pitch = ph === 3 ? 0.5 * (1 - e3) : 0; hop = 0; adv = 0; }     // a pirate swings in feet first, upright; the arc is f.x and f.y
+    if (f.kind === "thrower") { hop = 0; adv = 0; pitch = ph === 2 ? -0.25 : 0; }               // and a thrower stands his ground
     const lift = f.kind === "gull" ? f.y + rise + 0.05 * Math.sin(now * 3 + id) : f.y;
     g.visible = true;
     g.position.set(f.x + shiver, lift, f.z - adv);
@@ -656,7 +661,21 @@ export function createRunner(host) {
     rig.position.set(0, hop, 0);
     if (f.spent && f.alive) g.rotation.z = Math.sin(now * 30) * 0.08;
     const far = f.z - S.hero.z > 40;                                                       // out in the haze: the fine parts are not drawn
-    if (crab) {
+    if (man) {
+      const gy = f.gy || 0, hanging = f.rope && f.y - gy > 0.3;
+      let l = -0.15, r = -0.15;                                                              // arms at the sides, swinging a little
+      if (f.kind === "pirate") { l = r = hanging ? -2.9 : ph === 2 ? -1.2 : -0.2; if (ph === 3 && !hanging) r = -1.9 * (1 - e3) - 0.4; P.rope.visible = hanging; rig.rotation.z = hanging ? Math.sin(now * 3 + id) * 0.1 * (ph < 3 ? 1 : 0.2) : 0; }
+      else if (f.kind === "thrower") {
+        const since2 = S.t - (f.pt || 0), threw = f.thrown && ph === 0 && since2 < 0.35;
+        if (ph === 2) r = -2.7 * ease(since / 0.4); else if (threw) r = -2.7 + 3.4 * ease(since2 / 0.14);
+        l = ph === 2 ? -0.6 : -0.15;
+      } else { l = r = ph === 2 ? -0.5 : ph === 3 ? -0.9 * (1 - e3) - 0.2 : -0.2; }         // the shield bearer: the shield comes up as he winds, and he leans on it
+      P.arms[0].rotation.set(l + 0.08 * Math.sin(now * 6 + id), 0, 0); P.arms[1].rotation.set(r + 0.08 * Math.sin(now * 6 + id + 1), 0, 0);
+      rig.position.y = hanging ? 0 : Math.abs(Math.sin(now * (ph === 3 ? 12 : 4) + id)) * 0.04;
+    } else if (roller) {
+      const pace = ph === 3 ? 1 : 0;
+      if (P.spin) P.spin.rotation.x = -f.z / 0.43 * pace;                                    // it turns as it goes, a barrel on its side
+    } else if (isCrab) {
       let raise = 0.4 + 0.12 * Math.sin(now * 5 + id), spread = 0.15, jaw = 0.18 + 0.12 * Math.sin(now * 7 + id);
       if (ph === 1) { raise = 0.75; jaw = 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(now * 20)); }
       else if (ph === 2) { raise = 0.75 + 0.6 * ease(since / 0.2); spread = 0.65; jaw = 0.55; }
@@ -679,10 +698,69 @@ export function createRunner(host) {
     m.visible = !!marked;
     if (marked) {
       const pop = ease(since / 0.15) * (1 + 0.3 * Math.sin(Math.min(1, since / 0.15) * Math.PI)), beat = marked === 2 ? 1 + 0.12 * Math.sin(now * 26) : 1;
-      m.position.set(f.x, lift + (crab ? 1.5 : 1.15), f.z - adv);
+      m.position.set(f.x, lift + (isCrab ? 1.5 : man ? 1.95 : roller ? (f.cart ? 1.9 : 1.2) : 1.15), f.z - adv);
       m.scale.setScalar(Math.max(0.01, pop * beat) * (marked === 2 ? 1.15 : 1));
       o.markParts.forEach(x => { x.material = marked === 2 ? M.markWind : M.markSees; });
     }
+  }
+
+  // ---------- the Hanseatic foes' telegraphs: lanes marked on the planks, and the shots ----------
+  // A thrower aims a red strip down the lane he is aiming at (it follows me while he winds up and holds when the bottle is away), an anchor's landing
+  // is a ring that closes, a barrel or a cart that is going to roll has its lane striped from it to me, and a pirate's landing is a ring where his
+  // rope will put him. Each is flat on the planks, red (the telegraph's colour) and blinking faster as it nears.
+  const stripGeo = longBox(26), decals = [], shotMeshes = [];
+  const bottleGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.42, 8), anchorGeo = new THREE.ConeGeometry(0.4, 0.7, 6);
+  function decal(i, kind) {
+    let d = decals[i];
+    if (!d || d.kind !== kind) {
+      if (d) world.remove(d.m);
+      const m = new THREE.Mesh(kind === "ring" ? disc : stripGeo, M.decal); m.frustumCulled = false; world.add(m);
+      d = decals[i] = { m, kind };
+    }
+    d.m.visible = true;
+    return d.m;
+  }
+  function drawSigns(S, dt) {
+    const h = S.hero, W = S.world;
+    let n = 0;
+    const strip = (lane, z0, z1, gy, width, blink) => {
+      const m = decal(n++, "strip");
+      m.position.set(lane * LANE_W, gy + 0.045, (z0 + z1) / 2); m.scale.set(width, 0.02, Math.max(0.1, z1 - z0));
+      m.material.opacity = 0.42 + 0.2 * Math.sin(now * blink);
+    };
+    const ring = (lane, z, gy, r) => {
+      const m = decal(n++, "ring");
+      m.position.set(lane * LANE_W, gy + 0.05, z); m.scale.set(r, 1, r);
+    };
+    for (const f of W.foes) {
+      if (!f.alive || f.spent || f.gate || f.z < h.z - 1 || f.z > h.z + 60) continue;
+      const ph = f.ph || 0, gy = f.gy || 0;
+      if (f.kind === "thrower" && ph === 2 && f.aim !== undefined) strip(f.aim, h.z + 1, f.z, gy, 1.0, 26);
+      else if (f.kind === "roller" && ph >= 2) strip(f.lane, h.z + 1, f.z, gy, f.cart ? 1.5 : 0.9, ph === 3 ? 30 : 14);
+      else if (f.kind === "pirate" && ph >= 2) ring(ph === 3 ? f.aim : h.lane, f.z, gy, 1.5 + 0.2 * Math.sin(now * 20));
+    }
+    for (const s of W.shots) {
+      if (s.done || s.z < h.z - 1) continue;
+      if (s.kind === "bottle") strip(s.lane, h.z + 1, s.z, 0, 0.6, 34);
+      else ring(s.lane, s.zl, 0, 2.2 - 1.3 * (s.p || 0));
+    }
+    for (let i = n; i < decals.length; i++) decals[i].m.visible = false;
+    // the shots themselves
+    let k = 0;
+    for (const s of W.shots) {
+      if (s.done || s.z < h.z - 1) continue;
+      let m = shotMeshes[k];
+      if (!m || m.kind !== s.kind) {
+        if (m) world.remove(m.m);
+        const mesh = new THREE.Mesh(s.kind === "bottle" ? bottleGeo : anchorGeo, s.kind === "bottle" ? models.flat(0x2F9E6B) : models.flat(0x555B66)); mesh.frustumCulled = false; world.add(mesh);
+        m = shotMeshes[k] = { m: mesh, kind: s.kind };
+      }
+      m.m.visible = true;
+      m.m.position.set(s.lane * LANE_W, s.y + (s.kind === "bottle" ? 0.5 : 0), s.z);
+      if (s.kind === "bottle") m.m.rotation.set(now * 14, 0, Math.PI / 2); else m.m.rotation.set(now * 5, now * 3, 0);
+      k++;
+    }
+    for (let i = k; i < shotMeshes.length; i++) shotMeshes[i].m.visible = false;
   }
 
   /** How a foe is thrown when it is cut down, from the way the cut came: a cut from in front sends it on ahead, one from the
@@ -869,7 +947,7 @@ export function createRunner(host) {
       if (f.z < z0 - 4 || f.z > z1) continue;
       seen.add(f.id);
       let o = foes.get(f.id);
-      if (!o) { o = free.find(x => x.kind === f.kind && x.heavy === !!f.heavy) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.fly = null; o.how = ""; o.dir = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
+      if (!o) { o = free.find(x => x.kind === f.kind && x.heavy === !!f.heavy && x.cart === !!f.cart) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.fly = null; o.how = ""; o.dir = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
       if (KINDS[f.kind].inert && !f.alive) { o.died = o.died || now; hideFoe(o); continue; }       // (broken: its pieces fly in ping)
       if (!f.alive && !o.died) { o.died = now; o.fly = knock(o, f, S); }
       if (o.died) { flyBack(o, f, dt); continue; }
@@ -881,6 +959,7 @@ export function createRunner(host) {
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
 
     // a section's things, its finish, and its fog
+    drawSigns(S, dt);
     drawThings(S, hz, z1, dt);
     finish.visible = S.sec > 0 && W_.finish > z0 && W_.finish < z1;
     finish.position.z = W_.finish || 0;
@@ -993,6 +1072,7 @@ export function createRunner(host) {
         burst(h.x, h.y + 0.8, h.z + 0.5, ev.how === "slam" ? 4 : 7); shake = Math.max(shake, 0.4); break;
       }
       case "launch": shake = Math.max(shake, 0.12); break;
+      case "smash": shake = Math.max(shake, 0.6); ring(ev.lane * LANE_W, 0.06, ev.z, 3, 0.4); puff(ev.lane * LANE_W, ev.z, 8, 2.5, 0.3, 0, 0, 1); break;
       case "shockwave":
         ring(h.x, 0.06, h.z, 5.5, 0.5); shake = 1;
         puff(h.x, h.z + 0.4, 16, 5, 0.34, 0, 0, 1.2);

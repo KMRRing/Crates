@@ -55,6 +55,9 @@
 
 import { T, airTime } from "./reckoning-tune.js";
 import { makeSegment, nextBiome, difficultyAt, rng as seeded, BIOMES, PIECES } from "./reckoning-biomes.js";
+import { ENCOUNTERS } from "./reckoning-encounters.js";
+/** The Playtest viewer plays any piece of the quay or any encounter, again and again (an encounter between two rests). */
+export const PLAY_PIECES = { ...PIECES, ...Object.fromEntries(Object.entries(ENCOUNTERS).map(([id, E]) => [id, { kind: "enc", name: E.name, rows: ["!rest 6", `!enc ${id}`, "!rest 6"], pitch: 11, from: 0 }])) };
 
 export const LANE_W = 1.7;                 // metres between lane centres
 // The jump's numbers are the tuning's (reckoning-tune.js, where Korbi's Feel lab round is the default); these are its defaults at load, for the tests.
@@ -97,6 +100,11 @@ export const KINDS = {                     // foes: base height and body height 
   // breaks), a balloon costs nothing but my chain (and pops without a reward).
   barrel: { y: 0, h: 0.85, air: false, inert: true },
   balloon: { y: 2.2, h: 1.1, air: true, inert: true },
+  // the Hanseatic foes of the encounters (5 November 2026), each with a verb of its own (BEHAVIOURS):
+  thrower: { y: 0, h: 1.3, air: false },                          // a sailor who lobs bottles and anchors from afar
+  roller: { y: 0, h: 0.85, air: false },                          // a docker's barrel set rolling down its lane (`cart`: a runaway cart, 1.3 m, nothing cuts it)
+  shield: { y: 0, h: 1.35, air: false, armour: "top" },           // a shield bearer: swipes glance off, only an attack from above kills him
+  pirate: { y: 0, h: 1.2, air: false },                           // a Victual Brother swinging in from the water on a rope
 };
 /** What each kind of foe does and what beats it (5 November 2026: one table, not one state machine for all). `sight`, `wind`, `launch`: seconds to contact at
  *  which it notices me, rears and launches (`think`); `move`: the shape of the attack (`slide` into the lane aimed at, `dive` from the air, `throw` a shot,
@@ -106,6 +114,15 @@ export const BEHAVIOURS = {
   crab: { sight: 1.1, wind: 0.6, launch: 0.3, move: "slide", counters: ["front", "side", "roll", "clash", "slam", "bonk", "jump"], punishes: "waiting for it in the lane" },
   bruiser: { sight: 1.1, wind: 0.6, launch: 0.3, move: "slide", counters: ["front", "side", "roll", "clash", "slam", "bonk"], punishes: "one cut and on" },
   gull: { sight: 1.1, wind: 0.6, launch: 0.3, move: "dive", counters: ["roll", "side", "slam", "bonk", "front", "clash"], punishes: "jumping into its lane" },
+  // The new kinds. thrower: sees me from far off, aims a tracer at the lane I am in (it follows me while it winds up), and throws at `launch`; a bottle
+  // runs the lane, an anchor is lobbed to land where I will be. roller: sets off down its own lane at `roll` m/s when I am `launch` seconds off.
+  // cart: the same, bigger, and nothing cuts it. shield: slides like a crab, but a front or side cut, a roll or a clash by swipe do not take him.
+  // pirate: hangs on a rope at the quay's edge and swings into the lane I am in at the launch (an arc from the water, not a slide).
+  thrower: { sight: 2.6, wind: 1.7, launch: 1.3, move: "throw", counters: ["lane", "jump", "front", "side", "roll", "bonk", "slam"], punishes: "holding a lane" },
+  roller: { sight: 2.1, wind: 1.5, launch: 1.1, move: "roll", roll: 8, counters: ["jump", "lane", "front", "side", "roll", "clash"], punishes: "jumping early" },
+  cart: { sight: 2.1, wind: 1.5, launch: 1.1, move: "roll", roll: 8, counters: ["lane", "jump"], punishes: "reaching for a cut" },
+  shield: { sight: 1.1, wind: 0.6, launch: 0.3, move: "slide", counters: ["bonk", "slam", "jump"], punishes: "answering everything with a swipe" },
+  pirate: { sight: 1.5, wind: 0.85, launch: 0.5, move: "board", counters: ["roll", "clash", "lane", "jump", "front"], punishes: "settling in a lane by the water" },
   barrel: { inert: true, counters: ["front", "side", "roll", "jump", "lane"], punishes: "" },
   balloon: { inert: true, counters: ["front", "side", "bonk", "lane"], punishes: "" },
 };
@@ -134,12 +151,12 @@ export function newGame({ seed = 1, deal = null, hearts = 3, launch = false, sec
     crng: (seed ^ 0x51ED270B) | 0, t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
     right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: launch ? 0.3 : 1,
     hero: { z: 0, x: 0, y: 0, gy: 0, kick: false, padT: 0, vx: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0, rollRec: 0 },
-    world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], decks: [], pads: [], foes: [], gates: [], obs: [], pick: [], rows: [], zones: [], comp: { biome: null, left: 0, last: [], n: 0 }, id: 1 },
+    world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], decks: [], pads: [], foes: [], gates: [], obs: [], pick: [], shots: [], rows: [], zones: [], comp: { biome: null, left: 0, last: [], n: 0, cool: {} }, id: 1 },
     pending: [], answers: [], asked: [], ev: [],
     sec: 0, hits: 0, carried: {}, token: 0, flip: 0, won: false, coins: 0, gems: 0, broke: 0, set: {}, goal: { kind: "none", n: 0 }, bill: { want: [], bad: [] }, par: { hits: 0 },
   };
-  S.piece = PIECES[piece] ? piece : null;                           // Playtest: one piece of the quay, again and again
-  S.only = biome || (S.piece ? Object.keys(BIOMES).find(b => BIOMES[b].pieces.includes(piece)) || "quays" : null);                                                  // a run kept to one biome (the Playtest viewer): no other, no question
+  S.piece = PLAY_PIECES[piece] ? piece : null;                           // Playtest: one piece of the quay, again and again
+  S.only = biome || (S.piece ? Object.keys(BIOMES).find(b => BIOMES[b].pieces.includes(piece) || (BIOMES[b].encounters || []).includes(piece)) || "quays" : null);                                                  // a run kept to one biome (the Playtest viewer): no other, no question
   setDeal(S, deal);
   if (section) beginSection(S, section);
   ensure(S);
@@ -153,7 +170,7 @@ export function valid(S, sections = null) {
   if (!S || S.v !== 1 || !S.hero || !S.world || !Array.isArray(S.world.foes)) return false;
   if (S.sec && (!sections || !sections[S.sec - 1] || !S.mods || !Number.isFinite(S.world.finish) || S.sig !== sectionSig(sections[S.sec - 1]))) return false;
   const W = S.world;
-  W.obs ||= []; W.pick ||= []; W.decks ||= []; W.pads ||= []; S.hero.gy ||= 0; W.rows ||= []; W.zones ||= []; W.comp ||= { biome: null, left: 0, last: [], n: 0 };
+  W.obs ||= []; W.pick ||= []; W.decks ||= []; W.pads ||= []; S.hero.gy ||= 0; W.rows ||= []; W.shots ||= []; W.zones ||= []; W.comp ||= { biome: null, left: 0, last: [], n: 0 }; W.comp.cool ||= {};
   S.piece ||= null; S.set ||= {}; S.goal ||= { kind: "none", n: 0 }; S.bill ||= { want: [], bad: [] }; S.par ||= { hits: 0 }; S.only ||= null;
   S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.won = !!S.won; S.coins ||= 0; S.gems ||= 0; S.broke ||= 0; if (!Number.isFinite(S.crng)) S.crng = (S.seed ^ 0x51ED270B) | 0;
   return true;
@@ -232,15 +249,23 @@ function compose(S, z0) {
     }
   }
   if (S.piece) {
-    seg = { kind: "made", biome: C.biome, id: S.piece, name: PIECES[S.piece].name, rows: PIECES[S.piece].rows.slice(), pitch: PIECES[S.piece].pitch };
+    seg = { kind: "made", biome: C.biome, id: S.piece, name: PLAY_PIECES[S.piece].name, rows: PLAY_PIECES[S.piece].rows.slice(), pitch: PLAY_PIECES[S.piece].pitch };
     return buildSegment(S, seg, z0, true);
   }
+  const cool = (C.cool ||= {});
+  for (const id in cool) if (--cool[id] <= 0) delete cool[id];     // every made piece and encounter waits its turn before it can come again
   for (let tries = 0; tries < 8; tries++) {
-    seg = makeSegment(C.biome, Math.floor(r() * 2 ** 30), d, tries > 3 ? "gen" : null);
+    seg = makeSegment(C.biome, Math.floor(r() * 2 ** 30), d, tries > 3 ? "gen" : null, { z: z0, skip: Object.keys(cool) });
     if (!C.last.includes(seg.id)) break;                            // no immediate repeats of a made or partial piece (a generated one is new by its seed)
   }
+  if (seg.kind !== "gen") cool[seg.id] = seg.kind === "enc" ? 6 : 4;
   C.last.push(seg.id); if (C.last.length > 2) C.last.shift();
   C.left--;
+  // tempo (audit 36): every fifth segment is a surge (its rows a step closer) and every seventh a breather (a rest at its end): not one beat all the way
+  if (seg.kind === "gen") {
+    if (C.n % 5 === 0 && d > 0.1) seg.pitch = Math.max(9, seg.pitch - 2);
+    else if (C.n % 7 === 0) seg.rows = [...seg.rows, "!rest 10"];
+  }
   return buildSegment(S, seg, z0, true);
 }
 
@@ -522,6 +547,47 @@ export function sectionSig(def) {
   return (h >>> 0).toString(36);
 }
 
+/** The foes of an encounter's token (reckoning-encounters.js) on lane, at z. */
+function spawn(S, tok, lane, z, enc) {
+  const o = { enc };
+  switch (tok) {
+    case "c": return foe(S, "crab", lane, z, 0, o);
+    case "C": return foe(S, "crab", lane, z, 0, { ...o, hp: 2, heavy: true });
+    case "g": return foe(S, "gull", lane, z, KINDS.gull.y, o);
+    case "b": return foe(S, "barrel", lane, z, 0, o);
+    case "o": return foe(S, "balloon", lane, z, KINDS.balloon.y, o);
+    case "T": return foe(S, "thrower", lane, z, 0, o);
+    case "R": return foe(S, "roller", lane, z, 0, o);
+    case "K": return foe(S, "roller", lane, z, 0, { ...o, cart: true, h: 1.3 });
+    case "S": return foe(S, "shield", lane, z, 0, o);
+    case "P": {                                                     // hangs over the water beside the lane, on a rope
+      const side = lane || 1, f = foe(S, "pirate", lane, z, PIRATE_Y, { ...o, rope: true, side });
+      f.x = laneX(lane) + side * PIRATE_OUT; f.y = PIRATE_Y + f.gy;
+      return f;
+    }
+    case "W": return foe(S, "crab", lane, z, 0, { ...o, patrol: { c: 0, a: LANE_W, w: 1.7, p: (z * 0.37) % 6.28 } });
+    case "H": return foe(S, "crab", lane, z, 0, { ...o, charge: true });
+    default: throw new Error(`Courier: unknown token "${tok}"`);
+  }
+}
+/** One foe by its token, for the tests. */
+export const spawnFoe = (S, tok, lane, z) => spawn(S, tok, lane, z, null);
+export const PIRATE_Y = 1.7, PIRATE_OUT = 2.4, CHARGE_V = 5, BOTTLE_V = 15, ANCHOR_T = 1.15;
+
+/** An encounter (reckoning-encounters.js): its parts at their times (seconds of running at this speed), mirrored at random when it may be; returns its length. */
+function encounter(S, id, z0) {
+  const E = ENCOUNTERS[id];
+  if (!E) throw new Error(`Courier: unknown encounter "${id}"`);
+  const v = speedAt(z0), flip = E.mirror && rnd(S) < 0.5 ? -1 : 1;
+  let end = 0;
+  for (const [tok, lane, t] of E.parts) {
+    const z = z0 + 6 + t * v;
+    spawn(S, tok, lane * flip, z, id);
+    end = Math.max(end, z - z0);
+  }
+  return end + 8;
+}
+
 /** Lays rows on the quay from z (one every `pitch` metres; `!` commands lay the old pieces) and returns where the next would be. */
 export function buildRows(S, rows, z, pitch) {
   const W = S.world, ctx = {};
@@ -533,6 +599,7 @@ export function buildRows(S, rows, z, pitch) {
       else if (cmd === "rest") z += n;
       else if (cmd === "gap") { W.pits.push({ z0: z, z1: z + n, gap: true }); z += n; }
       else if (cmd === "gate") z += gate(S, z);
+      else if (cmd === "enc") z += encounter(S, arg, z);
       else if (CHUNKS[cmd]) z += CHUNKS[cmd](S, z);
       else throw new Error(`Courier: unknown piece "${row}"`);
       continue;
@@ -700,7 +767,7 @@ function up(S) {
   // a foe on the ground in front of me needs me close; one in the air I can reach from further, from the ground or the air
   const f = nearest(S, (f, t) => {
     if (f.lane !== h.lane) return false;                          // by the lane I mean to be in, not the x I am passing through
-    if (f.y - gyOf(f) <= 0.3) return t <= T.FRONT_WIN && h.y - gyOf(f) < 1;
+    if (f.y - gyOf(f) <= 0.3) return !armourOf(f) && t <= T.FRONT_WIN && h.y - gyOf(f) < 1;      // (a cut glances off an armoured foe: the swipe is a jump)
     const up = f.y + f.h * 0.3 - h.y;
     return t <= (f.gate ? GATE_WIN : f.ph > 0 && h.y - h.gy < 0.5 ? GULL_UP_WIN : T.ABOVE_WIN) && up <= REACH_UP && h.y - f.y <= UP_ABOVE;      // a swoop down to a gull just below counts; from higher it is a bonk
   });
@@ -792,7 +859,7 @@ function retarget(S, dir) {
   if (L.how === "bonk") return false;
   const lane = h.lane + dir;
   if (lane < -1 || lane > 1) return false;
-  const f = nearest(S, (f, t) => f.lane === lane && (t >= RETARGET_MIN || late(f)) && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
+  const f = nearest(S, (f, t) => f.lane === lane && !armourOf(f) && (t >= RETARGET_MIN || late(f)) && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
     (f.y - gyOf(f) <= 0.3 || sideReach(f, h)));
   if (!f) return false;
   h.swipe = { t: S.t, dir, from: h.lane };
@@ -806,7 +873,7 @@ function retarget(S, dir) {
  *  from up to 4.5 m above it); in the air, one in the air within reach of my height. */
 function sideFoe(S, lane) {
   const h = S.hero, falling = h.mode === "air" && h.vy <= 0;
-  return nearest(S, (f, t) => f.lane === lane && (late(f) || t >= 0) && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
+  return nearest(S, (f, t) => f.lane === lane && !armourOf(f) && (late(f) || t >= 0) && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
     (f.y - gyOf(f) <= 0.3 ? h.y - gyOf(f) < 1 || (falling && h.y - (f.y + f.h * 0.3) <= 4.5)
       : (diving(f) && h.y - h.gy < 1) || (h.y - h.gy >= 0.5 && sideReach(f, h))));
 }
@@ -832,7 +899,7 @@ function down(S) {
     S.ev.push({ type: "roll" });
     return true;
   }
-  const f = nearest(S, (f, t) => f.lane === h.lane && t <= 0.22 && h.y >= f.y + f.h - 0.1 && h.y - (f.y + f.h) <= 4);
+  const f = nearest(S, (f, t) => (f.lane === h.lane || (armourOf(f) === "top" && f.ph === 3 && f.aim === h.lane)) && armourOf(f) !== "all" && t <= 0.22 && h.y >= f.y + f.h - 0.1 && h.y - (f.y + f.h) <= 4);
   if (f) { startLunge(S, f, 0, "bonk"); return true; }
   h.slam = h.y - h.gy >= T.SLAM_MIN_Y;
   h.vy = -SLAM_V;
@@ -922,7 +989,7 @@ export function step(S, dt) {
   if (h.roll > 0) {
     h.roll = Math.max(0, h.roll - dt);
     for (const f of alive(S)) {
-      if (f.gate || isAir(f) || f.y - gyOf(f) > 0.3 || f.lane !== h.lane) continue;      // (a gull's dive is gone under, not cut)
+      if (f.gate || isAir(f) || f.y - gyOf(f) > 0.3 || f.lane !== h.lane || armourOf(f)) continue;      // (a gull's dive is gone under, not cut; nor does a roll take a shield)
       const dz = f.z - h.z;
       if (dz < -FOE_REACH || dz > ROLL_REACH) continue;
       if ((f.hp || 1) > 1) { stagger(S, f); continue; }
@@ -936,7 +1003,9 @@ export function step(S, dt) {
     }
   } else if (h.rollRec > 0) h.rollRec = Math.max(0, h.rollRec - dt);
 
-  think(S);
+  patrols(S);
+  think(S, dt);
+  shots(S, dt);
   drift(S, dt);
 
   // what the foes do
@@ -953,7 +1022,7 @@ export function step(S, dt) {
     const dz = f.z - h.z;
     if (dz < -FOE_REACH || dz > FOE_REACH) continue;
     if (h.hurt > 0 || targeted(h, f)) continue;
-    if (Math.abs(f.x - h.x) > (inert(f) ? 0.75 : f.ph === 3 ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
+    if (Math.abs(f.x - h.x) > (inert(f) ? 0.75 : f.ph === 3 || f.kind === "thrower" ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
     if (KINDS[f.kind].air && h.roll > 0 && grounded(h)) continue;                  // a roll goes under a gull's dive
     const cd = clashDir(S, f), overlap = h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1;
     if (cd && (overlap || cd.jump)) { clash(S, f, cd.dir); continue; }      // (a jump attack meets it in the air, over its head: no overlap needed)
@@ -1058,9 +1127,10 @@ export const CLASH_T = 0.3;
 const clashDir = (S, f) => {
   const h = S.hero, w = h.swipe;
   if (f.ph !== 3 || inert(f) || f.gate) return null;
-  if (w && S.t - w.t <= CLASH_T && Math.sign(f.lane - w.from) === w.dir) return { dir: w.dir, jump: false };
-  if (h.roll > 0 && grounded(h) && !isAir(f)) return { dir: 0, jump: false };
-  if (S.t - (h.jumpT ?? -9) <= CLASH_T) return { dir: 0, jump: true };
+  const arm = armourOf(f);
+  if (!arm && w && S.t - w.t <= CLASH_T && Math.sign(f.lane - w.from) === w.dir) return { dir: w.dir, jump: false };
+  if (!arm && h.roll > 0 && grounded(h) && !isAir(f)) return { dir: 0, jump: false };
+  if (arm !== "all" && S.t - (h.jumpT ?? -9) <= CLASH_T) return { dir: 0, jump: true };
   return null;
 };
 
@@ -1083,7 +1153,7 @@ function clash(S, f, dir) {
   payout(S, f);
   const lane = f.lane + dir;
   for (const o of alive(S)) {
-    if (o.gate || inert(o) || o.lane !== lane || o.z < f.z || o.z > f.z + KNOCK_Z || o.y - gyOf(o) > 0.3) continue;
+    if (o.gate || inert(o) || armourOf(o) || o.lane !== lane || o.z < f.z || o.z > f.z + KNOCK_Z || o.y - gyOf(o) > 0.3) continue;
     S.bonus += 50;
     if ((o.hp || 1) > 1) { stagger(S, o); continue; }
     o.alive = false; S.kills++;
@@ -1113,7 +1183,7 @@ function stagger(S, f) {
 function sweepFoe(S, lane, ahead = 0) {
   const h = S.hero;
   if (lane < -1 || lane > 1) return null;
-  return nearest(S, (f, t) => f.lane === lane && !f.gate && (t >= -0.02 || late(f)) && t <= SWEEP_WIN + ahead &&
+  return nearest(S, (f, t) => f.lane === lane && !f.gate && !armourOf(f) && (t >= -0.02 || late(f)) && t <= SWEEP_WIN + ahead &&
     (f.y - gyOf(f) <= 0.3 ? h.y - gyOf(f) < 1 : h.y - h.gy >= 0.5 && sideReach(f, h)));
 }
 
@@ -1121,7 +1191,9 @@ function sweepFoe(S, lane, ahead = 0) {
 
 const isAir = f => KINDS[f.kind].air;
 /** The behaviour of a foe: a heavy crab is the bruiser's. */
-export const behOf = f => BEHAVIOURS[f.heavy ? "bruiser" : f.kind] || BEHAVIOURS[f.kind];
+export const behOf = f => BEHAVIOURS[f.heavy ? "bruiser" : f.cart ? "cart" : f.kind] || BEHAVIOURS[f.kind];
+/** What protects a foe: "top" (a shield bearer: only an attack from above takes him) or "all" (a runaway cart: nothing does). */
+export const armourOf = f => (f.cart ? "all" : KINDS[f.kind].armour || null);
 const inert = f => !!KINDS[f.kind].inert;
 
 /** A foe within a lane of me sees me (`ph` 1: it looks my way), winds up (2) and launches (3), by seconds to contact so
@@ -1131,22 +1203,26 @@ const inert = f => !!KINDS[f.kind].inert;
  *  attacks me in the air or on a wall. A foe I only come within a lane of at the
  *  last moment goes through all three in a step or two: it was not given the time to be seen. Foes over a pit, and the
  *  gulls of a question, are the bridge, not an enemy. */
-function think(S) {
+function think(S, dt) {
   const h = S.hero, v = speed(S), reachT = FOE_REACH / v;
   for (const f of alive(S)) {
     if (f.gate || inert(f) || !floorAt(S, f.z)) continue;
-    const t = (f.z - h.z) / v;
+    let t = (f.z - h.z) / v;
     let ph = f.ph || 0;
+    const B = behOf(f), k = f.tempo || 1;                                            // (k: a quicker variant winds up and launches later in the approach)
+    if (B.move === "roll") { rolling(S, f, B, t, dt); continue; }
     if (ph === 3) { fly(f, t - reachT); continue; }
     if (t < -reachT) continue;
-    const dl = h.lane - f.lane;
-    const B = behOf(f), k = f.tempo || 1;                                            // (k: a quicker variant winds up and launches later in the approach)
-    if (t > B.sight * k || Math.abs(dl) > 1) { f.ph = 0; continue; }
+    const dl = h.lane - f.lane, ranged = B.move === "throw";                         // (a thrower sees me wherever I am)
+    if (t > B.sight * k || (!ranged && Math.abs(dl) > 1) || (ranged && (f.cool || 0) > S.t)) { f.ph = 0; continue; }
     f.look = Math.sign(dl);
+    if (f.charge && dt) { f.z -= CHARGE_V * dt; t = (f.z - h.z) / v; }               // a charger runs at me from the moment it has seen me (the windows come sooner)
     if (ph === 0) { ph = 1; f.pt = S.t; S.ev.push({ type: "notice", id: f.id, kind: f.kind, lane: f.lane, look: f.look }); }
     if (ph === 1 && t <= B.wind * k) { ph = 2; f.pt = S.t; S.ev.push({ type: "wind", id: f.id, kind: f.kind, lane: f.lane }); }
+    if (ranged && ph === 2) f.aim = h.lane;                                          // the tracer follows me until the throw
     if (ph === 2 && t <= B.launch * k && (!isAir(f) || (grounded(h) && !h.lunge))) {      // (a gull does not dive while I fly at something: at it, it would run from my cut)
-      ph = 3; f.pt = S.t; f.aim = h.lane; f.lt = Math.max(0, t - reachT); f.y0 = f.y;
+      if (ranged) { if (t > 0.6) throwAt(S, f, t); else f.cool = 1e9; f.ph = 0; continue; }
+      ph = 3; f.pt = S.t; f.aim = h.lane; f.lt = Math.max(0, t - reachT); f.y0 = f.y; f.x0 = f.x;
       S.ev.push({ type: "launch", id: f.id, kind: f.kind, lane: f.lane, aim: f.aim });
       fly(f, t - reachT);
     }
@@ -1156,10 +1232,75 @@ function think(S) {
 
 /** A launched foe on its way: `p` is how far, from the launch to the moment it is within reach of me. */
 function fly(f, toReach) {
-  const p = f.lt > 0.001 ? clamp(1 - toReach / f.lt, 0, 1) : 1, e = p * p * (3 - 2 * p);
+  const p = f.lt > 0.001 ? clamp(1 - toReach / f.lt, 0, 1) : 1, e = p * p * (3 - 2 * p), x0 = f.x0 ?? laneX(f.lane);
   f.p = p;
-  f.x = laneX(f.lane) + (laneX(f.aim) - laneX(f.lane)) * e;
+  f.x = x0 + (laneX(f.aim) - x0) * e;
   if (isAir(f)) f.y = f.y0 * (1 - e);
+  else if (f.rope) { f.y = f.gy + (f.y0 - f.gy) * (1 - e); if (p >= 1) f.lane = f.aim; }      // a pirate swings in on an arc and lands in the lane
+}
+
+/** A roller (a docker's barrel, or a runaway cart) sets off down its own lane `launch` seconds off, and runs at `roll` m/s over the quay's own pace. It never looks at me. */
+function rolling(S, f, B, t, dt) {
+  if (f.ph === 3) { if (t > -3 && dt) f.z -= B.roll * dt; return; }
+  let ph = f.ph || 0;
+  if (t > B.sight) { f.ph = 0; return; }
+  if (ph === 0) { ph = 1; f.pt = S.t; S.ev.push({ type: "notice", id: f.id, kind: f.kind, lane: f.lane, look: 0 }); }
+  if (ph === 1 && t <= B.wind) { ph = 2; f.pt = S.t; S.ev.push({ type: "wind", id: f.id, kind: f.kind, lane: f.lane }); }
+  if (ph === 2 && t <= B.launch) {
+    ph = 3; f.pt = S.t; f.aim = f.lane; f.lt = 0; f.p = 1;
+    S.ev.push({ type: "launch", id: f.id, kind: f.kind, lane: f.lane, aim: f.lane });
+  }
+  f.ph = ph;
+}
+
+/** A thrower lobs, at the lane the tracer was on: a bottle runs down it, an anchor is lobbed to land where I will be (every third throw is an anchor). */
+function throwAt(S, f, t) {
+  const h = S.hero, v = speed(S), n = f.thrown = (f.thrown || 0) + 1, anchor = n % 3 === 0;
+  f.cool = S.t + 2.4; f.pt = S.t;
+  const s = anchor
+    ? { kind: "anchor", lane: h.lane, z0: f.z, zl: h.z + v * ANCHOR_T, t0: S.t, T: ANCHOR_T, z: f.z, y: 2 }
+    : { kind: "bottle", lane: h.lane, z0: f.z, z: f.z, y: 0.5 };
+  s.id = S.world.id++; s.from = f.id;
+  S.world.shots.push(s);
+  S.ev.push({ type: "throw", id: f.id, kind: f.kind, lane: f.lane, aim: h.lane, shot: s.kind });
+}
+
+/** The shots in flight. A bottle runs down its lane at BOTTLE_V over the quay and hits whoever is on the ground in it (a jump clears it, a roll does not);
+ *  an anchor lands at a place and a time chosen when it was thrown and hits whoever is near it on the ground then. A lane changed in time dodges both. */
+function shots(S, dt) {
+  const h = S.hero;
+  for (const s of S.world.shots) {
+    if (s.done) continue;
+    if (s.kind === "bottle") {
+      s.z -= BOTTLE_V * dt;
+      if (s.z < h.z - 4) { s.done = true; continue; }
+      if (Math.abs(s.z - h.z) < 0.6 && Math.abs(laneX(s.lane) - h.x) < 0.75 && h.y - h.gy < 0.7) { s.done = true; shotHit(S, s); }
+    } else {
+      s.p = Math.min(1, (S.t - s.t0) / s.T);
+      s.z = s.z0 + (s.zl - s.z0) * s.p; s.y = 2 + 5 * (1 - (2 * s.p - 1) ** 2);
+      if (s.p >= 1) {
+        s.done = true; s.y = 0;
+        S.ev.push({ type: "smash", id: s.id, lane: s.lane, z: s.zl });
+        if (Math.abs(s.zl - h.z) < 1.3 && Math.abs(laneX(s.lane) - h.x) < 1.0 && h.y - h.gy < 0.8) shotHit(S, s);
+      }
+    }
+  }
+}
+function shotHit(S, s) {
+  const h = S.hero;
+  if (h.hurt > 0 || h.mode === "wall") return;
+  S.hearts--; S.hits++; h.hurt = HURT_T; S.fwd = 0.7; S.chain = 0; S.streak = 0;
+  S.ev.push({ type: "hurt", id: 0, shot: s.id, hearts: S.hearts });
+  if (S.hearts <= 0) end(S);
+}
+
+/** A patrolling crab strafes the quay across its lanes until it has noticed me, then stands and does what a crab does. */
+function patrols(S) {
+  for (const f of alive(S)) {
+    if (!f.patrol || (f.ph || 0) >= 2) continue;
+    const p = f.patrol, x = laneX(p.c) + p.a * Math.sin(p.w * S.t + p.p);
+    f.x = x; f.lane = clamp(Math.round(x / LANE_W), -1, 1);
+  }
 }
 
 /** Flyers follow my height (2 November 2026, Korbi: "enemy flyers slowly rise or fall closer to the player if the player is far
@@ -1203,7 +1344,7 @@ function diveHits(S, prevY) {
   if (!h.slam && h.vy > -SLAM_V + 1) return;
   for (const f of alive(S)) {
     const dz = f.z - h.z;
-    if (Math.abs(dz) > 0.9 || Math.abs(f.x - h.x) > LANE_W * 0.6) continue;
+    if (Math.abs(dz) > 0.9 || Math.abs(f.x - h.x) > LANE_W * 0.6 || armourOf(f) === "all") continue;
     const top = f.y + f.h;
     if (prevY >= top - 0.2 && h.y <= top) { h.y = top; h.slam = false; strike(S, f, "bonk"); return; }
   }
@@ -1222,7 +1363,7 @@ function land(S) {
   if (!slam) return;
   let n = 0;
   for (const f of alive(S)) {
-    if (f.gate || f.y - gyOf(f) > 1) continue;
+    if (f.gate || f.y - gyOf(f) > 1 || armourOf(f) === "all") continue;
     const dz = f.z - h.z;
     if (dz < -1 || dz > SLAM_R || Math.abs(f.x - h.x) > LANE_W * 1.05 + 0.1) continue;
     f.alive = false; n++; S.kills++;
@@ -1240,7 +1381,7 @@ function hit(S, f) {
     S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "bump", x: f.x, y: f.y, z: f.z, reward: false });
     return;
   }
-  if (f.kind === "barrel") {                                      // a barrel run into breaks, and costs the heart
+  if (f.kind === "barrel" || (f.kind === "roller" && !f.cart)) {   // a barrel run into breaks, and costs the heart
     f.alive = false;
     S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "crash", x: f.x, y: f.y, z: f.z, reward: false });
   }
@@ -1274,6 +1415,7 @@ function prune(S) {
   W.pads = W.pads.filter(p => p.z > z);
   W.gates = W.gates.filter(g => g.p1 > z);
   W.obs = W.obs.filter(o => o.z > z);
+  W.shots = W.shots.filter(s => !s.done || s.z > z);
   W.pick = W.pick.filter(p => p.z > z);
   W.rows = W.rows.filter(r => r > z);
   W.zones = W.zones.filter(q => q.z1 > z);

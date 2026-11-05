@@ -1,6 +1,7 @@
 // A bot that plays Courier by the rules, for the tests: the lane first, then the swipe at the right moment. `bot` plays the
 // endless quay (and the old pieces in a section: gaps with gulls over them, walls, the question's gate); `rowBot` plays a
 // section's rows, planning its lane a row ahead (planLane) so that a section is proved to be winnable, not only drawn.
+import { reflex } from "./courier-reflex.js";
 import { LANE_W, UP_ABOVE, SLAM_MIN_Y, speed, swipe, step, newGame, setDeal, goalValue, goalMet, solid, GOODS, ROLL_H } from "../reckoning-engine.js";
 
 /** Plays the way the rules ask: the lane first, then the swipe at the right moment. Returns what it did. */
@@ -212,7 +213,13 @@ export function rowBot(S, st) {
 export function botStep(S, st) {
   const z = S.hero.z, W = S.world;
   const old = W.decks.some(d => d.z1 > z - 1 && d.z0 - z < 30) || W.pads.some(p => p.z > z - 1 && p.z - z < 30) || W.gates.some(g => g.state === "open" && g.p0 - z < 60) || W.walls.some(w => w.z1 > z && w.z0 - z < 30) || W.pits.some(p => !p.gap && p.z1 > z && p.z0 - z < 28);
-  return old || (st.slamAfter && S.hero.mode === "air") ? bot(S, st) : rowBot(S, st);
+  // an encounter's foes (reckoning-encounters.js) are in no row: the reflex bot answers them by what they do
+  const oldPiece = old || (st.slamAfter && S.hero.mode === "air");
+  if (!oldPiece && (W.foes.some(f => f.enc && f.alive && !f.spent && f.z > z - 2 && f.z - z < 40) || W.shots.some(s => !s.done))) return reflex(S, st);
+  if (!oldPiece) return rowBot(S, st);
+  const was = st.next;
+  bot(S, st);
+  return st.next !== was || reflex(S, st);                      // (the old pieces' bot knows nothing of a crab already launched at me: the reflex does)
 }
 
 /** Plays a section from its start with the rows' bot, and the old one for the pieces of the old quay; returns the run. */

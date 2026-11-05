@@ -656,9 +656,76 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     mesh(b, rig);
     return { group: g, parts };
   }
-  /** The model of a foe by its kind (`crab`, `gull`, `barrel`, `balloon`; a heavy crab is the bruiser): `{ group, parts }`. */
+  // ---------- the Hanseatic foes (5 November 2026) ----------
+  // Three men and a barrel. Each man is built of the same frame (legs, coat, head, two arm joints) and told apart by what he wears and carries:
+  // the thrower a striped jersey, a flat cap and a bottle, the shield bearer a helmet and a round shield as tall as his chest, the Victual
+  // Brother a black coat, a red bandana and a cutlass, hanging from a rope. Sizes follow the hero (1.7 m) a little under: the rules' heights are
+  // KINDS in the engine (thrower 1.3, shield 1.35, pirate 1.2: they are drawn a little taller than that, in the way a crab's claws are).
+  function buildMan(kind) {
+    const g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
+    const coat = kind === "thrower" ? "scarf" : kind === "shield" ? "steel" : "ink", trousers = kind === "pirate" ? "hero" : "boot";
+    const b = new Builder(); b.ao = [0.15, 0.7, 0.7, 1];
+    for (const s of [-1, 1]) {
+      b.rod(trousers, [s * 0.1, 0.5, 0], [s * 0.1, 0.12, 0.02], 0.085, 0.07, { seg: 6 });                                              // the legs
+      b.ell("boot", [s * 0.1, 0.07, 0.07], [0.09, 0.07, 0.15], { seg: 6, rows: 4 });                                                      // and boots
+    }
+    b.ell(coat, [0, 0.8, 0], [0.27, 0.34, 0.2], { seg: 10, rows: 6 });                                                                   // the coat
+    b.ell("gilt", [0, 0.58, 0.01], [0.27, 0.04, 0.2], { seg: 10, rows: 3 });                                                             // a belt
+    b.ell("skin", [0, 1.27, 0.02], [0.13, 0.15, 0.13], { seg: 10, rows: 6 });                                                            // the head
+    b.ell("skin", [0, 1.1, 0.0], [0.07, 0.07, 0.07], { seg: 6, rows: 4 });                                                               // the neck
+    if (kind === "thrower") {
+      for (const y of [0.6, 0.76, 0.92]) b.ell("shirt", [0, y, 0.0], [0.275, 0.045, 0.205], { seg: 10, rows: 3 });                         // stripes
+      b.ell("ink", [0, 1.4, 0.0], [0.17, 0.06, 0.17], { seg: 10, rows: 4 }); b.box("ink", [0, 1.36, 0.17], [0.2, 0.025, 0.14]);           // a flat cap and its peak
+    } else if (kind === "shield") {
+      b.ell("steel", [0, 1.35, 0.0], [0.16, 0.14, 0.16], { seg: 10, rows: 6 }); b.box("steel", [0, 1.28, 0.15], [0.03, 0.12, 0.02]);      // a helmet and its nasal
+      b.ell("gilt", [0, 0.9, 0.0], [0.28, 0.03, 0.21], { seg: 10, rows: 3 });
+      b.add(cylG(0.62, 0.62, 0.05, 20), "timberLight", { p: [0, 0.86, 0.34], r: [PI / 2, 0, 0] });                                       // the shield: a round board
+      b.add(lathe(band(0.58, 0.64, -0.03, 0.05), 20, { hard: true }), "steel", { p: [0, 0.86, 0.35], r: [PI / 2, 0, 0] });               // its iron rim
+      b.ell("gilt", [0, 0.86, 0.42], [0.14, 0.14, 0.06], { seg: 10, rows: 5 });                                                           // and boss
+      for (const a of [0, 1, 2, 3, 4, 5]) b.ell("alert", [0.38 * Math.cos(a * PI / 3), 0.86 + 0.38 * Math.sin(a * PI / 3), 0.4], [0.05, 0.05, 0.03], { seg: 6, rows: 3 });
+    } else {
+      b.ell("alert", [0, 1.38, 0.0], [0.15, 0.08, 0.15], { seg: 10, rows: 4 });                                                           // the bandana
+      b.rod("alert", [0.1, 1.36, -0.12], [0.25, 1.22, -0.2], 0.03, 0.015, { seg: 4 });                                                    // its knot's tail
+      b.ell("ink", [0.07, 1.31, 0.12], [0.045, 0.035, 0.02], { seg: 6, rows: 4 });                                                        // an eye patch
+      b.ell("hair", [0, 1.17, 0.1], [0.12, 0.09, 0.07], { seg: 8, rows: 4 });                                                              // and a beard
+      b.ell("alert", [0, 0.82, 0.19], [0.12, 0.3, 0.02], { seg: 6, rows: 4 });                                                            // a red sash
+    }
+    mesh(b, rig);
+    const arm = s => {
+      const a = joint(rig, s * 0.33, 1.05, 0), ab = new Builder(); ab.ao = [0.15, 0.7, 0.7, 1];
+      ab.rod(coat, [0, 0, 0], [0, -0.3, 0.03], 0.075, 0.065, { seg: 6 }); ab.rod(coat, [0, -0.3, 0.03], [0, -0.52, 0.06], 0.065, 0.055, { seg: 6 }); ab.ell("skin", [0, -0.57, 0.07], [0.06, 0.06, 0.06], { seg: 6, rows: 4 });
+      if (s > 0) {                                                                                                                        // the right hand carries
+        if (kind === "thrower") { ab.add(cylG(0.045, 0.05, 0.26, 8), "good", { p: [0, -0.55, 0.1], r: [-PI / 2 + 0.3, 0, 0] }); ab.rod("good", [0, -0.5, 0.33], [0, -0.43, 0.46], 0.025, 0.02, { seg: 6 }); }
+        else if (kind === "pirate") { ab.rod("steel", [0, -0.56, 0.08], [0.05, -0.5, 0.78], 0.03, 0.012, { seg: 4 }); ab.rod("gilt", [-0.07, -0.57, 0.08], [0.07, -0.57, 0.08], 0.02, 0.02, { seg: 4 }); }
+      }
+      mesh(ab, a);
+      return a;
+    };
+    parts.arms = [arm(-1), arm(1)];
+    parts.armR = parts.arms[1];
+    if (kind === "pirate") {                                                                                                              // the rope he hangs by, up from his hands into the dark
+      const rope = new Builder();
+      rope.rod("timber", [0, 1.2, 0], [0, 4.6, 0], 0.03, 0.03, { seg: 5 }); rope.rod("timberDark", [-0.18, 1.0, 0.0], [0.18, 1.0, 0.0], 0.025, 0.025, { seg: 5 });
+      parts.rope = mesh(rope, rig);
+    }
+    return { group: g, parts };
+  }
+  /** A docker's barrel on its side, ready to roll down the quay (`spin` turns it), or a runaway cart with its wheels. */
+  function buildRoller(f) {
+    const g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
+    if (f.cart) { const c = makeThing("cart"); rig.add(c.group); parts.cart = c.group; return { group: g, parts }; }
+    const spin = new THREE.Group(); spin.position.y = 0.43; rig.add(spin);
+    const b = new Builder(); b.ao = [0, 0.85, 0.72, 1]; barrelInto(b);
+    const m = mesh(b, new THREE.Group()); m.position.y = -0.43;
+    const lay = new THREE.Group(); lay.rotation.z = PI / 2; lay.add(m); spin.add(lay);
+    parts.spin = spin;
+    return { group: g, parts };
+  }
+
+  /** The model of a foe by its kind (`crab`, `gull`, `barrel`, `balloon`, and the Hanseatic men; a heavy crab is the bruiser): `{ group, parts }`. */
   function makeFoe(f) {
-    const m = f.kind === "crab" ? buildCrab(f) : f.kind === "barrel" ? buildBarrel() : f.kind === "balloon" ? buildBalloon() : buildGull();
+    const m = f.kind === "crab" ? buildCrab(f) : f.kind === "barrel" ? buildBarrel() : f.kind === "balloon" ? buildBalloon()
+      : f.kind === "roller" ? buildRoller(f) : f.kind === "thrower" || f.kind === "shield" || f.kind === "pirate" ? buildMan(f.kind) : buildGull();
     m.group.traverse(o => { o.frustumCulled = false; });
     return m;
   }

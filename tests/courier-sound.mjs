@@ -39,8 +39,8 @@ check(vib.length === 1, "a hit vibrates even before audio is unlocked");
 const samples = [
   { type: "jump" }, { type: "jump", air: true }, { type: "lane", dir: 1 }, { type: "lunge", dir: -1, how: "side" }, { type: "dive", slam: true }, { type: "roll" },
   { type: "land", slam: true, v: 20 }, { type: "land", v: 30 }, { type: "land", v: 3 }, { type: "shockwave", n: 2 },
-  ...["gull", "crab", "barrel", "balloon"].flatMap(kind => [{ type: "kill", id: 7, kind, how: "up" }, { type: "kill", id: 8, kind, how: "slam" }, { type: "kill", id: 9, kind, how: "crash" }, { type: "wind", kind, lane: 1 }, { type: "launch", kind, lane: -1 }]),
-  { type: "stagger", id: 5 }, { type: "kill", id: 5, kind: "crab", how: "up" }, { type: "clang" },
+  ...["gull", "crab", "barrel", "balloon", "thrower", "roller", "shield", "pirate"].flatMap(kind => [{ type: "kill", id: 7, kind, how: "up" }, { type: "kill", id: 8, kind, how: "slam" }, { type: "kill", id: 9, kind, how: "crash" }, { type: "wind", kind, lane: 1 }, { type: "launch", kind, lane: -1 }]),
+  { type: "throw", aim: 1, shot: "anchor" }, { type: "throw", aim: -1, shot: "bottle" }, { type: "smash", lane: 0 }, { type: "stagger", id: 5 }, { type: "kill", id: 5, kind: "crab", how: "up" }, { type: "clang" },
   { type: "pick", what: "coin" }, { type: "pick", what: "coin" }, { type: "pick", what: "gem" }, { type: "pick", what: "token" }, { type: "coins", n: 3 },
   { type: "heart" }, { type: "heart", gem: true }, { type: "seized" }, { type: "hurt" }, { type: "fall" },
   { type: "answer", ok: true }, { type: "answer", ok: false }, { type: "answer", ok: null },

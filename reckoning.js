@@ -4,8 +4,8 @@
 // rules' steps, reckoning-questions.js deals the questions from the knowledge banks. This file keeps the clock (a fixed
 // step, however fast the screen draws), takes the swipes, the page's words over the quay and under it, and the run
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
-import { newGame, valid, setDeal, swipe, step, take, speed, goalValue, GOODS } from "./reckoning-engine.js";
-import { BIOMES, BIOME_IDS, PIECES } from "./reckoning-biomes.js";
+import { newGame, valid, setDeal, swipe, step, take, speed, goalValue, GOODS, PLAY_PIECES } from "./reckoning-engine.js";
+import { BIOMES, BIOME_IDS } from "./reckoning-biomes.js";
 import { SECTIONS, byId } from "./reckoning-sections.js";
 import { load, dealer, WORLDS } from "./reckoning-questions.js";
 import { RunLog } from "./reckoning-log.js";
@@ -78,7 +78,7 @@ function newRun(n = 0, opts = {}) {
   $("result").hidden = true;
   say("");
   const sec = S.sec ? byId(S.sec) : null;
-  hint(sec ? `${sec.name}. ${sec.brief}` : S.piece ? `${PIECES[S.piece].name}, again and again. Swipe to run.` : S.only ? `${BIOMES[S.only].name}, seed ${seed}. Swipe to run.` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
+  hint(sec ? `${sec.name}. ${sec.brief}` : S.piece ? `${PLAY_PIECES[S.piece].name}, again and again. Swipe to run.` : S.only ? `${BIOMES[S.only].name}, seed ${seed}. Swipe to run.` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
   save();
   drawPage(true);
 }
@@ -390,13 +390,13 @@ function openPlaytest() {
   part(body, "content").append(list);
   const pieces = document.createElement("div");
   pieces.className = "rk-secs";
-  for (const [id, P] of Object.entries(PIECES)) {
+  for (const [id, P] of Object.entries(PLAY_PIECES)) {
     const b = document.createElement("button");
     b.type = "button";
     b.setAttribute("aria-label", `Piece: ${P.name}`);
     b.innerHTML = '<span class="rk-sn">·</span><span class="rk-sname"></span><span class="rk-splace"></span>';
     b.querySelector(".rk-sname").textContent = P.name;
-    b.querySelector(".rk-splace").textContent = `piece, ${id}`;
+    b.querySelector(".rk-splace").textContent = `${P.kind === "enc" ? "encounter" : "piece"}, ${id}`;
     b.addEventListener("click", () => { $("menuDlg").close(); newRun(0, { piece: id, seed: playtest.seed }); });
     pieces.append(b);
   }

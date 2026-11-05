@@ -122,8 +122,20 @@ function cut(c, t, kind, v = 1, big = false) {
   if (kind === "gull") {
     hit(c, t, { f0: 5200, q: 0.8, gain: 0.3 * v, dur: 0.03, type: "highpass", pri: 1 });
     tone(c, t, { f0: 1900, f1: 1300, gain: 0.1 * v, dur: 0.03 });
-  } else if (kind === "barrel") crack(c, t, v);
+  } else if (kind === "barrel" || kind === "roller") crack(c, t, v);
   else if (kind === "balloon") pop(c, t, v);
+  else if (kind === "shield") {                                  // a shield rung like a bell, then the man
+    tone(c, t, { f0: 330, f1: 300, gain: 0.3 * v, dur: 0.35, type: "triangle", pri: 1 });
+    tone(c, t, { f0: 497, f1: 470, gain: 0.16 * v, dur: 0.25, type: "triangle" });
+    hit(c, t, { f0: 1500, f1: 600, q: 1, gain: 0.3 * v, dur: 0.06, pri: 1 });
+  } else if (kind === "thrower") {                               // glass, and a grunt
+    hit(c, t, { f0: 4200, q: 1.2, gain: 0.26 * v, dur: 0.05, type: "highpass", pri: 1 });
+    tone(c, t, { f0: 190, f1: 90, gain: 0.3 * v, dur: 0.1 });
+  } else if (kind === "pirate") {
+    hit(c, t, { f0: 1300, f1: 500, q: 1, gain: 0.34 * v, dur: 0.07, pri: 1 });
+    tone(c, t, { f0: 140, f1: 70, gain: 0.34 * v, dur: 0.14 });
+    tone(c, t + 0.03, { f0: 440, f1: 250, gain: 0.1 * v, dur: 0.12, type: "sawtooth", filter: 1200 });
+  }
   else if (big) {
     tone(c, t, { f0: 150, f1: 48, gain: 0.55 * v, dur: 0.24, pri: 1 });
     hit(c, t, { f0: 1100, f1: 300, q: 0.8, gain: 0.4 * v, dur: 0.1, pri: 1 });
@@ -214,13 +226,28 @@ export const EVENTS = {
     else if (ev.kind === "crab") {
       hit(c, t, { f0: 3600, q: 1, gain: 0.2, dur: 0.02, type: "highpass", pan });
       hit(c, t + 0.07, { f0: 3200, q: 1, gain: 0.22, dur: 0.02, type: "highpass", pan });
+    } else if (ev.kind === "thrower") {                         // a bottle neck clinked, a breath drawn
+      bell(c, t, 2093, 0.1, 0.3, pan); hit(c, t + 0.1, { f0: 600, f1: 1400, q: 0.8, gain: 0.14, dur: 0.25, pan, attack: 0.1 });
+    } else if (ev.kind === "roller") {                          // a barrel started: the low rumble of staves on planks
+      for (let i = 0; i < 4; i++) tone(c, t + i * 0.06, { f0: 90 + i * 8, f1: 70, gain: 0.2, dur: 0.07, type: "triangle", pan });
+    } else if (ev.kind === "shield") {                          // a boss rapped with a knuckle
+      tone(c, t, { f0: 700, f1: 640, gain: 0.16, dur: 0.12, type: "triangle", pan }); tone(c, t + 0.08, { f0: 700, f1: 640, gain: 0.14, dur: 0.12, type: "triangle", pan });
+    } else if (ev.kind === "pirate") {                          // a rope creaking under a weight
+      hit(c, t, { f0: 420, f1: 780, q: 4, gain: 0.16, dur: 0.3, pan, attack: 0.05 }); tone(c, t, { f0: 120, f1: 160, gain: 0.1, dur: 0.3, type: "sawtooth", pan, filter: 500 });
     }
   },
   launch(ev, c, t) {
     const pan = (ev.lane || 0) * 0.5;
     if (ev.kind === "gull") hit(c, t, { f0: 2600, f1: 700, q: 0.9, gain: 0.16, dur: 0.2, pan });
-    else if (ev.kind === "crab") hit(c, t, { f0: 900, f1: 500, q: 1, gain: 0.12, dur: 0.1, pan });
+    else if (ev.kind === "crab" || ev.kind === "shield") hit(c, t, { f0: 900, f1: 500, q: 1, gain: 0.12, dur: 0.1, pan });
+    else if (ev.kind === "roller") { thud(c, t, 0.7, 1.2); hit(c, t, { f0: 300, f1: 150, q: 0.8, gain: 0.2, dur: 0.4, type: "lowpass", pan }); }
+    else if (ev.kind === "pirate") hit(c, t, { f0: 2400, f1: 500, q: 0.9, gain: 0.2, dur: 0.3, pan });       // the swing: air torn
   },
+  throw(ev, c, t) {                                           // a whistle through the air, to the lane aimed at
+    const pan = (ev.aim || 0) * 0.5;
+    hit(c, t, { f0: 1800, f1: ev.shot === "anchor" ? 500 : 2600, q: 1.4, gain: 0.2, dur: ev.shot === "anchor" ? 0.5 : 0.18, pan });
+  },
+  smash(ev, c, t) { thud(c, t, 1.1, 1.4); hit(c, t, { f0: 1500, f1: 700, q: 1, gain: 0.3, dur: 0.1, pri: 1, pan: (ev.lane || 0) * 0.5 }); bell(c, t, 261.6, 0.12, 0.5); },
   answer(ev, c, t) {
     if (ev.ok === true) { bell(c, t, 988, 0.18, 0.8); bell(c, t + 0.1, 1480, 0.14, 1); return; }
     drum(c, t, ev.ok === false ? 1 : 0.7); drum(c, t + 0.14, 0.6);
