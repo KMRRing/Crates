@@ -4,11 +4,12 @@
 // made in nurikabe-worker.js. This file keeps the run, the clock and the taps, and draws the board.
 import { solved as soundSolved } from "./nurikabe-sound.js";
 import { plotsOf } from "./nurikabe-works.js";
-import { SIZES, LEVELS, DAILY, NONE, SEA, LAND, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./nurikabe-engine.js";
+import { SIZES, LEVELS, DAILY, NONE, SEA, LAND, TWISTS, TWIST_ORDER, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn, twistsOf, twistOn, labelOf, fixedAt } from "./nurikabe-engine.js";
+import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, kindOf, starsFor } from "./nurikabe-levels.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { part, action, line, choice, ticks, onPause, isPaused, todayPart } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
@@ -20,7 +21,9 @@ import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
 import nurikabeCoop from "./nurikabe-coop.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "nurikabe:run", TIMES = "nurikabe:times", PREFS = "nurikabe:prefs", SPARES = "nurikabe:spares";
+// RUN: the free puzzle in play. TRACK: "levels" or "free", the way played. CAMP: the level being played and the stars won in each;
+// LRUNS: the puzzle left half done in each level (by its number).
+const RUN = "nurikabe:run", TIMES = "nurikabe:times", PREFS = "nurikabe:prefs", SPARES = "nurikabe:spares", TRACK = "nurikabe:track", CAMP = "nurikabe:camp", LRUNS = "nurikabe:lruns";
 const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const DRAG = 12;                     // px a finger moves before a press is a stroke, painting cell after cell
@@ -31,8 +34,9 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** Seconds as 1:05 (or 1:02:05). */
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
-const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}`;
-const kindKey = k => `${k.size}:${k.level}`;
+const twistName = t => { const names = TWIST_ORDER.filter(w => twistsOf(t)?.[w]).map(w => TWISTS[w]); return names.length > 1 ? "Mixed" : names[0] || ""; };
+const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}${twistOn(k.twist) !== "none" ? ` · ${twistName(k.twist)}` : ""}`;
+const kindKey = k => `${k.size}:${k.level}${twistOn(k.twist) !== "none" ? `:${twistOn(k.twist)}` : ""}`;     // (a plain kind's key is what it always was)
 
 // ---------- played with a partner ----------
 // A party of two opened this page (&coop=1, docs/coop.md): the board is the room's, one board for two phones, and what
@@ -48,6 +52,7 @@ const hintId = () => `h${Date.now().toString(36)}${Math.random().toString(36).sl
 const prefs = { size: 8, level: "easy", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
+prefs.twists = TWIST_ORDER.filter(w => Array.isArray(prefs.twists) && prefs.twists.includes(w));       // the twists Free play deals (none: the plain game)
 // prefs.view is the player's own choice ("model" or "2d"), kept only when they make one; with none the suite's default applies (mode3d.js).
 // ("board" was the old default, written into every save: dropped.) `viewShown` is what is on the screen now.
 if (prefs.view !== "model" && prefs.view !== "2d") delete prefs.view;
@@ -57,7 +62,7 @@ const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 // saved choice; the ladder steps up after a puzzle solved without a hint.
 const RUNGS = rungs(SIZES, Object.keys(LEVELS));
 const OLD = { size: prefs.size, level: prefs.level };
-const chosenKind = () => { const { size, level } = split(ramp("nurikabe", RUNGS, { start: startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level) })); return { size: Number(size), level: levelOn(Number(size), level) }; };
+const chosenKind = () => { const { size, level } = split(ramp("nurikabe", RUNGS, { start: startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level) })); return { size: Number(size), level: levelOn(Number(size), level), twist: twistOn(prefs.twists.join("+")) }; };
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
@@ -65,18 +70,18 @@ const chosenKind = () => { const { size, level } = split(ramp("nurikabe", RUNGS,
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
 function make(seed, k) {
-  if (workerless) return Promise.resolve(generate(seed, k.size, k.level));
+  if (workerless) return Promise.resolve(generate(seed, k.size, k.level, k.twist));
   try {
     worker ||= new Worker(new URL("./nurikabe-worker.js", import.meta.url), { type: "module" });
     worker.onmessage = e => { waiting.get(e.data.id)?.resolve(e.data.puzzle); waiting.delete(e.data.id); };
     worker.onerror = () => {
       workerless = true; worker = null;
-      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.level));
+      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.level, w.k.twist));
       waiting.clear();
     };
-  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.level)); }
+  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.level, k.twist)); }
   const id = ++asked;
-  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, level: k.level }); });
+  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, level: k.level, twist: k.twist }); });
 }
 const SPARE_KINDS = 6;                 // spares kept for the kinds played most lately
 function takeSpare(k) {
@@ -110,8 +115,9 @@ async function nextPuzzle(k) {
 }
 
 // ---------- the run ----------
-// S: { v, mode ("random" or "daily"), seed, size, level (asked), came (what it graded), grid, sol, marks (a character a
-//      cell: 0 clear, 1 sea, 2 island dot), undo, redo (each [cell, from, to, stroke]: a stroke's cells undo together),
+// S: { v, mode ("random", "daily" or "level"), seed, size, level (asked), came (what it graded), twist (a name, absent when plain),
+//      bd, br, land (the twists' parts of the puzzle, each absent when the puzzle has none), lv (the ladder level), grid, sol,
+//      marks (a character a cell: 0 clear, 1 sea, 2 island dot), undo, redo (each [cell, from, to, stroke]: a stroke's cells undo together),
 //      ms, hints, done ({ ms, score } once solved), lit (a hint's cells, the cells it read and its words), fresh (a new best) }
 let S = null, P = null;
 let clockFrom = null, savedAt = 0, message = null, paused = false;
@@ -124,16 +130,24 @@ function save() {
     if (coopHost) write(RUN, { ...S, undo: [], redo: [], lit: null, ms: Math.round(teamMs()) });
     return;
   }
-  write(RUN, S);
+  if (isLevel(S)) { const all = read(LRUNS, {}); all[S.lv] = S; write(LRUNS, all); } else write(RUN, S);
   savedAt = performance.now();
 }
+const isLevel = s => s?.mode === "level" && Number.isInteger(s.lv) && s.lv >= 0 && s.lv < COUNT;
+/** The engine's puzzle for a run. */
+const puzzleFor = s => puzzleOf(s.size, s.grid, s.sol, s);
 const started = () => !!S && !S.done && (/[12]/.test(S.marks) || S.hints > 0);
 
 /** Puts a puzzle on the board. */
 function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
-  P = puzzleOf(S.size, S.grid, S.sol);
-  message = null; clockFrom = null;
+  P = puzzleFor(S);
+  message = isLevel(S) && !started() && !S.done ? introOf(S.lv) : null; clockFrom = null;
+  if (!COOP) {
+    track = isLevel(S) ? "levels" : "free";
+    if (isLevel(S)) camp.at = S.lv;                            // a link's level is the one in hand now
+    if (!IN_FRAME) { write(TRACK, track); if (isLevel(S)) write(CAMP, camp); }
+  }
   if (!IN_FRAME) history.replaceState(null, "", hashOf(S));
   drawBoard();
   save();
@@ -159,13 +173,80 @@ async function start(mode, k = chosenKind()) {
   const { seed, puzzle } = await nextPuzzle(k);
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
-const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length) });
+const fromPuzzle = (mode, seed, k, puzzle, extra = {}) => ({ mode, seed, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length),
+  ...(twistOn(k.twist) !== "none" ? { twist: twistOn(k.twist) } : {}), ...(puzzle.bd ? { bd: puzzle.bd } : {}), ...(puzzle.br ? { br: puzzle.br } : {}), ...(puzzle.land != null ? { land: puzzle.land } : {}), ...extra });
 /** The shared board for a puzzle (what the host's run becomes when a partner joins). */
 const shareOf = run => nurikabeCoop.share({ [RUN]: JSON.stringify({ v: 1, ms: 0, hints: 0, ...run }) });
 async function confirmStart(mode, k) {
   if (started() && !(await sure(coop ? "Start a new puzzle for both of you? This one isn't solved." : "Start a new puzzle? This one isn't solved.", { yes: "New puzzle" }))) return false;
   start(mode, k);
   return true;
+}
+
+// ---------- the levels ----------
+/** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
+function readCamp() {
+  const c = read(CAMP, null);
+  const stars = LADDER.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  const open = stars.findIndex(x => x < 1);                          // the first level not solved is the last one open
+  return { v: LADDER_VERSION, at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? COUNT - 1 : open)) : 0, stars };
+}
+let camp = readCamp();
+/** Whether level n (0 on) is open: the first, and any whose one before is solved. */
+const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+// A player with a free puzzle in hand from before levels came carries on with it; anyone else begins on the ladder.
+let track = read(TRACK, null);
+if (track !== "levels" && track !== "free") track = valid(read(RUN, null)) && !isLevel(read(RUN, null)) ? "free" : "levels";
+/** The puzzle saved for the way being played (and the level), or null. */
+function savedGame() {
+  const g = track === "levels" ? read(LRUNS, {})[camp.at] : read(RUN, null);
+  return valid(g) && (track === "levels" ? isLevel(g) && g.lv === camp.at : !isLevel(g)) ? g : null;
+}
+/** What a level says when it is first met: its chapter's idea if it is the chapter's first, else nothing. */
+function introOf(n) {
+  const ch = CHAPTERS[chapterOf(n)];
+  return n === ch.from ? { text: `${ch.name}. ${ch.about}`, tone: "" } : null;
+}
+/** A puzzle of level n (0 on): the level's own the first time it is played, a new one after that or when asked. */
+async function levelBlock(n, again = false) {
+  if (IN_FRAME || COOP) return;
+  const k = kindOf(n);
+  let seed, puzzle;
+  if (!again && camp.stars[n] < 1) {
+    seed = seedOf(n);
+    const done = busy("Making the puzzle", { delay: 250 });
+    try { puzzle = await make(seed, k); } finally { done(); }
+  } else ({ seed, puzzle } = await nextPuzzle(k));
+  if (puzzle) begin(fromPuzzle("level", seed, k, puzzle, { lv: n }));
+}
+/** Plays level n (0 on) as it was left, or new if it was not begun. */
+async function playLevel(n) {
+  if (!isOpen(n)) return;
+  clockPause();
+  camp.at = n;
+  write(CAMP, camp);
+  track = "levels";
+  write(TRACK, track);
+  await resume();
+}
+/** The puzzle of the way now chosen, as it was left (else a new one). */
+async function resume() {
+  const g = savedGame();
+  if (g) { begin(g); if (!IN_FRAME) refill(chosenKind()); return; }
+  if (track === "levels") await levelBlock(camp.at); else await start("random");
+}
+async function setTrack(next) {
+  if (next === track) return;
+  clockPause();
+  track = next;
+  write(TRACK, track);
+  await resume();
+}
+/** Writes a solved level's stars (the best it has had); true if this solve improved on them. */
+function recordLevel(sc) {
+  const n = S.lv, stars = starsFor({ grid: S.grid, bd: S.bd, level: S.came || S.level }, sc), fresh = stars > camp.stars[n];
+  if (fresh) { camp.stars[n] = stars; write(CAMP, camp); }
+  return fresh;
 }
 
 // ---------- the clock ----------
@@ -188,9 +269,9 @@ const scoreOf = ms => Math.round(ms / 1000) + penalty();
 // ---------- bests ----------
 // Kept in nurikabe:times by size and level, lowest first, not nurikabe:best (the games screen reads a best as
 // highest-is-best); the games screen's figure is today's time (noteDayTime, nurikabe:today).
-const bestOf = s => read(TIMES, {})[kindKey({ size: s.size, level: s.came || s.level })];
+const bestOf = s => read(TIMES, {})[kindKey({ size: s.size, level: s.came || s.level, twist: s.twist })];
 function recordBest(sc) {
-  const times = read(TIMES, {}), k = kindKey({ size: S.size, level: S.came || S.level }), fresh = times[k] == null || sc < times[k];
+  const times = read(TIMES, {}), k = kindKey({ size: S.size, level: S.came || S.level, twist: S.twist }), fresh = times[k] == null || sc < times[k];
   if (fresh) { times[k] = sc; write(TIMES, times); }
   return fresh;
 }
@@ -200,7 +281,7 @@ let strokeAt = 0;                    // a stroke painted over several cells is o
 const newStroke = () => (strokeAt = Math.max(Date.now(), strokeAt + 1));   // (a time, so a saved run's numbers never meet a new one)
 /** A tap cycles the cell (clear, sea, island dot); a right-click dots it, or clears it if dotted. A number can't be marked. */
 function press(x, how) {
-  if (!S || S.done || IN_FRAME || paused || x < 0 || P.clue[x]) return;
+  if (!S || S.done || IN_FRAME || paused || x < 0 || fixedAt(P, x)) return;
   const from = S.marks[x], to = how === "dot" ? (from === LAND ? NONE : LAND) : nextMark(from);
   setCell(x, from, to);
   if (to === SEA) navigator.vibrate?.(8);
@@ -254,11 +335,12 @@ function note(text, tone = "") { message = text ? { text, tone } : null; }
 // ---------- hints ----------
 /** A step of reasoning in words, as a hint says it. */
 function explain(x) {
-  const sea = x.set.every(([, v]) => v === 1);
+  const sea = x.set.every(([, v]) => v === 1), fancy = P.fancy;
   switch (x.tech) {
-    case "complete": return "An island that has all its cells is walled in: every cell touching it is sea.";
+    case "bridge": return "An arch bridge: its two ends are island, and the water runs under it, so the cells at its sides are sea.";
+    case "complete": return fancy ? "An island that has all the cells it can have (its number, its \u201c\u2264\u201d bound, or what the land count leaves it) is walled in: every cell touching it is sea." : "An island that has all its cells is walled in: every cell touching it is sea.";
     case "between": return "A cell touching two islands would join them into one with two numbers, or one too big for its number: it is sea.";
-    case "grow": return "An island that needs more cells has only one way out: that cell is island.";
+    case "grow": return fancy ? "An island that needs more cells (to reach its number or its \u201c+\u201d bound, or to join an island that has no number yet) has only one way out: that cell is island." : "An island that needs more cells has only one way out: that cell is island.";
     case "pool": return "Three cells of a 2×2 block are sea: the fourth is island, or the sea would pool.";
     case "count": return sea ? "Every island cell is already found (the numbers add up to that many): all the rest is sea." : "Only as many cells are left as the islands still need: they are all island.";
     case "reach": return "No island has enough cells left to reach this cell: it is sea.";
@@ -317,6 +399,8 @@ function finish() {
   S.done = { ms, score: scoreOf(ms) };
   S.lit = null;
   S.fresh = recordBest(S.done.score);
+  if (isLevel(S)) S.done.stars = starsFor({ grid: S.grid, bd: S.bd, level: S.came || S.level }, S.done.score);
+  if (isLevel(S)) recordLevel(S.done.score);
   if (S.mode === "random") { const k = chosenKind(); if (k.size === S.size && k.level === S.level) ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("nurikabe", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
@@ -339,8 +423,12 @@ function drawBoard() {
     const [r, c] = rc(x), g = svgEl("g", { class: "nk-c" }, svg);
     svgEl("rect", { x: c, y: r, width: 1, height: 1, class: "nk-cell" }, g);
     svgEl("path", { d: `M${c + 0.18} ${r + 0.36}q.16-.12.32 0t.32 0M${c + 0.18} ${r + 0.66}q.16-.12.32 0t.32 0`, class: "nk-flow" }, g);
+    if (P.bridge[x]) archAt(g, r, c, P.bridge[x]);
     svgEl("circle", { cx: c + 0.5, cy: r + 0.5, r: 0.1, class: "nk-dot" }, g);
-    if (P.clue[x]) svgEl("text", { x: c + 0.5, y: r + 0.5 + 0.2, class: "nk-num" }, g).textContent = P.clue[x];
+    if (P.stone[x]) {
+      const label = labelOf(P, x);
+      svgEl("text", { x: c + 0.5, y: r + 0.5 + 0.2, class: `nk-num${label.length > 2 ? " long" : label.length > 1 ? " mid" : ""}` }, g).textContent = label;
+    }
     svgEl("rect", { x: c + 0.07, y: r + 0.07, width: 0.86, height: 0.86, class: "nk-ring" }, g);
     return { g, d: Math.round((r + c) * 55) };
   });
@@ -349,14 +437,22 @@ function drawBoard() {
   svg.addEventListener("contextmenu", e => e.preventDefault());
   paint();
 }
+/** An arch bridge in a cell: a deck along its axis between vermilion rails, and the water showing at its two sides (it runs under). */
+function archAt(g, r, c, axis) {
+  const h = axis === 1, a = (u, v, w, hh, cls) => svgEl("rect", h ? { x: c + u, y: r + v, width: w, height: hh, class: cls } : { x: c + v, y: r + u, width: hh, height: w, class: cls }, g);
+  a(0.32, 0, 0.36, 0.3, "nk-under"); a(0.32, 0.7, 0.36, 0.3, "nk-under");        // the water at the sides
+  a(0, 0.3, 1, 0.4, "nk-deck");
+  for (const t of [0.2, 0.4, 0.6, 0.8]) a(t, 0.3, 0.02, 0.4, "nk-plank");
+  a(0, 0.3, 1, 0.045, "nk-rail"); a(0, 0.655, 1, 0.045, "nk-rail");
+}
 /** Each cell's look from the run: sea, island dot, a rule broken, lit or read by a hint; each number's: whole or over. */
 function paint() {
   if (!svg || !S) return;
   const br = breaks(P, S.marks), pool = new Set(br.pool), cut = new Set(br.cut), over = new Set(br.island), done = new Set(br.done);
-  const lit = new Set(S.lit?.set || []), why = new Set(S.lit?.focus || []), plots = plotsOf(P.N, P.clue, S.marks);
+  const lit = new Set(S.lit?.set || []), why = new Set(S.lit?.focus || []), plots = plotsOf(P.N, P.clue, S.marks, P);
   for (let x = 0; x < cellEls.length; x++) {
     const m = S.marks[x];
-    const cls = ["nk-c", m === SEA ? "sea" : m === LAND ? "land" : "", pool.has(x) ? "pool" : "", cut.has(x) ? "cut" : "", over.has(x) ? "over" : "", done.has(x) ? "done" : "", P.clue[x] ? "num" : "", plots[x] >= 0 ? "whole" : "",
+    const cls = ["nk-c", m === SEA ? "sea" : m === LAND ? "land" : "", pool.has(x) ? "pool" : "", cut.has(x) ? "cut" : "", over.has(x) ? "over" : "", done.has(x) ? "done" : "", P.stone[x] ? "num" : "", P.bridge[x] ? "bridge" : "", plots[x] >= 0 ? "whole" : "",
       lit.has(x) ? "lit" : why.has(x) ? "why" : ""].filter(Boolean).join(" ");
     if (cellEls[x].g.getAttribute("class") !== cls) cellEls[x].g.setAttribute("class", cls);
   }
@@ -420,7 +516,7 @@ function down(ev) {
 function cancelPress() { pressing = null; }
 /** Paints a cell with the stroke's mark (a number is left alone). */
 function paintCell(x, s) {
-  if (x < 0 || P.clue[x]) return;
+  if (x < 0 || fixedAt(P, x)) return;
   setCell(x, S.marks[x], s.mode, s.id);
   if (s.mode === SEA && S.marks[x] === SEA) navigator.vibrate?.(5);
 }
@@ -431,7 +527,7 @@ addEventListener("pointermove", ev => {
     if (Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) <= DRAG * scale()) return;
     // the mark a tap on the cell pressed would have made, laid on every cell the finger crosses
     const from = pressing.from;
-    pressing.stroke = { id: newStroke(), at: from, mode: from < 0 || P.clue[from] ? SEA : nextMark(S.marks[from]) };
+    pressing.stroke = { id: newStroke(), at: from, mode: from < 0 || fixedAt(P, from) ? SEA : nextMark(S.marks[from]) };
     paintCell(from, pressing.stroke);
   }
   const s = pressing.stroke, to = cellAt(p);
@@ -455,10 +551,11 @@ addEventListener("pointercancel", cancelPress);
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
 function drawStrip() {
-  if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
+  if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); put("landn", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, level: S.came || S.level })}`);
+  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}`);
+  put("landn", S.land != null ? `Land ${S.land}` : "");
 }
 function drawLine() {
   const l = $("line");
@@ -474,6 +571,8 @@ function drawLine() {
 }
 function drawResult() {
   const done = !!S?.done;
+  const nextText = isLevel(S) && S.lv + 1 < COUNT && camp.stars[S.lv] >= 1 ? "Next level" : "Another puzzle";
+  if ($("nextBtn").textContent !== nextText) $("nextBtn").textContent = nextText;
   $("controls").hidden = done;
   $("result").hidden = !done;
   if (!done) return;
@@ -481,7 +580,8 @@ function drawResult() {
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${penalty()} s)`);
   if (COOP) { $("verdict").textContent = `Solved together: ${fmt(d.score)}. ${bits.join(", ")}.`; return; }
   const tail = S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
-  $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
+  const stars = isLevel(S) && d.stars ? ` ${plural(d.stars, "star")}.` : "";
+  $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${tail}${stars}`;
 }
 function render() {
   const off = !S || !!S.done || IN_FRAME;
@@ -508,6 +608,10 @@ function showRules() {
     <p>An island is cells joined edge to edge, with <b>one</b> number in it, and as many cells as that number says. Two islands never touch edge to edge (they may touch at a corner).</p>
     <p>The sea is <b>one connected piece</b>: from any sea cell you can walk to any other through sea. And the sea <b>has no 2×2 block</b>: a pool of four sea cells in a square is not allowed.</p>
     <p><b>An example.</b> A 1 is an island of one cell, so all four cells touching it are sea. A cell between two numbers can't belong to either, or it would join them: it's sea.</p>
+    <h4>Twists</h4>
+    <p><b>Bounds.</b> A number may be a limit, in Bridges' notation: <b>5+</b> is an island of at least five cells, <b>\u22644</b> one of at most four. The sizes become inequalities: an island at its most is walled in, one short of its fewest has to grow.</p>
+    <p><b>Unknown islands.</b> A <b>?</b> is an island of any size, one cell or more. The board then gives the land count (Land 23: that many island cells in all), so what the other islands take is what a ? is left with.</p>
+    <p><b>Arch bridges.</b> A cell drawn as an arched deck is an island cell: it is part of the island at its two ends and counts in that island's size. The water runs under it, so the cells at its two sides are sea, and for the sea being one piece the bridge counts as water: the sea can cross an island on a bridge. (It can never complete a 2×2 pool: a block holding a bridge holds one of its ends.) Bridges can't be marked; shade the water at their sides.</p>
     <h4>Playing</h4>
     <p>Tap a cell to shade it as sea, again to dot it as island (a note for yourself, nothing more), again to clear it; a right-click dots a cell at once. Drag to paint a run of cells with the mark a tap on the first one would make. Only the sea counts: the puzzle is solved the moment exactly its answer is shaded. Undo and Redo step through your strokes, and the menu clears the board.</p>
     <p>A broken rule shows at once, the line under the board saying which: a 2×2 pool of sea, sea cut off from the rest, an island with two numbers or too many cells, all in oxblood. That comes from the rules, never the answer. A number turns green once its island is whole. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the cells it settled ringed in gilt.</p>
@@ -521,22 +625,68 @@ function showRules() {
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }
 
-// the menu: Play (a new puzzle, clearing the board, the rules), Content (random or today's, the size, the level), About
+/** The levels, under their chapters: each its number, name, size and level and the stars won. Those not open yet are dimmed; any open one can be played at any time, as it was left. */
+function levelList() {
+  const all = document.createElement("div");
+  all.className = "nk-levels";
+  CHAPTERS.forEach((ch, c) => {
+    const head = document.createElement("h3"), grid = document.createElement("div"), to = CHAPTERS[c + 1]?.from ?? COUNT;
+    head.className = "nk-chap";
+    head.textContent = ch.name;
+    grid.className = "nk-lgrid";
+    for (let n = ch.from; n < to; n++) {
+      const L = LADDER[n], won = camp.stars[n], b = document.createElement("button");
+      b.type = "button";
+      b.disabled = !isOpen(n);
+      b.className = won ? "done" : "";
+      if (n === camp.at && track === "levels") b.setAttribute("aria-current", "true");
+      b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${b.disabled ? ", not open yet" : ""}`);
+      const num = document.createElement("b"), stars = document.createElement("span"), name = document.createElement("div"), size = document.createElement("div");
+      num.textContent = n + 1;
+      stars.textContent = isOpen(n) ? "\u2605".repeat(won) + "\u2606".repeat(3 - won) : "";
+      name.className = "nk-lname"; name.textContent = L.name;
+      size.className = "nk-lsize"; size.textContent = `${L.size}×${L.size} · ${LEVELS[L.level]}`;
+      const row = document.createElement("div");
+      row.className = "nk-lrow";
+      row.append(num, stars);
+      b.append(row, name, size);
+      b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
+      grid.append(b);
+    }
+    all.append(head, grid);
+  });
+  return all;
+}
+// the menu: Play (a new puzzle, clearing the board, the rules), Content (levels or free play and its twists, today's), About
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const content = part(body, "content");
-  const play = part(body, "play");
-  play.append(action(COOP ? "Another puzzle" : "New puzzle", () => confirmStart("random"), "primary"));
+  const play = part(body, "play"), levels = track === "levels" && !COOP;
+  play.append(action(COOP ? "Another puzzle" : "New puzzle", () => (levels ? confirmLevelBlock() : confirmStart("random")), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "board" : "model"), "link"), action("The rules", showRules, "link"));
+  if (!COOP) {
+    content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
+    if (levels) content.append(levelList());
+  }
+  if (!levels) content.append(ticks("Twists", TWIST_ORDER.map(w => [w, TWISTS[w]]), prefs.twists, v => { prefs.twists = v; savePrefs(); }));
   if (!COOP) todayPart(body, { app: "nurikabe", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? bestOf(S) : null;
   const about = part(body, "about");
-  about.append(line(S ? `${kindText({ size: S.size, level: S.came || S.level })}: ${COOP ? (S.done ? "solved" : "not solved yet") : best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Shade the sea round the islands."));
+  if (levels) {
+    const solved = camp.stars.filter(Boolean).length;
+    about.append(line(`${solved} of ${COUNT} levels solved, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}. Three stars within the par, two within twice it.`));
+  } else about.append(line(S ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${COOP ? (S.done ? "solved" : "not solved yet") : best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Shade the sea round the islands."));
   if (!COOP) about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+/** Another puzzle of the level being played. */
+async function confirmLevelBlock() {
+  if (started() && !(await sure("Start a new puzzle of this level? This one isn't solved.", { yes: "New puzzle" }))) return false;
+  levelBlock(camp.at, true);
+  return true;
 }
 async function clearBoard() {
   if (!S || S.done) return;
@@ -560,13 +710,15 @@ async function copyLink() {
 }
 
 // ---------- links: #s=SEED&n=8&l=medium (#d= for a day's) ----------
-const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}`;
+const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${s.twist && s.mode !== "daily" ? `&t=${s.twist}` : ""}`;
 function linked() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
   const size = SIZES.includes(Number(h.get("n"))) ? Number(h.get("n")) : 8;
-  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium") } };
+  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium"), twist: h.get("d") ? "none" : twistOn((h.get("t") || "").replace(/ /g, "+")) } };      // (a "+" in an address reads as a space)
 }
+/** Whether the run in hand is the one a link names (a level's puzzle is a random one to a link). */
+const isLinked = (l, run) => !!run && run.seed === l.seed && (run.mode === "daily") === (l.mode === "daily") && run.size === l.k.size && twistOn(run.twist) === l.k.twist;
 async function openLinked(l) {
   const done = busy("Making the puzzle", { delay: 250 });
   let puzzle;
@@ -581,13 +733,13 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-$("nextBtn").addEventListener("click", () => start("random"));
+$("nextBtn").addEventListener("click", () => (isLevel(S) ? (S.lv + 1 < COUNT && camp.stars[S.lv] >= 1 ? playLevel(S.lv + 1) : levelBlock(S.lv, true)) : start("random")));
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); coop?.together.resync(); } });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { if (COOP) return; const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode)) openLinked(l); });
+window.addEventListener("hashchange", () => { if (COOP) return; const l = linked(); if (l && !isLinked(l, S)) openLinked(l); });
 setInterval(() => {
   if (!S) return;
   drawStrip();
@@ -596,7 +748,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__nurikabe = {
-  get model() { return model; }, setView, get state() { return S; }, get puzzle() { return P; }, get coop() { return coop; }, press, useHint, undo, redo, start,
+  get model() { return model; }, setView, get state() { return S; }, get puzzle() { return P; }, get coop() { return coop; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack,
   /** Where a cell's middle is on the screen, for tests that tap or drag it as a finger would. */
   cellOf: x => { const m = svg.getScreenCTM(), [r, c] = rc(x); return { x: (c + 0.5) * m.a + m.e, y: (r + 0.5) * m.d + m.f }; },
 };
@@ -604,15 +756,15 @@ window.__nurikabe = {
 const forToday = arrivedForToday();   // from the games screen's tile: today's puzzle, still to play
 /** Your own puzzle: a link's, today's from the tile, the saved one, or a first puzzle. */
 async function solo() {
-  const kept = read(RUN, null);
+  const kept = savedGame();
   S = null;
-  if (valid(kept)) S = kept;
+  if (kept) S = kept;
   const l = linked();
-  if (l && !(S && S.seed === l.seed && S.mode === l.mode && S.size === l.k.size)) { openLinked(l); return; }
+  if (l && !isLinked(l, S)) { openLinked(l); return; }
   const todays = forToday && !IN_FRAME && !(S?.mode === "daily" && S.seed === today());
   if (S) { const s = S; S = null; begin(s); if (!IN_FRAME) refill(chosenKind()); }       // yours is on the board while it asks about today's
   if (todays && (!S || !started() || await sure("Today's puzzle is waiting. Leave the one you've started?", { yes: "Today's puzzle", no: "Keep mine" }))) { start("daily"); return; }
-  if (!S) { if (IN_FRAME) render(); else start("random"); }
+  if (!S) { if (IN_FRAME) render(); else if (track === "levels") levelBlock(camp.at); else start("random"); }
 }
 
 /** The board of a party of two: the room's, drawn each time it moves (coop-page.js). */
@@ -622,7 +774,7 @@ function showBoard(board, info) {
   coopHost = info.host;
   if (info.fresh || !S) {
     S = { undo: [], redo: [], ms: 0, lit: null, ...run };
-    P = puzzleOf(S.size, S.grid, S.sol);
+    P = puzzleFor(S);
     message = null; sentDone = false;
     cancelPress();                                          // a finger painting on the board that has just been replaced
       drawBoard();

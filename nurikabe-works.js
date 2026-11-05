@@ -15,20 +15,21 @@ function around(N, x) {
 }
 
 /** The islands that are whole: for each such island's cells the number's cell, else -1 (a piece of land with its one number and exactly that many cells). */
-export function plotsOf(N, clue, marks) {
+export function plotsOf(N, clue, marks, P = null) {
   const n = N * N, owner = new Int16Array(n).fill(-1), seen = new Uint8Array(n);
+  // a puzzle with bounds or unknown islands gives each stone its own fewest and most cells (`P`); the plain game's is its number
+  const stone = x => (P ? P.stone[x] > 0 : clue[x] > 0), lo = x => (P ? P.lo0[x] : clue[x]), hi = x => (P ? P.hi0[x] : clue[x]);
   for (let s = 0; s < n; s++) {
     if (seen[s] || marks[s] === SEA) continue;
-    const comp = [s], at = [s];
+    const comp = [s];
     seen[s] = 1;
     let numbers = 0, number = -1;
     for (let i = 0; i < comp.length; i++) {
       const x = comp[i];
-      if (clue[x]) { numbers++; number = x; }
+      if (stone(x)) { numbers++; number = x; }
       for (const y of around(N, x)) if (y >= 0 && !seen[y] && marks[y] !== SEA) { seen[y] = 1; comp.push(y); }
     }
-    void at;
-    if (numbers === 1 && comp.length === clue[number]) for (const x of comp) owner[x] = number;
+    if (numbers === 1 && comp.length >= lo(number) && comp.length <= hi(number)) for (const x of comp) owner[x] = number;
   }
   return owner;
 }

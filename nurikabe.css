@@ -19,6 +19,7 @@ html[data-mode="night"] { --nk-in: #D2A06A; --nk-good: #7FC2A8; --nk-bad: #E8806
   font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
 .nk-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .nk-time small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--nk-bad); font-variant-numeric: tabular-nums; }
+.nk-time small.nk-landn { color: var(--ink-soft); font-size: .74rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
 .nk-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 
@@ -45,7 +46,17 @@ html[data-mode="night"] { --nk-in: #D2A06A; --nk-good: #7FC2A8; --nk-bad: #E8806
 .nk-dot { fill: var(--ink-soft); pointer-events: none; opacity: 0; }
 .nk-c.land .nk-dot { opacity: 1; }
 .nk-num { font-family: Archivo, Arial, sans-serif; font-weight: 800; font-size: .56px; fill: var(--ink); text-anchor: middle; pointer-events: none; }
+.nk-num.mid { font-size: .44px; }
+.nk-num.long { font-size: .34px; }
 .nk-c.done .nk-num { fill: var(--nk-good); }
+/* an arch bridge (a rule, the cell is island): a plank deck between vermilion rails, the canal showing at its two sides; the 3D scene's
+   decorative arches over plain water are another thing (a sea cell), so this one is drawn on paper, never over celadon */
+.nk-deck { fill: color-mix(in srgb, var(--nk-plot) 70%, var(--nk-tile)); pointer-events: none; }
+.nk-plank { fill: color-mix(in srgb, var(--ink) 40%, var(--nk-plot)); pointer-events: none; }
+.nk-rail { fill: var(--nk-rail, #B5472F); pointer-events: none; }
+.nk-under { fill: var(--nk-sea); pointer-events: none; }
+.nk-c.bridge .nk-cell { fill: var(--nk-stone); }
+.nk-c.bridge.whole .nk-cell { fill: color-mix(in srgb, var(--nk-crop) 30%, var(--nk-stone)); }
 .nk-c.over .nk-num { fill: var(--nk-bad); }
 .nk-ring { fill: none; stroke: transparent; stroke-width: .08; pointer-events: none; }
 .nk-c.lit .nk-ring { stroke: var(--nk-gilt); stroke-width: .1; }
@@ -126,3 +137,17 @@ html[data-theme="office"] .nk-tool { border-radius: 12px; }
 html[data-theme="office"] .nk-go { border-radius: 14px; background: var(--nk-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html[data-theme="office"] .nk-toast { border-radius: 10px; }
 html[data-theme="office"] .nk-kind { font-stretch: 100%; }
+
+/* the levels in the menu: the chapters, three levels to a row */
+#menuBody .nk-chap { margin: .9rem 0 .35rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+#menuBody .nk-chap:first-child { margin-top: .4rem; }
+.nk-lgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.nk-lgrid button { display: grid; gap: .2rem; padding: .4rem .45rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.nk-lgrid button.done { background: var(--nk-in-soft); }
+.nk-lgrid button[aria-current] { border-color: var(--nk-in); box-shadow: inset 0 0 0 1.5px var(--nk-in); }
+.nk-lgrid button:disabled { opacity: .4; cursor: default; }
+.nk-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .2rem; }
+.nk-lrow b { font-size: .95rem; }
+.nk-lrow span { font-size: .62rem; letter-spacing: .05em; color: var(--nk-gilt); white-space: nowrap; }
+.nk-lname { font-size: .74rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.nk-lsize { font-size: .64rem; color: var(--ink-soft); }

@@ -15,7 +15,9 @@ export const playable = s => !!s && s.v === 1 && SIZES.includes(s.size) && typeo
   && typeof s.sol === "string" && s.sol.length === s.marks.length && s.grid.length === s.size * s.size && s.marks.length === s.grid.length && Number.isFinite(s.ms);
 
 /** The puzzle, the part of a run that does not change. */
-export const fixedOf = s => ({ mode: s.mode || "random", seed: s.seed, size: s.size, level: s.level, came: s.came || s.level, grid: s.grid, sol: s.sol });
+// (a level's puzzle is shared as a random one: it earns no stars for two. The twists are parts of the puzzle, so they travel with it.)
+export const fixedOf = s => ({ mode: s.mode === "level" ? "random" : s.mode || "random", seed: s.seed, size: s.size, level: s.level, came: s.came || s.level, grid: s.grid, sol: s.sol,
+  ...(s.twist ? { twist: s.twist } : {}), ...(s.bd ? { bd: s.bd } : {}), ...(s.br ? { br: s.br } : {}), ...(s.land != null ? { land: s.land } : {}) });
 
 export default {
   /** The shared board out of what the game has saved ({ key: the saved text }); null when there is no board in play to share (none, or solved). */

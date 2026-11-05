@@ -54,4 +54,13 @@ await commonSuite({ check, id: "nurikabe", adapter: coopOf, share: board, layer:
 
 check(coopOf.run(coopOf.share({ [KEY]: JSON.stringify({ ...run, mode: "daily" }) })).mode === "daily" && coopOf.run({ ...coopOf.share({ [KEY]: JSON.stringify({ ...run, mode: "daily" }) }), once: { done: { ms: 5, score: 5 } } }).mode === "random", "today's puzzle solved together comes back as a plain puzzle: the host run must not use up their daily");
 
+// the twists (bounds, unknown islands, arch bridges) are parts of the puzzle: they travel in the room's fixed state and come back in the run
+{
+  const tw = generate(11, 6, "easy", "ranges+unknown+bridges"), r2 = { ...run, seed: 11, twist: "ranges+unknown+bridges", came: tw.level, grid: tw.grid, sol: tw.sol, bd: tw.bd, br: tw.br, land: tw.land, marks: "0".repeat(tw.sol.length) };
+  const b2 = coopOf.share({ [KEY]: JSON.stringify(r2) }), r3 = coopOf.run(b2);
+  check(b2.fixed.bd === tw.bd && b2.fixed.br === tw.br && b2.fixed.land === tw.land && b2.fixed.twist === r2.twist && r3.bd === tw.bd && r3.br === tw.br && r3.land === tw.land && coopOf.valid(b2), "a twisted puzzle travels in the room's state (its bounds, bridges, land count and twist) and comes back as the same run");
+  const lv = coopOf.share({ [KEY]: JSON.stringify({ ...r2, mode: "level", lv: 3 }) });
+  check(lv.fixed.mode === "random" && !("lv" in lv.fixed), "a ladder level shared for two is a random puzzle: it earns no stars");
+}
+
 done();
