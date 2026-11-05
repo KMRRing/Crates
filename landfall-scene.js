@@ -156,6 +156,10 @@ export function createScene(host, { reduced = () => false } = {}) {
   const sunGlow = new THREE.Mesh(quad, sunMat), sunDisc = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, color: 0xfffbe8 }));
   for (const m of [sunGlow, sunDisc]) { m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); }
 
+  // a lighthouse on the horizon: a warm flash at the bearing of the light, as the sea shows it, and a steady glow for those who ask for less motion
+  const beacon = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 }));
+  beacon.renderOrder = 2; beacon.frustumCulled = false; beacon.visible = false; skyRoot.add(beacon);
+
   const NPUFF = 72;
   const puffMat = new THREE.MeshBasicMaterial({ map: puffTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
   const puffs = new THREE.InstancedMesh(quad, puffMat, NPUFF);
@@ -600,6 +604,12 @@ export function createScene(host, { reduced = () => false } = {}) {
     halo.material.opacity = clamp(S.lampLevel, 0, 1) * 0.8;
     lamp.updateMatrixWorld(true);
     lamp.getWorldPosition(LIT.uLampPos.value); LIT.uLampPos.value.y += 0.16;
+    // the light: on for a moment in every five seconds (a group-flashing light is told by its pattern), steady and dim when motion is reduced
+    beacon.visible = !!S.light;
+    if (S.light) {
+      const ph = (t + S.light.az * 0.013) % 5, on = reduced() ? 0.55 : ph < 0.5 ? Math.sin(ph / 0.5 * Math.PI) : ph > 1.0 && ph < 1.5 ? Math.sin((ph - 1.0) / 0.5 * Math.PI) * 0.8 : 0.06;
+      placeBillboard(beacon, S.light.az, 0.6 + 0.3 * Math.sin(t * 0.7), 0.9 + 1.6 * on, SKY_R - 40); beacon.material.opacity = clamp(0.15 + on, 0, 1);
+    }
     // the sea, the flag, the spray
     if (t - lastSeaT > (reduced() ? 1e9 : 1 / 30)) { setSea(t); lastSeaT = t; }
     if (!reduced()) {

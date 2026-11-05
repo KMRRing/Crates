@@ -10,6 +10,8 @@ Ruling, 3 November 2026, 22:20, Korbi, on M2: "yea good to implement now, will n
 
 Ruling, 4 November 2026, Korbi, on the Navigation course: it "won't get much love"; what it taught should live in Landfall instead, subtly, with some gaps, more digestible and ambient (learned by playing, not a lesson sheet). The night-sky course material lives here too. The Navigation tile is retired; `navigation.html` redirects here.
 
+Ruling, 4 November 2026, Korbi: "this gamemode is beautiful as is, but not yet 3D. we want it to be 3D. the chart should be what you see when you look down, and the rest when you look up. it should be more immersive and there should be more levels." Built as one scene (`landfall-scene.js`, `landfall-stage.js`, arithmetic in `landfall-look.js`); battery saver and a partner's watching frame keep the flat page (`mode3d.js`; `landfall:view` is written only when the player picks Flat or 3D). Levels 11 to 34 in sections 3 to 9 are in `landfall-voyages.js`.
+
 ## Traps
 
 - **Polaris gives latitude only.** It sits within a degree of the pole, so a sight of it says how far north, never how far east. The fog collapses north-south and stays long east-west. Do not "fix" that.
@@ -23,6 +25,13 @@ Ruling, 4 November 2026, Korbi, on the Navigation course: it "won't get much lov
 
 - **The notebook is knowledge, never power** (`landfall-notes.js`, `tests/landfall-notes.mjs`). An event of the voyage earns the first note it can, one at a time and at most two captions per happening; `{gap}` notes are earned half-empty and filled by a second event. The numbers in the words are computed (dip, refraction, the cosine); the Plough and Cassiopeia stay in the Codex. Keys: `landfall:notes` (`id: 1` heard, `2` whole). A finished lesson of the old course (`navigation:course`, left in place, never deleted) writes its notes whole at load (`FROM_COURSE`).
 - **Not carried from Navigation:** the Southern Cross and the south pole (no southern sky), tides and the moon (no moon), and the quizzes and instruments (a lesson sheet's way of telling, not the sea's).
+
+- **3D is the flat page's chart and sextant on a canvas texture.** The chart on the table is the page's own chart drawn offscreen and laid on the table, so anything the chart draws shows there; the stage never calls the engine. The camera is a child of the ship, so the sky (fixed to the world) moves against the rigging when she rolls; under reduced motion the roll is zero and the beacon steady.
+- **Sections 3 to 9 sight any star by the intercept** (`lop: n` on the level). A star gives a line at right angles to its bearing, `z = Ho - Hc` toward it; two lines cross in a fix. The player may take any visible star; `W.targets` is only what the help suggests, from `landfall-finds.js`. The Polaris-only code (the Codex's credit, the bearing check against Polaris, the latitude steering text) is skipped when `lop` is set. A discarded line returns to the sky (another star may still come); "skip" ends the sights.
+- **The chronometer is a hidden error in P's third row.** `S.clock.err` is what it is wrong by (it drifts a little each leg), `S.epsE` what has been learned of it; Hc uses `jd + err - epsE`, so the fold's innovation is against the corrected clock. The coefficient `k = -rate of climb` (nm a second), so an east or west star moves with the clock and a meridian star hardly. Do not "fix" the sign: `tests/landfall-engine.mjs` checks `z = k * err` for a perfect sight.
+- **A light is seen only inside its range** (less in haze, a gale), from the true ship, never the estimate. Its bearing is the compass's (true error plus 1.2 degrees of noise), corrected by what the compass checks have shown. One bearing a watch.
+- **A gale sets the ship by what the log cannot show** (`gale: { legs, push }`: a draw of that many nm sd added to the true leg, and to the fog), and the watch it ends in is "storm" weather (more swell, cloud). The forecast on the chart shows the fog of such a leg; it gives the blow away, and that is meant.
+- **The chapters**: nine, named in `SECTIONS`; the menu picks a chapter, then a voyage. `tests/landfall-bots.mjs` gates sections 1 and 2 as before and 3 to 9 on their own (careful wins 65 per cent on each, blind a quarter less).
 
 ## Carries later (Navigation concepts that need a mechanic Landfall does not have yet)
 
@@ -64,4 +73,4 @@ After M5: the long passage (design doc, section 6).
 
 ## Not yet
 
-Rain and spray; hull creak (gulls are in, by day); a moon; weather that moves; a live view of the sextant drum for a watcher (the rest of the state is mirrored by the `landfall:` keys). The bell, the quiet bed, twinkle, the horizon dimming and the lamp were cheap and are in. Clouds are flat discs.
+Rain; a moon; weather that moves; a live view of the sextant drum for a watcher (the rest of the state is mirrored by the `landfall:` keys); a running fix (a first line carried forward by the run before the second is taken: every line of a watch is taken with the ship still). Spray, wind and creaks are in; so are the bell, the quiet bed, twinkle, the horizon dimming and the lamp.

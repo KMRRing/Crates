@@ -935,6 +935,7 @@ function pushWorld(now) {
     headingTo: S.leg ? S.leg.course : 0, sunAlt: sun.alt, sunAz: sun.az, limMag: d.lim, lamp: !!S.ui.lamp || isDay(), day: isDay(), stars: d.stars, clouds,
     weather: wx, swell: L.swell * (wx === "swell" ? 2 : wx === "storm" ? 2.4 : 1), storm: wx === "storm" ? 1 : 0, picked, pickedName: name, figure: fig, ring: h?.ring ?? null,
     sunHidden: isDay() && lookSun(S).cloud,
+    light: !isDay() && L.light && W.light?.seen ? { az: bearing([L.light.x - S.T[0], L.light.y - S.T[1]]) } : null,
   });
   const c = calendar(sceneJd(S)), sec = c.h * 3600 + c.mi * 60 + c.s;
   if (sec !== dialSec) { dialSec = sec; sc.gmt = `${c.h}:${c.mi}:${c.s}`; }
