@@ -97,3 +97,6 @@ The rules keep no position for a knocked foe (the view flies it: `knock()` in `r
 
 ## To come
 The daily and the duel (the engine already runs from a seed), the pile, a second world, the other two modes Korbi thought of (a plain Subway Surfers one, a stealth one), the daily run, and a look at how the swipe windows and the new movement feel on a phone.
+
+## The flat quay
+5 November 2026: 2D mode (battery saver) and no WebGL draw the quay from above (`reckoning-2d.js`, from the rules' own state; Menu, View chooses, kept in `reckoning:look` only when picked). A metre along the quay is drawn shorter than one across (`AHEAD` 30 m would be a second at one scale), so positions are mapped but bodies are drawn as signs, not to scale; height is a shadow and a lift. Any new kind of foe or thing draws as a lettered disc until it has a sign there, so a view that lags the 3D one still plays.

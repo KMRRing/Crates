@@ -19,12 +19,15 @@ import { typed } from "./sure.js";
 import { T, setTune, resetTune } from "./reckoning-tune.js";
 import { createLab } from "./reckoning-labui.js";
 import { busy } from "./loading.js";
+import { createFlatRunner } from "./reckoning-2d.js";   // the quay from above, for 2D mode and where there is no WebGL
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import * as sound from "./reckoning-sound.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
 const COINS = "courier:coins", AMBER = "courier:amber";      // coins and amber banked over all runs (a run's own are in the run, and are banked when it ends)
 const SOUND = "reckoning:sound", HAPTICS = "reckoning:haptics";   // the menu's switches (on unless turned off)
+const LOOK = "reckoning:look";                                  // "3d" or "flat", kept only when the player picks one (mode3d.js)
 const LOG = "reckoning:log";                                    // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -342,6 +345,7 @@ function openMenu() {
   if (!IN_FRAME) part(body, "content").append(action("Feel lab", () => labUi.home(), "link"));
   if (!IN_FRAME) {
     part(body, "settings").append(
+      choice("View", [["3d", "3D"], ["flat", "Flat"]], viewIs3D ? "3d" : "flat", v => { setLook(v); }),
       toggle("Sound", read(SOUND, true) !== false, on => { write(SOUND, on); sound.setOn(on); if (on) sound.sample(); }),
       toggle("Haptics", read(HAPTICS, true) !== false, on => { write(HAPTICS, on); sound.setHaptics(on); }));
   }
@@ -500,17 +504,36 @@ function restoreLog() {
   log = kept?.now && kept.now.seed === S.seed ? RunLog.from(kept.now) : new RunLog(S, true);
 }
 
+/** The 3D quay (three.js is fetched only now) or the flat one; where the 3D one can't be made, flat. */
+async function makeView(three) {
+  if (three) {
+    try { view = (await import("./reckoning-3d.js")).createRunner($("stage")); viewIs3D = true; return; }
+    catch (err) { console.warn("courier: no WebGL, drawing the quay flat.", err); }
+  }
+  view = createFlatRunner($("stage")); viewIs3D = false;
+}
+let viewIs3D = false;
+const keptLook = () => { const l = read(LOOK, null); return l === "3d" || l === "flat" ? l : null; };
+/** Menu, View: the 3D quay or the flat one, from the next frame; `remember` writes the choice (the suite's default is never written). */
+async function setLook(l, remember = true) {
+  if (remember && !IN_FRAME) write(LOOK, l);
+  if (!view || (l === "3d") === viewIs3D) return;
+  view.dispose?.();
+  await makeView(l === "3d");
+  if (S) view.frame(S, 0, { idle: !running });
+}
+onDefaultChange(is3D => { if (!keptLook()) setLook(is3D ? "3d" : "flat", false); });   // Settings' 2D mode, live
+
 async function boot() {
   best = read(BEST, 0);
   const done = busy("Loading the quay");
   try {
     pool = await load("quay");
     deal = dealer(pool);
-    const { createRunner } = await import("./reckoning-3d.js");
-    view = createRunner($("stage"));
+    await makeView(wants3D(keptLook(), "3d"));
   } catch (err) {
     done(); console.error("courier view:", err);
-    $("hint").textContent = view ? String(err) : "This game is drawn in 3D, and this browser can't (no WebGL).";
+    $("hint").textContent = String(err);
     return;
   }
   done();
