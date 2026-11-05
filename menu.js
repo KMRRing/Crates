@@ -169,7 +169,11 @@ export function markButton(btn, dlg) {
 // game has no host choosing games, and carries the way out in its own menu.
 let partyPart = null;
 const IN_PARTY = /[?&]party=[A-Za-z]{4}\b/.test(location.search) && !/[?&]coop=1\b/.test(location.search);
-if (IN_PARTY) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
+// Modules that lead back to apps.js (which imports this one) are fetched only once the page has loaded: imported while
+// apps.js is still being evaluated, Safari runs the page's own module before apps.js finishes, and every game that reads
+// APPS at start-up stopped with "Cannot access 'APPS' before initialization" (5 November 2026, Korbi's iPhone; Chrome is fine).
+const afterLoad = fn => (document.readyState === "complete" ? setTimeout(fn) : addEventListener("load", () => setTimeout(fn), { once: true }));
+if (IN_PARTY) afterLoad(() => import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e)));
 // parts that head every game's menu while something of the suite's is under way (random mode's Next and Stop:
 // random.js), by name, each made afresh when the game fills its menu
 const heads = new Map();
@@ -318,7 +322,7 @@ function titleLogo() {
     if (btn.innerHTML !== svg) btn.innerHTML = svg;
     top.classList.add("has-logo");
   };
-  import("./apps.js").then(m => { apps = m.APPS; sync(); }).catch(e => console.error(e));
+  afterLoad(() => import("./apps.js").then(m => { apps = m.APPS; sync(); }).catch(e => console.error(e)));
   new MutationObserver(sync).observe(app, { attributes: true, attributeFilter: ["class"] });
   const pa = app.querySelector(".pa-mark");
   if (pa) new MutationObserver(sync).observe(pa, { childList: true });
