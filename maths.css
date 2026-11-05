@@ -18,6 +18,7 @@ dialog.ln-sheet.ma { --ln-in: var(--ma-in); }
 .ma-go { width: 100%; min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; padding: 0 .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ma-h { margin: 1rem 0 .3rem; font-size: .76rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ma-in); }
 .ma-chapters { display: flex; flex-direction: column; min-height: 0; }
+.ma-home > .ma-chapters { flex: 1 1 auto; }     /* upright, the list takes what the words leave and scrolls in its own box (it was cut off) */
 .ma-list { display: grid; align-content: start; gap: .3rem; padding-bottom: .4rem; }
 .ma-ch { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) 4.5rem 2.4rem; gap: .5rem; align-items: center; padding: .45rem .55rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); font-size: .88rem; }
 .ma-no { font-weight: 800; color: var(--ma-in); text-align: center; font-variant-numeric: tabular-nums; }
@@ -114,3 +115,16 @@ text.mx-lb.a { fill: var(--ln-in); } text.mx-lb.b { fill: var(--brass); }
 .mx-opt.no { border-color: var(--ln-no); }
 .mx-opt:disabled { cursor: default; }
 .mx-x { font-size: .84rem; line-height: 1.4; color: var(--ink-soft); }
+
+/* ---------- the last part, Odds and judgement: its heading on the landing, and the learner's calibration record ---------- */
+.ma-part { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .1rem .6rem; align-items: center; width: 100%; margin: .7rem 0 .1rem; padding: .55rem .65rem; border: 1px solid var(--od-in); border-radius: 5px; background: color-mix(in srgb, var(--od-in) 12%, var(--sheet)); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ma-part b { font-size: .76rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--od-in); }
+.ma-part small { grid-column: 1; font-size: .75rem; line-height: 1.35; color: var(--ink-soft); }
+.ma-part span { grid-row: 1 / 3; grid-column: 2; font-size: .78rem; font-weight: 700; color: var(--od-in); }
+.ma-ch.odds .ma-no, .ma-ch.odds .ma-n { color: var(--od-in); }
+.ma-ch.odds .ma-bar i { background: var(--od-in); }
+.ma-rec { margin-top: .5rem; padding: .5rem .6rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); }
+.ma-rec h4 { margin: 0 0 .3rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--od-in); }
+.ma-recfig { height: 11rem; display: grid; }
+.ma-rec .od-svg { width: 100%; height: 100%; }
+.ma-recnote { margin: .3rem 0 0; font-size: .82rem; line-height: 1.4; color: var(--ink-soft); }

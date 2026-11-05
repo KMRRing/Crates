@@ -1,9 +1,10 @@
-// The Odds course (odds-course.js, on course.js): the lessons are well formed, every figure a step rests on (`value`) is
+// The Odds course, the last part of Maths (odds-course.js, on course.js): the lessons are well formed, every figure a step rests on (`value`) is
 // recomputed here by a count, a search or a plain sum rather than the code the lesson uses, the record of answers keeps
 // and survives a bad store, and the course names no casino game (it has to stay in a build that leaves the Casino out).
 import { readFileSync, readdirSync } from "node:fs";
 import { COURSE } from "../odds-course.js";
 import { lessonsOf, progressOf } from "../course.js";
+import { COURSE as MATHS, PARTS, progressAll } from "../maths-course.js";
 import { readCalib, noteAnswer, readRanges, noteRange } from "../odds-store.js";
 import { STATEMENTS } from "../odds-data.js";
 
@@ -118,6 +119,30 @@ check(progressOf("odds", COURSE).done === 0 && progressOf("odds", COURSE).next.l
 localStorage.setItem("odds:course", JSON.stringify({ done: { outcomes: 1, independent: 2 }, at: 3 }));
 const pr = progressOf("odds", COURSE);
 check(pr.done === 2 && pr.next.lesson.id === "conditional", "progress is read from odds:course");
+
+// ---------- folded into Maths ----------
+// Odds is the last part of the Maths course and keeps what the Odds tile always kept (odds:course, odds:calib, odds:ranges),
+// so a device that had progress there loses none, and the Maths tile counts the lessons of both parts once each.
+check(PARTS.length === 2 && PARTS[0].course === MATHS && PARTS[1].course === COURSE && COURSE.title === "Odds and judgement", "Maths ends with the Odds part");
+const MATHS_LESSONS = lessonsOf(MATHS);
+check(MATHS_LESSONS.every(x => !LESSONS.some(y => y.lesson.id === x.lesson.id)), "no lesson id is in both parts");
+globalThis.localStorage = mem();
+localStorage.setItem("odds:course", JSON.stringify({ done: { outcomes: 1, independent: 2 }, at: { id: "conditional", step: 1 } }));
+localStorage.setItem("odds:calib", JSON.stringify(rec));
+localStorage.setItem("odds:ranges", "[2,3]");
+const first = MATHS_LESSONS[0].lesson.id;
+localStorage.setItem("maths:course", JSON.stringify({ done: { [first]: 5 }, at: null }));
+let all = progressAll();
+check(all.done === 3 && all.of === MATHS_LESSONS.length + LESSONS.length && all.next.part === "maths" && all.next.lesson.id === MATHS_LESSONS[1].lesson.id, "an old Odds record and a Maths one count together, once each, and Maths comes first");
+check(readCalib(localStorage).n === 3 && JSON.stringify(readRanges(localStorage)) === "[2,3]" && progressOf("odds", COURSE).done === 2, "the old Odds record reads as it was");
+localStorage.setItem("maths:course", JSON.stringify({ done: Object.fromEntries(MATHS_LESSONS.map(x => [x.lesson.id, 1])), at: null }));
+all = progressAll();
+check(all.done === MATHS_LESSONS.length + 2 && all.next.part === "odds" && all.next.lesson.id === "conditional", "with Maths done the next lesson is in the Odds part, after the two done");
+localStorage.setItem("odds:course", JSON.stringify({ done: Object.fromEntries(LESSONS.map(x => [x.lesson.id, 1])), at: null }));
+all = progressAll();
+check(all.done === all.of && all.next === null, "every lesson of both parts done");
+globalThis.localStorage = mem();
+check(progressAll().done === 0 && progressAll().next.part === "maths", "a new learner starts in Maths");
 
 // ---------- no casino ----------
 const WORDS = /black\s?jack|hold.?em|craps|roulette|baccarat|casino|poker|dealer|slot machine|bookmaker|gambl/i;

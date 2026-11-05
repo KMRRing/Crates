@@ -119,13 +119,13 @@ text.od-cap { font-size: 9.5px; letter-spacing: .02em; }
 .od-sl { display: grid; gap: .1rem; font-size: .8rem; color: var(--ink-soft); }
 .od-sl span { display: flex; justify-content: space-between; }
 .od-sl b { color: var(--ink); font-variant-numeric: tabular-nums; }
-input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 2.5rem; background: transparent; margin: 0; touch-action: none; }
-input[type="range"]::-webkit-slider-runnable-track { height: .25rem; border-radius: 2px; background: var(--brass); }
-input[type="range"]::-moz-range-track { height: .25rem; border-radius: 2px; background: var(--brass); }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 1.7rem; height: 1.7rem; margin-top: calc(-.85rem + 2px); border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
-input[type="range"]::-moz-range-thumb { width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
-input[type="range"]:disabled { opacity: .5; }
-input[type="range"]:focus-visible { outline: 2px solid var(--ln-in); outline-offset: 2px; }
+dialog.ln-sheet.od input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 2.5rem; background: transparent; margin: 0; touch-action: none; }
+dialog.ln-sheet.od input[type="range"]::-webkit-slider-runnable-track { height: .25rem; border-radius: 2px; background: var(--brass); }
+dialog.ln-sheet.od input[type="range"]::-moz-range-track { height: .25rem; border-radius: 2px; background: var(--brass); }
+dialog.ln-sheet.od input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 1.7rem; height: 1.7rem; margin-top: calc(-.85rem + 2px); border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
+dialog.ln-sheet.od input[type="range"]::-moz-range-thumb { width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
+dialog.ln-sheet.od input[type="range"]:disabled { opacity: .5; }
+dialog.ln-sheet.od input[type="range"]:focus-visible { outline: 2px solid var(--ln-in); outline-offset: 2px; }
 
 /* simulations and bars */
 .od-bars { display: grid; gap: .5rem; align-content: center; padding: 0 .2rem; }
