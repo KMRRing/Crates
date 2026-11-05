@@ -80,6 +80,16 @@ function eightOf(l, step) {
   return [mk(step.id, "The case: the problem, and what constrained the actor. Open each, then choose a move.", rows.slice(0, 2)), mk(`${step.id}b`, "What was chosen, the institutions, what was luck, the outcome and what historians dispute. Open each.", rows.slice(3))];
 }
 
+/** Words that run past 90 are shown on two screens, split at a sentence near the middle (the second piece's id is the first's with b). */
+function halves(s) {
+  const sents = s.say.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  if (s.kind !== "text" || s.source || s.fig || s.dated || s.say.split(/\s+/).length <= 90 || sents.length < 2) return [s];
+  const len = a => a.join(" ").split(/\s+/).length;
+  let at = 1;
+  for (let i = 1; i < sents.length; i++) if (Math.abs(len(sents.slice(0, i)) - len(sents.slice(i))) < Math.abs(len(sents.slice(0, at)) - len(sents.slice(at)))) at = i;
+  return [{ ...s, say: sents.slice(0, at).join(" ") }, { ...s, id: `${s.id}b`, say: sents.slice(at).join(" "), dated: undefined }];
+}
+
 function lessonOf(src, ch, last) {
   // A lesson with no map shows its first card of terms behind every step that has none of its own (a quotation is not one: it belongs to its step).
   const l = src.view ? src : { ...src, card: src.card || src.steps.find(s => s.card && !s.card.quote)?.card };
@@ -88,7 +98,7 @@ function lessonOf(src, ch, last) {
   let steps = [];
   raws.forEach((raw, i) => { steps.push(stepOf(raw, `${l.id}.${i + 1}`, l, steps.at(-1))); if (raw.eightCard) steps.at(-1).eightCard = true; });
   // the case's eight questions become cards to open
-  steps = steps.flatMap(s => (s.eightCard ? eightOf(l, s) : [s]));
+  steps = steps.flatMap(s => (s.eightCard ? eightOf(l, s) : halves(s)));
   // what the kit file lays among them: after a step (by id) or in place of one
   for (const [id, list] of Object.entries(EXTRA.after[l.id] || {})) {
     const at = steps.findIndex(s => s.id === id);

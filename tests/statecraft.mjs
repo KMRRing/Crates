@@ -19,7 +19,9 @@ check(new Set(LESSON_IDS).size === LESSON_IDS.length && lessonsOf(COURSE).length
 check(LESSONS.length >= 56, `at least 40 lessons (${LESSONS.length})`);
 check(LESSONS.every(l => l.steps.some(s => s.kind === "text") && l.steps.filter(s => s.kind !== "text").length >= 2), "every lesson has words and at least two questions");
 const sig = s => (s.kind === "kit" ? s.kit : s.kind);
-const runs = LESSONS.flatMap(l => l.steps.filter((s, i) => i && sig(s) === sig(l.steps[i - 1])).map(s => s.id));
+const wordsOf = s => s.say.split(/\s+/).length;
+// two reading screens in a row are one thought split for the phone: they are allowed when together they are short
+const runs = LESSONS.flatMap(l => l.steps.filter((s, i) => i && sig(s) === sig(l.steps[i - 1]) && !(s.kind === "text" && wordsOf(s) + wordsOf(l.steps[i - 1]) <= 130)).map(s => s.id));
 check(!runs.length, `no two screens in a row ask the same way${runs.length ? `: ${runs.join(", ")}` : ""}`);
 check(LESSONS.every(l => new Set(l.steps.map(sig)).size >= 4), "every lesson uses at least four ways of asking");
 check(new Set(STEPS.map(s => s.id)).size === STEPS.length, `${STEPS.length} steps, each with its own id`);

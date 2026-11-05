@@ -73,7 +73,10 @@ export const EXTRA = {
         dflt: "No veto player: signature is enough, which is rare." }, "The more separate actors can say no, the harder a treaty is to ratify.")],
     },
     s2d: {
-      "s2d.2": [K("pair", "Who decides in each way of settling a dispute? Pair the way with who decides.", { pairs: [["Mediation", "The sides, helped by a third party"], ["Arbitration", "Judges the sides choose"], ["Adjudication", "A standing court"]] }, "Only mediation leaves the decision wholly with the sides; the other two hand it to judges.")],
+      "s2d.1b": [K("bins", "Three ways to settle a dispute. Sort each case by the way it used.", { bins: ["Mediation", "Arbitration", "Adjudication"], items: [
+        { t: "Kosygin at Tashkent, 1966, between India and Pakistan", bin: 0, why: "A third party helped the sides reach their own deal." },
+        { t: "The Geneva tribunal of 1872 on the Alabama claims", bin: 1, why: "Judges the sides chose gave a ruling they accepted." },
+        { t: "A case before the International Court of Justice at The Hague", bin: 2, why: "A standing court applies law, with the consent of the states." }] }, "Who decides is the difference: the sides, judges they pick, or a standing court.")],
     },
     s2e: {
       "s2e.2": [K("slider", "A draft resolution in the Security Council. Slide the number of votes in favour and read what it needs.", { min: 0, max: 15, step: 1, init: 8, unit: " votes", label: "Votes in favour (no veto cast)", goal: [9, 15], bands: [
@@ -154,7 +157,7 @@ export const EXTRA = {
     },
     s4g: {
       "s4g.5": [K("slider", "An attacker advances. Slide how far from home, and read what is left of his strength.", { min: 0, max: 100, step: 5, init: 10, unit: "", label: "Distance advanced", need: 3, bands: [
-        { from: 0, text: "Near the border: supply is short and the army is at full strength.", tone: "ok" },
+        { from: 0, text: "Near the border: supply is close at hand and the army is at full strength.", tone: "ok" },
         { from: 35, text: "Deep in the country: garrisons are left behind, supply lines lengthen, men tire.", tone: "soft" },
         { from: 70, text: "Past the culminating point: strength is spent, and a counterstroke can win.", tone: "no" }] }, "Napoleon in Russia in 1812 is the standard case.")],
     },
@@ -165,6 +168,13 @@ export const EXTRA = {
         { id: "s", x: 150, y: 30, label: "Strategy", tone: "soft" }],
         [{ a: "s", b: "e", label: "what for?" }, { a: "s", b: "w", label: "how?" }, { a: "s", b: "m", label: "with what?" }], { h: 160 }),
         pieces: [{ id: "e", label: "Ends" }, { id: "w", label: "Ways" }, { id: "m", label: "Means" }] }, "Ends are the political aim, ways are how force and other tools are used, means are the resources.")],
+    },
+    s5b: {
+      "s5b.1b": [K("bins", "Mahan or Corbett? Sort each idea to the writer who held it.", { bins: ["Mahan (1890)", "Corbett (1911)"], items: [
+        { t: "Concentrate a battle fleet and seek the decisive battle", bin: 0, why: "His central advice." },
+        { t: "Control the lines ships use, the sea communications", bin: 1, why: "Command of the sea is rarely won once for all." },
+        { t: "National wealth rests on commerce carried by sea", bin: 0, why: "The base of his argument in The Influence of Sea Power upon History." },
+        { t: "Navies often serve limited war, to reach a limited aim on land", bin: 1, why: "His view of naval war." }] }, "One looked for the decisive fleet battle; the other for control of the lines.")],
     },
     s5g: {
       "s5g.1": [K("slider", "The law of the sea cuts the water into zones by distance from the coast. Slide out from the shore.", { min: 0, max: 250, step: 2, init: 6, unit: " nm", label: "Distance from the coast (nautical miles)", need: 4, marks: [{ at: 12, label: "12" }, { at: 24, label: "24" }, { at: 200, label: "200" }], bands: [
