@@ -23,7 +23,7 @@ export const MAX_ORDERS = 3;
 /** Silver that counts for one standing point at the end. */
 export const SILVER_PER_POINT = 8;
 export const COST = { factor: 2, build: 3, fort: 3, refit: 4, claim: 4, redress: 4 };
-export const LEVELS = ["easy", "medium", "hard"];
+export const LEVELS = ["easy", "medium", "hard", "expert"];
 
 const P = id => IDX[id];
 /** Regions where ocean ships matter (the Atlantic, the Indian Ocean and its seas). */

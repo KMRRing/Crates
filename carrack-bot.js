@@ -10,6 +10,7 @@
 //   the other powers' orders guessed (their Medium orders) and the dice rolled three times; the plan that leaves it best
 //   against the best rival wins. Time-boxed by the number of plans, so it stays fast on a phone.
 // No state is changed: everything is worked out on a copy.
+import { expertOrders } from "./carrack-expert.js";
 import { PORTS, N_PORTS, ADJ, IDX } from "./carrack-map.js";
 import {
   COST, CAP, SILVER_PER_POINT, kontorPort, checkOrders, reach, copy, monopolies, incomeOf, closedTo, hasFactor, active, attackOdds, resolveRound,
@@ -87,7 +88,7 @@ function quickApply(w, seat, o) {
 }
 
 /** The value of getting a fleet to each port: a factor or a claim there. Spread over the lanes, fading by a third a lane. */
-function potential(w, seat) {
+export function potential(w, seat) {
   const base = valueOf(w, seat);
   const fv = new Array(N_PORTS).fill(0);
   for (let p = 0; p < N_PORTS; p++) {
@@ -170,7 +171,7 @@ function candidates(s, w, seat, chosen, level, pf) {
 }
 
 /** The three orders, greedy; first (when given) is the order to start with. */
-function plan(s, seat, level, rng, first = null, pf0 = null) {
+export function plan(s, seat, level, rng, first = null, pf0 = null, noise = 0) {
   const w = copy(s);
   const chosen = [];
   const pf = pf0 || potential(w, seat);
@@ -180,6 +181,7 @@ function plan(s, seat, level, rng, first = null, pf0 = null) {
     let cands = forced ? [{ o: forced, score: 1e9 }] : candidates(s, w, seat, chosen, level, pf);
     forced = null;
     if (level === "easy") cands = cands.map(c => ({ ...c, score: c.score * (0.55 + 0.9 * rng()) }));
+    else if (noise) cands = cands.map(c => ({ ...c, score: c.score * (1 + noise * (2 * rng() - 1)) }));
     cands = cands.filter(c => c.score > 0.04).sort((a, b) => b.score - a.score);
     if (level === "easy" && cands.length > 1 && rng() < 0.25) [cands[0], cands[1]] = [cands[1], cands[0]];
     let pick = null;
@@ -194,7 +196,7 @@ function plan(s, seat, level, rng, first = null, pf0 = null) {
 }
 
 /** A short list of different openings: the best first orders. */
-function openings(s, seat, level, pf) {
+export function openings(s, seat, level, pf) {
   const w = copy(s);
   const cands = candidates(s, w, seat, [], level, pf).filter(c => c.score > 0.04).sort((a, b) => b.score - a.score);
   const out = [], seen = new Set();
@@ -208,11 +210,15 @@ function openings(s, seat, level, pf) {
 }
 
 /** Looks a seeded generator (so a bot's guess of the dice is the same each time it's asked). */
-function lcg(seed) { let a = seed >>> 0; return () => { a = (Math.imul(a, 1664525) + 1013904223) >>> 0; return a / 4294967296; }; }
+export function lcg(seed) { let a = seed >>> 0; return () => { a = (Math.imul(a, 1664525) + 1013904223) >>> 0; return a / 4294967296; }; }
 
 /** The orders a computer player sets for a seat. */
 export function botOrders(s, seat, { level = "medium", rng = Math.random } = {}) {
+  // a level is a name, or (the arena's tuning) { level: name, …the planner's TUNING }
+  let tune = {};
+  if (level && typeof level === "object") { const { level: name, ...rest } = level; tune = rest; level = name; }
   level = level || "medium";
+  if (level === "expert") return expertOrders(s, seat, { rng, ...tune });
   const pf = potential(copy(s), seat);
   let orders;
   if (level === "hard") {
