@@ -421,3 +421,36 @@ export function frameOf(L, laid, extra = {}) {
   const res = check(L, laid), M = res.M;
   return { laid: laid.slice(), M, res, T0: tempo(L, M), phase: phasesOf(L, M), held: null, ghost: null, hint: null, focus: null, solved: res.solved, look: false, ...extra };
 }
+
+// ---------- the workings: what the train does, for the strip under the board ----------
+/**
+ * For each train, the steps along its path that matter: [{ c, type: "barrel" | "step" | "station" | "sink", factor (the tooth rate over the
+ * rate before it, when it is not 1), comp (the goal's status, for a station or a sink) }]. A train with no path (not yet joined up) lists
+ * what is known: its barrel and its sink.
+ */
+export function workings(L, res) {
+  const M = res.M, rate = id => { const w = M.omega[id]; return w ? F.mul(F.abs(w), [M.gears[M.idx[id]].n, 1]) : null; };
+  const side = (c, other) => {
+    for (const e of M.edges) {
+      if (e.kind !== "mesh") continue;
+      const a = M.gears[M.idx[e.u]], b = M.gears[M.idx[e.v]];
+      if (a.c === c && b.c === other) return a.id;
+      if (b.c === c && a.c === other) return b.id;
+    }
+    return -1;
+  };
+  return L.trains.map(t => {
+    const path = res.trains[t.index].path, items = [{ c: t.barrel.c, type: "barrel", n: t.barrel.n }];
+    if (path) path.forEach((c, i) => {
+      if (i === 0 || L.fixed[c]?.k === "sink") return;
+      const inId = side(c, path[i - 1]), outId = side(c, path[i + 1]);
+      let factor = null;
+      if (inId >= 0 && outId >= 0) { const a = rate(inId), b = rate(outId); if (a && b) { const k = F.div(b, a); if (!F.eq(k, F.ONE)) factor = k; } }
+      const comp = res.comps.find(x => x.c === c && x.train === t.index) || null;
+      if (comp) items.push({ c, type: "station", factor, comp });
+      else if (factor) items.push({ c, type: "step", factor });
+    });
+    items.push({ c: t.sink.c, type: "sink", comp: res.comps.find(x => x.c === t.sink.c && x.train === t.index) || null });
+    return { id: t.id, index: t.index, items };
+  });
+}

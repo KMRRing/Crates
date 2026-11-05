@@ -544,7 +544,7 @@ export const APPS = [
   { id: "craps", sec: "appendix", name: "Craps", href: "./craps.html", logo: LOGO("craps", CRAPS_LOGO), players: [1, 1] },
   { id: "holdem", sec: "appendix", name: "Hold'em", href: "./holdem.html", logo: LOGO("holdem", HOLDEM_LOGO), players: [1, 6] },
   { id: "guilloche", sec: "appendix", name: "Guilloché", href: "./guilloche.html", logo: LOGO("guilloche", GUILLOCHE_LOGO), players: [1, 1] },
-  { id: "coinche", sec: "appendix", name: "Coinche", href: "./trumps.html?game=coinche", logo: LOGO("coinche", COINCHE_CODEX), players: [1, 4] },
+  { id: "coinche", sec: "appendix", name: "Coinche", href: "./trumps.html?game=coinche", logo: LOGO("coinche", COINCHE_CODEX), players: [1, 1] },
   { id: "timegrapher", sec: "appendix", name: "Timegrapher", href: "./timegrapher.html", logo: LOGO("timegrapher", TIMEGRAPHER_LOGO), players: [1, 1] },
   { id: "banquet", sec: "appendix", name: "Banquet", href: "./banquet.html", logo: LOGO("banquet", BANQUET_LOGO), players: [1, 2] },
 ];

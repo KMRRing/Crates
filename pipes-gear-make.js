@@ -5,7 +5,7 @@
 // answers, and takes away whichever of them the answers don't need. Used to write the level files (pipes-gear-pick.mjs); no page loads it.
 import { rng, mix } from "./pipes-pieces.js";
 import * as F from "./pipes-gear-frac.js";
-import { CATALOG, parseKind, shapeOf, orientations, back, SIDE, topLayer } from "./pipes-gear-shapes.js";
+import { CATALOG, parseKind, shapeOf, orientations, back, SIDE, topLayer, radius } from "./pipes-gear-shapes.js";
 import { parseLevel, check, beyond, pieceStr, pieceOf, SLOTS, keyOf } from "./pipes-gear-engine.js";
 import { solve } from "./pipes-gear-solve.js";
 
@@ -148,35 +148,64 @@ export function makeLevel(seed, o) {
     // a few kinds per train, not the whole catalogue: a hand of all different pieces has a factorial of ways to lay them along a route.
     // The hand is a skeleton: a straight kind for the straights, an elbow kind for the bends, a wildcard single now and then, and the
     // stacks or risers the recipe asks for.
-    const straight = pal.filter(p => p.fam === "D" || p.fam === "T").filter(p => !p.kind.endsWith("e") && (t.asym || sameEnds(p.kind))), elbow = pal.filter(p => (p.fam === "D" || p.fam === "T") && p.kind.endsWith("e"));
-    const singles = pal.filter(p => p.fam === "S"), comp = pal.filter(p => p.fam === "K" || p.fam === "R");
-    for (let k = 0; k < 40 && !d; k++) {
+    const chanKey = p => { const q = parseKind(p.kind); return `${q.m}.${q.l}`; };
+    const chans = [...new Set(pal.filter(p => p.fam !== "K" && p.fam !== "R").map(chanKey))];
+    const by = (ch, f) => pal.filter(p => f(p) && chanKey(p) === ch);
+    const comp = pal.filter(p => p.fam === "K" || p.fam === "R");
+    for (let k = 0; k < 60 && !d; k++) {
       const sub = [];
-      const nst = 1 + (r() < (t.variety ?? 0.3) ? 1 : 0), nel = 1 + (r() < (t.variety ?? 0.3) ? 1 : 0);
-      for (let q = 0; q < nst && straight.length; q++) sub.push(pick(r, straight));
-      for (let q = 0; q < nel && elbow.length; q++) sub.push(pick(r, elbow));
-      if (r() < (t.singles ?? 0.25)) sub.push(...singles);
+      for (const ch of chans) {
+        const straight = by(ch, p => (p.fam === "D" || p.fam === "T") && !p.kind.endsWith("e") && (t.asym || sameEnds(p.kind)));
+        const elbow = by(ch, p => (p.fam === "D" || p.fam === "T") && p.kind.endsWith("e"));
+        const nst = 1 + (r() < (t.variety ?? 0.3) ? 1 : 0), nel = 1 + (r() < (t.variety ?? 0.3) ? 1 : 0);
+        for (let q = 0; q < nst && straight.length; q++) sub.push(pick(r, straight));
+        for (let q = 0; q < nel && elbow.length; q++) sub.push(pick(r, elbow));
+        if (r() < (t.singles ?? 0.25)) sub.push(...by(ch, p => p.fam === "S"));
+      }
       if (t.stacks && comp.length) { const filtered = t.stackOnly ? comp.filter(p => t.stackOnly(p.kind)) : comp; for (let q = 0; q < t.stacks && filtered.length; q++) sub.push({ ...pick(r, filtered), weight: t.stackWeight ?? 4 }); }
       d = dress(routes[i], tr, sub, r);
-      if (d && t.stacks && !d.pieces.some(p => p.fam === "K" || p.fam === "R")) d = null;
+      const nComp = d ? d.pieces.filter(p => p.fam === "K" || p.fam === "R").length : 0;
+      if (d && (nComp < (t.minStacks ?? (t.stacks ? 1 : 0)) || nComp > (t.maxStacks ?? 99))) d = null;
     }
     if (!d) return no(2);
-    // the sink's tooth count: a speed that is a small fraction
-    const ns = shuffled(Array.from({ length: Math.floor(60 / d.m) - 3 }, (_, k) => k + 4), r).filter(n => niceSpeed(F.mul(d.w, F.mk(d.n, n))));
-    if (!ns.length) return no(3);
-    const sinkN = ns[0], wSink = F.neg(F.mul(d.w, F.mk(d.n, sinkN)));
-    dressed.push({ ...d, sinkN, wSink });
+    // the sink's tooth count: a speed that is a small fraction (a train of plain pieces keeps the tooth rate, so its sink asks only for a turn)
+    const ring = !!t.goal?.ring, compound = ring || d.pieces.some(p => p.fam === "K" || p.fam === "R");
+    let sinkN, wSink, barrelN = tr.barrelN;
+    const bs = { 4: [10, 11, 12], 5: [8, 9, 10, 11], 6: [7, 8, 9] }[t.m];
+    if (ring || compound) {
+      // the barrel's and the sink's tooth counts that make the goal the smallest fraction
+      const opts = [];
+      for (const b of bs) for (const n of ring ? [4, 5, 6, 7].filter(x => radius(d.m, x) <= 20) : Array.from({ length: Math.floor(60 / d.m) - 3 }, (_, k) => k + 4)) {
+        const scaled = F.mul(d.w, F.mk(b, tr.barrelN)), w = ring ? F.neg(F.mul(scaled, F.mk(d.n, Math.round(60 / d.m)))) : F.neg(F.mul(scaled, F.mk(d.n, n)));
+        if (niceSpeed(w)) opts.push({ b, n, w, score: Math.abs(w[0]) + w[1] + r() * 2 });
+      }
+      if (!opts.length) return no(3);
+      opts.sort((p, q) => p.score - q.score);
+      if (opts[0].score > (t.maxScore ?? 12)) return no(3);
+      ({ b: barrelN, n: sinkN, w: wSink } = opts[0]);
+      const k = F.mk(barrelN, tr.barrelN);
+      for (const p of d.pieces) { p.wEntry = F.mul(p.wEntry, k); p.wExit = F.mul(p.wExit, k); }
+    } else { sinkN = Math.round(45 / d.m); wSink = F.neg(F.mul(d.w, F.mk(d.n, sinkN))); }
+    dressed.push({ ...d, sinkN, wSink, compound, ring, barrelN });
   }
   const spec = {
     id: `g${seed}`, name: "", chapter: o.chapter || "z", cols: o.cols, rows: o.rows, rotate: true,
     map: Array.from({ length: o.rows }, () => ".".repeat(o.cols)), hand: "", sols: [], pins: [], clicks: [],
     trains: o.trains.map((t, i) => ({
-      id: "ABC"[i], barrel: { c: routes[i].barrel.c, side: SIDE[routes[i].barrel.side], m: t.m, l: t.l, n: t.barrelN || Math.round(45 / t.m) },
+      id: "ABC"[i], barrel: { c: routes[i].barrel.c, side: SIDE[routes[i].barrel.side], m: t.m, l: t.l, n: dressed[i].barrelN },
       sink: { c: routes[i].sink.c, side: SIDE[routes[i].sink.side], m: dressed[i].m, l: dressed[i].l, n: dressed[i].sinkN,
-        goal: { type: t.goal?.type || "wheel", speed: F.fmt(F.abs(dressed[i].wSink)), dir: dressed[i].wSink[0] > 0 ? "cw" : "ccw" } },
+        goal: { type: t.goal?.type || (dressed[i].compound ? "wheel" : "dial"), ...(dressed[i].compound ? { speed: F.fmt(F.abs(dressed[i].wSink)) } : {}), dir: dressed[i].wSink[0] > 0 ? "cw" : "ccw", ...(dressed[i].ring ? { ring: true } : {}) } },
     })),
   };
   const wanted = {}, handCount = {};
+  routes.forEach((R, ti) => {
+    const t = o.trains[ti], ps = dressed[ti].pieces;
+    const at = shuffled(ps.map((_, i) => i).filter(i => i > 0 && i < ps.length - 1), r).slice(0, t.stations || 0);
+    for (const i of at) {
+      const p = ps[i];
+      spec.pins.push({ c: p.pass.c, kind: p.kind, rot: p.rot, train: ti, goal: { type: t.stationType || "wheel", w: p.entry, ...(dressed[ti].compound ? { speed: F.fmt(F.abs(p.wEntry)) } : {}), dir: p.wEntry[0] > 0 ? "cw" : "ccw" } });
+    }
+  });
   dressed.forEach((d, ti) => d.pieces.forEach((p, i) => { wanted[p.pass.c] = pieceStr(p.kind, p.rot); }));
   const counts = () => {
     const h = {};
@@ -200,6 +229,7 @@ export function makeLevel(seed, o) {
   const key = a => a.map(p => p || "").join(",");
   const mine = key(laidNow());
   const added = { pins: [], bridges: [], clicks: [] };
+  const fixedPins = spec.pins.map(p => p.c);
   const routeSquares = new Set(Object.keys(wanted).map(Number));
   const ends = new Set(spec.trains.flatMap(t => [t.barrel.c, t.sink.c]));
   const settled = s => !s.aborted && s.sols.length <= maxSols;
@@ -230,6 +260,7 @@ export function makeLevel(seed, o) {
     if (what === "bridge") { setMap(c, String(topLayer(pieceOf(wanted[c]).kind))); added.bridges.push(c); }
     else if (what === "pin") {
       const { kind, rot } = pieceOf(wanted[c]), ti = routes.findIndex(R => R.passes.some(p => p.c === c));
+      if (fixedPins.includes(c)) continue;
       spec.pins.push({ c, kind, rot, train: ti }); added.pins.push(c);
       spec.clicks = spec.clicks.filter(k => k.c !== c); added.clicks = added.clicks.filter(x => x !== c);
     } else {
