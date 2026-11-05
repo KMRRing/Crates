@@ -7,6 +7,8 @@
 import { buildEscapement, buildTourbillon, buildChime } from "./pipes-3d-escape.js";
 
 const TAU = Math.PI * 2;
+/** The width of a compact instrument (the fraction of its full size) so that it stays within about its sink's square. */
+const COMPACT = { hands: 0.74, dial: 0.74, seconds: 0.74, moon: 0.84, chime: 0.62, escape: 0.58, tourbillon: 0.8 };
 
 export function createParts(env) {
   const { THREE, G, look, P, root, cols, rows, onEvent } = env;
@@ -82,7 +84,7 @@ export function createParts(env) {
     const hub = G.slab(G.shapeOf(G.circle(0.04, 14), [G.circle(0.012, 8)]), 0.02, 0.004, 1);
     const g = G.merge([body, eye, hub]); G.polish(g, 2); return G.tint(g, 0xf0cd7a);
   };
-  function dial(r, k, o = [1, 0]) {
+  function dial(r, k, o = [1, 0], raised = false) {
     const g = new THREE.Group();
     g.position.set(r.wx + o[0] * 1.0, 0, r.wz + o[1] * 1.0);
     group.add(g);
@@ -94,7 +96,7 @@ export function createParts(env) {
     const rim = G.tint(G.slab(G.shapeOf(G.circle(R + 0.035, 72), [G.circle(R - 0.004, 72)]), 0.05, 0.008, 2), 0xd8dade); G.polish(rim, 2);
     mk(rim, M.parts, g).position.y = 0;
     // the motion works: cannon pinion 10 (with the minute hand) turns minute wheel 30, whose pinion 8 turns the hour wheel 32 (with the hour hand): 1:12.
-    const m = 1.4, y0 = P.LAYER_Y[r.layer] + P.THICK + 0.05, dist = 28, dirA = (k % 2 ? 150 : 30) * P.DEG;
+    const m = 1.4, y0 = (raised ? 0 : P.LAYER_Y[r.layer] + P.THICK) + 0.05, dist = 28, dirA = (k % 2 ? 150 : 30) * P.DEG;
     const mx = Math.cos(dirA) * dist / 60, mz = Math.sin(dirA) * dist / 60;
     const mini = [{ id: 1, x: 0, y: 0, n: 10 }, { id: 2, x: mx * 60, y: mz * 60, n: 30 }, { id: 4, x: mx * 60, y: mz * 60, n: 8 }, { id: 3, x: 0, y: 0, n: 32 }];
     const ph = P.phasesOf(mini, [{ u: 1, v: 2, kind: "mesh" }, { u: 2, v: 4, kind: "rigid" }, { u: 4, v: 3, kind: "mesh" }], [1]);
@@ -191,12 +193,19 @@ export function createParts(env) {
       (p.trains || []).forEach((t, k) => { const ring = !!t.sink?.goal?.ring, s = [...byId.values()].find(r => r.train === k && r.role === "sink" && (!ring || r.ring)); if (s) sinkOf.set(k, [s, t.sink?.goal?.type, t.sink?.goal]); });
       let di = 0;
       for (const [k, [r, type, goal]] of sinkOf) {
-        if (type === "hands" || type === "dial" || type === "seconds") dial(r, di++, outOfTrain(k, r));
+        // an instrument whose sink is not on the board's edge is built compact, on the sink's own square (its parts drawn narrower, its heights kept)
+        const compact = !P.fullSize(p, p.trains[k]) && type !== "date" && !r.ring, before = group.children.length, o = compact ? [0, 0] : outOfTrain(k, r);
+        if (type === "hands" || type === "dial" || type === "seconds") dial(r, di++, o, compact);
         else if (type === "date" || r.ring) dateRing(r);
-        else if (type === "moon") moon(r, outOfTrain(k, r));
+        else if (type === "moon") moon(r, o);
         else if (type === "chime") items.push(buildChime(ctxB, group, r, outOfTrain(k, r), goal, k));
         else if (type === "escape") items.push(buildEscapement(ctxB, group, r, outOfTrain(k, r), k));
         else if (type === "tourbillon") items.push(buildTourbillon(ctxB, group, r, outOfTrain(k, r), k));
+        if (!compact) continue;
+        const sub = new THREE.Group(), S = COMPACT[type] || 0.7;
+        sub.position.set(r.wx, type === "hands" || type === "dial" || type === "seconds" ? P.LAYER_Y[r.layer] + P.THICK + 0.04 : 0, r.wz); sub.scale.set(S, 1, S);
+        for (const ch of group.children.slice(before)) { ch.position.x -= r.wx; ch.position.z -= r.wz; sub.add(ch); }
+        group.add(sub);
       }
       if (skin) this.tint(skin);
     },

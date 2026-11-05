@@ -15,20 +15,26 @@ export const PILLAR_H = 0.7;
 /** A bridge over a square marked 1 or 2 floats this high (bottom, top): over layer 1's wheels, under layer 2's; over layer 2's, under layer 3's. */
 export const BRIDGE_Y = { 1: [0.165, 0.245], 2: [0.365, 0.445] };
 /** The plate's room round the board: the barrels and the instruments sit in the side margins, the legend below. */
-export const MARGIN = { l: 0.5, r: 0.5, top: 0.5, bottom: 0.95 };
+export const MARGIN = { l: 0.4, r: 0.4, top: 0.4, bottom: 0.85 };
 /** How far each complication reaches out of its sink's square (world units from the sink wheel's middle): the dial, the moon, the escapement, the chime. */
 export const REACH = { hands: 1.7, dial: 1.7, seconds: 1.7, moon: 1.4, escape: 2.1, chime: 2.1, tourbillon: 1.9 };
 const SIDES = { N: 0, E: 1, S: 2, W: 3 };
 /** The way out of a sink's square (a unit vector in world x, z): away from the port it meshes through. */
 export function outOf(side) { const s = typeof side === "string" ? SIDES[side] : side; return [[0, 1], [-1, 0], [0, -1], [1, 0]][s ?? 3]; }
-/** The plate's room round the board for this plan: the base margins, widened on the side each instrument reaches out of. */
+/** How far a sink's square is from the board's edge, in squares from the square's middle, going out of it (away from the port it meshes through). */
+export function edgeDist(plan, sink) {
+  const cols = plan.cols, rows = plan.rows, [i, j] = [sink.c % cols, Math.floor(sink.c / cols)], [ox, oz] = outOf(sink.side);
+  return ox > 0 ? cols - i - 0.5 : ox < 0 ? i + 0.5 : oz > 0 ? rows - j - 0.5 : j + 0.5;
+}
+/** Whether a train's complication has its full size, out in the plate's margin: its sink is on the board's edge and its way out leads off the board. Any other sink (Book I's, and
+ *  most of the later levels') carries a compact instrument on the sink's own square, as the flat plate draws it. */
+export const fullSize = (plan, t) => !!REACH[t.sink?.goal?.type] && !t.sink.goal?.ring && edgeDist(plan, t.sink) <= 0.51;
+/** The plate's room round the board for this plan: the base margins, widened on the side each full-size instrument reaches out of. */
 export function marginsFor(plan) {
-  const mg = { ...MARGIN }, cols = plan?.cols || 1, rows = plan?.rows || 1;
+  const mg = { ...MARGIN };
   for (const t of plan?.trains || []) {
-    const type = t.sink?.goal?.type, reach = REACH[type];
-    if (!reach || t.sink.goal?.ring) continue;
-    const [i, j] = [t.sink.c % cols, Math.floor(t.sink.c / cols)], [ox, oz] = outOf(t.sink.side);
-    const dist = ox > 0 ? cols - i - 0.5 : ox < 0 ? i + 0.5 : oz > 0 ? rows - j - 0.5 : j + 0.5;
+    if (!fullSize(plan, t)) continue;
+    const reach = REACH[t.sink.goal.type], [ox, oz] = outOf(t.sink.side), dist = edgeDist(plan, t.sink);
     const key = ox > 0 ? "r" : ox < 0 ? "l" : oz > 0 ? "bottom" : "top";
     mg[key] = Math.max(mg[key], reach - dist + 0.2);
   }
@@ -37,7 +43,7 @@ export function marginsFor(plan) {
 let cur = MARGIN;
 /** Sets the margins the plate and the case are drawn with (the view calls it with marginsFor(plan) when a level is set). */
 export const useMargins = mg => { cur = mg || MARGIN; };
-export const CASE_GAP = 0.34;                                  // the case's band beyond the plate
+export const CASE_GAP = 0.26;                                  // the case's band beyond the plate
 export const GLASS_Y = 0.98;                                   // the sapphire's height
 
 // ---------- the board in the world ----------

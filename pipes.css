@@ -266,3 +266,9 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-chap { margin: .5rem 0 .2rem; }
 .pi-controls.puzzle:has(#pzLift:not([hidden])) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .pi-controls.puzzle.done { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+
+/* ---------- the movement (3D, pipes-view-3d.js): the canvas fills the stage and draws its own case ---------- */
+#app.view3d .pi-stage { padding: .2rem; }
+#app.view3d .pi-board { width: 100cqw; height: 100cqh; border-radius: 6px; background: transparent; }
+#app.view3d .pi-board canvas { cursor: pointer; }
+.pi-pulse3 { position: absolute; transform: translate(-50%, -50%); border: 3px solid var(--pi-in); border-radius: 6px; pointer-events: none; animation: pi-pulse .55s ease-in-out 2; }

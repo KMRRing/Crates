@@ -3,6 +3,8 @@
 // chips, the status line and the buttons. Placing: tap a tile to hold it, tap it again to turn it, tap a square to lay it (the turn that
 // suits the square is taken unless you chose one); or drag a tile (or a laid piece) onto the board with the ghost riding above the finger.
 // A laid piece taps round its turns; a long press (or the Lift toggle) takes it back up. Book I (the old forty) never turns.
+// The board is one of two views with one interface: the flat SVG (pipes-view-2d.js) or the watch movement (pipes-view-3d.js, three.js, loaded only when
+// wanted); the page asks for one with useView(), and where WebGL fails the flat one stays. Everything below touches the board through view.hit and view.project.
 import { el } from "./pipes-draw.js";
 import * as E from "./pipes-gear-engine.js";
 import { shapeOf, orientations, kindName, canonRot } from "./pipes-gear-shapes.js";
@@ -18,7 +20,7 @@ const STAR = "★", HOLLOW = "☆";
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const LONG_PRESS = 380, DRAG_PX = 9, LIFT_SQUARES = 1.25;
 
-/** deps: { $, read, write, toast, frame (a partner's watching frame), openMenu, onSolved, reduced (), sound () } */
+/** deps: { $, read, write, toast, frame (a partner's watching frame), openMenu, onSolved, reduced (), sound (), tilt () (the case follows the phone) } */
 export function createPuzzle(deps) {
   const { $, read, write, toast, frame, openMenu, onSolved, reduced } = deps;
   const KEY = { run: "pipes:train", stars: "pipes:trainstars", daily: "pipes:daily" };
@@ -26,7 +28,7 @@ export function createPuzzle(deps) {
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
   let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
   let undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
-  let running = false, jamKey = "";
+  let running = false, jamKey = "", kind = "2d", mod3d = null;
 
   // ---------- keeping ----------
   const firstOpen = () => (LEVELS.find(l => !stars[l.id]) || LEVELS[0]).id;
@@ -64,12 +66,34 @@ export function createPuzzle(deps) {
 
   // ---------- drawing ----------
   function ensureView() {
-    if (view && shownFor === L.id) return;
+    if (view && view.kind === kind) {
+      if (shownFor !== L.id) { view.setLevel(E.planOf(L)); shownFor = L.id; }
+      return;
+    }
     view?.dispose();
-    view = createView({ board: $("board"), onGesture: onBoardDown });
+    view = null;
+    if (kind === "3d" && mod3d) {
+      try {
+        view = mod3d.createView({ board: $("board"), onGesture: onBoardDown, onLost: lost });
+        if (deps.tilt?.()) view.deviceTilt(true, true);         // asked for before: only listen (iOS keeps its permission for the visit)
+      } catch (err) { console.warn("Gears: no 3D here.", err); view = null; kind = "2d"; toast("This browser can't draw 3D."); }
+    }
+    view ||= createView({ board: $("board"), onGesture: onBoardDown });
     view.setLevel(E.planOf(L));
     shownFor = L.id;
   }
+  /** The movement (3D) or the flat plate. Where WebGL is not there the flat plate stays; returns the view now showing. */
+  async function useView(want3d) {
+    if (want3d && mod3d === null) { try { mod3d = await import("./pipes-view-3d.js"); } catch (err) { console.warn("Gears: 3D did not load.", err); mod3d = false; } }
+    const next = want3d && mod3d ? "3d" : "2d";
+    if (next === kind && view) return kind;
+    kind = next; shownFor = "";
+    view?.dispose(); view = null;
+    if (L) { ensureView(); const res = render(); if (run.solved && res.solved) view.runNow?.(); }
+    return kind;
+  }
+  /** The graphics card dropped the picture: the flat plate takes over (the player's choice is not changed). */
+  function lost() { toast("The 3D view stopped: showing the flat plate."); setTimeout(() => useView(false), 0); }
   function draw(extra = {}) {
     ensureView();
     const f = E.frameOf(L, laid, { hint, focus, look: looking, ...extra });
@@ -359,7 +383,13 @@ export function createPuzzle(deps) {
   function toggleLift() { liftMode = !liftMode; render(); }
 
   // ---------- fingers: a drag from the hand, a drag of a laid piece, a long press ----------
-  const squarePx = () => { const [x0, y0] = view.project(0), [x1] = view.project(Math.min(1, L.size - 1)); return L.cols > 1 ? Math.abs(x1 - x0) : Math.abs(view.project(L.cols)[1] - y0) || 48; };
+  /** How far a square stands up the screen: the 3D plate leans back (and a tall case is turned a quarter), so the taller of a column's and a row's step. */
+  const squarePx = () => {
+    const [x0, y0] = view.project(0), [x1, y1] = view.project(Math.min(1, L.size - 1)), [x2, y2] = view.project(Math.min(L.cols, L.size - 1));
+    const up = Math.max(Math.abs(y1 - y0), Math.abs(y2 - y0));
+    void x1; void x2; void x0;
+    return view.kind === "3d" ? Math.max(up, 36) : up || 48;
+  };
   function beginDrag(key, rot, e) {
     drag = { key, rot, sq: squarePx(), at: null, moved: false };
     hint = null;
@@ -492,11 +522,12 @@ export function createPuzzle(deps) {
 
   load();
   return {
-    show() { $("queue").hidden = false; $("board").hidden = false; $("workings").hidden = false; shownFor = ""; view = null; go(saved.id); },
+    show() { $("queue").hidden = false; $("board").hidden = false; $("workings").hidden = false; shownFor = ""; view?.dispose(); view = null; go(saved.id); },
     hide() { $("queue").hidden = true; $("board").hidden = true; $("workings").hidden = true; $("layers").hidden = true; view?.stop?.(); },
     pause() { view?.stop?.(); running = false; },
-    resume() { if (run?.solved && last?.solved) view?.runNow?.(); },
+    resume() { view?.resume?.(); if (run?.solved && last?.solved) view?.runNow?.(); },
     resize() { if (last) view?.draw(last); },
+    useView, get viewKind() { return kind; },
     look, toggleLift, levelList, go, goDaily, goRandom, again, next, undo, clear: clearAll, hint: giveHint, tap,
     get id() { return saved.id; },
     get level() { return spec; },

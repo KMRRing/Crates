@@ -10,9 +10,11 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, todayPart } from "./menu.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";           // a partner watching's frame: it writes nothing
 import { roundOver } from "./random.js";
+import { wants3D } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
-const KEY = { prefs: "pipes:prefs", best: "pipes:best" };
+// VIEW: "3d" (the watch movement) or "2d" (the flat plate), kept only when the player picks one; with none the suite's 2D-mode setting decides (mode3d.js).
+const KEY = { prefs: "pipes:prefs", best: "pipes:best", view: "pipes:view", tilt: "pipes:tilt" };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -25,7 +27,7 @@ const MODES = [["flat", "Flat (square)"], ["map", "Cube (3D map)"]].filter(([id]
 let prefs = { mode: "flat", ...read(KEY.prefs, {}) };
 let mode = "flat";
 const deps = { $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
-  sound: () => !IN_FRAME && prefs.sound !== false };
+  sound: () => !IN_FRAME && prefs.sound !== false, tilt: () => read(KEY.tilt, false) === true && !IN_FRAME };
 const flat = createPuzzle(deps);
 const boards = { flat };
 if (MAP_ON) {
@@ -46,6 +48,16 @@ function setMode(m) {
   if (!IN_FRAME) write(KEY.prefs, prefs);
   cur().show();
 }
+
+// ---------- the view: the watch movement in 3D, or the flat plate (battery saver, a watching frame, no WebGL) ----------
+const keptView = () => read(KEY.view, null);
+const wantsView = () => !IN_FRAME && wants3D(keptView(), "3d");
+/** `remember`: a pick of the player's is kept; the default is never written, or the suite's 2D-mode setting stops reaching the game. */
+async function setView(want3d, remember = false) {
+  if (remember) write(KEY.view, want3d ? "3d" : "2d");
+  await flat.useView(want3d);
+}
+addEventListener("settings:flat", () => { if (keptView() === null && !IN_FRAME) setView(wantsView()); });
 
 // ---------- the rules ----------
 function showRules() {
@@ -76,7 +88,17 @@ function openMenu() {
   const day = today(), got = b.dailyStars?.(day) || 0;
   todayPart(body, { done: got > 0, result: "★".repeat(got), play: () => b.goDaily(day), playing: b.isDaily, back: b.isDaily ? { text: "Back to the levels", fn: () => b.go(b.id) } : null });
   part(body, "content").append(game, action("A random plate", () => b.goRandom(), "link"), b.levelList(id => { $("menuDlg").close(); b.go(id); }));
-  part(body, "settings").append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; if (!IN_FRAME) write(KEY.prefs, prefs); }));
+  const settings = part(body, "settings");
+  if (!IN_FRAME && mode === "flat") settings.append(choice("View", [["3d", "Movement (3D)"], ["2d", "Flat plate"]], b.viewKind, v => { $("menuDlg").close(); setView(v === "3d", true); }));
+  settings.append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; if (!IN_FRAME) write(KEY.prefs, prefs); }));
+  const v = b.view;
+  if (v?.kind === "3d" && v.canDeviceTilt && matchMedia("(pointer: coarse)").matches) {
+    settings.append(toggle("Tilt with the phone", read(KEY.tilt, false) === true, async on => {
+      const got = await v.deviceTilt(on);                                    // asks iOS's permission here, from the tap
+      write(KEY.tilt, got);
+      if (on && !got) toast("The phone's tilt isn't available here.");
+    }));
+  }
   part(body, "about").append(line(`${b.solvedCount()} of ${b.count} levels solved, ${b.totalStars()} of ${b.count * 3} stars. Three stars: no hint, and hardly a piece taken back up.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -107,11 +129,12 @@ window.__pipes = { get mode() { return mode; }, boards, setMode };
 // the board and bests of the modes Pipes had before the puzzle (a queue, a clock, a shaft), of the face-of-a-solid cube and dodecahedron, and of the pipe-model flat levels (pipes:puzzle, pipes:stars: the 4 November 2026 gears replaced all forty) are no more; the 3D map's pipes:map and pipes:mapstars stay
 // the old flat stars counted in the best the games screen shows; it is made again from the new ones at the next solve
 if (!IN_FRAME && read("pipes:stars", null)) { try { localStorage.removeItem(KEY.best); } catch { /* private mode */ } }
-if (!IN_FRAME) for (const k of ["pipes:plan", "pipes:flat", "pipes:deep", "pipes:daily", "pipes:run", "pipes:acts", "pipes:cube", "pipes:cubestars", "pipes:dodeca", "pipes:dodecastars", "pipes:puzzle", "pipes:stars"]) { try { localStorage.removeItem(k); } catch { /* private mode */ } }
+if (!IN_FRAME) for (const k of ["pipes:plan", "pipes:flat", "pipes:deep", "pipes:run", "pipes:acts", "pipes:cube", "pipes:cubestars", "pipes:dodeca", "pipes:dodecastars", "pipes:puzzle", "pipes:stars"]) { try { localStorage.removeItem(k); } catch { /* private mode */ } }
 {
   const best = read(KEY.best, null);
   if (!IN_FRAME && best && typeof best.score !== "number") try { localStorage.removeItem(KEY.best); } catch { /* private mode */ }
 }
 setMode(prefs.mode);
+if (wantsView()) await setView(true);
 // the games screen's tile opens today's plate while it is still to play
 if (arrivedForToday() && !IN_FRAME && cur().goDaily) cur().goDaily(today());

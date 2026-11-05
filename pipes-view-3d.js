@@ -17,6 +17,7 @@ import * as G from "./pipes-3d-geo.js";
 import * as P from "./pipes-3d-model.js";
 import { createLook, drawn, ADD, DOUBLE } from "./pipes-3d-look.js";
 import { createParts } from "./pipes-3d-parts.js";
+import { createMarks } from "./pipes-3d-marks.js";
 import { shapeOf, CELL } from "./pipes-gear-shapes.js";
 
 const FRAME_MS = 1000 / 30;
@@ -42,7 +43,7 @@ function themeNow() {
   return { theme: root.dataset.theme || "codex", night };
 }
 
-export function createView({ board, onGesture, onLost, onEvent, detail: detail0 = 2, autoDetail = true }) {
+export function createView({ board, onGesture, onLost, onEvent, detail: detail0 = globalThis.__pipesDetail ?? 2, autoDetail = globalThis.__pipesDetail === undefined }) {
   const host = board, app = board.closest?.("#app");
   if (getComputedStyle(host).position === "static") host.style.position = "relative";
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -71,6 +72,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   fill.position.set(7, 6, 3);
   scene.add(key, key.target, fill, hemi);
   const look = createLook(renderer, detail), { M, gearMat } = look;
+  const marks = createMarks({ THREE, G, P, look, root: tilter, host });
 
   const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _e = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
   const mesh = (geo, mat, o = {}) => { const m = new THREE.Mesh(geo, mat); m.castShadow = o.cast !== false; m.receiveShadow = o.receive !== false; if (o.at) m.position.set(...o.at); (o.parent || statics).add(m); return m; };
@@ -268,7 +270,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     });
     // ghost: the piece held over a square, translucent
     for (const e of ghostSets.values()) e.mesh.count = 0;
-    const gh = f.ghost || f.hint, ghostWheels = gh ? (gh.gears || wheelsOf(gh, cols)) : [];
+    // a hint names its piece "kind@rot"; a ghost its kind and rot
+    const hp = f.hint?.piece, gh = f.ghost || (hp !== undefined ? { c: f.hint.c, kind: hp.slice(0, hp.lastIndexOf("@")), rot: Number(hp.slice(hp.lastIndexOf("@") + 1)), ok: true } : null), ghostWheels = gh ? (gh.gears || wheelsOf(gh, cols)) : [];
     if (ghostWheels.length) {
       const per = new Map();
       for (const g of ghostWheels) { const k = `${g.n}/${g.m}`; per.set(k, [...(per.get(k) || []), g]); }
@@ -287,6 +290,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     if (f.look != null && f.look !== lookOn) setLook(f.look);
     if (!parts) parts = createParts({ THREE, G, look, P, root: dyn, cols, rows, detail, onEvent });
     parts.set(plan, f, byId);
+    marks.update(f, f.ghost, c => { const g = G_.find(r => r.c === c && !r.skip); return g ? P.layerY(g.layer, ex) + P.THICK : 0.1; });
+    marks.setChips(f, byId);
     driveOn = G_.some(r => r.rate !== 0);
     layout();
     wakeLoop();
@@ -317,7 +322,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
         _m.compose(_p.set(r.wx, y, r.wz), _q, _s);
         e.mesh.setMatrixAt(i, _m);
         const clash = (frame.M.clash || []).some(([u, v]) => u === r.id || v === r.id);
-        if (r.jam || clash) dimC.setRGB(1, 0.5 + 0.25 * Math.sin(tMs / 90), 0.42); else if (layerDim(r)) dimC.setRGB(0.36, 0.4, 0.46); else dimC.setRGB(1, 1, 1);
+        if (r.jam || clash) dimC.setRGB(1, 0.5 + 0.25 * Math.sin(tMs / 90), 0.42); else if (layerDim(r)) dimC.setRGB(0.36, 0.4, 0.46); else if (r.role === "pin") dimC.setRGB(0.66, 0.6, 0.58); else dimC.setRGB(1, 1, 1);
         e.mesh.setColorAt(i, dimC);
       });
       e.mesh.instanceMatrix.needsUpdate = true; if (e.mesh.instanceColor) e.mesh.instanceColor.needsUpdate = true;
@@ -356,7 +361,11 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     sparks.count = ns; sparks.instanceMatrix.needsUpdate = true;
     parts?.update({ tMs, g: turns[0] || 0, beat: k => stepTrains.get(k), phase: id => phases.get(id) || 0, turns: turnsFor, angle: id => { const r = byId.get(id); return r ? angleOf(r) : 0; }, ex, awake: awakeOf, wake0, focus, layerY: l => P.layerY(l, ex) });
     placeBridges();
+    marks.placeChips(screenOf, pxPer(), w, l => P.layerY(l, ex));
   }
+  /** Host pixels of a point of the movement (the case's lean included), and the pixels in a world unit (the camera is orthographic). */
+  const screenOf = (x, y, z) => { _p.set(x, y, z).applyMatrix4(tilter.matrixWorld).project(camera); return [(_p.x + 1) / 2 * w, (1 - _p.y) / 2 * h]; };
+  const pxPer = () => h / (camera.top - camera.bottom);
   /** A train's complication wakes when its sink is solved (status ok) or the whole movement is. */
   function awakeOf(k) { return !!frame?.solved || !!frame?.res?.comps?.some(c => c.train === k && c.status === "ok"); }
 
@@ -479,6 +488,10 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoomT }; drag = null; return; }
     const hh = view.hit(e.clientX, e.clientY);
+    skipFinish();
+    view.wake();
+    // a touch on a square is the game's (a tap, a long press, a drag of a laid piece); the plate's margin, or anywhere in Look, turns the case
+    if (!lookOn && hh?.kind === "cell") onGesture?.({ type: "down", clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId, event: e });
     drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ok: lookOn || !hh || hh.kind === "off", on: false, base: [...tgt], az0: azT, el0: elT };
   });
   host.addEventListener("pointermove", e => {
@@ -530,27 +543,88 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const onVis = () => wakeLoop();
   document.addEventListener("visibilitychange", onVis);
 
+  // ---------- the finish: the power wave, then the case catches the light for a moment; a touch skips it ----------
+  let finishTimers = [], finishDone = null;
+  function skipFinish() {
+    if (!finishTimers.length) return;
+    finishTimers.forEach(clearTimeout); finishTimers = [];
+    if (!phone) tgt = [0, 0];
+    const d = finishDone; finishDone = null;
+    wakeLoop();
+    d?.();
+  }
+  function playFinish(done) {
+    skipFinish();
+    const total = (frame?.M?.order?.length || 0) + 2;
+    finishDone = done;
+    for (let k = 1; k <= total; k++) finishTimers.push(setTimeout(() => view.onTick?.(k, total), k * WAVE_MS));
+    // the lean: the plate tips towards the viewer and back, so the glass glints once across the movement
+    if (motion && !phone) {
+      finishTimers.push(setTimeout(() => { if (!dragging) tgt = [0.07, -0.09]; wakeLoop(); }, 250));
+      finishTimers.push(setTimeout(() => { if (!dragging) tgt = [0, 0]; wakeLoop(); }, 1500));
+    }
+    finishTimers.push(setTimeout(() => { finishTimers.forEach(clearTimeout); finishTimers = []; const d = finishDone; finishDone = null; d?.(); }, Math.max(total * WAVE_MS, motion ? 1900 : 0) + 40));
+    wakeLoop();
+  }
+
+  // ---------- the phone's tilt (asked for by a tap, and only then on iOS) ----------
+  const needsAsk = typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function";
+  let phone = null;
+  function onOrient(e) {
+    if (e.beta == null || e.gamma == null || dragging) return;
+    if (!phone.base) phone.base = [e.beta, e.gamma];
+    // the rest posture follows the hand slowly, so a phone held steady lets the case settle level
+    phone.base[0] += (e.beta - phone.base[0]) * 0.004; phone.base[1] += (e.gamma - phone.base[1]) * 0.004;
+    let turn = 0;
+    try { turn = screen.orientation?.angle ?? window.orientation ?? 0; } catch { turn = 0; }
+    tgt = P.tiltOfPhone(e.beta, e.gamma, phone.base[0], phone.base[1], turn).map(v => clamp(v, -TMAX, TMAX));
+    wakeLoop();
+  }
+  /** Tilt with the phone, or stop. Asks iOS's permission when it has to, so call it from a tap (`quiet`: only listen). Returns whether it is on. */
+  async function deviceTilt(on, quiet = false) {
+    if (!on) { if (phone) removeEventListener("deviceorientation", onOrient); phone = null; tgt = [0, 0]; wakeLoop(); return false; }
+    if (typeof DeviceOrientationEvent === "undefined") return false;
+    if (phone) return true;
+    if (needsAsk && !quiet) {
+      let r = "denied";
+      try { r = await DeviceOrientationEvent.requestPermission(); } catch { r = "denied"; }
+      if (r !== "granted") return false;
+    }
+    phone = { base: null };
+    addEventListener("deviceorientation", onOrient);
+    return true;
+  }
+
   const view = {
     kind: "3d",
+    deviceTilt,
+    get canDeviceTilt() { return typeof DeviceOrientationEvent !== "undefined"; },
     caps: { explode: true, tilt: true },
     setLevel(p) {
       plan = { ...p, map: p.map || mapOf(p) }; cols = p.cols; rows = p.rows; P.useMargins(P.marginsFor(p));
       applySkinFirst();
       buildStatics();
       paintEngraving();
+      marks.setLevel(plan);
       parts?.dispose?.(); parts = null; lastFrameRef = null; frame = null;
       for (const e of sets.values()) e.mesh.count = 0;
       turns = [0]; tMs = 0;
       resize();
     },
     draw(f) { applySkinFirst(); loadFrame(f); },
-    animate(ev, done) { if (frame) layout(); renderer.render(scene, camera); done?.(); },
+    animate(ev, done) { if (frame) layout(); renderer.render(scene, camera); if (ev?.type === "run" && frame) playFinish(done); else done?.(); },
+    /** A solved level already showing (opened again): turning at once. */
+    runNow() { held = false; this.wake(); },
+    stop() { finishTimers.forEach(clearTimeout); finishTimers = []; finishDone = null; held = true; if (raf) cancelAnimationFrame(raf); raf = 0; },
+    resume() { held = false; if (frame) { layout(); renderer.render(scene, camera); } wakeLoop(); },
+    /** Rings a square once (the workings strip's chips). */
+    pulse(c) { marks.pulse(c, screenOf, pxPer()); },
     hit(cx, cy) {
       const rl = rayLocal(cx, cy);
       if (!rl) return null;
       const tops = G_.filter(r => !r.skip).map(r => ({ ...r, top: P.layerY(r.layer, ex) + (r.pinion ? P.PIN_THICK : P.THICK) }));
       const g = P.gearUnder(rl.o, rl.d, tops);
-      if (lookOn && g) return { kind: "cell", c: g.c, gear: g.id, sub: g.id };
+      if (g) return { kind: "cell", c: g.c, gear: g.id, sub: g.id };      // the wheel you see under the finger (a high layer's top lies off its square's plane)
       const p = P.rayAtY(rl.o, rl.d, 0.1);
       if (!p) return { kind: "off" };
       const i = Math.floor(p[0] + cols / 2), j = Math.floor(p[1] + rows / 2);
@@ -589,7 +663,10 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       raf = 0; shown = false;
       ro.disconnect(); mo.disconnect(); mq?.removeEventListener?.("change", applySkin);
       document.removeEventListener("visibilitychange", onVis);
+      finishTimers.forEach(clearTimeout);
+      if (phone) removeEventListener("deviceorientation", onOrient);
       parts?.dispose?.();
+      marks.dispose();
       scene.traverse(o => { o.geometry?.dispose?.(); });
       look.dispose();
       domBands?.forEach(d => d.remove());
