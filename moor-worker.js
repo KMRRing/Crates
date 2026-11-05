@@ -3,6 +3,6 @@
 import { generate } from "./moor-engine.js";
 
 self.onmessage = e => {
-  const { id, seed, size, level } = e.data;
-  self.postMessage({ id, puzzle: generate(seed, size, level) });
+  const { id, seed, size, level, twist, shape } = e.data;
+  self.postMessage({ id, puzzle: generate(seed, size, level, twist, shape) });
 };
