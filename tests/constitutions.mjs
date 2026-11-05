@@ -34,7 +34,13 @@ const flags = flagged(STEPS);
 console.log(`    ${flags.length} screens flagged check:true${flags.length ? ` (${flags.slice(0, 40).map(s => s.id).join(", ")}${flags.length > 40 ? "..." : ""})` : ""}`);
 check(STEPS.filter(s => s.kind === "quiz").every(s => s.say.length <= 190), "no question is longer than 190 characters");
 check(SOURCE.every(c => c.reading.length >= 4 && c.reading.every(r => r.length === 2 && r[0] && r[1])), "every chapter has a reading list of at least four");
-check(COURSE.chapters.slice(0, 18).every(c => c.lessons.at(-1).steps.at(-1).card?.head === "Reading"), "every chapter ends with its reading list");
+check(COURSE.chapters.slice(0, SOURCE.length).every(c => c.lessons.at(-1).steps.at(-1).card?.head === "Reading"), "every chapter ends with its reading list");
+// the chapters added in November 2026 end with a recap: three to five takeaways to open and two or three myths to mark, which feed the review
+const recapped = SOURCE.filter(c => c.recap);
+check(["unwritten", "elections", "military", "economy", "swiss"].every(id => recapped.some(c => c.id === id)), "each newer chapter has a recap");
+check(recapped.every(c => c.recap.takeaways.length >= 3 && c.recap.takeaways.length <= 5 && c.recap.myths.length >= 2 && c.recap.myths.length <= 3 && c.recap.myths.every(m => m[1] === false || m[1] === true)), "a recap is three to five takeaways and two or three myths");
+check(recapped.every(c => { const last = c.lessons.at(-1).id; return STEP.get(`${last}.s1`)?.kit === "reveal" && STEP.get(`${last}.s2`)?.kit === "tf"; }), "a recap is a reveal of takeaways then a true-or-false of myths, before the reading");
+check(["unwritten", "elections", "military", "economy", "swiss"].every(id => SOURCE.findIndex(c => c.id === id) > SOURCE.findIndex(c => c.id === "eu")) && SOURCE.at(-1).id === "compare", "the newer chapters stand after the first seventeen, so cited chapter numbers hold");
 const styles = { order: STEPS.filter(s => s.kit === "order"), source: STEPS.filter(s => s.src), quiz: STEPS.filter(s => s.kind === "quiz") };
 console.log(`    ${styles.quiz.length} choices, ${styles.order.length} ordering steps, ${styles.source.length} sources to read`);
 check(styles.order.length >= 10 && styles.source.length >= 8, "ordering steps and primary sources are used");

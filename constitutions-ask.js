@@ -11,6 +11,8 @@ export const S = (say, card = null) => ({ say, ...(card ? { card: { head: card[0
 export const R = (say, head, text, by) => ({ say, src: { head, text, by } });
 export const Q = (q, right, wrong, why) => ({ q, o: [right, ...wrong], why });
 export const O = (q, items, why) => ({ ord: { q, items, why } });
+/** Flags a raw step whose facts nobody has verified yet (Korbi audits the flagged screens): CK(S(...)). */
+export const CK = raw => ({ ...raw, check: true });
 export const L = (id, title, reg, nw, steps) => ({ id, title, reg, nw, steps });
 export const CH = (id, title, span, reading, lessons) => ({ id, title, span, reading, lessons });
 

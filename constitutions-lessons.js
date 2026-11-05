@@ -15,9 +15,13 @@ import { C8, C9, C10 } from "./constitutions-c3.js";
 import { C11, C12 } from "./constitutions-c4.js";
 import { C13, C14, C15, C16 } from "./constitutions-c5.js";
 import { C17, C18 } from "./constitutions-c6.js";
+import { CU, CE, CM } from "./constitutions-c7.js";
+import { CEC, CS, C13_MORE } from "./constitutions-c8.js";
 import { X } from "./constitutions-xall.js";
 
-export const SOURCE = [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13, C14, C15, C16, C17, C18];
+// The Germany lessons on Bavaria and the Länder come right after the Basic Law's. The newer chapters stand before the capstone, so the chapter numbers the lessons cite (chapter 2, 6, 7, 9, 10, 15) stay put.
+const C13_ALL = { ...C13, lessons: [...C13.lessons.slice(0, 2), ...C13_MORE, ...C13.lessons.slice(2)] };
+export const SOURCE = [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13_ALL, C14, C15, C16, C17, CU, CE, CM, CEC, CS, C18];
 
 /** The order the cards are shown in: never the right one, the same every time. shown[k] is the index (in the right order) of the card in place k. */
 export const shownOrder = shuffled;
@@ -54,11 +58,12 @@ function stepsOf(l) {
   let carry = {}, k = 0;
   l.steps.forEach((raw, i) => {
     const id = `${l.id}.${i + 1}`;
-    if (raw.ord) out.push({ id, kind: "kit", kit: "order", say: raw.ord.q, items: raw.ord.items, why: raw.ord.why });
-    else if (raw.q) out.push(quizOf(raw, id, carry));
+    const ck = raw.check ? { check: true } : {};
+    if (raw.ord) out.push({ id, kind: "kit", kit: "order", say: raw.ord.q, items: raw.ord.items, why: raw.ord.why, ...ck });
+    else if (raw.q) out.push({ ...quizOf(raw, id, carry), ...ck });
     else {
       cut(raw.say).forEach((say, j) => {
-        out.push({ id: j ? `${id}.${j + 1}` : id, kind: "text", say, ...(raw.src && j === 0 ? { src: raw.src } : {}) });
+        out.push({ id: j ? `${id}.${j + 1}` : id, kind: "text", say, ...(raw.src && j === 0 ? { src: raw.src } : {}), ...ck });
         if (j === 0 && raw.card) {
           const rows = raw.card.rows;
           out.push({ id: `${id}.t`, kind: "kit", kit: "reveal", say: `${raw.card.head}: tap each term to open it.`, cards: rows.map(([head, body]) => ({ head, body })), why: "Those are the words the rest of the lesson uses." });

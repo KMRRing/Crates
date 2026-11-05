@@ -1,4 +1,4 @@
-// Constitutions and institutions: a course on the suite's course sheet (course.js), in 45 lessons: what a constitution does, how powers are separated and checked, how they
+// Constitutions and institutions: a course on the suite's course sheet (course.js), in 64 lessons: what a constitution does, how powers are separated and checked, how they
 // are divided, the old and non-Western orders, and the United States and the European Union in detail (who starts an act, who can stop it, how long it takes). This page is the
 // door to it: the plate, where you have got to, and the way in. The words and questions are constitutions-c1.js to constitutions-c6.js (built into steps by
 // constitutions-lessons.js); the stage (terms, sources, ordering) is constitutions-stage.js.
