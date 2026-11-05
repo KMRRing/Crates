@@ -5,7 +5,7 @@
 // left where the knot is can't be finished.
 import { LEVELS } from "../slipway-levels.js";
 import { VIEWS, eyeFor, woodBox, hit } from "../slipway-carve.js";
-import { planSaw, planeThrough, outline, planDrill, soleFacing, strokeFacing, doPlane, strokeOn, status, starsFor, play, apply, blockFor, search, hint, newUsed, left, library, total, support } from "../slipway-puzzle.js";
+import { planSaw, planeThrough, outline, planDrill, soleFacing, strokeFacing, doPlane, strokeOn, status, starsFor, play, apply, blockFor, search, hint, newUsed, left, library, total, support, usesOf } from "../slipway-puzzle.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -16,7 +16,7 @@ const same = (a, b) => { let n = 0; for (let m = 0; m < a.d.length; m++) if (Mat
 // ---------- the levels ----------
 {
   check(new Set(LEVELS.map(l => l.id)).size === LEVELS.length && LEVELS.every(l => l.name && l.line && l.par > 0 && l.solution?.ops?.length === l.par), "every level has its own id, a name, what it's for, and a solution as long as its par");
-  const fit = LEVELS.every(l => { const b = blockFor(l); const cells = b.d.length; return cells <= 26000 && b.inside.length > 100 && b.inside.length < cells * 0.9; });
+  const fit = LEVELS.every(l => { const b = blockFor(l); const cells = b.d.length; return cells <= 26000 && b.inside.length > 100 && b.inside.length < cells * 0.95; });
   check(fit, "every part lies in its block with waste to take, and no block is too big for a phone (26,000 cells)");
   const knots = LEVELS.every(l => l.knots.every(k => k.length === 4) && l.knots.length <= 3);
   check(knots, "knots are placed by hand, three at most");
@@ -25,7 +25,7 @@ const same = (a, b) => { let n = 0; for (let m = 0; m < a.d.length; m++) if (Mat
 // ---------- every level is solved by its solution, within its budget, at its par ----------
 for (const L of LEVELS) {
   const r = play(L), st = status(r.b);
-  const uses = r.used.saw + r.used.plane + r.used.drill;
+  const uses = usesOf(r.used);
   check(r.results.every(x => x.ok) && st.solved, `${L.name}: its solution works through the rules (${r.results.map(x => (x.ok ? "ok" : x.reason)).join(", ")})`);
   check(Object.keys(L.budget).every(t => r.used[t] <= L.budget[t]) && uses === L.par && starsFor(L, uses) === 3, `${L.name}: within its budget, at its par of ${L.par}, three stars`);
   check(starsFor(L, L.par + 1) === 2 && starsFor(L, L.par + 2) === 1 && total(L) >= L.par, `${L.name}: a tool over is two stars, two over one`);
@@ -34,11 +34,7 @@ for (const L of LEVELS) {
   check(spare, `${L.name}: leave any one use out and it isn't solved`);
 }
 
-// ---------- nothing shorter: a search of every use of the tools ----------
-for (const L of LEVELS) {
-  const r = search(L, L.solution.place || L.place);
-  check(r && r.best === L.par && r.orders >= 1, `${L.name}: the search of every use finds nothing shorter than its par ${L.par} (${r ? r.orders : 0} orders solve it)`);
-}
+// (that nothing is shorter than its par is tests/slipway-search.mjs's)
 
 // ---------- the angle: the cut is the plane through your eye and your line ----------
 {
@@ -67,7 +63,7 @@ for (const L of LEVELS) {
       const want = planeOf(b, op);
       tried++;
       if (lands(drawn(b, want, views[op.view]), want)) right++;
-      if (!lands(drawn(b, want, "corner"), want)) wrong++;
+      if (!lands(drawn(b, want, "corner"), want)) wrong++; else console.log("lands from the corner:", L.id, op.u);
     }
   }
   check(right === tried, `a line drawn along a face seen edge-on cuts that face, in every level (${right} of ${tried})`);

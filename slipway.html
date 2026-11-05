@@ -32,6 +32,7 @@
     <svg id="over" class="sw-over" aria-hidden="true"></svg>
     <div id="views" class="sw-views" role="group" aria-label="Look from"></div>
     <span id="waste" class="sw-waste"></span>
+    <span id="aim" class="sw-aim" hidden></span>
     <p id="nogl" class="sw-nogl" hidden>Slipway is a puzzle in 3D, and this device can't draw it.</p>
   </section>
   <p id="line" class="sw-line" role="status" aria-live="polite"></p>
@@ -50,9 +51,10 @@
 <dialog id="doneDlg" class="sheet sw-done" aria-labelledby="doneHead">
   <h2 id="doneHead"></h2>
   <p id="doneStars" class="sw-big-stars" aria-hidden="true"></p>
+  <div id="doneFit" class="sw-fit"></div>
   <dl id="doneBody" class="sw-figures"></dl>
   <p id="doneNote" class="sw-note"></p>
-  <div class="sw-done-go"><button class="btn" type="button" id="againBtn">Again</button><button class="btn primary" type="button" id="nextBtn">Next part</button></div>
+  <div class="sw-done-go"><button class="btn" type="button" id="lookBtn">Look at it</button><button class="btn" type="button" id="againBtn">Again</button><button class="btn primary" type="button" id="nextBtn">Next part</button></div>
 </dialog>
 
 <p id="toast" class="sw-toast" role="status" aria-live="polite"></p>

@@ -41,7 +41,7 @@ export const idx = (b, i, j, k) => i + b.nx * (j + b.ny * k);
  */
 export function newBlock(level, at = level.place) {
   const [px, ny, nz] = level.size, nx = px + (level.slack || 0);
-  const b = { level, nx, ny, nz, px, d: new Uint8Array(nx * ny * nz).fill(255), knots: level.knots.map(k => k.slice()), off: 0, flip: false, target: null, inside: null, planes: [], holes: [] };
+  const b = { level, nx, ny, nz, px, d: new Uint8Array(nx * ny * nz).fill(255), knots: level.knots.map(k => k.slice()), off: 0, flip: false, target: null, inside: null, planes: [], holes: [], kerfs: [], grain: level.grain || 0 };
   place(b, at?.off ?? (level.slack || 0) / 2, !!at?.flip);
   return b;
 }
@@ -65,6 +65,10 @@ export function place(b, off, flip) {
   b.g = b.g.map(v => v / (inside.length || 1));
   // the part's own planes, in the block's coordinates: n·p <= c (a flat face a saw can follow)
   b.planes = (L.shape.planes || []).map(([nx, ny, nz, c]) => [nx * a, ny, nz, c - nx * e]);
+  // a wall the back saw can score, and a dish the gouge can follow, in the block's coordinates
+  const px = x => (x - e) / a;
+  b.walls = (L.walls || []).map(w => { const u = [w.u[0] * a, w.u[1], w.u[2]], at = [px(w.at[0]), w.at[1], w.at[2]]; return { u, at, s: u[0] * at[0] + u[1] * at[1] + u[2] * at[2] }; });
+  b.hollows = (L.hollows || []).map(h => ({ ...h, at: [px(h.at[0]), h.at[1], h.at[2]] }));
   b.holes = (L.holes || []).map(h => {
     // a hole's place across its axis (0 x, 1 y, 2 z): (y, z) for an axis along x, (x, z) along y, (x, y) along z, in part coordinates
     const bx = x => (x - e) / a;                                        // block x from part x
@@ -167,25 +171,30 @@ export function drill(b, p, d, r = 1.5) {
   return took;
 }
 export const SOLE = 3.5, REACH = 2.5;                // the plane's sole is 7 cells across; it takes the top three layers of the waste under it
+/** The stroke tools: how wide (sole, to each side), how deep (reach), how near the line they stop (floor), and whether a knot stops them. */
+export const STROKE = {
+  plane: { sole: SOLE, reach: REACH, floor: 0.5, knots: true },
+  adze: { sole: 4.5, reach: 4.5, floor: 1.4, knots: false },
+};
 /**
- * The plane: its sole lies flat on the wood facing n and is drawn along the points `pts` (on the surface). Under the
- * sole it takes the highest waste, REACH cells deep from the highest wood under it, and never past the line (the part's
- * own surface). A knot under the sole stops it. Returns { took, knot }: knot true if it stopped on one.
+ * A stroke tool (the plane, the adze): its sole lies flat on the wood facing n and is drawn along the points `pts` (on the
+ * surface). Under the sole it takes the highest waste, `reach` cells deep from the highest wood under it, and never past
+ * the line (the part's own surface, plus the tool's `floor`). A knot under the sole stops the plane. Returns { took, knot }.
  */
-export function plane(b, n, pts) {
+export function plane(b, n, pts, o = STROKE.plane) {
   const hits = [];
   let top = -Infinity, knot = false;
   for (let k = 0; k < b.nz; k++) for (let j = 0; j < b.ny; j++) for (let i = 0; i < b.nx; i++) {
     const m = idx(b, i, j, k);
-    if (b.d[m] < 16 || b.target[m] <= 0.5) continue;                   // gone already, or the part (or the line)
+    if (b.d[m] < 16 || b.target[m] <= o.floor) continue;               // gone already, or the part (or the line)
     const x = i + 0.5, y = j + 0.5, z = k + 0.5;
     let near = Infinity;
     for (const q of pts) {
       const wx = x - q[0], wy = y - q[1], wz = z - q[2], a = wx * n[0] + wy * n[1] + wz * n[2];
       near = Math.min(near, Math.hypot(wx - n[0] * a, wy - n[1] * a, wz - n[2] * a));
     }
-    if (near > SOLE) continue;
-    if (inKnot(b, x, y, z)) { knot = true; continue; }
+    if (near > o.sole) continue;
+    if (o.knots && inKnot(b, x, y, z)) { knot = true; continue; }
     hits.push(m);
     top = Math.max(top, x * n[0] + y * n[1] + z * n[2]);
   }
@@ -193,9 +202,84 @@ export function plane(b, n, pts) {
   let took = 0;
   for (const m of hits) {
     const c = centre(b, m);
-    if (c[0] * n[0] + c[1] * n[1] + c[2] * n[2] >= top - REACH + 1e-6) took += take(b, m, 1);
+    if (c[0] * n[0] + c[1] * n[1] + c[2] * n[2] >= top - o.reach + 1e-6) took += take(b, m, 1);
   }
   return { took, knot: false };
+}
+export const SHAVE = { sole: 3.5, skin: 1.6 };
+/**
+ * The spokeshave: it follows the surface under the stroke, taking the thin skin (cells within `sole` of the stroke's
+ * points that lie over the line). Deep stock under it (more than `skin` cells over the line) jams it, and a knot stops it.
+ * Returns { took, knot, jam }.
+ */
+export function shave(b, pts, o = SHAVE) {
+  const hits = [];
+  let knot = false, jam = false;
+  for (let k = 0; k < b.nz; k++) for (let j = 0; j < b.ny; j++) for (let i = 0; i < b.nx; i++) {
+    const m = idx(b, i, j, k);
+    if (b.d[m] < 16 || b.target[m] <= 0.5) continue;
+    const x = i + 0.5, y = j + 0.5, z = k + 0.5;
+    let near = Infinity;
+    for (const q of pts) near = Math.min(near, Math.hypot(x - q[0], y - q[1], z - q[2]));
+    if (near > o.sole) continue;
+    if (inKnot(b, x, y, z)) knot = true;
+    if (b.target[m] > o.skin) jam = true;
+    hits.push(m);
+  }
+  if (knot || jam) return { took: 0, knot, jam };
+  let took = 0;
+  for (const m of hits) took += take(b, m, 1);
+  return { took, knot: false, jam: false };
+}
+export const CHOP = { half: 3.6, depth: 8 };
+/**
+ * The chisel: a column `half` cells to each side of the line of the blow (p, along the axis d) and `depth` layers deep from
+ * the highest waste in it, taking only the cells `free` allows (the ones whose grain-wise walls are scored). Never past the line. Returns { took, blocked }: the cells it refused.
+ */
+export function chop(b, p, d, free, o = CHOP) {
+  const ax = d.findIndex(v => Math.abs(v) > 0.5), others = [0, 1, 2].filter(a => a !== ax), sgn = Math.sign(d[ax]), hits = [];
+  let top = -Infinity, blocked = 0;
+  for (let k = 0; k < b.nz; k++) for (let j = 0; j < b.ny; j++) for (let i = 0; i < b.nx; i++) {
+    const m = idx(b, i, j, k);
+    if (b.d[m] < 16 || b.target[m] <= 0.5) continue;
+    const c = [i + 0.5, j + 0.5, k + 0.5];
+    if (Math.abs(c[others[0]] - p[others[0]]) > o.half || Math.abs(c[others[1]] - p[others[1]]) > o.half || (c[ax] - p[ax]) * sgn < -1) continue;
+    if (!free(c)) { blocked++; continue; }
+    hits.push([m, -c[ax] * sgn]);
+    top = Math.max(top, -c[ax] * sgn);
+  }
+  let took = 0;
+  for (const [m, h] of hits) if (h >= top - o.depth + 0.5 + 1e-6) took += take(b, m, 1);
+  return { took, blocked };
+}
+/** The gouge: the waste inside a sphere of radius r about c goes (never the part). */
+export function gouge(b, c, r) {
+  let took = 0;
+  for (let k = 0; k < b.nz; k++) for (let j = 0; j < b.ny; j++) for (let i = 0; i < b.nx; i++) {
+    const m = idx(b, i, j, k);
+    if (b.d[m] < 16 || b.target[m] <= 0.5) continue;
+    if (Math.hypot(i + 0.5 - c[0], j + 0.5 - c[1], k + 0.5 - c[2]) <= r + 0.3) took += take(b, m, 1);
+  }
+  return took;
+}
+export const WALL = 1.8;
+/** Whether wood round a bore (or a dish's rim) of radius r about the line (p, d) is thinner than WALL anywhere along it: it would split. */
+export function thin(b, p, d, r, from = 0) {
+  const l = Math.hypot(...d), u = d.map(v => v / l);
+  const e1 = Math.abs(u[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let a = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
+  const al = Math.hypot(...a); a = a.map(v => v / al);
+  const c = [u[1] * a[2] - u[2] * a[1], u[2] * a[0] - u[0] * a[2], u[0] * a[1] - u[1] * a[0]];
+  const reach = Math.hypot(b.nx, b.ny, b.nz) + 12;
+  for (let t = from; t < reach; t += 1) {
+    const q = [p[0] + u[0] * t, p[1] + u[1] * t, p[2] + u[2] * t];
+    if (sample(b, ...q) < SOLID) continue;
+    for (let k = 0; k < 8; k++) {
+      const th = k * Math.PI / 4, dx = Math.cos(th) * a[0] + Math.sin(th) * c[0], dy = Math.cos(th) * a[1] + Math.sin(th) * c[1], dz = Math.cos(th) * a[2] + Math.sin(th) * c[2];
+      for (let s = r + 0.5; s <= r + WALL + 1e-6; s += 0.5) if (sample(b, q[0] + dx * s, q[1] + dy * s, q[2] + dz * s) < SOLID) return true;
+    }
+  }
+  return false;
 }
 
 // ---------- the grade ----------

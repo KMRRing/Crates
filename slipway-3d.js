@@ -34,7 +34,7 @@ float fbm(vec2 p) { float s = 0., a = .5; for (int i = 0; i < 4; i++) { s += a *
 // the log's rings round its pith (off the block, so the sides show the arcs a plank shows), wavering along the grain; a
 // knot is a branch's root: the rings swirl round it and its heart is dark. Where the part has been cut into, oxblood.
 const WOOD_MAIN = `
-  vec3 p = vP;
+  vec3 p = uAxis < .5 ? vP : (uAxis < 1.5 ? vP.yzx : vP.zxy);        // x is along the grain
   vec2 q = p.yz - uPith.xy;
   float r = length(q) + 1.1 * fbm(vec2(p.x * .05, atan(q.y, q.x) * 3.)) + .35 * sin(p.x * .11 + q.y * .2);
   float knot = 0.;
@@ -64,7 +64,7 @@ export function woodMaterial(U) {
     shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
 varying float vMark;
 varying vec3 vP;
-uniform vec3 uPith; uniform vec3 uK0; uniform vec3 uK1; uniform vec3 uK2; uniform float uKr[3];
+uniform float uAxis; uniform vec3 uPith; uniform vec3 uK0; uniform vec3 uK1; uniform vec3 uK2; uniform float uKr[3];
 uniform vec3 uEarly; uniform vec3 uLate; uniform vec3 uKnot; uniform vec3 uGouge;
 ${NOISE}`).replace("#include <color_fragment>", `#include <color_fragment>\n{ ${WOOD_MAIN} }`);
   };
@@ -114,7 +114,7 @@ export function createBench(host) {
   sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target, hemi, rim);
 
-  const WU = { uPith: { value: new THREE.Vector3() }, uK0: { value: new THREE.Vector3() }, uK1: { value: new THREE.Vector3() }, uK2: { value: new THREE.Vector3() }, uKr: { value: [0, 0, 0] },
+  const WU = { uAxis: { value: 0 }, uPith: { value: new THREE.Vector3() }, uK0: { value: new THREE.Vector3() }, uK1: { value: new THREE.Vector3() }, uK2: { value: new THREE.Vector3() }, uKr: { value: [0, 0, 0] },
     uEarly: { value: new THREE.Color(0xd9b07a) }, uLate: { value: new THREE.Color(0x9c6a3c) }, uKnot: { value: new THREE.Color(0x35190a) }, uGouge: { value: new THREE.Color(0xa8382b) } };
   const wood = woodMaterial(WU);
   const BU = { uLight: { value: new THREE.Color() }, uDark: { value: new THREE.Color() }, uGrain: { value: 1 } };
@@ -138,6 +138,11 @@ export function createBench(host) {
   sheet.renderOrder = 7; edgeLine.renderOrder = 8;
   sheet.visible = edgeLine.visible = false;
   work.add(sheet, edgeLine);
+  // what a use would take, before it is made: green takes wood, red is refused
+  const cutMat = new THREE.MeshBasicMaterial({ color: 0x2f7d5b, transparent: true, opacity: 0.55, depthTest: false, depthWrite: false });
+  const cutGhost = new THREE.Mesh(new THREE.BufferGeometry(), cutMat);
+  cutGhost.renderOrder = 9; cutGhost.visible = false;
+  work.add(cutGhost);
   const GUIDE = { ok: 0x2f7d5b, into: 0xa8382b, nothing: 0x8a8a8a };
 
   let b = null, ghostOn = true;
@@ -173,8 +178,10 @@ export function createBench(host) {
     work.position.set(-b.nx * S / 2, 0, -b.nz * S / 2);
     bench.position.y = -0.5 - 0.1;
     // the pith: off the block's side and below it, so the sides show arcs and an end shows the rings' curve
-    WU.uPith.value.set(b.ny + 4, b.nz * 0.4, 0);
-    [WU.uK0, WU.uK1, WU.uK2].forEach((u, i) => { const k = b.knots[i]; if (k) u.value.set(k[0], k[1], k[2]); });
+    const dims = [b.nx, b.ny, b.nz], ax = b.grain || 0, cyc = v => (ax === 0 ? v : ax === 1 ? [v[1], v[2], v[0]] : [v[2], v[0], v[1]]);
+    WU.uAxis.value = ax;
+    WU.uPith.value.set(cyc(dims)[1] + 4, cyc(dims)[2] * 0.4, 0);
+    [WU.uK0, WU.uK1, WU.uK2].forEach((u, i) => { const k = b.knots[i]; if (k) u.value.set(...cyc(k)); else u.value.set(0, 0, 0); });
     WU.uKr.value = [0, 1, 2].map(i => (b.knots[i] ? b.knots[i][3] : 0));
     const R = Math.max(b.nx, b.ny, b.nz) * S;
     Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R, near: 1, far: 30 });
@@ -265,6 +272,7 @@ export function createBench(host) {
   const reframe = () => ease(az, el);
   /** Turns the camera round the block by a drag (pixels), and nearer or further by a pinch (a factor). */
   function orbit(dx, dy, zoom = 1) {
+    reveal = null;                                                        // a touch ends the turntable
     az -= dx * 0.008;
     el = Math.max(0, Math.min(VIEWS.top[1] * DEG, el + dy * 0.008));      // never under the bench, never past straight down
     // a view along an axis, or along a diagonal level with the block, is held a moment, so a cut seen edge-on is exact
@@ -322,6 +330,73 @@ export function createBench(host) {
     sheet.visible = edgeLine.visible = true;
     invalidate();
   }
+  /** The wood a use would take (a grid of how much of each cell goes, 0..255), tinted `kind` ("ok" or "bad"); none clears it. */
+  function setCut(grid, kind = "ok") {
+    if (!grid) { if (cutGhost.visible) { cutGhost.visible = false; invalidate(); } return; }
+    const solid = new Uint8Array(grid.length);
+    let any = false;
+    for (let i = 0; i < grid.length; i++) if (grid[i] >= 96) { solid[i] = 255; any = true; }
+    if (!any) { cutGhost.visible = false; invalidate(); return; }
+    cutGhost.geometry.dispose();
+    cutGhost.geometry = geometryOf(mesh(b, solid), false);
+    cutMat.color.set(kind === "ok" ? 0x2f7d5b : 0xa8382b);
+    cutGhost.visible = true;
+    invalidate();
+  }
+
+  // ---------- sawdust and shavings: a few small pieces thrown from where the tool worked, then gone ----------
+  const lite = !defaultIs3D();                                    // battery saver: a third as many
+  const dustGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35), shaveGeo = new THREE.BoxGeometry(2.2, 0.1, 0.9);
+  const dustMat = new THREE.MeshBasicMaterial({ color: 0xe0c08a, transparent: true }), shaveMat = new THREE.MeshBasicMaterial({ color: 0xeed6a4, transparent: true, side: DOUBLE });
+  /** Pieces thrown from points (cells): kind "dust" (saw, chisel, drill, gouge) or "shave" (plane, spokeshave, adze), away along `up`. */
+  function throwChips(points, kind, up = [0, 1, 0]) {
+    if (!points?.length) return;
+    const n = Math.ceil((kind === "shave" ? 14 : 26) / (lite ? 3 : 1)), t0 = performance.now(), list = [];
+    for (let i = 0; i < n; i++) {
+      const at = points[Math.floor(Math.random() * points.length)];
+      const m = new THREE.Mesh(kind === "shave" ? shaveGeo : dustGeo, (kind === "shave" ? shaveMat : dustMat).clone());
+      m.position.set(at[0], at[1], at[2]);
+      m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+      work.add(m);
+      const v = [up[0] * (6 + Math.random() * 10) + (Math.random() - 0.5) * 10, up[1] * (6 + Math.random() * 10) + 4 + Math.random() * 6, up[2] * (6 + Math.random() * 10) + (Math.random() - 0.5) * 10];
+      list.push({ m, v, spin: [Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3], life: 0.7 + Math.random() * 0.5 });
+    }
+    go(t => {
+      const s = (t - t0) / 1000, dt = 1 / 60;
+      let alive = 0;
+      for (const c of list) {
+        if (!c.m.parent) continue;
+        if (s > c.life) { work.remove(c.m); c.m.material.dispose(); continue; }
+        c.v[1] -= 40 * dt;
+        c.m.position.x += c.v[0] * dt; c.m.position.y += c.v[1] * dt; c.m.position.z += c.v[2] * dt;
+        c.m.rotation.x += c.spin[0] * dt; c.m.rotation.y += c.spin[1] * dt; c.m.rotation.z += c.spin[2] * dt;
+        c.m.material.opacity = Math.max(0, 1 - s / c.life);
+        alive++;
+      }
+      return alive > 0;
+    });
+  }
+
+  // ---------- the part freed: lifted, turned once, and left to be looked at ----------
+  let reveal = null;
+  function setReveal(on) {
+    if (!on) { reveal = null; work.position.y = 0; ghost.visible = ghostOn; invalidate(); return; }
+    ghost.visible = false; cursor.visible = false; sheet.visible = edgeLine.visible = false; cutGhost.visible = false;
+    // room to turn all the way round: the view is sized to the part's diagonal, whatever way it is facing
+    box = woodBox(b);
+    const diag = Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) * S;
+    const half0 = half, half1 = Math.max(half, diag * 0.62 / Math.min(1, width / height)), t0 = performance.now(), az0 = az;
+    reveal = t => {
+      half = half0 + (half1 - half0) * Math.min(1, (t - t0) / 600);
+      const s = (t - t0) / 1000;
+      work.position.y = Math.min(1, s * 2) * 0.1;
+      az = az0 - Math.min(s, 5) * 0.55;
+      pose();
+      return reveal !== null && s < 5;
+    };
+    go(reveal);
+  }
+
   /** The way the camera looks, in cells (unit), and where it is. */
   function forward() {
     const e = eye(), c = centre();
@@ -374,7 +449,7 @@ export function createBench(host) {
 
   return {
     canvas, setBlock, refresh, replaced, ray, eye, forward, orbit, view, offcut, reframe, redraw: invalidate,
-    cursor: setCursor, guide: setGuide,
+    cursor: setCursor, guide: setGuide, cutGhost: setCut, throwChips, reveal: setReveal,
     /** Where the camera is, as degrees of azimuth and elevation (for marking which named view it is in). */
     angles: () => [az / DEG, el / DEG],
     set ghost(on) { ghostOn = on; ghost.visible = on; invalidate(); },
