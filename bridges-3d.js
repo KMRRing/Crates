@@ -18,7 +18,8 @@
 import * as THREE from "./vendor/three.js";
 import { createBatch, prep } from "./bridges-batch.js";
 import { coastOf, TAU } from "./bridges-coast.js";
-import { cellXZ, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
+import { straitLine, boxOf } from "./bridges-lattice.js";
+import { cellXZ, spanOf, frameTurn, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
 const DOUBLE_SIDE = 2;                           // THREE.DoubleSide (not in the bundle's exports)
@@ -200,6 +201,7 @@ export function createModel(host, opts = {}) {
 
   // ---------- the puzzle on show ----------
   let P = null, size = 0, lay = null, realmed = false, coast = null;      // the puzzle on show, whether it has two realms, and its shore
+  const xz = (r, c) => cellXZ(size, r, c, !!lay?.hex);                     // where a lattice point stands (the hex board's are a unit apart on slants)
   let world = null, lines = [], plates = [], fleet = null, lastSail = 0, marks = "";
   let batches = null, hulls = null, lamps = null, buoyMeshes = [], buoys = [], fitPts = [];       // the meshes of the board, the ships and their lamps, the buoys, and the points the camera keeps in view
   let lit = new Set(), litIsland = -1, aim = -1, winUntil = 0;     // the hint's links and island, the link under a finger or the pointer, the end of the win's glow
@@ -223,7 +225,7 @@ export function createModel(host, opts = {}) {
 
   /** An island as big as its number: on sand, a beach, a lawn and trees (more of them the bigger it is); a hill in terraces; and a pale ring of shallows round it. */
   function island(land, rings, i) {
-    const isle = lay.isl[i], [x, z] = cellXZ(size, isle.r, isle.c), R = islandRadius(isle.n), here = y => at(x, y, z);
+    const isle = lay.isl[i], [x, z] = xz(isle.r, isle.c), R = islandRadius(isle.n), here = y => at(x, y, z);
     const clay = !!isle.realm;                                          // an orange realm's island: square-cut clay, no lawn or trees; a blue one is round and green as an island always was
     // a hill or islet is round or square; a square one's four-sided cylinder is turned to the axes (its corners are `r` from the middle, its sides 0.7 r)
     const body = (rt, rb, h, segs) => (clay ? new THREE.CylinderGeometry(rt * 1.25, rb * 1.25, h, 4).rotateY(Math.PI / 4) : new THREE.CylinderGeometry(rt, rb, h, segs));
@@ -237,10 +239,10 @@ export function createModel(host, opts = {}) {
       land.add("all", body(R * 0.93, R, 0.34, 24), here(0.03), clay ? "clay" : "sand");
       if (!clay && R > 0.3) {
         land.add("all", new THREE.CylinderGeometry(R * 0.66, R * 0.74, 0.04, 20), here(0.2), "grass");
-        // trees on the diagonals, the bridges leaving by the four sides
+        // trees between the bridges' ways out: on the diagonals of the square board, between the six directions of the hex one
         const count = isle.n >= 7 ? 3 : isle.n >= 5 ? 2 : isle.n >= 3 ? 1 : 0;
         for (let q = 0; q < count; q++) {
-          const a = (((i + [0, 2, 1][q]) % 4) + 0.5) * (Math.PI / 2) + 0.1 * q, d = R * (0.42 + 0.07 * q), s = 0.8 + 0.12 * ((i * 7 + q * 3) % 4), px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+          const sides = lay.hex ? 6 : 4, a = (((i + [0, 2, 1][q]) % sides) + 0.5) * (TAU / sides) + 0.1 * q, d = R * (0.42 + 0.07 * q), s = 0.8 + 0.12 * ((i * 7 + q * 3) % 4), px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
           land.add("all", new THREE.CylinderGeometry(0.014 * s, 0.02 * s, 0.1 * s, 5), at(px, 0.22 + 0.05 * s, pz), "rail");
           land.add("all", new THREE.ConeGeometry(0.085 * s, 0.24 * s, 7), at(px, 0.22 + 0.2 * s, pz), "tree");
         }
@@ -259,8 +261,8 @@ export function createModel(host, opts = {}) {
   }
   /** A link's bridges, once: a single, a double and (on a wide road) a triple, as groups `l.1`, `l.2`, `l.3` of the batch, shown and hidden as the marks change. */
   function bridgesOf(b, l) {
-    const link = lay.links[l], a = lay.isl[link.a], bb = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? bb.r - a.r : bb.c - a.c;
-    const linkM = new THREE.Matrix4().makeRotationY(link.vertical ? -Math.PI / 2 : 0).setPosition(x, 0, z), r = realmed ? (a.realm ? 1 : 0) : -1, deckRole = r >= 0 ? `deck${r}` : "timber", railRole = r >= 0 ? `rail${r}` : "rail";
+    const link = lay.links[l], a = lay.isl[link.a], bb = lay.isl[link.b], [x, z] = xz(a.r, a.c), span = spanOf(lay, link);
+    const linkM = new THREE.Matrix4().makeRotationY(frameTurn(lay, link)).setPosition(x, 0, z), r = realmed ? (a.realm ? 1 : 0) : -1, deckRole = r >= 0 ? `deck${r}` : "timber", railRole = r >= 0 ? `rail${r}` : "rail";
     const sets = [[1, [0]], [2, [-0.1, 0.1]], ...(link.cap === 3 ? [[3, [-0.17, 0, 0.17]]] : [])];      // a wide road has room for a third bridge
     const put = (n, geo, local, role) => b.add(`${l}.${n}`, geo, local ? linkM.clone().multiply(local) : linkM, role);
     if (link.high) {
@@ -301,8 +303,8 @@ export function createModel(host, opts = {}) {
   }
   /** What a link shows before it has a bridge: dashes along it (where a finger may tap), and the glow a hint or a finger gives it (flat, `f`, over a link without a bridge, and arched, `a`, along a built one's deck). */
   function guideOf(land, dashes, halos, l) {
-    const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
-    const linkM = new THREE.Matrix4().makeRotationY(link.vertical ? -Math.PI / 2 : 0).setPosition(x, 0, z), high = !!link.high, y = high ? GUIDE_HIGH : GUIDE;
+    const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = xz(a.r, a.c), span = spanOf(lay, link);
+    const linkM = new THREE.Matrix4().makeRotationY(frameTurn(lay, link)).setPosition(x, 0, z), high = !!link.high, y = high ? GUIDE_HIGH : GUIDE;
     const from = islandRadius(a.n) + 0.1, to = span - islandRadius(b.n) - 0.1, n = Math.max(1, Math.round((to - from) / 0.3)), step = (to - from) / n, hw = 0.04 + 0.004 * Math.max(0, size - 7), list = [];
     for (let i = 0; i < n; i++) list.push([from + i * step + (step - 0.17) / 2, from + i * step + (step + 0.17) / 2, hw]);
     const wide = link.cap === 3, hh = wide ? 0.3 : 0.2;
@@ -373,7 +375,7 @@ export function createModel(host, opts = {}) {
     const land = createBatch(), rings = createBatch(), bridges = createBatch(), dashes = createBatch(), halos = createBatch(), shore = createBatch();
     lay.isl.forEach((isle, i) => {
       island(land, rings, i);
-      const plate = document.createElement("span"), [x, z] = cellXZ(size, isle.r, isle.c);
+      const plate = document.createElement("span"), [x, z] = xz(isle.r, isle.c);
       plate.className = "brg3-n";
       plate.textContent = labelOf(isle);
       labels.appendChild(plate);
@@ -384,6 +386,20 @@ export function createModel(host, opts = {}) {
     // the sea's own: a line of buoys along each strait, its number on a plate at the edge; merchantmen in the free water
     const buoyList = [];
     lay.groups.forEach((g, k) => {
+      if (lay.hex) {
+        // straits on the hex board run in three families, each a line between two lattice lines (bridges-lattice.js), cut to the hexagon
+        const [bw, bh] = boxOf(size, true), [[x0, y0], [x1, y1]] = straitLine(size, true, g.fam, g.gap, 0.55), p0 = [x0 - bw / 2, y0 - bh / 2], p1 = [x1 - bw / 2, y1 - bh / 2];
+        const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), plate = document.createElement("span");
+        land.add("all", new THREE.BoxGeometry(len, 0.025, 0.03), at((p0[0] + p1[0]) / 2, 0.04, (p0[1] + p1[1]) / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0]))), "teal");       // the rope
+        for (let t = 0, i = 0; t <= len + 0.01; t += 0.5, i++) buoyList.push({ x: p0[0] + ((p1[0] - p0[0]) * t) / len, z: p0[1] + ((p1[1] - p0[1]) * t) / len, white: i % 2 === 1 });
+        plate.className = "brg3-n strait";
+        plate.textContent = String(g.mx);
+        labels.appendChild(plate);
+        const ux = (p0[0] - p1[0]) / len, uz = (p0[1] - p1[1]) / len, px = p0[0] + ux * 0.8, pz = p0[1] + uz * 0.8;       // a little past the line's end
+        plates.push({ el: plate, p: new THREE.Vector3(px, 0.35, pz), strait: k, cls: "", w: 0, h: 0 });
+        fitPts.push(px, 0.35, pz);
+        return;
+      }
       const half = size / 2, line = g.gap + 1 - half, plate = document.createElement("span"), end = size + 0.8;
       land.add("all", new THREE.BoxGeometry(g.across ? 0.03 : end, 0.025, g.across ? end : 0.03), at(g.across ? line : 0, 0.04, g.across ? 0 : line), "teal");        // the rope
       for (let t = -half - 0.4, i = 0; t <= half + 0.41; t += 0.5, i++) buoyList.push({ x: g.across ? line : t, z: g.across ? t : line, white: i % 2 === 1 });
@@ -395,8 +411,8 @@ export function createModel(host, opts = {}) {
       fitPts.push(px, py, pz);
     });
     // the board's own square, so a sparse board is framed as a full one is
-    const sq = (size / 2 - 0.5) * 0.9 + 0.55;
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(sx * sq, 0, sz * sq);
+    const [bw, bh] = boxOf(size, !!lay.hex), sqx = (bw / 2 - 0.5) * 0.9 + 0.55, sqz = (bh / 2 - 0.5) * 0.9 + 0.55;
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(sx * sqx, 0, sz * sqz);
     shoreOf(shore, rings);
     batches = { land: mount(land, M.land, { shadows: true }), bridges: mount(bridges, M.land, { shadows: true }), shore: mount(shore, M.land), rings: mount(rings, M.shallow), dashes: mount(dashes, M.guide, { order: 1 }), halos: mount(halos, M.halo, { order: 2 }) };
     batches.land.show(null); batches.rings.show(null); batches.shore.show(null);
@@ -615,7 +631,7 @@ export function createModel(host, opts = {}) {
     // an island is two discs on the screen: the island itself and its plate (the number is what a finger goes for)
     const isles = [], spots = [];
     lay.isl.forEach((o, i) => {
-      const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz), pl = plates[i], disc = { x, y, r: (islandRadius(o.n) - 0.02) * ppu };
+      const [wx, wz] = xz(o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz), pl = plates[i], disc = { x, y, r: (islandRadius(o.n) - 0.02) * ppu };
       isles.push(disc); spots.push({ i, ...disc });
       if (!pl) return;
       const [px, py] = scr(pl.p.x, pl.p.y, pl.p.z), plate = { x: px, y: py, r: (Math.max(pl.w, pl.h) / 2 || 10) * kx };

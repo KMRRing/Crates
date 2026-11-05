@@ -1,10 +1,20 @@
 // What Bridges' model view (bridges-3d.js, drawn with three.js) works out that has no picture in it, kept apart so it is
 // tested in Node: where the ships sail (through whatever water is free), where a viaduct stands on piers, the curve of its
 // arches, the plates of numbers on the islands. The model's world has a cell for a unit, the board's middle at the origin, x along a row, z down
-// a column (towards the camera at the start) and y up, the water at 0.
+// a column (towards the camera at the start) and y up, the water at 0. The hex board (bridges-lattice.js) stands in the same world: its
+// points a unit apart, its box centred, so the square of side `size` that the sea, the shore and the camera are made for holds it.
+import { worldXZ, AXES } from "./bridges-lattice.js";
 
-/** The world's x and z of the middle of a cell. */
-export const cellXZ = (size, r, c) => [c + 0.5 - size / 2, r + 0.5 - size / 2];
+/** The world's x and z of the middle of a cell (of a lattice point, on the hex board). */
+export const cellXZ = (size, r, c, hex = false) => (hex ? worldXZ(size, true, r, c) : [c + 0.5 - size / 2, r + 0.5 - size / 2]);
+/** The lattice steps along a link (the cells between its islands, one more), and its direction (0 along a row, 1 down a column, 2 down the other slant on a hex board). */
+export const spanOf = (lay, k) => { const a = lay.isl[k.a], b = lay.isl[k.b]; return Math.max(Math.abs(b.r - a.r), Math.abs(b.c - a.c)); };
+export const dirOf = k => k.dir ?? (k.vertical ? 1 : 0);
+/** The turn about y that points a link's frame (+x from its first island) along the link. */
+export function frameTurn(lay, k) {
+  const a = lay.isl[k.a], b = lay.isl[k.b], [x0, z0] = cellXZ(lay.size, a.r, a.c, lay.hex), [x1, z1] = cellXZ(lay.size, b.r, b.c, lay.hex);
+  return -Math.atan2(z1 - z0, x1 - x0);
+}
 /** The number on an island's plate: 4, 4+ (at least) or ≤4 (at most). */
 export { labelOf } from "./bridges-engine.js";
 /** An island's radius in cells from its number: a one is an islet, an eight nearly fills its cell. Islands are two cells apart at least, so even two eights leave a cell of water for the bridge. */
@@ -25,6 +35,7 @@ const SHIP_DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0]];       // [row, column] ste
  * `blocked` is 1 where no ship goes; `axis` is 1 or 2 under a viaduct that runs along x or along z, where a ship may cross but not go along.
  */
 export function seaOf(lay, marks, margin = SEA_MARGIN) {
+  if (lay.hex) return hexSea(lay, marks, margin);
   const { size, isl, links } = lay, w = size + 2 * margin, blocked = new Uint8Array(w * w), axis = new Uint8Array(w * w), at = (r, c) => (r + margin) * w + (c + margin);
   for (const o of isl) blocked[at(o.r, o.c)] = 1;
   links.forEach((k, l) => {
@@ -36,6 +47,28 @@ export function seaOf(lay, marks, margin = SEA_MARGIN) {
       const j = k.vertical ? at(a.r + i, a.c) : at(a.r, a.c + i);
       if (!k.high || piers.includes(i)) blocked[j] = 1; else axis[j] = k.vertical ? 2 : 1;
     }
+  });
+  return { size, margin, w, blocked, axis };
+}
+/**
+ * The same on the hex board, whose points don't lie on the sea's cells: a cell is blocked when its middle is near an island, a narrow road's gate or a built
+ * bridge. A ship goes round a viaduct there, not under it (its arches would need the cells to follow its slant).
+ */
+function hexSea(lay, marks, margin) {
+  const { size, isl, links } = lay, w = size + 2 * margin, blocked = new Uint8Array(w * w), axis = new Uint8Array(w * w);
+  const mark = (x, z, rad) => {
+    const c0 = Math.floor(x + size / 2) + margin, r0 = Math.floor(z + size / 2) + margin;
+    for (let r = r0 - 2; r <= r0 + 2; r++) for (let c = c0 - 2; c <= c0 + 2; c++) {
+      if (r < 0 || c < 0 || r >= w || c >= w) continue;
+      if (Math.hypot(c - margin + 0.5 - size / 2 - x, r - margin + 0.5 - size / 2 - z) < rad) blocked[r * w + c] = 1;
+    }
+  };
+  for (const o of isl) { const [x, z] = cellXZ(size, o.r, o.c, true); mark(x, z, islandRadius(o.n) + 0.4); }
+  links.forEach((k, l) => {
+    const a = isl[k.a], b = isl[k.b], [x0, z0] = cellXZ(size, a.r, a.c, true), [x1, z1] = cellXZ(size, b.r, b.c, true), len = spanOf(lay, k);
+    if (k.cap === 1) { const f = Math.floor(len / 2) / len; mark(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, 0.55); }       // the gate stands on the lattice point in the middle, as on the square board
+    if (!+marks[l]) return;
+    for (let t = 0; t <= len * 4; t++) mark(x0 + ((x1 - x0) * t) / (len * 4), z0 + ((z1 - z0) * t) / (len * 4), 0.55);
   });
   return { size, margin, w, blocked, axis };
 }
@@ -201,13 +234,13 @@ export function createFleet(count, seed = 1) {
  * `lay` is the layout; `l` the link's number.
  */
 export function piersOf(lay, l) {
-  const { size, isl, links } = lay, k = links[l], a = isl[k.a], b = isl[k.b], span = k.vertical ? b.r - a.r : b.c - a.c;
-  const cell = i => (k.vertical ? (a.r + i) * size + a.c : a.r * size + a.c + i);
+  const { size, isl, links } = lay, k = links[l], a = isl[k.a], span = spanOf(lay, k), [dr, dc] = AXES[dirOf(k)];
+  const cell = i => (a.r + i * dr) * size + a.c + i * dc;
   const under = new Set();
-  links.forEach((o, j) => {
-    if (o.high || o.vertical === k.vertical) return;
-    const p = isl[o.a], q = isl[o.b];
-    if (o.vertical) for (let r = p.r + 1; r < q.r; r++) under.add(r * size + p.c); else for (let c = p.c + 1; c < q.c; c++) under.add(p.r * size + c);
+  links.forEach(o => {
+    if (o.high || dirOf(o) === dirOf(k)) return;
+    const p = isl[o.a], [er, ec] = AXES[dirOf(o)];
+    for (let i = 1; i < spanOf(lay, o); i++) under.add((p.r + i * er) * size + p.c + i * ec);
   });
   const piers = [];
   let last = 0;
@@ -254,8 +287,8 @@ export function wallOutline(span, piers, { reach = 0.5, reachEnd = reach, pier =
  * { x0, z0, x1, z1, y, high }. `deck` and `viaduct` are the heights of a low bridge and of the top of a viaduct.
  */
 export function linkLine(lay, size, l, { deck = 0.17, viaduct = 0.8, pad = 0.45 } = {}) {
-  const k = lay.links[l], a = lay.isl[k.a], b = lay.isl[k.b], [x0, z0] = cellXZ(size, a.r, a.c), [x1, z1] = cellXZ(size, b.r, b.c);
-  const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0), pa = typeof pad === "function" ? pad(a) : pad, pb = typeof pad === "function" ? pad(b) : pad;
+  const k = lay.links[l], a = lay.isl[k.a], b = lay.isl[k.b], [x0, z0] = cellXZ(size, a.r, a.c, lay.hex), [x1, z1] = cellXZ(size, b.r, b.c, lay.hex);
+  const len = Math.hypot(x1 - x0, z1 - z0) || 1, dx = (x1 - x0) / len, dz = (z1 - z0) / len, pa = typeof pad === "function" ? pad(a) : pad, pb = typeof pad === "function" ? pad(b) : pad;
   return { x0: x0 + dx * pa, z0: z0 + dz * pa, x1: x1 - dx * pb, z1: z1 - dz * pb, y: k.high ? viaduct : deck, high: !!k.high };
 }
 /** The distance from (x, y) to the segment (ax, ay)–(bx, by), on the screen's plane. */

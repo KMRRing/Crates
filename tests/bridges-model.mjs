@@ -5,7 +5,7 @@
 // and keeps to the offline rules. The picture itself (bridges-3d.js, three.js) needs a browser with WebGL and is looked at,
 // not run here.
 import fs from "node:fs";
-import { cellXZ, labelOf, headingOf, SEA_MARGIN, seaOf, seaXZ, seaCell, openWater, sailFrom, smoothRoute, routeAt, shipsFor, createFleet, piersOf, archPoints, deckProfile, islandRadius, wallOutline, linkLine, segDistance, pickTolerance, pickLink } from "../bridges-model.js";
+import { cellXZ, spanOf, frameTurn, labelOf, headingOf, SEA_MARGIN, seaOf, seaXZ, seaCell, openWater, sailFrom, smoothRoute, routeAt, shipsFor, createFleet, piersOf, archPoints, deckProfile, islandRadius, wallOutline, linkLine, segDistance, pickTolerance, pickLink } from "../bridges-model.js";
 import { layoutOf, generate } from "../bridges-engine.js";
 
 let bad = 0;
@@ -282,6 +282,31 @@ const cell = (sea, r, c) => (r + sea.margin) * sea.w + (c + sea.margin);
   check(/class="brg3-zoom"|brg3-zoom/.test(d3) && /\.brg3-zoom button/.test(css) && /wheel/.test(d3) && /MAX_ZOOM/.test(d3) && /pinch or scroll to zoom/.test(js) && /pinch to zoom/.test(html), "the board zooms by the wheel, two fingers and a pair of buttons, and the hint under it and the board's label say so");
   check(/model\?\.hold\(true\)/.test(js) && /document\.hidden/.test(d3) && /prefers-reduced-motion/.test(d3), "the model stands still while the menu is open or the tab hidden, and for a player who asks for less motion");
   check(/seaOf\(/.test(d3) && /createFleet\(/.test(d3) && !/buoysOf|routesOf|laneRuns|laneParts|shipAt|\.brg-reef|\.brg-lane|\.brg-wave|brg3-reef/.test(d3 + js + css), "the model sails its ships through the sea of the marks; no reef, lane or buoy of the old rules is left in the page");
+}
+
+// ---------- the hex board in the model (5 November 2026) ----------
+{
+  const hexLay = p => layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", { straits: p.straits || "", tree: !!p.tree, hex: true });
+  const p = generate(11, 9, "easy", "none", "hex"), lay = hexLay(p);
+  const [bw, bh] = [9, 2 * 4 * (Math.sqrt(3) / 2) + 1];
+  const pts = lay.isl.map(o => cellXZ(9, o.r, o.c, true));
+  check(pts.every(([x, z]) => Math.abs(x) <= bw / 2 && Math.abs(z) <= bh / 2 + 1e-9) && near(cellXZ(9, 4, 4, true)[0], 0) && near(cellXZ(9, 4, 4, true)[1], 0), "the hex board stands in the world's square: its middle point is the origin and every island is inside it");
+  check(lay.links.every((k, l) => { const q = linkLine(lay, 9, l, { pad: 0 }), a = lay.isl[k.a], b = lay.isl[k.b]; return near(Math.hypot(q.x1 - q.x0, q.z1 - q.z0), Math.hypot(...cellXZ(9, b.r, b.c, true).map((v, i) => v - cellXZ(9, a.r, a.c, true)[i]))); }), "a link's line runs between its two islands along its own slant");
+  check(lay.links.every(k => near(Math.hypot(...[0, 1].map(i => cellXZ(9, lay.isl[k.b].r, lay.isl[k.b].c, true)[i] - cellXZ(9, lay.isl[k.a].r, lay.isl[k.a].c, true)[i])), spanOf(lay, k))), "a link is as long in the world as it is in lattice steps, on every slant");
+  check(lay.links.every(k => { const t = frameTurn(lay, k), a = lay.isl[k.a], b = lay.isl[k.b], [x0, z0] = cellXZ(9, a.r, a.c, true), [x1, z1] = cellXZ(9, b.r, b.c, true), len = spanOf(lay, k); return near(Math.cos(t) * len, x1 - x0, 1e-9) && near(-Math.sin(t) * len, z1 - z0, 1e-9); }) && new Set(lay.links.map(k => frameTurn(lay, k).toFixed(3))).size === 3, "a link's frame points its +x along the link (three turns on the board: 0, and a slant either way)");
+  const none = seaOf(lay, "0".repeat(lay.links.length)), built = seaOf(lay, p.sol);
+  const count = s => s.blocked.reduce((a, b) => a + b, 0);
+  check(count(built) > count(none) && none.blocked[0] === 0, "bridges built on the hex board block the sea where they stand, and the margin's corner is water");
+  const ok = lay.isl.every(o => { const [x, z] = cellXZ(9, o.r, o.c, true); return none.blocked[seaCell(none, x, z)] === 1; });
+  check(ok, "every island's cell is blocked in the hex sea");
+  const open = openWater(built, 0);
+  check(open.some(d => d >= 0) && lay.isl.every(o => open[seaCell(built, ...cellXZ(9, o.r, o.c, true))] < 0), "the ships' water is joined to the margin and never reaches an island");
+  const fleet = createFleet(shipsFor(9), 3);
+  fleet.setSea(built);
+  for (let i = 0; i < 1500; i++) fleet.advance(0.1);
+  check(fleet.ships.every(sh => { const j = seaCell(built, sh.x, sh.z); return j >= 0 && !built.blocked[j]; }), "ships sail a hex board for a long while and stay in free water");
+  const hiP = generate(5, 9, "medium", "hills", "hex"), hl = hexLay(hiP);
+  check(hl.links.some(k => k.high) && hl.links.every((k, l) => !k.high || piersOf(hl, l).every(i => i > 0 && i < spanOf(hl, k))), "a hex viaduct's piers stand between its islands");
 }
 
 console.log(bad ? `\n${bad} FAILED` : "\nbridges model: the sea and its ships, viaduct piers and arches, picking, and the page's switch to it");

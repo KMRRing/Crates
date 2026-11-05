@@ -572,10 +572,9 @@ function wave() {
 
 // ---------- 3D: the same board as a relief with ships, played the same way (bridges-3d.js, loaded when first asked for) ----------
 let model = null, modelFor = null;
-const HEX_3D = false;               // the 3D view draws the hex board (set when bridges-3d.js can)
-/** A board the model can't draw is shown as the chart, and the player's own choice comes back with the next board. */
+/** The view the player chose, for the board now on show. */
 function fitView() {
-  const wanted = wants3D(prefs.view, "model") ? "model" : "chart", target = P.lay.hex && !HEX_3D ? "chart" : wanted;
+  const wanted = wants3D(prefs.view, "model") ? "model" : "chart", target = wanted;
   if (target !== viewShown) setView(target, false);
 }
 /** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges, a hint's link glows. */
@@ -587,7 +586,6 @@ function feedModel(br) {
 }
 /** Chart (2D) or model (3D; `prefs.view` keeps "chart" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
 async function setView(v, remember = true) {
-  if (v === "model" && P?.lay.hex && !HEX_3D) { toast("The hex board is a chart for now."); v = "chart"; remember = false; }
   if (v === "model" && !model) {
     try {
       model = (await import("./bridges-3d.js")).createModel($("model"), {
@@ -840,7 +838,6 @@ function render() {
   chrome();
   const off = !S || !!S.done || IN_FRAME;
   for (const b of [$("undoBtn"), $("redoBtn"), $("hintBtn")]) b.disabled = off;
-  $("viewBtn").disabled = !!P?.lay.hex && !HEX_3D;
   if (S && !off) { $("undoBtn").disabled = !S.undo.length; $("redoBtn").disabled = !S.redo.length; }
   if (!S) $("board").replaceChildren();
   drawStrip(); drawLine(); drawResult();
