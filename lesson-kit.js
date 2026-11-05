@@ -19,7 +19,7 @@
 //   slider   min, max, step, init, unit, bands: [{ from, text, tone? }], marks?: [{ at, label }], goal?: [lo, hi], need?, label?   drag a value; the band it falls in says what
 //            follows. Done at the goal if there is one, else once `need` (default 2) different bands have been seen.
 //   decide   actor, options: [{ label, bites }]     pick a move; what constrained it shows. Done after the first pick; the others can still be tried.
-//   toggle   fig (nodes/edges with `layer`), toggles: [{ id, label, on? }], rules: [{ if: ["a", "!b"], text }], dflt, need?   switch layers or veto players on the diagram; the first
+//   toggle   fig (nodes/edges with `layer`; "!x" shows while x is off), toggles: [{ id, label, on? }], rules: [{ if: ["a", "!b"], text }], dflt, need?   switch layers or veto players on the diagram; the first
 //            rule whose conditions hold says what happens. Done when `need` (default 3) different results have been seen.
 //   build    fig (a graph with `slot` nodes), pieces: [{ id (the slot's id), label }]   2 to 5. Tap a piece, then its place on the diagram.
 // Any step, kit or not, may carry `fig` (a lesson-figs.js spec) to be drawn with it. Touch targets are 2.75rem; sizes are rem; colours are tokens (lesson-kit.css).

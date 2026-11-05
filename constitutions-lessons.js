@@ -1,31 +1,91 @@
-// The Constitutions and institutions course as the course sheet (course.js) wants it: chapters of lessons, each lesson a list of steps. The words and questions are
-// written in constitutions-c1.js to constitutions-c6.js; this puts them in order, gives each question its four options (the right answer seated by a hash of the
-// step's id, so renaming a lesson reseats its answers), shuffles an ordering step the same way every time, carries the lesson's last card or source onto the
-// questions that follow it (so the terms stay in view), and ends each chapter with its reading list. Every step has an id so a miss can come back in the review.
+// The Constitutions and institutions course as the course sheet (course.js) wants it: chapters of lessons, each lesson a list of steps. The facts and questions are written in
+// constitutions-c1.js to constitutions-c6.js (one lesson: a few raw steps of words, sources and questions); this turns them into short screens of different kinds (Korbi, 5 November
+// 2026: less on each screen, more screens, something different to do on each):
+//   a step of words is cut at a sentence into screens of at most about 80 words; its card of terms becomes a "tap a term" step, and (once the lesson has gone on a screen or two)
+//   a "match the terms" step; an ordering becomes the kit's tap-a-card-then-its-place; a question keeps its four options (the right answer seated by a hash of the step's id);
+//   constitutions-x1.js to x6.js add what to do between them (a pair to match, true or false, sorting, a slider, a diagram to tap), seated after the raw step they name;
+//   a chapter may carry a recap (takeaways to open, myths to mark true or false) and ends with its reading list.
+// Ids: a raw step keeps its old id (`${lesson}.${n}`, so a reader's review still finds it); a screen cut from it adds `.2`; its terms `.t`, their match `.p`; an added step is
+// `${lesson}.x${k}`. Nothing is stored on a step: a review step is an Object.create of its step.
 import { hash } from "./constitutions-ask.js";
+import { shuffled } from "./lesson-kit.js";
 import { C1, C2, C3 } from "./constitutions-c1.js";
 import { C4, C5, C6, C7 } from "./constitutions-c2.js";
 import { C8, C9, C10 } from "./constitutions-c3.js";
 import { C11, C12 } from "./constitutions-c4.js";
 import { C13, C14, C15, C16 } from "./constitutions-c5.js";
 import { C17, C18 } from "./constitutions-c6.js";
+import { X } from "./constitutions-xall.js";
 
 export const SOURCE = [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13, C14, C15, C16, C17, C18];
 
 /** The order the cards are shown in: never the right one, the same every time. shown[k] is the index (in the right order) of the card in place k. */
-export function shownOrder(id, n) {
-  const idx = Array.from({ length: n }, (_, i) => i).sort((a, b) => hash(`${id}:${a}`) - hash(`${id}:${b}`) || a - b);
-  if (idx.every((v, i) => v === i)) idx.push(idx.shift());
-  return idx;
+export const shownOrder = shuffled;
+
+const wordsIn = s => s.trim().split(/\s+/).length;
+/** The words of a step cut at sentence ends into screens of at most about 80 words, as even as the sentences allow. */
+export function cut(say, max = 80) {
+  if (wordsIn(say) <= max) return [say];
+  const s = say.split(/(?<=[.!?])\s+(?=[A-Z0-9'"‘“(])/);
+  if (s.length < 2) return [say];
+  let best = 1, gap = Infinity;
+  for (let i = 1; i < s.length; i++) {
+    const a = wordsIn(s.slice(0, i).join(" ")), b = wordsIn(s.slice(i).join(" "));
+    if (Math.max(a, b) < gap) { gap = Math.max(a, b); best = i; }
+  }
+  return [...cut(s.slice(0, best).join(" "), max), ...cut(s.slice(best).join(" "), max)];
 }
 
-function stepOf(raw, id, carry) {
-  if (raw.ord) return { id, kind: "order", say: raw.ord.q, order: raw.ord.items, shown: shownOrder(id, raw.ord.items.length), why: raw.ord.why };
-  if (raw.q) {
-    const seat = hash(id) % raw.o.length, wrong = raw.o.slice(1), quiz = [...wrong.slice(0, seat), raw.o[0], ...wrong.slice(seat)];
-    return { id, kind: "quiz", say: raw.q, quiz, answer: seat, why: raw.why, ...carry };
+const kindOf = s => (s.kind === "kit" ? s.kit : s.kind === "text" ? "text" : "quiz");
+/** A hand-written interaction (constitutions-x.js) as a step. */
+function fromX(h, id) {
+  const { x, ...rest } = h;
+  return x === "fig" ? { id, kind: "text", ...rest } : { id, kind: "kit", kit: x, ...rest };
+}
+
+function quizOf(raw, id, carry) {
+  const seat = hash(id) % raw.o.length, wrong = raw.o.slice(1), quiz = [...wrong.slice(0, seat), raw.o[0], ...wrong.slice(seat)];
+  return { id, kind: "quiz", say: raw.q, quiz, answer: seat, why: raw.why, ...carry };
+}
+
+/** The screens of one lesson. */
+function stepsOf(l) {
+  const out = [], autos = [], hand = X[l.id] || {};
+  let carry = {}, k = 0;
+  l.steps.forEach((raw, i) => {
+    const id = `${l.id}.${i + 1}`;
+    if (raw.ord) out.push({ id, kind: "kit", kit: "order", say: raw.ord.q, items: raw.ord.items, why: raw.ord.why });
+    else if (raw.q) out.push(quizOf(raw, id, carry));
+    else {
+      cut(raw.say).forEach((say, j) => {
+        out.push({ id: j ? `${id}.${j + 1}` : id, kind: "text", say, ...(raw.src && j === 0 ? { src: raw.src } : {}) });
+        if (j === 0 && raw.card) {
+          const rows = raw.card.rows;
+          out.push({ id: `${id}.t`, kind: "kit", kit: "reveal", say: `${raw.card.head}: tap each term to open it.`, cards: rows.map(([head, body]) => ({ head, body })), why: "Those are the words the rest of the lesson uses." });
+          if (rows.length >= 2 && rows.length <= 5) autos.push({ id: `${id}.p`, kind: "kit", kit: "pair", say: "Match each term to what it means.", pairs: rows.map(([a, b]) => [a, b]), why: "The terms and what they stand for." });
+        }
+      });
+      carry = raw.src ? { src: raw.src } : raw.card ? { card: raw.card } : carry;
+    }
+    (hand[i] || []).forEach(h => out.push(fromX(h, `${l.id}.x${++k}`)));
+  });
+  // two screens of the same kind in a row: a match of the lesson's terms goes between, if it differs from both neighbours
+  for (let i = 1; i < out.length && autos.length; i++) {
+    if (kindOf(out[i]) !== kindOf(out[i - 1])) continue;
+    const a = autos.findIndex(p => kindOf(p) !== kindOf(out[i - 1]) && kindOf(p) !== kindOf(out[i]));
+    if (a >= 0) { out.splice(i, 0, autos.splice(a, 1)[0]); i++; }
   }
-  return { id, kind: "text", say: raw.say, ...(raw.card ? { card: raw.card } : {}), ...(raw.src ? { src: raw.src } : {}) };
+  return out;
+}
+
+/** A chapter's recap: its takeaways to open, then its myths to mark true or false (the misses come back in the review). */
+function recapOf(ch, lastId) {
+  const r = ch.recap;
+  if (!r) return [];
+  return [
+    { id: `${lastId}.s1`, kind: "kit", kit: "reveal", say: `${ch.title}: what to keep. Tap each to open it.`, cards: r.takeaways.map(([head, body]) => ({ head, body })), why: "Those are the points the chapter stands on." },
+    { id: `${lastId}.s2`, kind: "kit", kit: "tf", say: "Three things people often get wrong. True or false?", items: r.myths.map(([t, a, why]) => ({ t, a, why })), why: "A miss here comes back in the review.", ...(r.check ? { check: true } : {}) },
+  ];
 }
 
 export const COURSE = {
@@ -33,13 +93,9 @@ export const COURSE = {
   chapters: SOURCE.map((ch, ci) => ({
     id: ch.id, title: `${ci + 1}. ${ch.title}`, zh: ch.span,
     lessons: ch.lessons.map((l, li) => {
-      let carry = {};
-      const steps = l.steps.map((raw, i) => {
-        const s = stepOf(raw, `${l.id}.${i + 1}`, carry);
-        if (s.kind === "text") carry = s.src ? { src: s.src } : s.card ? { card: s.card } : carry;
-        return s;
-      });
+      const steps = stepsOf(l);
       if (li === ch.lessons.length - 1) {
+        steps.push(...recapOf(ch, l.id));
         steps.push({ id: `${l.id}.r`, kind: "text", say: "Where to read more. This list is the source for the chapter: where a figure is argued, the lesson gives the range and who disputes it.", card: { head: "Reading", rows: ch.reading } });
       }
       return { id: l.id, title: l.title, reg: l.reg, nw: l.nw, steps };

@@ -34,7 +34,7 @@ const frame = (w, h, body, spec, uid) =>
 function graph(spec, o) {
   const nodes = spec.nodes.map(n => ({ ...n, w: Math.max(n.w || 0, n.slot ? 66 : 0, textW(n.label)), h: n.h || (lines(n.label).length > 1 ? 30 : n.slot || n.note ? 28 : 24) }));
   const by = Object.fromEntries(nodes.map(n => [n.id, n]));
-  const on = o.on || null, off = l => !!l && !!on && !on[l];
+  const on = o.on || null, off = l => !!l && !!on && (l[0] === "!" ? !!on[l.slice(1)] : !on[l]);   // a layer "!x" shows while x is off
   const edges = (spec.edges || []).map(e => {
     const a = by[e.a], b = by[e.b];
     if (!a || !b) return "";
