@@ -88,8 +88,8 @@ export default {
     "Find the real title: 1,000 points, and the artist scores 500 for each who did. Fool someone with your title: 500 for each one fooled. The house adds titles of its own when there are too few. One round or two; the most points wins.",
   ],
   options: [
-    { id: "rounds", label: "Rounds", choices: [["1", "1"], ["2", "2"]], value: "1" },
-    { id: "secs", label: "Time to draw", choices: [["60", "1 minute"], ["90", "90 seconds"], ["120", "2 minutes"]], value: "90" },
+    { id: "rounds", hidden: true, label: "Rounds", choices: [["1", "1"], ["2", "2"]], value: "1" },
+    { id: "secs", hidden: true, label: "Time to draw", choices: [["60", "1 minute"], ["90", "90 seconds"], ["120", "2 minutes"]], value: "90" },
   ],
 
   start({ players, options, rng, now, shown }) {

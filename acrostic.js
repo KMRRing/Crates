@@ -13,6 +13,7 @@ import { STAGES as SAYING_STAGES } from "./kb/items/choice/sayings.js";
 import { scale, sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { ramp } from "./ramp.js";
 import { part, choice, ticks, toggle, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -39,13 +40,18 @@ const first = name => String(name || "Player").split(" ")[0];
 // ---------- what you've chosen ----------
 const PREF0 = { level: "medium", twist: "classic", sources: SOURCES.map(([id]) => id), stages: {} };
 let prefs = { ...PREF0, ...read(PREFS, {}) };
-if (!LEVELS[prefs.level]) prefs.level = "medium";
-if (!TWISTS[prefs.twist]) prefs.twist = "classic";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The twist is the plain text and every stage of the
+// literature and the sayings is in, whatever an older save chose; the level is the hidden ramp (`acrostic:ramp`, up after a text
+// solved without a hint; first step the level that was saved).
+const OLD_LEVEL = LEVELS[prefs.level] ? prefs.level : "medium";
+const levelNow = () => ramp("acrostic", Object.keys(LEVELS), { start: OLD_LEVEL });
+prefs.twist = "classic";
+prefs.stages = {};
 prefs.sources = (prefs.sources || []).filter(s => SOURCES.some(([id]) => id === s));
 if (!prefs.sources.length) prefs.sources = PREF0.sources;
 const keepPrefs = () => write(PREFS, prefs);
 /** What a random puzzle is made from: the choices, and the texts played lately to pass over. */
-const randomOpts = () => ({ level: prefs.level, twist: prefs.twist, sources: prefs.sources, stages: prefs.stages, avoid: read(SEEN, []) });
+const randomOpts = () => ({ level: levelNow(), twist: prefs.twist, sources: prefs.sources, stages: prefs.stages, avoid: read(SEEN, []) });
 
 // ---------- the puzzles, made in a worker ----------
 let worker = null, asked = 0;
@@ -285,6 +291,7 @@ function finish() {
   // tap's click would land on the sheet's Rematch
   if (S.mode === "duel") { save(); setTimeout(() => tell(true), 450); return; }
   S.fresh = recordBest(S);
+  if (S.mode === "random") { levelNow(); ramp.won(!S.pen); }
   if (S.mode === "daily") noteDayTime("acrostic", S.score, S.day || today());   // today's: the first solve counts
   save();
   showDone(true);
@@ -632,7 +639,7 @@ const duel = createDuel({
   extraTitle: "The text", extra: () => (P ? aboutText(el("div", "ac-reveal")) : null),
   deal: async () => {
     const seed = randomSeed(), P0 = await tableMake(seed, prefs.twist);
-    return { seed, level: prefs.level, twist: prefs.twist, P: P0 };
+    return { seed, level: levelNow(), twist: prefs.twist, P: P0 };
   },
   describe: m => `${LEVELS[m.level]?.label || "Medium"}${m.twist && m.twist !== "classic" ? `, ${TWISTS[m.twist].label.toLowerCase()}` : ""}: the same hidden text for everyone, the fastest solve wins`,
   play: (match, { begun, kept }) => {
@@ -649,7 +656,7 @@ const duel = createDuel({
  * left without): a team's is never Half clued, since its split already leaves each of you half the clues.
  */
 async function tableMake(seed, twist) {
-  const opts = { level: prefs.level, twist, sources: prefs.sources, stages: prefs.stages };
+  const opts = { level: levelNow(), twist, sources: prefs.sources, stages: prefs.stages };
   const P0 = (await makeIn(seed, opts)) || (await makeIn(seed + 1, { ...opts, sources: null, stages: null }));
   if (!P0) throw new Error("no puzzle could be made");
   return P0;
@@ -758,24 +765,7 @@ function toast(msg, ms = 2600) {
 function contentPart(body, forNext = false) {
   const content = part(body, "content");
   content.append(
-    choice("Level", Object.entries(LEVELS).map(([id, l]) => [id, l.label]), prefs.level, v => { prefs.level = v; keepPrefs(); prefetch(); }),
-    choice("Twist", Object.entries(TWISTS).map(([id, t]) => [id, t.label]), prefs.twist, v => { prefs.twist = v; keepPrefs(); prefetch(); openMenu(); }),
-    line(TWISTS[prefs.twist].note),
     ticks("Sources", SOURCES, prefs.sources, list => { prefs.sources = list.length ? list : SOURCES.map(([id]) => id); keepPrefs(); prefetch(); openMenu(); }));
-  // literature's and the sayings' own stages, folded away as Punt folds them
-  for (const id of ["lit", "saying"].filter(x => prefs.sources.includes(x))) {
-    const all = STAGES[id].map(s => s.id), on = (prefs.stages[id] || all).filter(x => all.includes(x));
-    const box = document.createElement("details"), sum = document.createElement("summary"), what = document.createElement("span");
-    box.className = "menu-stages";
-    const say = list => { what.textContent = list.length === all.length ? " · all" : ` · ${list.length} of ${all.length}`; };
-    sum.append(id === "lit" ? "Which literature" : "Which sayings", what); say(on);
-    box.append(sum, ticks(`${id} stages`, STAGES[id].map(s => [s.id, s.label]), on, list => {
-      const keep = list.length && list.length < all.length ? list : null;
-      if (keep) prefs.stages[id] = keep; else delete prefs.stages[id];
-      keepPrefs(); prefetch(); say(keep || all);
-    }));
-    content.append(box);
-  }
 }
 function openMenu() {
   const body = $("menuBody");

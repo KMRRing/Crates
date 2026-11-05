@@ -17,6 +17,7 @@ import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { ramp } from "./ramp.js";
 import { part, choice, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame runs no clock and writes nothing
@@ -55,6 +56,13 @@ function cleanSettings(s) {
   };
 }
 let settings = cleanSettings(read(SET, {}));
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The board is square and the clues are the titles, whatever
+// an older save chose; the level is the hidden ramp (`lode:ramp`, up after a board solved without a hint; first step the saved level).
+const OLD_LEVEL = settings.level;
+settings.shape = "square";
+settings.clues = "title";
+const levelNow = () => (settings.level = ramp("lode", Object.keys(LEVELS), { start: OLD_LEVEL }));
+levelNow();
 const saveSettings = () => { if (!IN_FRAME) write(SET, settings); };
 $("pool").value = settings.pool;
 // The topics are the suite's one set (Settings; topics-on.js), not kept here: read when a board is dealt, never once at
@@ -369,6 +377,7 @@ function finishSolo() {
   clockPause();
   const sc = scoreOf(S.run);
   if (!S.run.gaveUp && S.ranked !== false) S.fresh = recordBest(sc);
+  if (S.mode === "random" && !S.run.gaveUp) { ramp.won(!S.run.hints); levelNow(); }
   if (S.mode === "daily") noteDayTime("lode", sc, S.day);          // today's board: the first finish counts
   learnFrom(S.board, S.run);
   save();
@@ -474,10 +483,8 @@ function menuSolo(body) {
   part(body, "play").append(action("New board", () => confirmStart("random"), "primary"));
   const content = part(body, "content");
   content.append(mirror("Themes", $("pool")));
-  content.append(choice("Level", Object.entries(LEVELS).map(([k, L]) => [k, L.label]), settings.level, v => { settings.level = v; saveSettings(); }));
   contentChoices(content);
   todayPart(body, { app: "lode", play: () => start("daily"), playing: S?.mode === "daily" && S.day === today(), busy: started() });
-  settingsPart(part(body, "settings"));
   if (S && !S.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   const about = part(body, "about"), times = read(TIMES, {});
   about.append(line(S ? `${LEVELS[S.deal.level].label}, ${SHAPES[S.deal.shape].toLowerCase()}: ${times[bestKey(S)] != null ? `best ${fmt(times[bestKey(S)])}` : "no best yet"}. A hint adds ${HINT_COST} s.` : ""),
@@ -514,11 +521,6 @@ function contentChoices(box) {
     if (on.length) box.append(wrap);
   }
 }
-function settingsPart(box) {
-  box.append(choice("Board", Object.entries(SHAPES), settings.shape, v => { settings.shape = v; saveSettings(); }));
-  box.append(choice("Clues", Object.entries(CLUES), settings.clues, v => { settings.clues = v; saveSettings(); }));
-  box.append(line("The board and clues apply from the next board."));
-}
 function menuTable(body) {
   const table = part(body, "together");
   if (!G) { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); return; }
@@ -529,9 +531,6 @@ function menuTable(body) {
   table.append(action("A new board", dealForTable, "primary"));
   const content = part(body, "content");
   content.append(mirror("Themes", $("pool")));
-  content.append(choice("Level", Object.entries(LEVELS).map(([k, L]) => [k, L.label]), settings.level, v => { settings.level = v; saveSettings(); }));
-  content.append(choice("Board", Object.entries(SHAPES), settings.shape, v => { settings.shape = v; saveSettings(); }));
-  content.append(choice("Clues", Object.entries(CLUES), settings.clues, v => { settings.clues = v; saveSettings(); }));
   if (!context()?.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
 }

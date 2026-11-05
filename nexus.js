@@ -27,7 +27,8 @@ const RUN = "nexus:run", BEST = "nexus:best", DAILY = "nexus:daily", PREFS = "ne
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const DEFAULT = { mode: "mixed", size: 10 };
-const prefs = (p => ({ mode: MODES.some(([m]) => m === p.mode) ? p.mode : DEFAULT.mode, size: SIZES.includes(p.size) ? p.size : DEFAULT.size }))(read(PREFS, {}));
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A round has the default number of candidates, whatever an older save chose.
+const prefs = (p => ({ mode: MODES.some(([m]) => m === p.mode) ? p.mode : DEFAULT.mode, size: DEFAULT.size }))(read(PREFS, {}));
 const keepPrefs = () => write(PREFS, prefs);
 
 // ---------- your topics ----------
@@ -294,8 +295,6 @@ function openMenu() {
   todayPart(body, { app: "nexus", play: () => newRun(true), playing: !!S?.daily && !S.over, busy: started() });
   content.append(choice("Rounds", MODES, prefs.mode, v => { prefs.mode = v; keepPrefs(); openMenu(); }));
   content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; today's run deals every topic"));
-  const settings = part(body, "settings");
-  settings.append(choice("Candidates", SIZES.map(n => [n, String(n)]), prefs.size, v => { prefs.size = v; keepPrefs(); openMenu(); }));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${CENTRES.length.toLocaleString("en-GB")} things to start from`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

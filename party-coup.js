@@ -320,7 +320,7 @@ export default {
     "With two players the first to play starts with one coin, not two.",
   ],
   options: [
-    { id: "clock", label: "Clock", choices: [["0", "Off"], ["20", "20 s"], ["30", "30 s"], ["60", "60 s"]], value: "30" },
+    { id: "clock", hidden: true, label: "Clock", choices: [["0", "Off"], ["20", "20 s"], ["30", "30 s"], ["60", "60 s"]], value: "30" },
   ],
 
   start({ players, options, rng, now }) {

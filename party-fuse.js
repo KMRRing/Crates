@@ -93,9 +93,9 @@ export default {
     "Use every one of the alphabet's common letters (all but k, w, x, y and z) in the words you play, and you win a life back (never more than you started with); your letters show under the bomb.",
   ],
   options: [
-    { id: "level", label: "Letters", choices: [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]], value: "medium" },
-    { id: "lives", label: "Lives", choices: [["2", "2"], ["3", "3"], ["4", "4"]], value: "3" },
-    { id: "fuse", label: "Fuse", choices: [["short", "Short"], ["normal", "Normal"], ["long", "Long"]], value: "normal" },
+    { id: "level", hidden: true, label: "Letters", choices: [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]], value: "medium" },
+    { id: "lives", hidden: true, label: "Lives", choices: [["2", "2"], ["3", "3"], ["4", "4"]], value: "3" },
+    { id: "fuse", hidden: true, label: "Fuse", choices: [["short", "Short"], ["normal", "Normal"], ["long", "Long"]], value: "normal" },
   ],
 
   start({ players, options, rng, now }) {

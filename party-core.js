@@ -1,7 +1,7 @@
 // Party's engine room: the games, and how one is started and moved on, with no page in it (party.js draws), so the
 // tests can play a whole evening in Node. A party game is a module (party-<id>.js) whose default export is
 //
-//   { id, name, zh?, min, max, blurb, rules: [paragraphs], options: [{ id, label, choices: [[value, text]…], value }],
+//   { id, name, zh?, min, max, blurb, rules: [paragraphs], options: [{ id, label, choices: [[value, text]…], value, hidden? }] (a hidden one has no row in the lobby and keeps its value),
 //     css?: "party-<id>.css" (its own styles, linked by party.js before themes.css),
 //     need?(players, options) → what stops it starting, in words, or "" (min and max are checked otherwise),
 //     start({ players, options, rng, now, shown }) → state (with show: [what it has just shown], if it remembers),

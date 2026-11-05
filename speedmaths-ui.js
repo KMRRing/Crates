@@ -7,7 +7,8 @@ import { BAND, chainRel, fmtNum, fmtAnswer, fmtTyped, fmtOff, askText, stepText,
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { today, arrivedForToday, IN_FRAME } from "./suite.js";
 import { createDuel } from "./duel.js";
 import { sure } from "./sure.js";
@@ -57,6 +58,9 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
    *  operations, the default range), since a sprint of additions to 20 is no match for one of everything. */
   const headlineRun = r => (headline === "chains" ? r.mode === "chains" : isStandard(r));
   const bestKey = r => (r.mode === "sprint" ? `sprint:${r.opts.range ?? ""}:${r.opts.kinds.join(",")}` : r.mode);
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A sprint's range is the hidden ramp (`speedmaths:ramp`, up after a
+  // sprint of ten sums or more with at most one in ten missed, down after one with four in ten missed; first step the saved range).
+  const rangeNow = () => (P.ranges ? (prefs.range = ramp(pool, P.ranges.map(([r]) => r), { start: prefs.range })) : null);
   const optsText = o => (P.ranges ? `${o.kinds.map(k => P.kinds.find(([x]) => x === k)[1]).join(" ")}, ${P.ranges.find(([r]) => r === o.range)?.[1] ?? ""}`
     : o.kinds.length === ALL.length ? "all topics" : o.kinds.map(k => P.kinds.find(([x]) => x === k)[1].toLowerCase()).join(", "));
 
@@ -64,7 +68,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     const r = read(KEY.run(m), null);
     return validRun(r) && r.pool === pool && r.mode === m && (m !== "daily" || r.day === today()) ? r : null;
   };
-  const fresh = m => (m === "daily" ? dailyRun(pool, today()) : startRun({ pool, mode: m, seed: randomSeed(), opts: { kinds: prefs.kinds, range: prefs.range } }));
+  const fresh = m => (m === "daily" ? dailyRun(pool, today()) : startRun({ pool, mode: m, seed: randomSeed(), opts: { kinds: prefs.kinds, range: rangeNow() ?? prefs.range } }));
 
   // ---------- the clock ----------
   // used is the ms of clock gone: it grows while the run is on screen and standing, and stops while the menu, a sheet or
@@ -150,7 +154,8 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     if (!run || run.over) return;
     clockPause();
     if (!D) run.used = run.secs * 1000;
-    finish(run);
+    const sum = finish(run);
+    if (!D && run.mode === "sprint" && P.ranges) { rangeNow(); if (sum.answered >= 10 && sum.missed * 10 <= sum.answered) ramp.won(true); else if (sum.answered >= 10 && sum.missed * 10 >= sum.answered * 4) ramp.lost(); rangeNow(); }
     phase = "over";
     said = null;
     if (D) { save(); tell(true); }
@@ -429,8 +434,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
       });
     }
     if (!D) content.append(mirror("Mode", $("mode")));
-    if (P.ranges) content.append(ticks("Sprint operations", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }),
-      choice("Sprint range", P.ranges, prefs.range, v => { prefs.range = v; keepPrefs(); refresh(); }));
+    if (P.ranges) content.append(ticks("Sprint operations", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
     else content.append(ticks("Topics", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
     const bests = read(KEY.bests, {}) || {}, about = part(body, "about");
     const top = [["sprint", "Sprint"], ["estimate", "Estimate"], ["chains", "Chains"]].map(([k, t]) => [t, k === "sprint" ? bests[`sprint:${P.range ?? ""}:${ALL.join(",")}`] : bests[k]]).filter(([, v]) => v != null);

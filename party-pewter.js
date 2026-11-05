@@ -274,8 +274,8 @@ export default {
   ],
   options: [
     { id: "fill", label: "Computer players", choices: [["0", "None"], ["4", "Fill to 4"], ["5", "Fill to 5"], ["6", "Fill to 6"]], value: "0" },
-    { id: "level", label: "Computer level", choices: [["1", "Simple"], ["2", "Medium"], ["3", "Hard"]], value: "2" },
-    { id: "clock", label: "Clock", choices: [["0", "Off"], ["20", "20 s"], ["30", "30 s"], ["60", "60 s"]], value: "60" },
+    { id: "level", hidden: true, label: "Computer level", choices: [["1", "Simple"], ["2", "Medium"], ["3", "Hard"]], value: "2" },
+    { id: "clock", hidden: true, label: "Clock", choices: [["0", "Off"], ["20", "20 s"], ["30", "30 s"], ["60", "60 s"]], value: "60" },
   ],
 
   need(players, options) {

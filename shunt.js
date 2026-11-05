@@ -8,6 +8,7 @@
 // `shunt:rrun` (Random) or `shunt:drun` (Daily), so a partner watching draws the same plate from the same keys.
 import { play, swap, shove, judge, goalCheck, effect, over, canSwap, legal, legalEntries, ENTRIES } from "./shunt-engine.js";
 import { search } from "./shunt-bots.js";
+import { ramp } from "./ramp.js";
 import { LEVELS, COACHED, DIFFS, DIFF_NAMES, goalWords, randomPlate, dailyPlate, rating } from "./shunt-levels.js";
 import { createView as createView2d } from "./shunt-view-2d.js";
 import { sound as sfx } from "./shunt-sound.js";
@@ -48,7 +49,12 @@ let rest = mode === "daily" ? "levels" : mode;
 const keepMode = () => { if (mode !== "daily") rest = mode; write(MODE, mode === "daily" ? rest : mode); };
 let camp = readCamp(kp);
 let diff = readDiff(kp);
-let coachOn = readCoach(kp);
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A random plate's difficulty is the hidden ramp (`shunt:ramp`, up after a
+// three-star plate, down after a failed one; first step the difficulty that was saved); the coach lines are always on.
+const OLD_DIFF = diff;
+const diffNow = () => (diff = ramp("shunt", DIFFS, { start: OLD_DIFF }));
+diffNow();
+let coachOn = true;
 let spec = null;            // the plate being played: stud, jewels, start, deal, goal, stars (+ id, no, name, sol for a level)
 let run = null;             // { kind, n | seed, diff | day, moves, spec? }
 let S = null;               // the state now (the plate after its moves)
@@ -343,6 +349,7 @@ function finish() {
     if (n > camp.stars[run.n]) { camp.stars[run.n] = n; keepCamp(); }
     if (ok) roundOver("shunt");
   } else {
+    if (run.kind === "random") { diffNow(); if (ok) ramp.won(n >= 3); else ramp.lost(); diffNow(); }
     if (run.kind === "daily") { const days = readDaily(kp); if (!(days[run.day] >= J.score)) write(DAILY, { ...days, [run.day]: J.score }); }
     roundOver("shunt");
   }
@@ -490,14 +497,12 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Mode", [["levels", "Levels"], ["random", "Random"]], mode, v => { $("menuDlg").close(); setMode(v); }));
   if (mode === "levels") content.append(levelList());
-  else if (mode === "random") content.append(choice("Difficulty", DIFFS.map(d => [d, DIFF_NAMES[d]]), diff, v => { diff = v; write(DIFF, v); $("menuDlg").close(); newRandomAsk(); }));
   const got = readDaily(kp)[today()];
   todayPart(body, {
     done: got != null, result: got != null ? fmt(got) : "", play: () => setMode("daily"), playing: mode === "daily",
     back: mode === "daily" ? { text: `Back to ${rest === "levels" ? "the levels" : "a random plate"}`, fn: () => setMode(rest) } : null,
   });
   const settings = part(body, "settings");
-  settings.append(toggle("Coach lines (levels 1 to 8)", coachOn, on => { coachOn = on; write(COACH, on); coachFor(); render(); }));
   if (view.kind === "3d") settings.append(toggle("Sound", sfx.on, on => { sfx.on = on; write(SOUND, on); if (on) { sfx.unlock(); sfx.play("tick"); } }));
   if (view.kind === "3d" && view.canDeviceTilt && matchMedia("(pointer: coarse)").matches) {
     settings.append(toggle("Tilt with the phone", read(TILT, false, v => typeof v === "boolean"), async on => {

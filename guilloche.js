@@ -22,6 +22,8 @@ const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stri
 const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 
 let opts = { sound: true, ghost: true, ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The target is shown faint on the plate, as it was by default.
+opts.ghost = true;
 const saveOpts = () => write(OPTS, opts);
 
 // ---------- the sounds, made as they play (no files) ----------
@@ -403,7 +405,6 @@ function openMenu() {
   });
   part(body, "content").append(list);
   const st = part(body, "settings");
-  st.append(toggle("Show the target faint on the plate", opts.ghost, on => { opts.ghost = on; saveOpts(); plate.ghost(on); }));
   st.append(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
   const stars = read(BEST, 0);
   part(body, "about").append(line(`${job.story} ${stars ? `${stars} of ${LEVELS.length * 3} stars so far.` : ""}`.trim()));

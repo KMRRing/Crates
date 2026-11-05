@@ -13,6 +13,7 @@ import { createDuel } from "./duel.js";
 import { busy, waitMark } from "./loading.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { ramp } from "./ramp.js";
 import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // the day, the same for everyone; a partner watching's frame runs no clock and writes nothing
@@ -32,9 +33,13 @@ const first = name => String(name || "Player").trim().split(/\s+/)[0];
 
 // ---------- what to deal: the menu's choices ----------
 const CATS = { mixed: "Mixed", country: "Countries", commodity: "Commodities" };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The mode is the one choice. Answers are mixed; the level
+// is the hidden ramp (`isomer:ramp`, up after a puzzle solved without a hint; first step the level that was saved).
+const OLD_LEVEL = (read(OPTS, {}) || {}).level;
+const levelNow = () => ramp("isomer", Object.keys(LEVELS), { start: LEVELS[OLD_LEVEL] ? OLD_LEVEL : "medium" });
 function opts() {
   const o = read(OPTS, {}) || {};
-  return { mode: MODES[o.mode] ? o.mode : "classic", level: LEVELS[o.level] ? o.level : "medium", cat: CATS[o.cat] ? o.cat : "mixed" };
+  return { mode: MODES[o.mode] ? o.mode : "classic", level: levelNow(), cat: "mixed" };
 }
 const setOpt = (k, v) => write(OPTS, { ...opts(), [k]: v });
 // The topics are the suite's one set (Settings; topics-on.js), read when a puzzle is dealt, never once at start-up: a
@@ -186,6 +191,7 @@ function finish() {
       S.fresh = times[k] == null || sc < times[k];
       if (S.fresh) { times[k] = sc; write(TIMES, times); }
     }
+    if (S.kind === "random") { levelNow(); ramp.won(!hintsOf(S.run)); }
     if (S.kind === "daily") noteDayTime("isomer", sc, S.day);
     roundOver("isomer");
   }
@@ -584,8 +590,7 @@ function showRules() {
 function contentPart(body, topics) {
   const o = opts(), content = part(body, "content");
   content.append(choice("Mode", Object.entries(MODES).map(([k, m]) => [k, m.label]), o.mode, v => setOpt("mode", v)),
-    choice("Level", Object.entries(LEVELS).map(([k, l]) => [k, l.label]), o.level, v => setOpt("level", v)),
-    choice("Answers", Object.entries(CATS), o.cat, v => { setOpt("cat", v); openMenu(); }));
+);
   if (topics) content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do"));
 }
 const backToSolo = () => { if (together.room) together.leave(); else if (duel.on) duel.leave(); else location.replace(location.pathname); };

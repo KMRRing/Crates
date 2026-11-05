@@ -26,3 +26,5 @@ Held sideways (README, Bigger screens), the ring or the verdicts take the board'
 Together: the same five rounds for everyone at the table (README, Head to head), from the partner sheet or a Party of up to six, from the dealer's kind of round, ring size and mix; the highest total wins, then the quicker. Nothing of yours changes.
 
 Arb is gone (3 November 2026) and the pieces Nexus drew from its engine (`ENT`, `ABOUT`, the topic lists, `drawEnd`) are `kb-things.js`, tested in `tests/kb-things.mjs`.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** A round has ten candidates (the Candidates choice went); the menu is Rounds and the topics.

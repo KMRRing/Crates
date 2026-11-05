@@ -125,8 +125,8 @@ export default {
   ],
   options: [
     { id: "deck", label: "Questions", choices: [["mixed", "A mix"], ["sayings", "Sayings"], ["numbers", "Numbers"], ["facts", "Odd facts"]], value: "mixed" },
-    { id: "length", label: "Questions in a game", choices: LENGTHS.map(n => [String(n), String(n)]), value: "8" },
-    { id: "clock", label: "A clock for each step", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
+    { id: "length", hidden: true, label: "Questions in a game", choices: LENGTHS.map(n => [String(n), String(n)]), value: "8" },
+    { id: "clock", hidden: true, label: "A clock for each step", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
   ],
 
   start({ players, options, rng, now }) {

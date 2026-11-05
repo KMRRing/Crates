@@ -94,13 +94,9 @@ async function bankDeal(level, picks, personal = true) {
 // The subjects are Settings' one set of topics for every game (topics-on.js), read when a run is dealt: a change reaches the
 // next run, and a run already dealt keeps what it was dealt (its mix is in the run). The old key, punt:topics, is no longer
 // written or read; what's in it stays where it is.
-const DIFFS_KEY = "punt:diffs";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Every difficulty is in, whatever an older save chose.
 /** The difficulties chosen (1–10), for every topic. */
-function chosenDiffs() {
-  try { const d = JSON.parse(localStorage.getItem(DIFFS_KEY)); if (Array.isArray(d) && d.length) return d.filter(x => DIFFICULTIES.includes(x)); } catch { /* first time */ }
-  return [...DIFFICULTIES];
-}
-const keepDiffs = d => { try { localStorage.setItem(DIFFS_KEY, JSON.stringify(d)); } catch { /* private mode */ } };
+const chosenDiffs = () => [...DIFFICULTIES];
 /** What each topic in deals from: a clue topic its category, a subject bank its deal (its stages, the difficulties). */
 async function topicSources(mixPicks, personal = true) {
   const ins = TOPIC_LIST.filter(([id]) => (mixPicks.weights[id] || 0) > 0);
@@ -222,7 +218,7 @@ const resetChoice = () => { pick = []; typed = ""; pct = 0; };
 // the default) or all (every question). A name-it question is typed: the strictest test. One dealt by a partner who
 // started the run is typed too, unless this device has name-it off, when it's chosen from options like any other.
 const NAME = "punt:name";
-const nameMode = () => { try { const m = localStorage.getItem(NAME); return NAME_MODES[m] ? m : "known"; } catch { return "known"; } };
+const nameMode = () => "known";
 const nameDeal = () => ({ mode: nameMode(), known: known.all() });
 const typedNow = q => q?.kind === "name" && nameMode() !== "off";
 // the box a name is typed into, kept across redraws so typing isn't interrupted; the phone's own suggestions are off,
@@ -1005,30 +1001,9 @@ function drawMenu() {
   // what a run deals: the topics set in Settings (a line and a link here, never a control of its own), the difficulties
   // for all of them, and each subject bank's stages; a change applies to the next run
   const inMix = topicsOf(subjectsOn()), content = part(body, "content");
-  content.append(...topicsPart(content, topicsNote()),
-    ticks("Difficulty", DIFFICULTIES.map(d => [d, String(d)]), chosenDiffs(), d => keepDiffs(d.length ? d : [...DIFFICULTIES])));
-  const stages = document.createElement("div");
-  content.append(stages);
-  for (const [id, label] of TOPIC_LIST.filter(([id]) => !CLUE_TOPICS[id] && inMix[id] > 0)) {
-    loadBank(id).then(({ STAGES }) => {
-      const mine = chosenPicks(id), on = (mine.stages || STAGES.map(x => x.id)).filter(x => STAGES.some(y => y.id === x));
-      const box = document.createElement("details"), sum = document.createElement("summary"), what = document.createElement("span");
-      box.className = "menu-stages";
-      const say = list => { what.textContent = list.length === STAGES.length ? " · all stages" : ` · ${list.length} of ${STAGES.length} stages`; };
-      sum.append(`${label} stages`, what); say(on);
-      box.append(sum, ticks(`${label} stages`, STAGES.map(x => [x.id, x.label]), on, list => {
-        const keep = list.length ? list : STAGES.map(x => x.id);
-        try { localStorage.setItem(picksKey(id), JSON.stringify({ ...mine, stages: keep })); } catch { /* private mode */ }
-        say(keep);
-      }));
-      stages.append(box);
-    });
-  }
-  content.append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${MIX.questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }),
-    // countries and commodities only; a change applies to the next run
-    ...(["countries", "commodities"].some(id => inMix[id] > 0) ? [choice("Name it", Object.entries(NAME_MODES), nameMode(), mo => {
-      try { localStorage.setItem(NAME, mo); } catch { /* private mode */ }
-    })] : []));
+  content.append(...topicsPart(content, topicsNote()));
+  content.append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${MIX.questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; })
+  );
   if (together.room) {
     const max = maxShare(S);
     part(body, "together").append(choice("Purses", Object.entries(MODES), modeOf(S), switchMode),

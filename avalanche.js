@@ -27,10 +27,10 @@ let aim = -1;            // the square whose charge is shown (laid, or lifted if
 
 const valid = g => g && g.v === 1 && Array.isArray(g.cells) && g.cells.length === W * H;
 function save() { write(RUN, S); }
-const slope = () => read(OPTS, {}).rocky === true;   // the next game's slope: open, or with bare rock on it
-function newRun() { S = newGame(Math.floor(Math.random() * 2 ** 31), slope()); aim = -1; save(); render(); }
+function newRun() { const seed = Math.floor(Math.random() * 2 ** 31); S = newGame(seed, seed % 3 === 0);   // a third of the slopes are rocky
+  aim = -1; save(); render(); }
 /** Squares that would bury the road tonight are hatched unless the player has turned that off; the lesson's third day needs them, and the first two have none. */
-const dangerOn = (g = S) => { const k = lessonOf(g); return k != null ? k === 2 : read(OPTS, {}).danger !== false; };
+const dangerOn = (g = S) => { const k = lessonOf(g); return k != null ? k === 2 : true; };
 
 // ---------- the lesson ----------
 // The first three days on slopes laid out by hand (avalanche-lesson.js), kept in the game itself (`lesson`, the day; `told`,
@@ -348,11 +348,7 @@ function openMenu() {
   body.replaceChildren();
   const lesson = lessonOf(S) != null;
   part(body, "play").append(lesson ? action("Skip the lesson", endLesson, "primary") : action("New game", newRun, "primary"));
-  part(body, "content").append(choice("Slope", [[false, "Open"], [true, "Rocky"]], slope(), rocky => { write(OPTS, { ...read(OPTS, {}), rocky }); openMenu(); }),
-    line(slope() ? "Four squares of bare rock hold no snow and turn aside what slides onto them. From the next game." : "Snow all the way across. Rocky puts four bare squares on the slope, from the next game."));
   part(body, "settings").append(
-    toggle("Danger shading", read(OPTS, {}).danger !== false, on => { write(OPTS, { ...read(OPTS, {}), danger: on }); render(); }),
-    line("Hatches the squares where one more layer of snow tonight would bury the road, as the charges stand."),
     ...(lesson ? [] : [action("Replay the lesson", startLesson, "link")]));
   const best = read(bestKey(), 0);
   part(body, "about").append(line(`This game: ${fmt(S.score)} in ${S.days} day${S.days === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));

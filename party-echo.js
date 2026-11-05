@@ -123,8 +123,8 @@ export default {
   ],
   options: [
     { id: "lang", label: "Words", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
-    { id: "cards", label: "Cards", choices: CARDS.map(n => [String(n), String(n)]), value: "13" },
-    { id: "clock", label: "Clock for the clues", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
+    { id: "cards", hidden: true, label: "Cards", choices: CARDS.map(n => [String(n), String(n)]), value: "13" },
+    { id: "clock", hidden: true, label: "Clock for the clues", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
   ],
 
   start({ players, options, rng, now }) {

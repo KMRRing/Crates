@@ -78,7 +78,7 @@ export default {
   ],
   options: [
     { id: "first", label: "First pages", choices: [["own", "Written by you"], ["book", "From the book"]], value: "own" },
-    { id: "pace", label: "Time for a page", choices: [["quick", "Quick"], ["normal", "Normal"], ["relaxed", "Relaxed"]], value: "normal" },
+    { id: "pace", hidden: true, label: "Time for a page", choices: [["quick", "Quick"], ["normal", "Normal"], ["relaxed", "Relaxed"]], value: "normal" },
   ],
 
   start({ players, options, rng, now, shown }) {

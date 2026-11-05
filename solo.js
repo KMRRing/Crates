@@ -35,6 +35,7 @@ const MODE = {
 function normalise(raw) {
   const s = raw && typeof raw === "object" ? raw : {};
   s.settings = cleanSettings(s.settings);
+  s.settings.difficulty = "mixed";           // the Difficulty choice went on 4 November 2026 (Korbi: the menu is the minimum it needs to be)
   s.pool = "country";                       // Crates deals countries; Classic is Lots, a page of its own
   s.n = s.n || 0;
   s.history = s.history || [];
@@ -415,7 +416,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           done: had && !playing, result: store.daily?.pts != null ? `${store.daily.pts} of 8 in ${formatTime(store.daily.ms)}` : "",   // one go: leaving it unfinished is a go had
           play: () => { daily(); }, playing, busy: !g.done && g.guesses.length > 0,
         });
-        part(body, "content").append(...modeChoice("country", handlers.classic), ...topicsPart(body), action("Difficulty and regions", settingsSheet));
+        part(body, "content").append(...modeChoice("country", handlers.classic), ...topicsPart(body), action("Countries from", settingsSheet));
         const about = part(body, "about"), done = store.history.length;
         if (done) {
           const total = store.history.reduce((t, r) => t + r.pts, 0), perfect = store.history.filter(r => r.pts === 8).length;

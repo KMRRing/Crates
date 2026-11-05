@@ -77,9 +77,9 @@ export default {
   ],
   options: [
     { id: "mode", label: "Play", choices: [["each", "Each for themselves"], ["together", "Together"]], value: "each" },
-    { id: "rounds", label: "Rounds", choices: [["1", "Once round the table"], ["2", "Twice round"]], value: "1" },
+    { id: "rounds", hidden: true, label: "Rounds", choices: [["1", "Once round the table"], ["2", "Twice round"]], value: "1" },
     { id: "lang", label: "Scales", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
-    { id: "clock", label: "A clock for the clue and the dial", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
+    { id: "clock", hidden: true, label: "A clock for the clue and the dial", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
   ],
   need: (players, options) => (options.mode !== "together" && players.length < 3 ? "Each for themselves needs 3 players: with two, play Together" : ""),
 

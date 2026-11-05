@@ -343,8 +343,11 @@ function drawLobby(stage) {
   const hostName = players.find(p => p.uid === branch.host)?.name || "The host";
   // the game picked and its options, then everything this many can play: the host's taps choose, a guest's show the rules
   const choose = e => { opts.pick = e.id; write(OPTS, opts); table.act(b => { b.pick = e.id; }); };
-  const optionsOf = () => ({ ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) });
-  const options = !pick.def?.options?.length ? null : h("div", { class: "pa-options" }, ...pick.def.options.map(o => {
+  // Korbi, 4 November 2026: the menu is the minimum it needs to be. A `hidden` option has no row and keeps its default, whatever a device saved.
+  const hidden = new Set((pick.def?.options || []).filter(o => o.hidden).map(o => o.id));
+  const optionsOf = () => Object.fromEntries(Object.entries({ ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) }).filter(([k]) => !hidden.has(k)));
+  const shown = (pick.def?.options || []).filter(o => !o.hidden);
+  const options = !shown.length ? null : h("div", { class: "pa-options" }, ...shown.map(o => {
     const value = branch.opts?.[pick.id]?.[o.id] ?? opts.options[pick.id]?.[o.id] ?? o.value;
     const c = choice(o.label, o.choices, value, v => {
       opts.options[pick.id] = { ...(opts.options[pick.id] || {}), [o.id]: v };

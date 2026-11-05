@@ -85,7 +85,7 @@ export default {
   ],
   options: [
     { id: "lang", label: "Words", choices: [["both", "Both"], ["en", "English"], ["zh", "中文"]], value: "both" },
-    { id: "blank", label: "A blank (6+)", choices: [["no", "No"], ["yes", "Yes"]], value: "no" },
+    { id: "blank", hidden: true, label: "A blank (6+)", choices: [["no", "No"], ["yes", "Yes"]], value: "no" },
   ],
 
   start({ players, options, rng }) {

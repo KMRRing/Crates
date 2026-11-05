@@ -110,7 +110,7 @@ export default {
   options: [
     // a deck the setting leaves too few for a table of twelve is not offered (Exclude: Food and Brands, nearly all marked)
     { id: "deck", label: "Who you are", value: "people", get choices() { return [...DECKS.filter(d => poolOf(d.id).length >= 12).map(d => [d.id, d.name]), [MIXED, "A mix"], [WRITE, "You write them"]]; } },
-    { id: "timer", label: "A turn's clock", value: "0", choices: [["0", "None"], ["60", "1 minute"], ["120", "2 minutes"]] },
+    { id: "timer", hidden: true, label: "A turn's clock", value: "0", choices: [["0", "None"], ["60", "1 minute"], ["120", "2 minutes"]] },
   ],
 
   start({ players, options, rng, shown = [] }) {

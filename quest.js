@@ -10,6 +10,7 @@
 // device that runs the table). Words shown are the Hanseatic ones; the code's ids, and its comments, keep the game's
 // first words (quest = voyage, party = crew, leader = Alderman, traitor = Vitalian: see quest-rules.js).
 import { rules, EVIL_COUNT, SIZES, SHOW_MS, isEvil, knowledge, talk, stances, named } from "./quest-rules.js";
+import { ramp } from "./ramp.js";
 import { LEVEL_NAMES, questChat } from "./quest-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
@@ -36,6 +37,11 @@ const PLAYERS = [5, 6, 7, 8, 9, 10];
 let opts = { players: 7, roles: ["seer", "guardian"], level: "medium", chat: true, ...read(OPTS, {}) };
 if (!PLAYERS.includes(opts.players)) opts.players = 7;
 const saveOpts = () => write(OPTS, opts);
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The roles are the seer and the guardian and the computer players talk,
+// whatever an older save chose; their strength is the hidden ramp (`quest:ramp`, up after a game won, down after one lost; first step the saved level).
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { roles: ["seer", "guardian"], chat: true });
+const levelNow = () => ramp("quest", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const roleOptions = () => Object.fromEntries(ROLE_OPTIONS.map(([k]) => [k, opts.roles.includes(k)]));
 
 let toastTimer = 0;
@@ -144,7 +150,7 @@ let popSeat = null;
 let page = null;
 page = seatPage({
   // app 2: the talk and the traitors' strike (a phone on older code at the table is asked to update)
-  rules, id: "quest", app: 2, botName: s => NAMES[s % NAMES.length], level: () => opts.level,
+  rules, id: "quest", app: 2, botName: s => NAMES[s % NAMES.length], level: () => levelNow(),
   // a vote or a card is secret till all are in: nothing to watch, so the computer gives its own at once; the
   // computer's strike waits for the traitors' words
   pace: s => (s.step === "vote" || s.step === "quest" ? 240 : s.step === "assassin" ? 2000 : 1000),
@@ -438,7 +444,7 @@ function chatSoon() {
   chatTimer = setTimeout(chatNow, answer ? ANSWER : s.step === "assassin" ? CONFER : BEAT + Math.floor(Math.random() * 600));
 }
 function chatNow() {
-  const t = page.runner.table, seats = page.view.seats, level = opts.level, from = chatStep.from;
+  const t = page.runner.table, seats = page.view.seats, level = levelNow(), from = chatStep.from;
   t.act(cur => {
     const G = cur.game;
     if (!G || (t.local && isPaused())) return false;
@@ -620,6 +626,7 @@ function party(l) {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -681,10 +688,7 @@ function openMenu() {
   page.menu(play);
   const set = part(body, "settings");
   set.append(choice("Players", PLAYERS.map(n => [n, String(n)]), opts.players, v => { opts.players = Number(v); saveOpts(); }));
-  set.append(ticks("Roles", ROLE_OPTIONS, opts.roles, v => { opts.roles = v; saveOpts(); }));
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(line("Players and roles apply from the next game."));
-  set.append(toggle("The computer players talk", opts.chat, on => { opts.chat = on; saveOpts(); }));
+  set.append(line("The number of players applies from the next game."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("quest:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

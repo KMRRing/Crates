@@ -22,3 +22,5 @@ Talk: accuse or trust any player at any time, or take it back; no more accused t
 - `s.say` is the narrator's line as the state saved it: a game saved before 3 November shows one line in the old words, then the new.
 - Votes and cards are given before your turn and sent when it comes; the page looks at the table afresh before the runner moves the next computer player (docs/seats.md).
 - The look has no pictures: a portolan chart in gradients (`.qs-ring::before` rhumb lines, `::after` the compass circle), wax seals as radial gradients, SVG without filters (an SVG filter on a large picture came out blurry in Safari).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Players. The roles are the seer and the guardian and the computer players talk; their strength is the hidden ramp (`quest:ramp`, up after a game won, down after one lost; first step the saved level).

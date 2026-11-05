@@ -110,7 +110,7 @@ export default {
   ],
   options: [
     { id: "lang", label: "Words", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
-    { id: "rounds", label: "Rounds", choices: [["3", "3"], ["5", "5"], ["each", "Once each"]], value: "3" },
+    { id: "rounds", hidden: true, label: "Rounds", choices: [["3", "3"], ["5", "5"], ["each", "Once each"]], value: "3" },
   ],
 
   start({ players, options, rng, now, shown }) {

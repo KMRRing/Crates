@@ -118,9 +118,9 @@ export default {
   ],
   options: [
     { id: "lang", label: "Words", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
-    { id: "level", label: "Difficulty", choices: [["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], value: "mixed" },
-    { id: "rounds", label: "Rounds", choices: [["1", "1"], ["2", "2"], ["3", "3"]], value: "2" },
-    { id: "secs", label: "Time to draw", choices: [["60", "1 minute"], ["80", "80 seconds"], ["120", "2 minutes"]], value: "80" },
+    { id: "level", hidden: true, label: "Difficulty", choices: [["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], value: "mixed" },
+    { id: "rounds", hidden: true, label: "Rounds", choices: [["1", "1"], ["2", "2"], ["3", "3"]], value: "2" },
+    { id: "secs", hidden: true, label: "Time to draw", choices: [["60", "1 minute"], ["80", "80 seconds"], ["120", "2 minutes"]], value: "80" },
   ],
 
   start({ players, options, rng, now, shown }) {

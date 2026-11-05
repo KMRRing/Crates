@@ -254,7 +254,6 @@ export function askWho(defaultName = "") {
 export function openSettings(opts) {
   const { settings, note, onChange, onBack, learning = null } = opts;
   // editable: true, or { words, groups } when only part is yours to change (hidden mode)
-  const canWords = opts.editable === true || !!opts.editable?.words;
   const canGroups = opts.editable === true || !!opts.editable?.groups;
   openMenu(body => {
     const add = (tag, cls, text) => {
@@ -264,26 +263,6 @@ export function openSettings(opts) {
       body.appendChild(e);
       return e;
     };
-    const segmented = (options, value, onPick, label, enabled = canWords) => {
-      const row = document.createElement("div");
-      row.className = "seg";
-      row.setAttribute("role", "radiogroup");
-      row.setAttribute("aria-label", label);
-      options.forEach(([v, text]) => {
-        const b = document.createElement("button");
-        b.textContent = text;
-        b.setAttribute("role", "radio");
-        b.setAttribute("aria-checked", String(v === value));
-        b.disabled = !enabled;
-        b.addEventListener("click", () => {
-          row.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", String(o === b)));
-          onPick(v);
-        });
-        row.appendChild(b);
-      });
-      return row;
-    };
-
     const head = add("div", "set-head");
     const back = document.createElement("button");
     back.className = "link";
@@ -306,10 +285,6 @@ export function openSettings(opts) {
 
     add("h4", null, "Topics");
     for (const node of topicsPart(body)) body.appendChild(node);           // the subjects are Settings’, not this game’s
-
-    add("h4", null, "Difficulty");
-    body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty,
-      v => change(x => { x.difficulty = v; }), "Difficulty"));
 
     add("h4", null, "Countries from");
     const chips = add("div", "chips");

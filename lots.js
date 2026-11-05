@@ -10,8 +10,8 @@ import { drawBoard as paintBoard, fitWords, shake, drawCount, createLine, setCon
 import { sure } from "./sure.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { topicsPart } from "./topics-ui.js";
 import { subjectsOn } from "./topics-on.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
@@ -36,6 +36,10 @@ const list2 = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")
 const nameOfCat = id => BY_ID.get(id)?.name || "";
 
 // ---------- what you've chosen ----------
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The level is the hidden ramp (`lots:ramp`, up after a board
+// solved with no mistake, down after one lost; first step the level that was saved).
+let oldLevel = null;
+const levelNow = () => ramp("lots", LEVELS, { start: oldLevel ?? (oldLevel = prefs.level) });
 // (an old save's play (the wall, which Lots no longer has) and rival (against the computer, gone too) are ignored)
 function cleanPrefs(p) {
   p = p && typeof p === "object" ? p : {};
@@ -49,7 +53,7 @@ const keepPrefs = () => write(PREFS, prefs);
 
 // ---------- the page ----------
 const el = { board: $("board"), what: $("what"), count: $("count"), sub: $("sub"), controls: $("controls"), feed: $("feed"),
-  shuffle: $("shuffleBtn"), clear: $("clearBtn"), submit: $("submitBtn"), level: $("level") };
+  shuffle: $("shuffleBtn"), clear: $("clearBtn"), submit: $("submitBtn") };
 let mode = "solo";             // "solo", "duo" (the pair at one board) or "race" (duel.js)
 let S = null;                  // the run on the board, alone or in a race
 let G = null;                  // the pair's table, as last seen
@@ -162,7 +166,6 @@ function begin(r) {
   clockFrom = null;
   talk.clear();
   fresh = true;
-  el.level.value = S.level;
   save();
   clockRun();
   drawRun();
@@ -177,8 +180,8 @@ function newBoard(kind = "random") {
     begin(newRun({ board: daily(day), kind: "daily", day, n }));
     return;
   }
-  let board = deal({ seed: randomSeed(), level: prefs.level, weights: mixFromSubjects(TOPICS, TOPIC_OF.lots, subjectsOn()), recent: seenRecent() });
-  if (!board) { toast("Those topics are too narrow for a board: this one deals from every topic"); board = deal({ seed: randomSeed(), level: prefs.level }); }
+  let board = deal({ seed: randomSeed(), level: levelNow(), weights: mixFromSubjects(TOPICS, TOPIC_OF.lots, subjectsOn()), recent: seenRecent() });
+  if (!board) { toast("Those topics are too narrow for a board: this one deals from every topic"); board = deal({ seed: randomSeed(), level: levelNow() }); }
   noteSeen(board);
   begin(newRun({ board, kind: "random", n }));
 }
@@ -243,6 +246,7 @@ function finished() {
   stats.bestStreak = Math.max(stats.bestStreak || 0, stats.streak);
   const L = (stats.levels ||= {})[S.level] ||= { played: 0, solved: 0 };
   L.played++; if (S.won) L.solved++;
+  if (S.kind === "random") { levelNow(); if (S.won) ramp.won(!S.mistakes); else ramp.lost(); }
   write(STATS, stats);
   if (S.kind === "daily" && S.day && !dayDone(S.day)) {         // today's board: one go, counted now, points then time
     const days = read(DAILY, {}), v = dayScore(S);
@@ -288,7 +292,6 @@ function openMenu() {
   if (mode === "duo" || (mode !== "race" && roomInAddress() && !together.room)) duoMenu(body);
   else if (mode === "race") {
     duel.menu(part(body, "together"));
-    part(body, "content").append(levelChoice());
   } else soloMenu(body);
   part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -309,8 +312,6 @@ function showRules() {
     <p><b>Together.</b> The pair plays one board, one of three ways, chosen in the menu. ${Object.values(room.MODES).map(m => `<b>${m.label}</b>: ${m.blurb.replace(/^./, c => c.toLowerCase())}`).join(" ")} Or a race: the same board for everyone, the most points winning, then the quicker.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
-// the header's level, in the menu as everywhere (menu.js mirrors the select; its change handler deals)
-const levelChoice = () => mirror("Level", el.level);
 /** To Countries, Crates' own board, asking first if this one is unfinished. */
 async function toCountries() {
   if (await confirmLeave("Leave this board unfinished?")) location.href = "crates.html"; else openMenu();
@@ -320,7 +321,7 @@ function soloMenu(body) {
     if (await confirmLeave()) newBoard();
   }, "primary"));
   const content = part(body, "content");
-  content.append(...modeChoice("classic", toCountries), levelChoice(), ...topicsPart(content, "Today’s board deals from every one"));
+  content.append(...modeChoice("classic", toCountries), ...topicsPart(content, "Today’s board deals from every one"));
   const score = read(DAILY, {})[today()];
   todayPart(body, { done: dayDone(), result: score != null ? `${Math.floor(score / 100000)} of 8` : "", play: openToday, playing: S?.kind === "daily" && S.day === today() && !S.done });   // openToday asks before it leaves a board
   part(body, "play").append(action("Invite players", () => { location.href = "party.html?game=lots&invite=1"; }));
@@ -361,7 +362,7 @@ function askName() {
 const together = createTogether({
   game: "lots", app: ROOM_APP, toast, askName,
   valid: room.isRoom,
-  fresh: players => room.freshRoom(players, { seed: randomSeed(), level: prefs.level, mode: prefs.duo, app: ROOM_APP }),
+  fresh: players => room.freshRoom(players, { seed: randomSeed(), level: levelNow(), mode: prefs.duo, app: ROOM_APP }),
   onState: val => {
     const fresh = mode !== "duo";
     mode = "duo";
@@ -459,7 +460,7 @@ function duoClear() { if (!G) return; const n = G.n, slot = mySlot(); const loca
 function duoNext(nextMode = G?.mode) {
   if (!G) return;
   const n = G.n;
-  together.act(s => room.nextAt(room.tidy(s), { n, seed: randomSeed(), level: prefs.level, mode: nextMode }));
+  together.act(s => room.nextAt(room.tidy(s), { n, seed: randomSeed(), level: levelNow(), mode: nextMode }));
 }
 // a race in the pair's room: the request is written already said yes to (as a party's host does), and both phones go
 let raceFollowed = 0;
@@ -488,13 +489,12 @@ function duoMenu(body) {
   t.append(line(room.MODES[G.mode].blurb));
   t.append(action("New board", async () => { if (G.done || await sure("Start a new board for both of you?", { yes: "New board" })) duoNext(); }, "primary"),
     action("Race instead", raceInstead), action("Back to solo", () => together.leave(), "link"));
-  part(body, "content").append(levelChoice());
 }
 
 // ---------- a race on one board (duel.js) ----------
 const duel = createDuel({
   game: "lotsrace", name: "Lots", app: RACE_APP, accent: "--lt-in", line: el.sub, toast,
-  deal: () => ({ seed: randomSeed(), level: prefs.level }),
+  deal: () => ({ seed: randomSeed(), level: levelNow() }),
   describe: m => `${LEVEL_NAMES[m.level] || "Medium"}: the same sixteen for everyone; the most points wins (a lot each, and a point for each mistake left once solved), then the quicker`,
   play: (match, { begun, kept }) => {
     mode = "race";
@@ -507,7 +507,7 @@ const duel = createDuel({
     drawRun();
     tell();
   },
-  onLobby: match => { mode = "race"; S = null; if (match?.level) el.level.value = match.level; drawRun(); },
+  onLobby: match => { mode = "race"; S = null; if (match?.level) drawRun(); },
   onLeave: () => {
     mode = "solo";
     const u = new URL(location.href); u.searchParams.delete("race"); history.replaceState(null, "", u);
@@ -524,16 +524,6 @@ function tell() {
 // ---------- wiring ----------
 document.querySelector(".cr-mark").innerHTML = APPS.find(a => a.id === "crates").logo;
 bindSwitcher($("appsBtn"), "crates");
-// the level, a select in the header (hidden on the full screen: the menu mirrors it)
-dropdown(el.level);
-el.level.addEventListener("change", async () => {
-  const v = el.level.value;
-  if (mode === "race") { prefs.level = v; keepPrefs(); if (!(await duel.newMatch())) el.level.value = duel.match?.level || "medium"; return; }
-  prefs.level = v; keepPrefs();
-  if (mode === "duo") { toast(`${LEVEL_NAMES[v]} from the next board`); return; }
-  if (S && S.kind === "random" && S.level === v && !S.done) return;
-  if (await confirmLeave()) newBoard(); else el.level.value = S?.level || "medium";
-});
 el.submit.addEventListener("click", () => {
   if (el.controls.dataset.kind === "end") { if (mode === "race") duel.open(); else if (mode === "duo") duoNext(); else newBoard(); return; }
   submitPicks();
