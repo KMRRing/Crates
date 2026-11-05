@@ -47,3 +47,14 @@ Traps. The tap is read in the board's own coordinates (`edgeAtPoint`, the flat b
 4 November 2026, Korbi: Circuit is renamed Portolan. (Slitherlink was Circuit from earlier the same day; the Nikoli-name rule is in `docs/classics.md`.) The id `slitherlink`, the file names and every saved key (`slitherlink:run`, `:prefs`, `:times`, `:spares`, `:today`, `:sound`) are unchanged, so progress survives. The games screen finds it by portolan, chart, coast, loop, slitherlink and circuit (`AKA` in `games-find.js`). Its logo is a portolan: vellum, compass rose, rhumb lines, an inked coast round green land and a flag (Office: the line version).
 
 **4 November 2026, Korbi: the menu is the minimum it needs to be.** No Size, Level or Clues: size and level are the hidden ramp (`slitherlink:ramp`, up after a solve without a hint; first rung the saved ones). Puzzles are numbers only; shaded ones come only from an old link or a run in progress.
+
+## Twists
+
+5 November 2026, Korbi: "I like all the twists, implement them all including hex view. Agree with the chapters and mixed gauntlet levels. Dujiang can also have 'at least' or 'at most' islands, this is usable for a few of the games."
+
+- **Ranges** ("2+", "≤1") in Bridges' notation; **causeways** (square boards only: the loop crosses itself straight through a marked dot); **hex** (Board in the menu). Hex has no causeways because a honeycomb corner has three edges, and a crossing needs four.
+- A causeway dot is split into an across node and an up-down node with its four edges forced, so the shared loop solver is unchanged (`slitherlink-twist.js`). The even-odd rule still gives land and sea on a self-crossing loop.
+- Hex offers Easy, Medium and Hard on 5, 7 and 9 across (11 costs too much to generate). Clues used on 9 across: 27, 23, 19 of 61 cells; on 7 across: 17, 14, 13 of 37.
+- Ladder (`slitherlink-levels.js`, 28 levels): Harbour charts (plain), Rough soundings (ranges), Causeways, Honeycomb coast, then the mixed gauntlet. Free play takes any twist; today's stays plain. Keys: `slitherlink:camp`, `:lruns`, `:free`, and `:ramp:hex`. `slitherlink:run` is always the puzzle in hand, because `coop-games.js` reads only that key.
+- Old seeds, saves and links are unchanged: plain square puzzles are made by the old code. Links add `b=hex` and `t=ranges`, `tunnels` or both.
+- The chart draws a honeycomb island, causeways as stone bridges over a ford, and bound clues on brass plates.
