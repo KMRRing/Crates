@@ -1,6 +1,6 @@
 # Carrack
 
-A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of nine powers (Hanse towns, Portugal, Venice, the Ottomans; Ming China, Gujarati merchants, Malacca, Ryukyu, the Swahili city-states: at most three of the first four at a table). Eight rounds, each a trading year in one era (1480 to 1497, 1498 to 1516, 1517 to 1539, 1540 to 1564, 1565 to 1589, 1590 to 1611, 1612 to 1631, 1632 to 1650). Every power sets up to three secret orders at once; they are carried out together (pay, move, battle, found and claim, income, the era's events). Files: `carrack-map.js`, `carrack-rules.js`, `carrack-orders.js`, `carrack-bot.js`; `tests/carrack.mjs`, `tests/carrack-balance.mjs`, `tests/carrack-seats.mjs`. The page (`carrack.html`, `.js`, `.css`) and the tile are stage 2 (4 November 2026).
+A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of nine powers (Hanse towns, Portugal, Venice, the Ottomans; Ming China, Gujarati merchants, Malacca, Ryukyu, the Swahili city-states: at most three of the first four at a table). Eight rounds, each a trading year in one era (1480 to 1497, 1498 to 1516, 1517 to 1539, 1540 to 1564, 1565 to 1589, 1590 to 1611, 1612 to 1631, 1632 to 1650). Every power sets up to three secret orders at once; they are carried out together (pay, move, battle, found and claim, income, the era's events). Files: `carrack-map.js`, `carrack-rules.js`, `carrack-orders.js`, `carrack-bot.js`, `carrack-expert.js`, `carrack-coach.js`, `carrack-think.js`, `carrack-worker.js`, `carrack-course.js`; `tests/carrack.mjs`, `tests/carrack-balance.mjs`, `tests/carrack-seats.mjs`, `tests/carrack-coach.mjs`, `tests/carrack-course.mjs`; `tools/carrack-arena.mjs`. The page (`carrack.html`, `.js`, `.css`) and the tile are stage 2 (4 November 2026).
 
 ## Rulings
 
@@ -12,6 +12,18 @@ A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of
 - Cut from the design: "demand terms" after a battle, the Swahili yearly change of alliance, the pirate die in combat, the -1 against the monsoon (a monsoon lane is simply sailed one way a round), a `sell` order, Kongo and Kilwa refusing a contract (there is no contract to refuse).
 
 - 4 November 2026, Korbi: "carrack should have a nice scrollable globe map. I currently can only see the routes, not even land/water behind it." The globe (`carrack-globe.js`, `carrack-board.js`; Chart's camera and Natural Earth land, copied, no modern borders) is the default; the flat schematic stays as Menu, Map, Flat.
+
+- 5 November 2026, Korbi: Carrack should be a deep top-tier strategy game, "very powerful bots and a learning section and a coach with off/hint/check/always". The menu's Coach choice is Off, Hint, Check, Always; Learn is in the play part. His rule that the menu is the minimum stands: nothing else was added.
+
+## The computer players
+
+Easy, Medium and Hard are the greedy planners of `carrack-bot.js` (Medium's one-year value `valueOf`; Hard plays Medium's alternatives one year ahead). Expert (`carrack-expert.js`) is the top of the ramp: it samples the others' orders (each rival's greedy plan and noisy variants), plays its own candidates (greedy, other openings, noisy, shorter) through the real `resolveRound` on shared dice against those samples, then plays the best few a second year, and judges the position by `valueOf` against the strongest rival (`TUNING`). It knows the dated events, not the hazards. It stops at its `budget` (ms). `tools/carrack-arena.mjs` runs self-play (`play`, `balance`); `TUNING` was tuned with it. A regression of the final standing on features of the position, mixed into that value, was tried (5 November 2026) and won 49 to 51 percent against the plain value, so it is not kept.
+
+The page thinks Expert in a worker (`carrack-think.js`, `carrack-worker.js`) as a year begins and holds the computer players' orders until they are in (`hold`); `thought` is keyed by the position, so an old answer never meets a new game. Where the worker is late or absent, `bot()` thinks on the page with a shorter budget.
+
+## The coach
+
+`carrack-coach.js`'s `weigh` runs the Expert's search with the player's own orders added as a candidate, so they are judged on the same sampled replies and dice as its choice; a set within `GAP` standing points of the best is "the same". Hint asks on demand; Check weighs the orders on Send and asks "Send mine / Change them" when they are clearly worse; Always shows its orders at the top of each year. Its "why" is the difference in the average year's end (ports, factors, silver) between the two sets, not a claim about the future.
 
 ## History: corrections to the design, and what is not checked
 
@@ -29,6 +41,8 @@ Recalled, not opened (a reviewer must check): Elmina fort 1482; Almeida at Kilwa
 - Schematic map: x/y keep compass order only (the test checks it); do not "correct" a coordinate toward true scale, the names no longer fit. Labels are placed by `lab`; a new port needs the overlap test re-run.
 - A fleet is also the escort of a caravan: lanes marked `c` carry fleets too.
 - Globe lanes are great circles through `GVIA` (carrack-map.js), the turns that keep a sea lane off land: found by a path search over the 110 m coast, then thinned by hand. A new lane or port needs `tests/carrack-globe.mjs` to pass, which fails for a sea lane across land. The land is coarse (a port may sit a degree from its coast on it); lon/lat are the real places and the engine never reads them.
+- `carrack-course.js`'s scenes are real states and every answer is worked out from the rules by `calc` (or `valid`, the one option the rules accept); `tests/carrack-course.mjs` fails when a lesson's answer is not the rules'. A lesson that states a number states it through a calc.
+- The coach and the bot call `resolveRound` with `hazard: false`, so they look at a year the dice and events of history decide but not at plague, typhoon or the monsoon failing.
 - `tests/carrack.mjs` holds a second rulebook written from this page; if a rule changes, change both.
 
 **4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Powers at the table (2 to 6), Map (Globe or Flat) and the walkthrough. Your power and Computer players are gone: your power is drawn by lot, and the computer players' strength is the hidden ramp (`carrack:ramp`, up a step after a game won, down after one lost; its first step is the level that was saved).

@@ -177,3 +177,30 @@ html[data-theme="office"][data-mode="night"] { --cr-in: #479EF5; }
   #app.carrack .cr-side { grid-column: 2; grid-row: 3; }
 }
 html[data-theme="office"] :is(.cr-act, .cr-chip-btn, .cr-ev, .cr-draft li) { border-radius: 4px; }
+
+/* ---------- the coach, and Learn's map ---------- */
+.cr-coach { margin: .4rem 0; padding: .45rem .6rem; border: 1.5px solid var(--cr-in); border-radius: 4px; background: var(--cr-soft); font-size: .86rem; }
+.cr-coach b { font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--cr-in); font-size: .78rem; }
+.cr-coach ol { margin: .25rem 0 .1rem; padding-left: 1.2rem; }
+.cr-coach .cr-sub { margin: .2rem 0 .4rem; }
+.cr-coach .cr-act { width: auto; }
+dialog.ln-sheet.cr { --ln-in: var(--cr-in); }
+.cl-map { width: 100%; background: var(--cr-sea); border: 1px solid var(--rule); border-radius: 4px; box-sizing: border-box; }
+.cl-map[hidden] { display: none; }
+.cl-map svg { display: block; width: 100%; height: auto; max-height: min(11rem, 24vh); }
+.cl-lane { stroke: color-mix(in srgb, var(--ink) 55%, var(--brass)); stroke-width: 1; opacity: .6; }
+.cl-lane.m { stroke-dasharray: 3.2 2.2; }
+.cl-lane.c { stroke-dasharray: 1 2.4; stroke-linecap: round; stroke-width: 1.3; }
+.cl-days { font: 600 6px/1 system-ui, sans-serif; fill: var(--ink-soft); text-anchor: middle; }
+.cl-port circle:not(.hit) { fill: var(--sheet); stroke: var(--ink); stroke-width: 1; }
+.cl-port .hit { fill: transparent; stroke: none; }
+.cl-port.tap { cursor: pointer; }
+.cl-port.pick circle:not(.hit), .cl-port.hint circle:not(.hit) { stroke: var(--cr-in); stroke-width: 2; }
+.cl-port.good circle:not(.hit) { stroke: #2F7D5B; stroke-width: 2.4; }
+.cl-port.bad circle:not(.hit) { stroke: var(--cr-bad); stroke-width: 2.4; }
+.cl-fort { fill: none; stroke: var(--ink); stroke-width: 1; }
+.cl-name { font: 600 8px/1 system-ui, sans-serif; fill: var(--ink); paint-order: stroke; stroke: var(--cr-sea); stroke-width: 2.4px; stroke-linejoin: round; pointer-events: none; }
+.cl-n { font: 800 6.5px/1 system-ui, sans-serif; fill: var(--cr-chip-ink); pointer-events: none; }
+.cl-dia { stroke: var(--ink); stroke-width: .6; }
+.cl-key { display: flex; flex-wrap: wrap; gap: .1rem .7rem; margin: .25rem .4rem; font-size: .74rem; color: var(--ink-soft); }
+.cl-key i { display: inline-block; width: .6rem; height: .6rem; margin-right: .25rem; vertical-align: -.05rem; border: 1px solid var(--ink-soft); box-sizing: border-box; }

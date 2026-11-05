@@ -13,6 +13,12 @@ import { shuffle } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 import { ramp } from "./ramp.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE, mapStage } from "./carrack-course.js";
+import { botOrders } from "./carrack-bot.js";
+import { verdict } from "./carrack-coach.js";
+import { ask } from "./carrack-think.js";
+import { busy } from "./loading.js";
 import { sure } from "./sure.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -33,7 +39,11 @@ const ERA_TITLES = ["Before the Cape", "The Cape route", "Egypt falls, silver be
 const HARM = new Set(["afonso", "eastafrica", "mita", "banda", "kilwa", "goa", "malacca"]);
 const REGION_NAMES = ["BALTIC", "ATLANTIC", "MEDITERRANEAN", "WEST AFRICA", "SWAHILI COAST", "ARABIAN SEA", "BAY OF BENGAL", "SOUTH CHINA SEA", "JAPAN"];
 
-let opts = { level: "medium", n: 4, mine: "random", ...read(OPTS, {}) };
+// the coach: off; Hint, when you ask; Check, a hint when you ask and a word on your orders before they go if it would set others;
+// Always, its orders at the top of every year
+const COACH = [["off", "Off"], ["hints", "Hint"], ["check", "Check"], ["on", "Always"]];
+let opts = { level: "medium", n: 4, mine: "random", coach: "hints", ...read(OPTS, {}) };
+if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. Your power is drawn by lot, whatever an older save chose.
 // The computer players' strength is the hidden ramp, its first step the old saved choice.
 const OLD_LEVEL = opts.level;
@@ -67,10 +77,39 @@ const ui = { tab: "orders", sel: null, sail: null, to: null, n: 1, draft: [], dr
 let V = null, page = null;
 const randomRounds = seatRounds("carrack");   // random mode's round: a game
 
+// ---------- the Expert computer players ----------
+// They think in the worker (carrack-think.js) as a year begins and the runner holds their orders until they are in; the key
+// is the position they were worked out for, so a game dealt again never finds an old answer. Where the worker is not there
+// in time (a table, a slow phone), the bot() below thinks for a shorter while on this thread.
+const thought = new Map(), asked = new Set();
+const botKey = (s, seat) => JSON.stringify([s.hist.length, seat, s.si, s.own, s.fl[seat]]);
+const gameRules = {
+  ...rules,
+  bot: (s, seat, ctx) => {
+    if (ctx.level !== "expert") return rules.bot(s, seat, ctx);
+    const known = thought.get(botKey(s, seat));
+    return { t: "orders", orders: known || botOrders(s, seat, { level: { level: "expert", budget: 220 }, rng: ctx.rng }) };
+  },
+};
+function thinkAhead(v) {
+  if (!v?.G || v.over || IN_FRAME || levelNow() !== "expert") return;
+  for (const k of rules.toMoveAll(v.state)) {
+    if (!v.seats[k]?.bot) continue;
+    const key = botKey(v.state, k);
+    if (thought.has(key) || asked.has(key)) continue;
+    asked.add(key);
+    ask({ op: "bot", state: v.state, seat: k, seed: (v.G.seed ^ (v.state.round * 7919) ^ (k * 104729)) >>> 0 }).then(orders => {
+      asked.delete(key);
+      if (orders) { if (thought.size > 60) thought.clear(); thought.set(key, orders); }
+      page.runner.kick();
+    });
+  }
+}
+
 page = seatPage({
-  rules, id: "carrack", app: 1, pace: 650, level: () => levelNow(), voice: () => false,
+  rules: gameRules, id: "carrack", app: 1, pace: 650, level: () => levelNow(), voice: () => false, hold: () => asked.size > 0,
   botName: (seat, G) => POWERS[G?.state?.pw?.[seat]]?.name || `Seat ${seat + 1}`,
-  onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
+  onView: v => { V = v; thinkAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const powerName = seat => (V?.state ? POWERS[V.state.pw[seat]]?.name ?? `Seat ${seat + 1}` : `Seat ${seat + 1}`);
 const shortName = seat => SHORT[POWERS[V.state.pw[seat]]?.id] ?? powerName(seat);
@@ -104,6 +143,7 @@ function draw() {
   drawTabs(s);
   drawPanel(s, seat);
   drawBar();
+  setTimeout(coachAlways, 0);
 }
 const saveDraft = () => write(DRAFT, { k: ui.draftKey, orders: ui.draft });
 
@@ -310,6 +350,43 @@ function draftHtml(s, seat, list, sent) {
   return h;
 }
 
+// ---------- the coach ----------
+// The expert planner's weighing of the year (carrack-coach.js), asked in the worker: of the orders you have set so far when
+// you ask for a hint, of the whole of them when you send (Check, Always). It is kept for the year and the orders it was asked of.
+const coach = { key: "", r: null, wait: false };
+const coachKey = (v, draft) => `${v.G.seq}:${v.state.round}:${v.seat}:${JSON.stringify(draft)}`;
+const coaching = () => opts.coach !== "off" && !IN_FRAME;
+async function askCoach(draft) {
+  const v = V, key = coachKey(v, draft);
+  if (coach.wait) return null;
+  coach.wait = true; coach.key = key; coach.r = null;
+  draw();
+  const r = await ask({ op: "weigh", state: v.state, seat: v.seat, draft: draft.length ? draft : null, seed: 1 + v.state.round });
+  coach.wait = false;
+  if (V?.G?.seq === v.G.seq && V.state.round === v.state.round) coach.r = r;
+  draw();
+  return r;
+}
+function coachHtml(s, seat) {
+  if (!coaching()) return "";
+  const mine = V?.G && coach.key.startsWith(`${V.G.seq}:${s.round}:${seat}:`);
+  if (coach.wait) return `<p class="cr-coach"><b>Coach</b> <i class="ld" aria-hidden="true"></i>weighing the year…</p>`;
+  if (mine && coach.r) {
+    const r = coach.r, a = r.after, plain = x => Math.round(x * 10) / 10, count = (x, w) => `${plain(x)} ${plain(x) === 1 ? w : w + "s"}`;
+    return `<div class="cr-coach"><b>Coach</b> <ol>${r.best.map(o => `<li>${esc(orderText(s, o))}</li>`).join("")}</ol>` +
+      `<p class="cr-sub">Against the others' likely orders, a year ends on about ${count(a.ports, "port")}, ${count(a.factors, "factor")} and ${plain(a.silver)} silver.</p>` +
+      `<button type="button" class="cr-act" data-act="coach-use"><span>Use these orders</span></button></div>`;
+  }
+  return `<button type="button" class="cr-act" data-act="coach"><span>Ask the coach</span><small>${ui.draft.length ? "weighs your orders so far" : "what it would set"}</small></button>`;
+}
+// Always: the coach speaks at the top of each year, unasked
+function coachAlways() {
+  const v = V;
+  if (opts.coach !== "on" || !coaching() || !v?.G || v.seat == null || v.over || v.state.pend[v.seat] !== 0 || coach.wait) return;
+  if (coach.key.startsWith(`${v.G.seq}:${v.state.round}:${v.seat}:`)) return;
+  askCoach([]);
+}
+
 function ordersHtml(s, seat) {
   const [a, b] = ERAS[Math.min(s.round, ERAS.length) - 1];
   const busy = seat != null && s.pend[seat] === 0 && (ui.sel != null || ui.sail != null);
@@ -324,6 +401,7 @@ function ordersHtml(s, seat) {
     return h + comingHtml(s);
   }
   h += draftHtml(s, seat, ui.draft, false);
+  h += coachHtml(s, seat);
   h += globalsHtml(s, seat);
   if (ui.draft.length >= MAX_ORDERS) h += `<p class="cr-note">Three orders are set: remove one to change it, or send them.</p>`;
   else if (ui.sail != null) h += sailHtml(s, seat);
@@ -428,6 +506,8 @@ $("panel").addEventListener("click", async e => {
   else if (act === "to") { ui.to = Number(b.dataset.p); ui.n = 1; }
   else if (act === "n") ui.n = Math.max(1, Math.min(CAP, ui.n + Number(b.dataset.d)));
   else if (act === "back") { ui.to = null; }
+  else if (act === "coach") { askCoach(ui.draft.slice()); return; }
+  else if (act === "coach-use") { if (coach.r) { ui.draft = coach.r.best.map(o => ({ ...o })); ui.sail = null; ui.to = null; ui.sel = null; saveDraft(); } }
   draw();
 });
 
@@ -509,6 +589,12 @@ $("bar").addEventListener("click", async e => {
   if (act === "orders") { ui.tab = "orders"; draw(); return; }
   if (act === "send") {
     if (!ui.draft.length && !(await sure("Pass the year with no orders?"))) return;
+    if (ui.draft.length && (opts.coach === "check" || opts.coach === "on") && coaching()) {
+      const end = busy("The coach is weighing your orders");
+      const r = await askCoach(ui.draft.slice());
+      end();
+      if (r && !r.same && !(await sure(verdict(V.state, V.seat, r), { yes: "Send mine", no: "Change them" }))) return;
+    }
     const why = await page.move({ t: "orders", orders: ui.draft.length ? ui.draft : [{ t: "pass" }] });
     if (why) { toast(why); return; }
     ui.draft = []; ui.sel = null; ui.sail = null; ui.to = null;
@@ -632,17 +718,28 @@ function openMenu() {
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("carrack", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Carrack, from the first year", () => course.open()));
   play.append(action("First game: a walkthrough", openWalk, "link"));
   play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Powers at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.n, v => { opts.n = Number(v); saveOpts(); }));
   content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
+  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; coach.key = ""; coach.r = null; saveOpts(); draw(); }));
   set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], mapNow(), v => { look.view = v; saveLook(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
+
+const course = createCourse({
+  id: "carrack", course: COURSE, cls: "cr", inFrame: IN_FRAME, onRules: showRules, stage: mapStage(),
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: start a game when you're back to solo"); return; }
+    newGame();
+  },
+});
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "carrack");
