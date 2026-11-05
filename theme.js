@@ -67,3 +67,58 @@ if (/[?&](?:table|room|party)=/.test(location.search) && !/[?&]frame\b/.test(loc
     root.style.setProperty("--busy-step", JSON.stringify(page === "party" ? "Loading the party" : "Loading the game"));
   })();
 }
+// What went wrong, on the screen (5 November 2026: on Korbi's iPhone many games opened to an empty board and froze, and
+// nothing of it showed in a desktop browser). A script that fails to load or throws is written in a small box at the foot of
+// the page, and kept in suite:fault; a page that never reached its fifth second (frozen, then closed) is named on the next
+// page opened. suite: keys stay on the device. Harmless errors (ResizeObserver's loop notice, a cancelled fetch) are skipped.
+(function () {
+  var KEY = "suite:fault", OPEN = "suite:opening", page = (location.pathname.split("/").pop() || "index.html") + location.search;
+  if (/[?&]frame\b/.test(location.search)) return;                       // a partner's watching frame: its own page says it
+  var box = null;
+  function show(text) {
+    try {
+      if (!document.body) { addEventListener("DOMContentLoaded", function () { show(text); }); return; }
+      if (!box) {
+        box = document.createElement("div");
+        box.setAttribute("role", "alert");
+        box.style.cssText = "position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2147483647;max-height:40vh;overflow:auto;" +
+          "background:#2a1412;color:#f6e7df;border:1px solid #E8806F;border-radius:6px;padding:8px 10px;font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word";
+        box.addEventListener("click", function () { box.remove(); box = null; });
+        document.body.appendChild(box);
+      }
+      box.textContent += (box.textContent ? "\n" : "") + text;
+    } catch (e) { /* nowhere to say it */ }
+  }
+  function keep(text) {
+    try { localStorage.setItem(KEY, JSON.stringify({ page: page, at: Date.now(), text: String(text).slice(0, 600) })); } catch (e) { /* private mode */ }
+    show(text + "  (tap to close)");
+  }
+  var harmless = /ResizeObserver loop|AbortError|The operation was aborted|Load failed$/;
+  addEventListener("error", function (e) {
+    var t = e.target;
+    if (t && t !== window && (t.src || t.href)) {                         // a script, stylesheet or module that didn't load
+      if (t.tagName === "SCRIPT" || (t.tagName === "LINK" && t.rel === "modulepreload")) keep("Didn't load: " + (t.src || t.href).split("/").pop());
+      return;
+    }
+    var msg = e.message || (e.error && e.error.message) || "error";
+    if (harmless.test(msg)) return;
+    keep(msg + (e.filename ? "\n  at " + e.filename.split("/").pop() + ":" + e.lineno + ":" + e.colno : ""));
+  }, true);
+  addEventListener("unhandledrejection", function (e) {
+    var r = e.reason, msg = r && (r.message || String(r)) || "rejected";
+    if (harmless.test(msg)) return;
+    var at = r && r.stack ? String(r.stack).split("\n").filter(function (l) { return /\.js/.test(l); })[0] || "" : "";
+    keep("Unhandled: " + msg + (at ? "\n  at " + at.replace(/^.*\//, "").replace(/\)$/, "") : ""));
+  });
+  try {
+    var was = JSON.parse(localStorage.getItem(OPEN) || "null");
+    if (was && Date.now() - was.at < 864e5) {
+      var f = JSON.parse(localStorage.getItem(KEY) || "null");
+      show("Last time, " + was.page + " never finished opening (frozen?)." + (f && f.page === was.page ? "\nIts error: " + f.text : "") + "  (tap to close)");
+    }
+    localStorage.setItem(OPEN, JSON.stringify({ page: page, at: Date.now() }));
+    var done = function () { try { localStorage.removeItem(OPEN); } catch (e) { /* ignore */ } };
+    setTimeout(done, 5000);
+    addEventListener("pagehide", done);                                  // left in time: not a freeze
+  } catch (e) { /* private mode */ }
+})();
