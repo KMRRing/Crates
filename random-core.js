@@ -104,7 +104,7 @@ export const LEFT_OUT = {
   // the Appendix (Korbi, 3 November 2026: it stays out of Random and of Start a game over): set aside until each leaves for an
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
-  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX,
+  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX, music: APPENDIX,
   odds: "a course of lessons, not a game with rounds",
   maths: "a course of lessons, not a game with rounds",
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
@@ -117,7 +117,6 @@ export const LEFT_OUT = {
   wine: "a course of lessons in order, not a round to repeat",
   trade: "a course of lessons in order, not a round to repeat",
   arthistory: "a course of lessons in order, not a round to repeat",
-  music: "a course of lessons in order, not a round to repeat",
   firmament: "a course of lessons in order, not a round to repeat",
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS

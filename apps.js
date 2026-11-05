@@ -433,7 +433,7 @@ export const APPS = [
   { id: "trade", sec: "courses", name: "History of trade", href: "./trade.html", logo: LOGO("trade", TRADE_LOGO), players: [1, 1] },
   { id: "wine", sec: "courses", name: "Wine", href: "./wine.html", logo: LOGO("wine", WINE_LOGO), players: [1, 1] },
   { id: "firmament", sec: "courses", name: "Firmament", href: "./firmament.html", logo: LOGO("firmament", FIRMAMENT_LOGO), players: [1, 1] },
-  { id: "music", sec: "courses", name: "Music", href: "./music.html", logo: LOGO("music", MUSIC_LOGO), players: [1, 1] },
+  { id: "music", sec: "appendix", name: "Music", href: "./music.html", logo: LOGO("music", MUSIC_LOGO), players: [1, 1] },
   { id: "parley", sec: "courses", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO), players: [1, 1] },
   { id: "odds", sec: "courses", name: "Odds", href: "./odds.html", logo: LOGO("odds", ODDS_LOGO), players: [1, 1] },
   { id: "maths", sec: "courses", name: "Maths", href: "./maths.html", logo: LOGO("maths", MATHS_LOGO), players: [1, 1] },

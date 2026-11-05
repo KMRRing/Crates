@@ -6,4 +6,6 @@ The Appendix stays out of Random and out of Start a game over (Korbi, 3 November
 
 **Hidden** (4 November 2026, Korbi: "make it so appendix and all the apps in it don't appear unless the user is logged in as ?solo=KORBIRUN"): the games screen (tiles, search, stars) leaves the section out unless the device's solo code is `KORBIRUN` and Settings' "Content marked for removal" is Include (Korbi, same evening: with it on Exclude the Appendix is hidden even on that code; `appendixOpen()` in `apps.js`). The pages themselves still open by address.
 
+**Music** (5 November 2026, Korbi: "Put music in appendix", with a course in political theory to come in instead): its tile and its 24 lessons are kept whole and out of sight; the live count is 107 until the new course's tile lands.
+
 **Gone from it** (3 November 2026): Arb (flagged "weak"; what Nexus took from its engine is `kb-things.js`), Brut (retired: wine is learned in Punt's Wine level, 162 cards from `wine-bank.js`, and cards Brut had put on the pile are still asked in Deck as Wine; its blind-tasting flights went with the page and are in git's history; putting the wine in `kb/` is still to do) and Dandan (out of the suite, developed in its own repository, KMRRing/Dandan).
