@@ -13,7 +13,7 @@ import { starAltAz, sunAltAz, sextantReading, sunReading, sunSemidiameter } from
 import { bearing, vec, norm180 } from "./landfall-model.js";
 import { makeView, project, unproject, degPx, pick, drawSky } from "./landfall-skyview.js";
 import * as sx from "./landfall-sextant.js";
-import { fitCamera, ellipsePoints, toWorld, palette, drawChart } from "./landfall-chart.js";
+import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart } from "./landfall-chart.js";
 import { sound } from "./landfall-sound.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
 import { MASTERY, LORE, HOW, HOW_SUN, monthsText } from "./landfall-lore.js";
@@ -22,6 +22,9 @@ import {
   sunTaskWords, sunAlmanac, fmtGmt, fmtSecs,
 } from "./landfall-words.js";
 import { scale, sideways } from "./wide.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
+import { calendar } from "./landfall-sky.js";
+import { windOf } from "./landfall-look.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
@@ -32,10 +35,11 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen", seenSun: "landfall:seen-noon", notes: "landfall:notes" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen", seenSun: "landfall:seen-noon", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
+let stage = null;                                // the 3D deck (landfall-stage.js), or null while the page is flat
 let S = null;                                    // the voyage, with `S.ui` (what the page keeps about it)
 let paused = false;
 let note = "";                                   // a line the last move earned, shown in the task line until the next
@@ -65,7 +69,7 @@ function carryCourse() {
 }
 const capQ = [];                                 // [term, words] waiting to be shown
 let capTimer = 0, capUntil = 0;
-const capBlocked = () => !!sxs || !$("chartBox").offsetParent || !!document.querySelector("dialog[open]") || $("pass").classList.contains("on");
+const capBlocked = () => !!sxs || (!stage && !$("chartBox").offsetParent) || !!document.querySelector("dialog[open]") || $("pass").classList.contains("on");
 /** One caption at a time, in the chart's corner; it waits while the sextant, a sheet or the full sky is up. */
 function pumpCap() {
   clearTimeout(capTimer);
@@ -111,8 +115,9 @@ function begin(levelId) {
 // ---------- the sizes of the canvases ----------
 const box = new Map();                           // canvas -> { w, h, dpr, ctx }
 const dirty = { sky: true, chart: true };
+const fixedSize = new Map();                     // a canvas that is not on the page (the chart on the 3D table): its size is its own
 function fit(cv) {
-  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  const f = fixedSize.get(cv), r = f || cv.getBoundingClientRect(), dpr = f ? f.dpr : Math.min(2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
   let b = box.get(cv);
   if (!b || b.w !== w || b.h !== h || b.dpr !== dpr) {
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
@@ -124,7 +129,8 @@ function fit(cv) {
   b.ctx.setTransform(b.dpr, 0, 0, b.dpr, 0, 0);
   return b;
 }
-const skyCv = $("skyCv"), chartCv = $("chartCv"), scopeCv = $("scopeCv");
+const skyCv = $("skyCv"), flatChart = $("chartCv"), scopeCv = $("scopeCv");
+let chartCv = flatChart;                         // the page's chart canvas, or in 3D the one laid on the table
 
 // ---------- the sky ----------
 const view = { az: 0, alt: 40, fov: 80 };        // the window held upright: the north, from the horizon to near the zenith
@@ -243,9 +249,9 @@ function setFull(on) {
   dirty.sky = true; dirty.chart = true; wake();
   requestAnimationFrame(() => { dirty.sky = true; wake(); });
 }
-$("zoomIn").addEventListener("click", () => { free.fov = clamp(free.fov / 1.35, 24, 140); dirty.sky = true; wake(); });
-$("zoomOut").addEventListener("click", () => { free.fov = clamp(free.fov * 1.35, 24, 140); dirty.sky = true; wake(); });
-$("northBtn").addEventListener("click", () => { free.az = 0; free.alt = 40; free.fov = 100; dirty.sky = true; wake(); });
+$("zoomIn").addEventListener("click", () => { if (stage) return stage.zoom(1 / 1.35); free.fov = clamp(free.fov / 1.35, 24, 140); dirty.sky = true; wake(); });
+$("zoomOut").addEventListener("click", () => { if (stage) return stage.zoom(1.35); free.fov = clamp(free.fov * 1.35, 24, 140); dirty.sky = true; wake(); });
+$("northBtn").addEventListener("click", () => { if (stage) return stage.resetNorth(); free.az = 0; free.alt = 40; free.fov = 100; dirty.sky = true; wake(); });
 // the pull handle: a tap opens or closes the whole sky, and so does a drag on it
 {
   let y0 = null, dragged = false;
@@ -294,7 +300,7 @@ const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 function drawChartNow(now) {
   const b = fit(chartCv);
   if (!S || !cam) return;
-  const L = levelOf(S), sc = { L, cam, pal, k: scale(), trail: S.trail, E: S.E, P: S.P, ghost: null, lop: null, dividers: null, steer: null, end: null };
+  const L = levelOf(S), sc = { L, cam, pal, k: stage ? 1.1 * Math.max(1, scale() * 0.9) : scale(), trail: S.trail, E: S.E, P: S.P, ghost: null, lop: null, dividers: null, steer: null, end: null };
   if (S.phase === "ritual") sc.dividers = { from: S.E, course: S.leg.course, d: S.ui.d };
   if (S.phase === "steer" || (reveal && S.phase !== "end")) {
     const p = S.watch.plot;
@@ -314,22 +320,27 @@ function drawChartNow(now) {
   }
   drawChart(b.ctx, b.w, b.h, sc);
   dirty.chart = false;
+  if (stage) {                                   // the dividers and the parallel rules are things on the table, standing on the chart
+    const P = p => toScreen(cam, b.w, b.h, p);
+    if (S.phase === "ritual") { const v = vec(S.leg.course); stage.setDividers({ a: P(S.E), b: P([S.E[0] + v[0] * S.ui.d, S.E[1] + v[1] * S.ui.d]) }); } else stage.setDividers(null);
+    stage.setRules(S.phase === "steer" && !reveal ? { course: S.ui.course, at: P(S.E) } : null);
+  }
 }
 
 // the chart answers a finger in two phases: the dividers are set along the course, the course to steer is pointed at
-const worldAt = e => { const r = chartCv.getBoundingClientRect(), b = box.get(chartCv); return toWorld(cam, b.w, b.h, e.clientX - r.left, e.clientY - r.top); };
+const worldAt = (x, y) => { const b = box.get(chartCv); return toWorld(cam, b.w, b.h, x, y); };
 let chartDrag = false;
-chartCv.addEventListener("pointerdown", e => {
+const canChart = () => !IN_FRAME && !!S && !!cam && !paused && !reveal && (S.phase === "ritual" || S.phase === "steer");
+flatChart.addEventListener("pointerdown", e => {
   sound.unlock();
-  if (IN_FRAME || !S || !cam || paused || reveal) return;
-  if (S.phase !== "ritual" && S.phase !== "steer") return;
-  chartDrag = true; chartCv.setPointerCapture(e.pointerId); chartPoint(e);
+  if (!canChart()) return;
+  chartDrag = true; flatChart.setPointerCapture(e.pointerId); const r = flatChart.getBoundingClientRect(); chartPoint(e.clientX - r.left, e.clientY - r.top);
 });
-chartCv.addEventListener("pointermove", e => { if (chartDrag) chartPoint(e); });
-chartCv.addEventListener("pointerup", () => { chartDrag = false; });
-chartCv.addEventListener("pointercancel", () => { chartDrag = false; });
-function chartPoint(e) {
-  const p = worldAt(e);
+flatChart.addEventListener("pointermove", e => { if (chartDrag) { const r = flatChart.getBoundingClientRect(); chartPoint(e.clientX - r.left, e.clientY - r.top); } });
+flatChart.addEventListener("pointerup", () => { chartDrag = false; });
+flatChart.addEventListener("pointercancel", () => { chartDrag = false; });
+function chartPoint(x, y) {
+  const p = worldAt(x, y);
   if (S.phase === "ritual") {
     const v = vec(S.leg.course);
     setDividers((p[0] - S.E[0]) * v[0] + (p[1] - S.E[1]) * v[1]);
@@ -424,6 +435,12 @@ function arrive(prev) {
   if (S.phase !== "sight") closeScope();
   if (!reveal) retarget();
   dirty.sky = dirty.chart = true;
+  if (stage) lookFor(prev);
+}
+/** In 3D the head goes where the work is: down to the table for the dividers and the course, up to the sky to find a star. */
+function lookFor(prev) {
+  if (S.phase === "ritual" || S.phase === "steer" || S.phase === "end") stage.lookTable();
+  else if (S.phase === "find" && prev !== "sight" && prev !== "book") stage.lookSky(isDay() ? skyData().sun.az : 0, isDay() ? 32 : 40);
 }
 function startReveal() {
   const p = S.watch.plot;
@@ -463,7 +480,7 @@ function waitUntil(jd) { ff = Math.max(ff, (jd - sceneJd(S)) * 1440 - 0.01); wak
 
 // ---------- the sextant ----------
 let sxs = null;                                  // { st, exact, truth, t0, pid, lastY, fine, A }
-function openScope() {
+function openScope(instant = false) {
   ff = 0;
   learn(...(isDay() ? ["raise:sun", "raise"] : ["raise"]));
   const W = S.watch, est = estPlace(S), jd = sceneJd(S), day = isDay(), locked = day && W.stage === "afternoon";
@@ -475,8 +492,11 @@ function openScope() {
   const truth = sextantTruth(S), st = sx.newSextant(r0);
   st.lens = sx.lensFor(truth - r0, 0);
   sxs = { st, exact: r0, truth, t0: performance.now(), pid: null, lastY: 0, fine: false, A: sightNoise(S, bodyOf(S)).swell, day, locked, stage: W.stage, sd: day ? sunSemidiameter(jd) : 0, cloud: false };
-  $("scope").hidden = false;
   $("scope").dataset.stage = day ? W.stage : "star";
+  if (stage) {                                   // the sextant is lifted to the eye and the head turns to the body; then the eyepiece opens
+    const d = skyData(), t = day ? d.sun : d.stars.find(x => x.hr === W.picked) || { az: 0, alt: 40 };
+    stage.raise(t.az, t.alt, instant).then(() => { if (sxs) $("scope").hidden = false; wake(); });
+  } else $("scope").hidden = false;
   $("readTxt").textContent = sx.formatReading(st.reading);
   sound.hush(true);
   refreshScope();
@@ -485,6 +505,7 @@ function openScope() {
 function closeScope() {
   if (!sxs && $("scope").hidden) return;
   sxs = null; $("scope").hidden = true; sound.hush(false);
+  stage?.lower();
 }
 function refreshScope() {
   if (!sxs) return;
@@ -544,8 +565,8 @@ $("lowerBtn").addEventListener("click", () => { go({ t: "lower" }); });
 $("readBtn").addEventListener("click", () => { if (sxs?.st.marks.length) go({ t: "read", marks: sxs.st.marks.slice() }); });
 
 function drawScopeNow(now) {
+  if (!sxs || $("scope").hidden) return;                // not on the screen yet: the sextant is still being lifted to the eye
   const b = fit(scopeCv);
-  if (!sxs) return;
   const sec = (now - sxs.t0) / 1000, sw = swellAt(S, sec), st = sxs.st;
   st.flash = Math.max(0, st.flash - 0.07);
   if (sxs.day) {
@@ -858,6 +879,7 @@ function openMenu() {
   part(body, "content").append(choice("Voyage", LEVELS.map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), S.level, v => { $("menuDlg").close(); startLevel(v); }));
   const set = part(body, "settings");
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
+  set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   set.append(choice("Help", [["-1", "Fuller"], ["0", "As set"], ["1", "Thinner"]], String(helpShift()), v => { write(KEY.help, Number(v)); renderAll(); }));
   const about = part(body, "about");
   about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"));
@@ -867,6 +889,109 @@ function openMenu() {
 }
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+
+// ---------- the deck in 3D ----------
+const reducedMotion = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
+let worldKey = "", dialSec = -1, deskH = 0;
+/** What the scene is told every frame: the sky as the true ship sees it, the weather, the ship's heading and what is picked. */
+function pushWorld(now) {
+  const d = skyData(), h = help(), W = S.watch, L = levelOf(S), wx = W.weather, sc = stage.scene.S, sun = d.sun;
+  const picked = W.picked, name = picked > 0 ? starLabel(BY_HR.get(picked)) : "", fig = h?.figure ? FIGS[h.figure] : null;
+  const key = `${d.key}|${S.ui.lamp}|${picked}|${h?.ring ?? ""}|${h?.figure ?? ""}|${S.phase}`;
+  const clouds = cloudsNow(S);
+  Object.assign(sc, {
+    headingTo: S.leg ? S.leg.course : 0, sunAlt: sun.alt, sunAz: sun.az, limMag: d.lim, lamp: !!S.ui.lamp || isDay(), day: isDay(), stars: d.stars, clouds,
+    weather: wx, swell: L.swell * (wx === "swell" ? 2 : wx === "storm" ? 2.4 : 1), storm: wx === "storm" ? 1 : 0, picked, pickedName: name, figure: fig, ring: h?.ring ?? null,
+    sunHidden: isDay() && lookSun(S).cloud,
+  });
+  const c = calendar(sceneJd(S)), sec = c.h * 3600 + c.mi * 60 + c.s;
+  if (sec !== dialSec) { dialSec = sec; sc.gmt = `${c.h}:${c.mi}:${c.s}`; }
+  if (key !== worldKey) { worldKey = key; stage.refreshSky(); }
+  if (clouds.length || sc._clouds) { stage.setClouds(); sc._clouds = clouds.length; }
+}
+let lastRoll = 0, rollDir = 0, weatherSent = -1;
+/** The sea's sound follows the deck: the weather sets the wind, and each extreme of the roll may bring a creak. */
+function soundOfSea() {
+  const sc = stage.scene.S, w = windOf(sc.swell, sc.weather);
+  if (Math.abs(w - weatherSent) > 0.02) { weatherSent = w; sound.weather(w); }
+  const r = stage.scene.motion.roll, dir = Math.sign(r - lastRoll);
+  if (dir && rollDir && dir !== rollDir) sound.roll(Math.abs(lastRoll));
+  if (dir) rollDir = dir;
+  lastRoll = r;
+}
+const stageHooks = {
+  reduced: reducedMotion,
+  unlock: () => sound.unlock(),
+  bottom: () => $("desk").offsetHeight,
+  canChart, canPick: () => !!S && S.phase === "find" && !paused && !IN_FRAME && !isDay(),
+  stars: () => skyData().stars.filter(t => t.vis),
+  pick: s => choose(s.hr),
+  tapEmpty: () => { if (S && S.phase === "find") { note = ""; renderText(); } },
+  chart(kind, x, y) {
+    if (kind === "up") { chartDrag = false; return; }
+    if (kind === "down") { sound.unlock(); if (!canChart()) return; chartDrag = true; }
+    if (chartDrag && canChart()) chartPoint(x, y);
+  },
+  chartResized(c) { fixedSize.set(c.canvas, { width: c.w, height: c.h, dpr: c.dpr }); chartCv = c.canvas; box.delete(chartCv); retarget(); dirty.chart = true; },
+  drawChart: () => drawChartNow(performance.now()),
+  prop(id) {
+    if (!S || paused || IN_FRAME) return;
+    if (id === "log") openLog();
+    else if (id === "sextant") { if (moves(S).includes("raise") && !reveal) go({ t: "raise" }); }
+    else if (id === "lamp" && !isDay() && S.phase !== "sight") { S.ui.lamp = !S.ui.lamp; renderAll(); }
+    else if (id === "chrono") { note = `The chronometer reads ${fmtGmt(sceneJd(S))} GMT, the time at Greenwich.`; renderText(); }
+  },
+};
+const lookLabel = () => {
+  const dh = $("desk").offsetHeight; if (dh && dh !== deskH) { deskH = dh; $("app").style.setProperty("--lf-desk", `${dh}px`); }
+  const b = $("lookBtn"), down = stage?.isDown(), t = down ? "Sky" : "Chart"; if (b.textContent !== t) { b.textContent = t; b.setAttribute("aria-label", down ? "Look up at the sky" : "Look down at the chart table"); } };
+/** Moves the page's loose parts between the flat window and the 3D stage. */
+function dress(on) {
+  const st = $("stage");
+  for (const id of ["hud", "skyNote", "skyBar", "lookBtn", "slate", "cap"]) { const n = $(id); if (!n) continue; if (on) st.append(n); else (id === "slate" || id === "cap" ? $("chartBox") : id === "lookBtn" ? st : $("windowBox")).append(n); }
+  $("app").classList.toggle("lf-3d", on); $("app").classList.toggle("over", on);
+  st.hidden = !on;
+  if (on && full) setFull(false);
+}
+let viewBusy = false;
+/** Where the sextant is raised to: the picked star, or the sun, as the true sky has it. */
+const sightTarget = () => { const d = skyData(), W = S.watch; return isDay() ? d.sun : d.stars.find(x => x.hr === W.picked) || { az: 0, alt: 40 }; };
+/** Goes to the 3D deck, or back to the flat window. Returns whether 3D is up. */
+async function setView(v, remember = true) {
+  if (viewBusy) return !!stage;
+  const want = v === "3d";
+  if (want === !!stage) { if (remember) write(KEY.view, v); return !!stage; }
+  viewBusy = true;
+  try {
+    if (want) {
+      let made = null;
+      try { made = (await import("./landfall-stage.js")).createStage($("stageGl"), stageHooks); } catch (e) { made = null; console.warn("Landfall: no 3D here, staying flat", e); }
+      if (!made) return false;
+      stage = made;
+      dress(true);
+      lookLabel();
+      requestAnimationFrame(() => {
+        stage.resize();
+        if (sxs) { const t = sightTarget(); stage.raise(t.az, t.alt, true); }
+        else if (S.phase === "ritual" || S.phase === "steer" || S.phase === "end") { stage.look.pitch = -78; stage.look.az = 0; }
+        else { stage.look.pitch = 40; stage.look.az = isDay() ? skyData().sun.az : 0; }
+        dirty.chart = true; wake();
+      });
+    } else {
+      const old = stage;
+      stage = null;
+      dress(false);
+      chartCv = flatChart; box.delete(chartCv);
+      old.dispose();
+      retarget();
+    }
+    if (remember) write(KEY.view, v);
+    dirty.sky = dirty.chart = true; wake();
+  } finally { viewBusy = false; }
+  return !!stage;
+}
+$("lookBtn").addEventListener("click", () => { sound.unlock(); stage?.toggleLook(); wake(); });
+onDefaultChange(is3D => { if (read(KEY.view, null) == null) setView(is3D ? "3d" : "flat", false); });
 
 // ---------- the frame loop: draws only while something moves ----------
 let raf = 0, lastT = 0, lastPersist = 0, lastSky = 0, lastText = 0;
@@ -886,10 +1011,17 @@ function frame(now) {
     if (u > 2.4) { reveal = null; retarget(); renderAll(); }
   }
   if (sxs) { more = true; drawScopeNow(now); }
-  const skyLive = S.phase === "find" || full || (sideways() && S.phase === "find");
-  if (dirty.sky || (skyLive && now - lastSky > 45)) { drawSkyNow(now); lastSky = now; }
-  if (skyLive) more = true;
-  if (dirty.chart) drawChartNow(now);
+  if (stage) {                                   // the deck: drawn every frame, for the sea and the ship are never still
+    pushWorld(now); lookLabel(); soundOfSea();
+    if (dirty.chart) { stage.chartChanged(); dirty.chart = false; }
+    stage.tick(now);
+    more = true;
+  } else {
+    const skyLive = S.phase === "find" || full || (sideways() && S.phase === "find");
+    if (dirty.sky || (skyLive && now - lastSky > 45)) { drawSkyNow(now); lastSky = now; }
+    if (skyLive) more = true;
+    if (dirty.chart) drawChartNow(now);
+  }
   if (S.phase === "find" && now - lastText > 500) { lastText = now; renderText(); }          // the ship's time, the bell and the star's height
   if ((S.phase === "find" || sxs) && now - lastPersist > 3000) { lastPersist = now; persist(); }
   if (more) raf = requestAnimationFrame(frame);
@@ -930,7 +1062,8 @@ sound.setMuted(!read(KEY.sound, true));
 }
 fitTop();
 renderAll();
-if (S.phase === "sight") openScope();
+if (!IN_FRAME && wants3D(read(KEY.view, null), "3d")) setView("3d", false);
+if (S.phase === "sight") openScope(true);
 else if (S.phase === "book") openBook();
 else if (S.phase === "end") showEnd();
 if (!IN_FRAME) { sound.bed(S.phase !== "end"); sound.day(isDay() && S.phase !== "end"); if (!read(KEY.seen, 0)) openHelp(); }
@@ -938,6 +1071,7 @@ wake();
 
 // for tests and debugging
 window.__landfall = {
+  get stage() { return stage; }, setView,
   get S() { return S; }, set S(v) { S = v; S.ui = { ...freshUi(), ...(S.ui || {}) }; retarget(); renderAll(); },
   get sxs() { return sxs; }, get view() { return full ? free : view; }, get cam() { return cam; }, get reveal() { return reveal; },
   go, begin, choose, setFull, openScope, closeScope, openMenu, openCodex, openNotes, learn, openAlmanac, openLog, openHelp, openBook, showEnd, renderAll, setDividers, setCourse,

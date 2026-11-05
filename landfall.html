@@ -24,9 +24,14 @@
     <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
 
+  <section id="stage" class="lf-stage" aria-label="The deck" hidden>
+    <div id="stageGl" class="lf-gl-host"></div>
+    <button type="button" id="lookBtn" class="lf-look" aria-label="Look down at the chart table">Chart</button>
+  </section>
+
   <section id="windowBox" class="lf-window" aria-label="The window onto the sky">
     <canvas id="skyCv" class="lf-sky"></canvas>
-    <div class="lf-hud"><span id="watchTxt" title="Which twilight or noon this is"></span><span id="clockTxt" title="Ship's time at the longitude you reckon; by day the chronometer's Greenwich time (GMT) beside it"></span></div>
+    <div id="hud" class="lf-hud"><span id="watchTxt" title="Which twilight or noon this is"></span><span id="clockTxt" title="Ship's time at the longitude you reckon; by day the chronometer's Greenwich time (GMT) beside it"></span></div>
     <p id="skyNote" class="lf-note" aria-live="polite"></p>
     <div id="skyBar" class="lf-skybar">
       <button type="button" id="zoomOut" class="lf-round" aria-label="Wider">−</button>

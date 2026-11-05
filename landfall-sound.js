@@ -6,7 +6,7 @@
 // Nothing is made until a tap has unlocked audio, nothing plays while the menu is open or the page is hidden (pause), and with
 // the sound off no audio context is ever made. Two gains sit in front of the speakers: `master`, and `bedGain` for the bed alone.
 let ctx = null, master = null, bedGain = null, bedNodes = null, noiseBuf = null;
-let muted = true, paused = false, bedOn = false, hushed = false, creakTimer = 0, dayOn = false, gullTimer = 0;
+let muted = true, paused = false, bedOn = false, hushed = false, creakTimer = 0, dayOn = false, gullTimer = 0, windLevel = 0.3, lastRollSound = 0;
 const BED_LEVEL = 0.9;
 
 function audio() {
@@ -58,9 +58,19 @@ function startBed() {
   const wind = loop(c, { type: "bandpass", freq: 620, q: 0.8, gain: 0.07 }), hull = loop(c, { type: "bandpass", freq: 1900, q: 3, gain: 0.012 });
   const osc = [wobble(c, water.g.gain, 0.12, 0.18), wobble(c, slosh.g.gain, 0.19, 0.2), wobble(c, wind.g.gain, 0.06, 0.05), wobble(c, wind.g.gain, 0.21, 0.025), wobble(c, hull.g.gain, 0.33, 0.01)];
   for (const n of [water, slosh, wind, hull]) n.g.connect(bedGain);
-  bedNodes = { srcs: [water.src, slosh.src, wind.src, hull.src], osc };
+  bedNodes = { srcs: [water.src, slosh.src, wind.src, hull.src], osc, wind, water, hull };
+  setWeather();
   bedGain.gain.setTargetAtTime(hushed ? 0.05 : BED_LEVEL, c.currentTime, 1.4);
   scheduleCreak();
+}
+/** The wind in the rigging and the water along the hull follow the weather: a breath, a fresh wind, a gale (0 to 1). */
+function setWeather() {
+  if (!ctx || !bedNodes) return;
+  const t = ctx.currentTime, w = windLevel;
+  bedNodes.wind.g.gain.setTargetAtTime(0.03 + 0.2 * w * w + 0.04 * w, t, 1.5);
+  bedNodes.wind.src.playbackRate.setTargetAtTime(0.9 + 0.5 * w, t, 1.5);
+  bedNodes.water.g.gain.setTargetAtTime(0.4 + 0.45 * w, t, 1.5);
+  bedNodes.hull.g.gain.setTargetAtTime(0.012 + 0.03 * w, t, 1.5);
 }
 function stopBed() {
   clearTimeout(creakTimer);
@@ -84,7 +94,7 @@ function creak() {
 }
 function scheduleCreak() {
   clearTimeout(creakTimer);
-  creakTimer = setTimeout(() => { creak(); if (bedNodes) scheduleCreak(); }, 6500 + Math.random() * 9000);
+  creakTimer = setTimeout(() => { creak(); if (bedNodes) scheduleCreak(); }, (6500 + Math.random() * 9000) * (1.15 - 0.7 * windLevel));
 }
 
 /** A gull, now and then, by day: a few falling cries, high and thin, never while the sextant is up. */
@@ -124,6 +134,19 @@ function stroke(c, t, level = 1) {
 
 export const sound = {
   get muted() { return muted; },
+  /** The weather's strength, 0 to 1 (landfall-look.js `windOf`): louder wind, a busier hull. */
+  weather(w) { windLevel = Math.max(0, Math.min(1, w)); setWeather(); },
+  /** The ship has rolled to an extreme of `deg` degrees: a timber answers now and then, a wave slaps the hull. At most one every few seconds. */
+  roll(deg) {
+    const c = audio();
+    if (!c || !bedNodes || paused || hushed) return;
+    const now = c.currentTime;
+    if (now - lastRollSound < 2.4 || Math.random() > Math.min(0.55, 0.12 + deg * 0.18)) return;
+    lastRollSound = now;
+    if (Math.random() < 0.5) creak();
+    else burst(c, now, { freq: 240 + Math.random() * 180, q: 0.9, gain: 0.05 + 0.025 * windLevel, dur: 0.5 + Math.random() * 0.5, type: "lowpass" });
+    if (windLevel > 0.55 && Math.random() < 0.6) burst(c, now + 0.05, { freq: 3400, q: 0.7, gain: 0.025, dur: 0.35, type: "highpass" });
+  },
   /** Call from a tap: makes (or wakes) the audio context and starts the bed if it was asked for. */
   unlock() { if (muted) return; const c = audio(); if (c && bedOn && !bedNodes && !paused) startBed(); },
   setMuted(m) {
