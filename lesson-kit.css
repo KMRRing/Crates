@@ -1,0 +1,105 @@
+/* The interaction kit (lesson-kit.js) and its figures (lesson-figs.js) on a course's stage. Colours are the suite's tokens and the sheet's --ln-in / --ln-ok / --ln-no, so the three looks
+   (Codex day, Codex night, Office) follow by themselves. Touch targets are 2.75rem; sizes are rem. An SVG's own text sizes are the drawing's units. */
+.lk { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: .45rem; align-content: start; min-width: 0; max-height: 100cqh; overflow-y: auto; overscroll-behavior: contain; padding: .1rem .05rem; }
+.lk-plain { align-content: center; }
+.lk-fig { min-height: 0; display: grid; place-items: center; }
+.lk-fig svg { width: 100%; height: auto; max-height: 38cqh; display: block; }
+.lk-fig.tap svg { max-height: 46cqh; }
+.lk-check { position: absolute; top: 0; right: 0; padding: .05rem .35rem; border-radius: 3px; font-size: .62rem; font-weight: 800; letter-spacing: calc(.08em * var(--track, 1)); text-transform: uppercase;
+  background: color-mix(in srgb, var(--c0) 30%, var(--sheet)); color: var(--ink); pointer-events: none; }
+
+/* two columns of chips: pairs, places and cards, items and boxes */
+.lk-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .45rem; align-items: start; }
+.lk-col, .lk-opts { display: grid; gap: .35rem; min-width: 0; }
+.lk-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.lk-chip { display: flex; align-items: center; gap: .4rem; min-width: 0; min-height: 2.75rem; padding: .3rem .5rem; text-align: left; border: 1.5px solid var(--tile-edge); border-radius: 6px;
+  background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem; line-height: 1.22; cursor: pointer; }
+.lk-chips .lk-chip { flex: 0 1 auto; }
+.lk-opts .lk-chip { font-size: .86rem; }
+.lk-chip > span { min-width: 0; overflow-wrap: anywhere; }
+.lk-chip.slot { background: color-mix(in srgb, var(--ln-in) 5%, var(--sheet)); border-style: dashed; }
+.lk-chip.slot.on, .lk-chip.slot.ok { border-style: solid; }
+.lk-chip.on { border-color: var(--ln-in); background: color-mix(in srgb, var(--ln-in) 12%, var(--tile)); }
+.lk-chip.sel { border-color: var(--ln-in); box-shadow: 0 0 0 2px var(--ln-in); }
+.lk-chip.seen:not(.sel) { color: var(--ink-soft); }
+.lk-chip.ok { border-color: var(--ln-ok); background: color-mix(in srgb, var(--ln-ok) 14%, var(--tile)); color: var(--ink); }
+.lk-chip.no { border-color: var(--ln-no); background: color-mix(in srgb, var(--ln-no) 13%, var(--tile)); }
+.lk-chip:disabled { cursor: default; opacity: 1; }
+.lk-n { flex: none; display: grid; place-items: center; width: 1.45rem; height: 1.45rem; border-radius: 50%; border: 1px solid var(--brass); font-style: normal; font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lk-chip.on .lk-n, .lk-chip.sel .lk-n { background: var(--ln-in); border-color: var(--ln-in); color: var(--sheet); }
+.lk-chip.ok .lk-n { background: var(--ln-ok); border-color: var(--ln-ok); color: var(--sheet); }
+
+.lk-tools { display: flex; justify-content: flex-end; }
+.lk-tool { min-height: 2.75rem; min-width: 5rem; padding: 0 .9rem; border: 0; border-radius: 4px; background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.lk-tool:disabled { opacity: .4; cursor: default; }
+
+/* boxes to sort into */
+.lk-bin { display: grid; gap: .25rem; align-content: start; min-height: 5rem; padding: .4rem .5rem; text-align: left; border: 1.5px dashed var(--brass); border-radius: 6px; background: color-mix(in srgb, var(--ln-in) 5%, var(--sheet)); color: var(--ink); font: inherit; cursor: pointer; }
+.lk-bin.live { border-color: var(--ln-in); }
+.lk-bin b { font-size: .74rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track, 1)); color: var(--ln-in); }
+.lk-bin em { font-style: normal; font-size: .76rem; line-height: 1.2; padding: .15rem .3rem; border-radius: 3px; background: color-mix(in srgb, var(--ln-ok) 14%, var(--tile)); }
+
+/* true or false */
+.lk-tfl { display: grid; gap: .4rem; }
+.lk-tfr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; padding: .3rem .5rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.lk-tfr.ok { border-color: var(--ln-ok); } .lk-tfr.no { border-color: var(--ln-no); }
+.lk-tfr p { margin: 0; font-size: .82rem; line-height: 1.25; }
+.lk-tfs { display: flex; gap: .3rem; }
+.lk-tfb { min-width: 3.4rem; min-height: 2.75rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.lk-tfb.ok { border-color: var(--ln-ok); background: color-mix(in srgb, var(--ln-ok) 18%, var(--sheet)); }
+.lk-tfb.no { border-color: var(--ln-no); background: color-mix(in srgb, var(--ln-no) 16%, var(--sheet)); }
+.lk-tfb:disabled { cursor: default; opacity: 1; }
+
+/* the readout under a figure or a set of chips */
+.lk-panel { min-height: 3.4rem; padding: .4rem .6rem; border-radius: 6px; border: 1px solid var(--tile-edge); background: color-mix(in srgb, var(--ln-in) 7%, var(--sheet)); font-size: .84rem; line-height: 1.35; }
+.lk-panel b { color: var(--ln-in); }
+.lk-panel.t-ok { background: color-mix(in srgb, var(--ln-ok) 14%, var(--sheet)); }
+.lk-panel.t-no { background: color-mix(in srgb, var(--ln-no) 13%, var(--sheet)); }
+.lk-note { margin: 0; min-height: 1.1rem; font-size: .76rem; line-height: 1.3; color: var(--ink-soft); }
+.lk-note.no { color: var(--ln-no); }
+.lk-actor { margin: 0; font-size: .8rem; font-style: italic; color: var(--ink-soft); }
+.chip.tog, .lk-chip.tog { min-width: 5rem; }
+
+/* the slider */
+.lk-slide { display: grid; gap: .1rem; font-size: .82rem; }
+.lk-slide input[type=range] { width: 100%; height: 2.75rem; margin: 0; accent-color: var(--ln-in); background: transparent; cursor: pointer; }
+
+/* figures */
+.lf { color: var(--ink); }
+.lf-t { fill: var(--ink); font-family: inherit; }
+.lf-t.lf-tick, .lf-t.lf-el, .lf-t.lf-v { fill: var(--ink-soft); }
+.lf-t.lf-yr { font-weight: 800; fill: var(--ln-in, var(--brass)); }
+.lf-node rect { fill: var(--tile); stroke: var(--brass); stroke-width: 1.3; }
+.lf-node.t-a rect { fill: color-mix(in srgb, var(--c0) 26%, var(--tile)); } .lf-node.t-b rect { fill: color-mix(in srgb, var(--c1) 26%, var(--tile)); }
+.lf-node.t-c rect { fill: color-mix(in srgb, var(--c2) 26%, var(--tile)); } .lf-node.t-d rect { fill: color-mix(in srgb, var(--c3) 26%, var(--tile)); }
+.lf-node.t-ok rect { fill: color-mix(in srgb, var(--ln-ok, #2F7D5B) 22%, var(--tile)); } .lf-node.t-no rect { fill: color-mix(in srgb, var(--ln-no, #A8382B) 20%, var(--tile)); }
+.lf-node[data-node] { cursor: pointer; }
+.lf-hit { fill: transparent; stroke: none; }
+.lf-node[data-node]:focus-visible rect { stroke: var(--ln-in); stroke-width: 2.4; outline: 0; }
+.lf-node.seen rect { stroke: var(--ln-ok, #2F7D5B); } .lf-node.sel rect { stroke: var(--ln-in); stroke-width: 2.6; }
+.lf-node.empty rect { fill: color-mix(in srgb, var(--ln-in) 6%, var(--sheet)); stroke-dasharray: 4 3; } .lf-node.empty text { fill: var(--ink-soft); }
+.lf-node.put rect { stroke: var(--ln-ok, #2F7D5B); } .lf-node.bad rect { stroke: var(--ln-no, #A8382B); stroke-width: 2.6; }
+.lf-node.off, .lf-edge.off { opacity: .22; }
+.lf-edge line { stroke: var(--ink-soft); stroke-width: 1.3; } .lf-head { fill: var(--ink-soft); }
+.lf-axis, .lf-stem { stroke: var(--ink-soft); stroke-width: 1.3; fill: none; }
+.lf-dot { fill: var(--ln-in, var(--brass)); stroke: var(--ink); stroke-width: 1; }
+.lf-dot.t-a, .lf-seat.t-a, .lf-lg.t-a { fill: var(--c0); } .lf-dot.t-b, .lf-seat.t-b, .lf-lg.t-b { fill: var(--c1); } .lf-dot.t-c, .lf-seat.t-c, .lf-lg.t-c { fill: var(--c2); } .lf-dot.t-d, .lf-seat.t-d, .lf-lg.t-d { fill: var(--c3); }
+.lf-band { fill: color-mix(in srgb, var(--brass) 22%, var(--sheet)); stroke: var(--brass); stroke-width: .8; }
+.lf-band.t-a { fill: color-mix(in srgb, var(--c0) 30%, var(--sheet)); } .lf-band.t-b { fill: color-mix(in srgb, var(--c1) 30%, var(--sheet)); } .lf-band.t-c { fill: color-mix(in srgb, var(--c2) 30%, var(--sheet)); }
+.lf-band.t-ok { fill: color-mix(in srgb, var(--ln-ok, #2F7D5B) 28%, var(--sheet)); } .lf-band.t-no { fill: color-mix(in srgb, var(--ln-no, #A8382B) 26%, var(--sheet)); }
+.lf-mark { stroke: var(--ink); stroke-width: 1.4; } .lf-pin { fill: var(--ln-in, var(--brass)); stroke: var(--ink); stroke-width: 1; }
+.lf-bar { fill: color-mix(in srgb, var(--ln-in, var(--brass)) 60%, var(--sheet)); stroke: var(--ink-soft); stroke-width: .6; }
+.lf-bar.t-a, .lf-layer.t-a { fill: color-mix(in srgb, var(--c0) 55%, var(--sheet)); } .lf-bar.t-b, .lf-layer.t-b { fill: color-mix(in srgb, var(--c1) 55%, var(--sheet)); }
+.lf-bar.t-c, .lf-layer.t-c { fill: color-mix(in srgb, var(--c2) 55%, var(--sheet)); } .lf-bar.t-d, .lf-layer.t-d { fill: color-mix(in srgb, var(--c3) 55%, var(--sheet)); }
+.lf-bar.t-ok { fill: var(--ln-ok, #2F7D5B); } .lf-bar.t-no { fill: var(--ln-no, #A8382B); }
+.lf-layer { fill: color-mix(in srgb, var(--brass) 28%, var(--sheet)); stroke: var(--brass); stroke-width: 1.2; }
+.lf-seat { fill: var(--brass); stroke: var(--ink-soft); stroke-width: .4; }
+.lf-lg { font-weight: 700; }
+
+html[data-theme="office"] :is(.lk-chip, .lk-tfr, .lk-panel, .lk-bin, .lk-tfb) { border-radius: 4px; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .lk-chip { font-size: .95rem; min-height: 3rem; }
+  .lk-tfr p, .lk-panel { font-size: .98rem; }
+  .lk-note { font-size: .86rem; }
+  .lk-fig svg { max-height: 52cqh; }
+}
