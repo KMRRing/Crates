@@ -53,6 +53,7 @@ html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8
 .brg-zoom[hidden], .brg-card.is-model .brg-zoom { display: none; }
 .brg-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
 .brg-paper { fill: var(--brg-tile); stroke: var(--tile-edge); stroke-width: .03; }
+.brg-hexpaper { stroke-linejoin: round; }      /* the hex board's sea is a hexagon */
 /* a link a bridge could go on: a faint dashed guide; its bridges over it, one line or two */
 .brg-guide { stroke: var(--brg-guide); stroke-width: .035; stroke-dasharray: .09 .13; stroke-linecap: round; }
 .brg-b { stroke: var(--brg-in); stroke-width: .075; stroke-linecap: round; visibility: hidden; }

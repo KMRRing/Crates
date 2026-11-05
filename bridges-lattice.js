@@ -55,6 +55,7 @@ export function straitLine(size, hex, fam, gap, reach = 0.25) {
   const span = fam === 0 ? [Math.max(-R, -R - t), Math.min(R, R - t)] : fam === 1 ? [Math.max(-R, -R - t), Math.min(R, R - t)] : [Math.max(-R, t - R), Math.min(R, t + R)];
   const at = u => (fam === 0 ? [u, t] : fam === 1 ? [t, u] : [t - u, u]);
   const ends = span.map(u => { const [q, s] = at(u); return [q + s / 2 + R + 0.5, (s + R) * H + 0.5]; });
+  if (fam === 2) ends.reverse();                                 // the slants' numbers sit at their lower ends, so no two families crowd one corner
   // cut a little past the outermost points, so it reads as a line across the sea
   const [a, b] = ends, dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
   return [[a[0] - ux * reach, a[1] - uy * reach], [b[0] + ux * reach, b[1] + uy * reach]];

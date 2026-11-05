@@ -97,10 +97,10 @@ export const seedOf = i => 9001 + 7919 * i;
 /** The puzzle of level i (0 on), from a seed (default: the level's own): the engine's { size, grid, sol, level, … }, null if none came. */
 export function levelPuzzle(i, seed = seedOf(i)) {
   const L = LEVELS[i];
-  return generate(seed, L.size, L.level, L.twist);
+  return generate(seed, L.size, L.level, L.twist, L.shape);
 }
-/** The kind a level asks the generator for. */
-export const kindOf = i => ({ size: LEVELS[i].size, level: LEVELS[i].level, twist: LEVELS[i].twist });
+/** The kind a level asks the generator for (a hex level says so). */
+export const kindOf = i => ({ size: LEVELS[i].size, level: LEVELS[i].level, twist: LEVELS[i].twist, ...(LEVELS[i].shape ? { shape: LEVELS[i].shape } : {}) });
 
 // ---------- the ladder before 3 November 2026 ----------
 /** The number of levels there were before the ladder was reordered, and the version of the save that came with it. */
@@ -128,9 +128,10 @@ export function migrate(camp, runs = {}) {
 export const PAR_PER_ISLAND = 4;
 export const PAR_BASE = 8;
 const HARDER = { easy: 1, medium: 1.35, hard: 1.7 };
+const HEX_SLOWER = 1.3;            // an island on the hex board has up to six links to weigh: more to read for each number
 const islandsOf = grid => { let n = 0; for (const ch of grid) if (ch !== ".") n++; return n; };
 /** The par of a puzzle in seconds: a score at or under it is three stars, within twice it two. */
-export const parOf = p => Math.round(PAR_BASE + PAR_PER_ISLAND * islandsOf(p.grid) * (HARDER[p.level] ?? 1));
+export const parOf = p => Math.round(PAR_BASE + PAR_PER_ISLAND * islandsOf(p.grid) * (HARDER[p.level] ?? 1) * (p.shape === "hex" ? HEX_SLOWER : 1));
 /** Stars for a score on a puzzle: 1, 2 or 3. */
 export function starsFor(p, score) {
   const par = parOf(p);

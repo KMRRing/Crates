@@ -4,7 +4,8 @@
 // This file keeps the run, the clock and the taps, and draws the board. Two ways to play: Levels (bridges-levels.js: a ladder
 // of puzzles in chapters, each bringing a twist, with stars, each kept as it was left, as Topple's are) and Free play (a size,
 // a difficulty and a twist, a random puzzle or today's).
-import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, crossings, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn, flagsOf } from "./bridges-engine.js";
+import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, crossings, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn, flagsOf, moreOf } from "./bridges-engine.js";
+import { H, xyOf, boxOf, radiusOf, straitLine } from "./bridges-lattice.js";
 import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, kindOf, parOf, starsFor, migrate } from "./bridges-levels.js";
 import { playable as valid, fromPuzzle, scoreOf as scoreFor, HINT } from "./bridges-run.js";
 import { createDuel } from "./duel.js";
@@ -45,11 +46,15 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 const twistName = t => twistOn(t).split("+").filter(x => TWISTS[x]).map(x => TWISTS[x]).join(" + ");
 const hasTwist = t => !!t && twistOn(t) !== "none";
-const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}${hasTwist(k.twist) ? ` · ${twistName(k.twist)}` : ""}`;
-const kindKey = k => `${k.size}:${k.level}${hasTwist(k.twist) ? `:${twistOn(k.twist)}` : ""}`;
+const sizeText = k => (k.shape === "hex" ? `Hex ${k.size}` : `${k.size}×${k.size}`);
+const kindText = k => `${sizeText(k)} · ${LEVELS[k.level]}${hasTwist(k.twist) ? ` · ${twistName(k.twist)}` : ""}`;
+const kindKey = k => `${k.shape === "hex" ? "hex:" : ""}${k.size}:${k.level}${hasTwist(k.twist) ? `:${twistOn(k.twist)}` : ""}`;
+/** A run's kind, for its text and its best: the level it came to, not the one asked. */
+const kindOfRun = s => ({ size: s.size, level: s.came || s.level, twist: s.twist, shape: s.shape });
 
 // ---------- what you chose ----------
-const prefs = { size: 9, level: "easy", twist: "none", ...read(PREFS, {}) };
+const prefs = { size: 9, level: "easy", twist: "none", shape: "square", ...read(PREFS, {}) };
+if (prefs.shape !== "hex") prefs.shape = "square";
 if (!SIZES.includes(prefs.size)) prefs.size = 9;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 if (!TWISTS[prefs.twist]) prefs.twist = "none";
@@ -64,10 +69,12 @@ const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const OLD = { size: prefs.size, level: prefs.level };
 prefs.twist = "none";
 const RUNGS = rungs(SIZES, Object.keys(LEVELS), (n, l) => levelOn(n, l) === l);
+// The hex board has a ramp of its own (bridges:ramp:hex), over the same sizes and levels (docs/bridges.md, "The hex board").
 const chosenKind = () => {
-  const { size, level } = split(ramp("bridges", RUNGS, { start: startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level) }));
+  const hex = prefs.shape === "hex", start = startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level);
+  const { size, level } = split(hex ? ramp("bridges", RUNGS, { id: "hex", start }) : ramp("bridges", RUNGS, { start }));
   prefs.size = Number(size); prefs.level = level;
-  return { size: prefs.size, level, twist: "none" };
+  return hex ? { size: prefs.size, level, twist: "none", shape: "hex" } : { size: prefs.size, level, twist: "none" };
 };
 
 // ---------- making puzzles ----------
@@ -76,18 +83,18 @@ const chosenKind = () => {
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
 function make(seed, k) {
-  if (workerless) return Promise.resolve(generate(seed, k.size, k.level, k.twist));
+  if (workerless) return Promise.resolve(generate(seed, k.size, k.level, k.twist, k.shape));
   try {
     worker ||= new Worker(new URL("./bridges-worker.js", import.meta.url), { type: "module" });
     worker.onmessage = e => { waiting.get(e.data.id)?.resolve(e.data.puzzle); waiting.delete(e.data.id); };
     worker.onerror = () => {
       workerless = true; worker = null;
-      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.level, w.k.twist));
+      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.level, w.k.twist, w.k.shape));
       waiting.clear();
     };
-  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.level, k.twist)); }
+  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.level, k.twist, k.shape)); }
   const id = ++asked;
-  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, level: k.level, twist: k.twist }); });
+  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, level: k.level, twist: k.twist, shape: k.shape }); });
 }
 const SPARE_KINDS = 6;                 // spares kept for the kinds played most lately
 function takeSpare(k) {
@@ -185,7 +192,7 @@ function introOf(n) {
 }
 
 /** The engine's puzzle for a run. */
-const puzzleFor = s => puzzleOf(s.size, s.grid, s.sol, s.kinds || "", s.realms || "", s.hills || "", s.roads || "", { straits: s.straits || "", tree: flagsOf(s.twist).tree });
+const puzzleFor = s => puzzleOf(s.size, s.grid, s.sol, s.kinds || "", s.realms || "", s.hills || "", s.roads || "", moreOf(s));
 /** Puts a puzzle on the board. */
 function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
@@ -196,6 +203,7 @@ function begin(s) {
     if (isLevel(S)) camp.at = S.lv;                            // a link's level is the one in hand now
     if (!IN_FRAME) { write(TRACK, track); if (isLevel(S)) write(CAMP, camp); history.replaceState(null, "", hashOf(S)); }
   }
+  fitView();
   drawBoard();
   save();
   clockRun();
@@ -276,14 +284,14 @@ const scoreOf = ms => scoreFor(ms, S?.hints || 0);
 // ---------- bests ----------
 // Kept in bridges:times by size and level, lowest first, not bridges:best (the games screen reads a best as
 // highest-is-best); the games screen's figure is today's time (noteDayTime, bridges:today).
-const bestOf = s => read(TIMES, {})[kindKey({ size: s.size, level: s.came || s.level, twist: s.twist })];
+const bestOf = s => read(TIMES, {})[kindKey(kindOfRun(s))];
 function recordBest(sc) {
-  const times = read(TIMES, {}), k = kindKey({ size: S.size, level: S.came || S.level, twist: S.twist }), fresh = times[k] == null || sc < times[k];
+  const times = read(TIMES, {}), k = kindKey(kindOfRun(S)), fresh = times[k] == null || sc < times[k];
   if (fresh) { times[k] = sc; write(TIMES, times); }
   return fresh;
 }
 /** The puzzle as the stars see it: its islands and the difficulty it graded to. */
-const forStars = () => ({ grid: S.grid, level: S.came || S.level });
+const forStars = () => ({ grid: S.grid, level: S.came || S.level, shape: S.shape });
 /** Writes a solved level's stars (the best it has had); true if this solve improved on them. */
 function recordLevel(sc) {
   const n = S.lv, stars = starsFor(forStars(), sc), fresh = stars > camp.stars[n];
@@ -400,7 +408,7 @@ function finish() {
     return;
   }
   S.fresh = isLevel(S) ? recordLevel(S.done.score) : recordBest(S.done.score);
-  if (S.mode === "random") { chosenKind(); ramp.won(!S.hints); }
+  if (S.mode === "random" && (S.shape === "hex") === (prefs.shape === "hex")) { chosenKind(); ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("bridges", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
   roundOver("bridges");
@@ -414,7 +422,9 @@ const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, t
 /** The numbers are set a hundred times larger and scaled back down, centred by an explicit offset: Safari lays out text
  *  under a unit tall badly (as Cull's and Delta's are). */
 const TEXT_SCALE = 100;
-let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [];
+let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [], hexPaper = "";
+/** Where island i is on the chart (the square board's cell middle, or the hex lattice point). */
+const centre = i => { const o = P.lay.isl[i]; return xyOf(P.size, P.lay.hex, o.r, o.c); };
 let realmed = false;                // the puzzle has two realms: blue and orange islands (docs/bridges.md, "The two realms' language")
 let box = null, view = { z: 1, cx: 0, cy: 0 };     // the chart's zoom (bridges-zoom.js): the whole board's viewBox, and the part of it in view
 /** What the marks break now, in words (bridges-engine.js's whatBreaks), for the line under the board. */
@@ -422,18 +432,36 @@ let trouble = "";
 const MARGIN = 0.78;                // room a strait's badge takes at the board's left or top edge, in cells
 const BADGE = 0.31;                 // its radius
 function drawBoard() {
-  const { size, lay } = P, pad = 0.3, at = i => [lay.isl[i].c + 0.5, lay.isl[i].r + 0.5];
+  const { size, lay } = P, hex = lay.hex, pad = 0.3, at = centre;
   realmed = lay.isl.some(o => o.realm);
-  const x0 = lay.groups.some(g => !g.across) ? -(pad / 2 + MARGIN) : -pad, y0 = lay.groups.some(g => g.across) ? -(pad / 2 + MARGIN) : -pad;      // a strait's number sits in the margin, so the margin grows only for one that has it
-  box = { x: x0, y: y0, w: size + pad - x0, h: size + pad - y0 };
+  let x0 = 0, y0 = 0;
+  if (hex) {
+    // a hexagon of paper round the hexagon of points: a margin of 3/4 of a unit, and room for a strait's number where it has straits
+    const R = radiusOf(size), [w, h] = boxOf(size, true), rho = R + (lay.groups.length ? 1.3 : 0.75);
+    box = { x: w / 2 - rho - pad / 2, y: h / 2 - rho * H - pad / 2, w: 2 * rho + pad, h: 2 * rho * H + pad };
+    hexPaper = Array.from({ length: 6 }, (_, k) => `${(w / 2 + rho * Math.cos((Math.PI / 3) * k)).toFixed(3)},${(h / 2 + rho * Math.sin((Math.PI / 3) * k)).toFixed(3)}`).join(" ");
+  } else {
+    x0 = lay.groups.some(g => !g.across) ? -(pad / 2 + MARGIN) : -pad; y0 = lay.groups.some(g => g.across) ? -(pad / 2 + MARGIN) : -pad;      // a strait's number sits in the margin, so the margin grows only for one that has it
+    box = { x: x0, y: y0, w: size + pad - x0, h: size + pad - y0 };
+  }
   view = { z: 1, cx: box.x + box.w / 2, cy: box.y + box.h / 2 };       // a new puzzle is shown whole
   fingers.clear(); grip = null; lastTap = null; cancelPress();
-  svg = svgEl("svg", { viewBox: `${box.x} ${box.y} ${box.w} ${box.h}`, role: "img", "aria-label": `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: the board. Tap a link between two islands to build a bridge. Pinch to zoom.`, class: "brg-svg" });
-  svgEl("rect", { x: x0 + pad / 2, y: y0 + pad / 2, width: size + pad / 2 - (x0 + pad / 2), height: size + pad / 2 - (y0 + pad / 2), rx: 0.12, class: "brg-paper" }, svg);
+  svg = svgEl("svg", { viewBox: `${box.x} ${box.y} ${box.w} ${box.h}`, role: "img", "aria-label": `${kindText(kindOfRun(S))}: the board. Tap a link between two islands to build a bridge. Pinch to zoom.`, class: "brg-svg" });
+  if (hex) svgEl("polygon", { points: hexPaper, class: "brg-paper brg-hexpaper" }, svg);
+  else svgEl("rect", { x: x0 + pad / 2, y: y0 + pad / 2, width: size + pad / 2 - (x0 + pad / 2), height: size + pad / 2 - (y0 + pad / 2), rx: 0.12, class: "brg-paper" }, svg);
   straitEls = lay.groups.map(g => {                                              // straits: a dashed line across the sea, its number in the margin
-    const k = g.gap + 1, e = svgEl("g", { class: "brg-strait" }, svg), mid = (g.across ? y0 : x0) + pad / 2 + MARGIN / 2;
-    const [bx, by] = g.across ? [k, mid] : [mid, k], end = size + pad / 2 - 0.04;
-    svgEl("line", g.across ? { x1: k, y1: mid + BADGE, x2: k, y2: end, class: "brg-sline" } : { x1: mid + BADGE, y1: k, x2: end, y2: k, class: "brg-sline" }, e);
+    const e = svgEl("g", { class: "brg-strait" }, svg);
+    let bx, by;
+    if (hex) {
+      // the line runs between two lines of the lattice; its number sits beyond the end it starts from
+      const [[ax, ay], [ex, ey]] = straitLine(size, true, g.fam, g.gap, 0.55), len = Math.hypot(ex - ax, ey - ay), ux = (ex - ax) / len, uy = (ey - ay) / len;
+      [bx, by] = [ax - ux * BADGE, ay - uy * BADGE];
+      svgEl("line", { x1: ax, y1: ay, x2: ex, y2: ey, class: "brg-sline" }, e);
+    } else {
+      const k = g.gap + 1, mid = (g.across ? y0 : x0) + pad / 2 + MARGIN / 2, end = size + pad / 2 - 0.04;
+      [bx, by] = g.across ? [k, mid] : [mid, k];
+      svgEl("line", g.across ? { x1: k, y1: mid + BADGE, x2: k, y2: end, class: "brg-sline" } : { x1: mid + BADGE, y1: k, x2: end, y2: k, class: "brg-sline" }, e);
+    }
     svgEl("circle", { cx: bx, cy: by, r: BADGE, class: "brg-sbadge" }, e);
     const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-snum", "font-size": 0.42 * TEXT_SCALE, transform: `translate(${bx} ${by}) scale(${1 / TEXT_SCALE})` }, e);
     t.textContent = String(g.mx);
@@ -443,8 +471,9 @@ function drawBoard() {
   // low links first, then the viaducts over them: a viaduct is cased in the paper's colour, so a low bridge under it seems to pass beneath
   linkEls = [];
   [...lay.links.keys()].sort((a, b) => lay.links[a].high - lay.links[b].high).forEach(i => {
-    const l = lay.links[i], { x1, y1, x2, y2 } = seg[i], g = svgEl("g", { class: "brg-l" }, svg), off = d => (l.vertical ? { dx: d, dy: 0 } : { dx: 0, dy: d });
-    const line = (d, cls) => { const { dx, dy } = off(d); svgEl("line", { x1: x1 + dx, y1: y1 + dy, x2: x2 + dx, y2: y2 + dy, class: cls }, g); };
+    const l = lay.links[i], { x1, y1, x2, y2 } = seg[i], g = svgEl("g", { class: "brg-l" }, svg);
+    const len = Math.hypot(x2 - x1, y2 - y1), tx = (x2 - x1) / len, ty = (y2 - y1) / len, nx = -ty, ny = tx;     // along the link and across it (lanes and wedges lie across)
+    const line = (d, cls) => svgEl("line", { x1: x1 + nx * d, y1: y1 + ny * d, x2: x2 + nx * d, y2: y2 + ny * d, class: cls }, g);
     // a road's width is drawn in the road: a wide one is a bed with three lanes, a narrow one is pinched by a wedge each side of its middle, an ordinary one is a single line as ever
     if (l.cap === 3) { line(0, "brg-bed"); for (const d of [-0.14, 0, 0.14]) line(d, "brg-guide"); } else line(0, "brg-guide");
     if (l.high) { line(0, "brg-case"); line(0, "brg-piers"); }
@@ -452,7 +481,7 @@ function drawBoard() {
     for (const s of [-1, 1]) line(s * 0.09, "brg-b brg-two");
     if (l.cap === 3) for (const d of [-0.14, 0, 0.14]) line(d, "brg-b brg-three");
     if (l.cap === 1) {                                              // a narrow road is pinched: a wedge from each side points at the middle of it
-      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, pt = (u, v) => (l.vertical ? `${mx + v},${my + u}` : `${mx + u},${my + v}`);
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, pt = (u, v) => `${(mx + tx * u + nx * v).toFixed(4)},${(my + ty * u + ny * v).toFixed(4)}`;
       for (const s of [-1, 1]) svgEl("polygon", { points: [pt(-0.2, s * 0.38), pt(0.2, s * 0.38), pt(0, s * 0.1)].join(" "), class: "brg-post" }, g);
     }
     linkEls[i] = { g, d: Math.round((x1 + y1) * 40) };
@@ -543,6 +572,12 @@ function wave() {
 
 // ---------- 3D: the same board as a relief with ships, played the same way (bridges-3d.js, loaded when first asked for) ----------
 let model = null, modelFor = null;
+const HEX_3D = false;               // the 3D view draws the hex board (set when bridges-3d.js can)
+/** A board the model can't draw is shown as the chart, and the player's own choice comes back with the next board. */
+function fitView() {
+  const wanted = wants3D(prefs.view, "model") ? "model" : "chart", target = P.lay.hex && !HEX_3D ? "chart" : wanted;
+  if (target !== viewShown) setView(target, false);
+}
 /** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges, a hint's link glows. */
 function feedModel(br) {
   if (!model || viewShown !== "model" || !S || !P) return;
@@ -552,6 +587,7 @@ function feedModel(br) {
 }
 /** Chart (2D) or model (3D; `prefs.view` keeps "chart" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
 async function setView(v, remember = true) {
+  if (v === "model" && P?.lay.hex && !HEX_3D) { toast("The hex board is a chart for now."); v = "chart"; remember = false; }
   if (v === "model" && !model) {
     try {
       model = (await import("./bridges-3d.js")).createModel($("model"), {
@@ -644,7 +680,7 @@ function linkAt(ev) {
   for (let l = 0; l < seg.length; l++) {
     const { x1, y1, x2, y2 } = seg[l];
     if (Math.hypot(pt.x - x1, pt.y - y1) < DISC + 0.04 || Math.hypot(pt.x - x2, pt.y - y2) < DISC + 0.04) continue;   // on an island
-    const cx = Math.min(Math.max(pt.x, Math.min(x1, x2)), Math.max(x1, x2)), cy = Math.min(Math.max(pt.y, Math.min(y1, y2)), Math.max(y1, y2));
+    const dx = x2 - x1, dy = y2 - y1, along = Math.min(1, Math.max(0, ((pt.x - x1) * dx + (pt.y - y1) * dy) / (dx * dx + dy * dy))), cx = x1 + dx * along, cy = y1 + dy * along;     // the nearest point of the link
     // a link no bridge can go on (another crosses it) loses a tie where two meet, so the tap lands on the one that can be built
     // a finger on a viaduct's casing means the viaduct, not the low bridge that seems to pass under it
     const d = P.lay.links[l].high ? Math.max(0, (pt.x - cx) ** 2 + (pt.y - cy) ** 2 - CASE * CASE) - 1e-6 + (S.marks[l] === "0" && crossed(P, S.marks, l) ? 0.05 : 0)
@@ -658,7 +694,7 @@ function islandAt(ev) {
   const pt = toCells(ev);
   if (!pt) return -1;
   let best = -1, d = DISC + 0.04;
-  P.lay.isl.forEach((o, i) => { const e = Math.hypot(pt.x - (o.c + 0.5), pt.y - (o.r + 0.5)); if (e < d) { d = e; best = i; } });
+  P.lay.isl.forEach((o, i) => { const [x, y] = centre(i), e = Math.hypot(pt.x - x, pt.y - y); if (e < d) { d = e; best = i; } });
   return best;
 }
 function down(ev) {
@@ -739,7 +775,7 @@ function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", isLevel(S) ? `Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}`);
+  put("kind", isLevel(S) ? `Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText(kindOfRun(S))}`);
 }
 function drawLine() {
   const l = $("line");
@@ -804,6 +840,7 @@ function render() {
   chrome();
   const off = !S || !!S.done || IN_FRAME;
   for (const b of [$("undoBtn"), $("redoBtn"), $("hintBtn")]) b.disabled = off;
+  $("viewBtn").disabled = !!P?.lay.hex && !HEX_3D;
   if (S && !off) { $("undoBtn").disabled = !S.undo.length; $("redoBtn").disabled = !S.redo.length; }
   if (!S) $("board").replaceChildren();
   drawStrip(); drawLine(); drawResult();
@@ -828,6 +865,8 @@ function showRules() {
     <h4>Playing</h4>
     <p>Tap the dotted line between two islands to build a bridge, again to make it double, again to clear it; hold a link, or right-click it, to clear it at once. A bridge can't be built across another. The puzzle is solved the moment exactly its answer is built. Undo and Redo step through your marks, and the menu clears the board.</p>
     <p>A broken rule shows at once, the line under the board saying which: an island with too many bridges in oxblood, a group that has all its bridges while other islands are left out ringed, a ring of bridges where there may be none. That comes from the rules, never the answer. An island turns blue once it has its number. Hint (+${HINT}&nbsp;s) puts a wrong bridge right first; otherwise it makes the next step a person would take and says why, the link it settled in gilt and the island that says so ringed.</p>
+    <h4>The hex board</h4>
+    <p>In Free play the Board can be Hex: the islands stand on a triangular lattice, a hexagon of points. A bridge runs along any of the three lines through an island (the row and the two slants), so an island has up to six neighbours and a number can reach 12; two bridges still can't cross, which can only happen at a lattice point. Every twist below works there as on the square board; a strait is a dashed line between two lines of the lattice, and may run along any of the three directions.</p>
     <h4>Twists</h4>
     <p><b>Ranges.</b> Some numbers are only a bound: <b>4+</b> is at least four bridges, <b>≤3</b> at most three. The rest of the rules hold, and the puzzle still has one answer.</p>
     <p><b>Two realms.</b> Two colours of island. A bridge joins two islands of one colour; an island of the other colour in the way stops a link as any island does. Each colour must be one network of its own.</p>
@@ -868,7 +907,7 @@ function levelList() {
       if (n === camp.at && track === "levels") b.setAttribute("aria-current", "true");
       b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${b.disabled ? ", not open yet" : ""}`);
       map.className = "brg-lmap";
-      map.innerHTML = miniature(L.size, L.twist, seedOf(n));
+      map.innerHTML = miniature(L.size, L.twist, seedOf(n), L.shape);
       row.className = "brg-lrow";
       num.textContent = n + 1;
       stars.textContent = isOpen(n) ? STAR.repeat(won) + HOLLOW.repeat(3 - won) : "";
@@ -876,7 +915,7 @@ function levelList() {
       name.className = "brg-lname";
       name.textContent = L.name;
       size.className = "brg-lsize";
-      size.textContent = `${L.size}×${L.size} · ${LEVELS[L.level]}`;
+      size.textContent = `${sizeText(L)} · ${LEVELS[L.level]}`;
       b.append(map, row, name, size);
       b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
       grid.append(b);
@@ -897,7 +936,7 @@ function openMenu() {
     together.append(line(`Co-op with ${coop.otherName}: one board for you both. If you both change one link at once, the later change stands.`));
     if (coop.board?.layers?.split != null) together.append(toggle("Split numbers", splitting, setSplit));
     together.append(action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
-    part(body, "about").append(line(S ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${S.done ? "solved" : "not solved yet"}.` : "Join the islands."));
+    part(body, "about").append(line(S ? `${kindText(kindOfRun(S))}: ${S.done ? "solved" : "not solved yet"}.` : "Join the islands."));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -906,7 +945,7 @@ function openMenu() {
     play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
     duel.menu(part(body, "together"));
     const content = part(body, "content");
-    if (m) content.append(line(`This match: ${nameOf(m)}, ${m.size}×${m.size}${hasTwist(m.twist) ? ` · ${twistName(m.twist)}` : ""}.`));
+    if (m) content.append(line(`This match: ${nameOf(m)}${hasTwist(m.twist) ? ` · ${twistName(m.twist)}` : ""}.`));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -916,6 +955,7 @@ function openMenu() {
   play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"));
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
+  if (!levels) content.append(choice("Board", [["square", "Square"], ["hex", "Hex"]], prefs.shape, v => { prefs.shape = v; savePrefs(); $("menuDlg").close(); confirmStart("random"); }));
   if (levels) content.append(levelList());
   todayPart(body, { app: "bridges", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   const about = part(body, "about");
@@ -924,7 +964,7 @@ function openMenu() {
     about.append(line(`${solved} of ${COUNT} levels solved, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}. Three stars within the par, two within twice it.`));
   } else {
     const best = S && !isLevel(S) ? bestOf(S) : null;
-    about.append(line(S && !isLevel(S) ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Join the islands."));
+    about.append(line(S && !isLevel(S) ? `${kindText(kindOfRun(S))}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Join the islands."));
   }
   about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -955,7 +995,7 @@ async function copyLink() {
 }
 
 // ---------- links: #s=SEED&n=9&l=medium&t=ranges (#d= for a day's; t only with a twist), #lv=LEVEL&s=SEED for a level's ----------
-const hashOf = s => (isLevel(s) ? `#lv=${s.lv}&s=${s.seed}` : `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${hasTwist(s.twist) ? `&t=${twistOn(s.twist)}` : ""}`);
+const hashOf = s => (isLevel(s) ? `#lv=${s.lv}&s=${s.seed}` : `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${hasTwist(s.twist) ? `&t=${twistOn(s.twist)}` : ""}${s.shape === "hex" ? "&b=hex" : ""}`);
 function linked() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
@@ -964,7 +1004,9 @@ function linked() {
     return Number.isInteger(lv) && lv >= 0 && lv < COUNT && isOpen(lv) ? { seed, mode: "level", lv, k: kindOf(lv) } : null;
   }
   const size = SIZES.includes(Number(h.get("n"))) ? Number(h.get("n")) : 9;
-  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium"), twist: h.get("d") ? "none" : twistOn(h.get("t") || "none") } };
+  const k = { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium"), twist: h.get("d") ? "none" : twistOn(h.get("t") || "none") };
+  if (h.get("b") === "hex" && !h.get("d")) k.shape = "hex";
+  return { seed, mode: h.get("d") ? "daily" : "random", k };
 }
 async function openLinked(l) {
   const done = busy("Making the puzzle", { delay: 250 });
@@ -972,7 +1014,7 @@ async function openLinked(l) {
   try { puzzle = await make(l.seed, l.k); } finally { done(); }
   if (puzzle) begin(fromPuzzle(l.mode, l.seed, l.k, puzzle, isLevel(l) ? { lv: l.lv } : {}));
 }
-const sameBlock = (a, l) => !!a && a.seed === l.seed && a.mode === l.mode && (isLevel(l) ? a.lv === l.lv : a.size === l.k.size);
+const sameBlock = (a, l) => !!a && a.seed === l.seed && a.mode === l.mode && (isLevel(l) ? a.lv === l.lv : a.size === l.k.size && (a.shape === "hex") === (l.k.shape === "hex"));
 
 // ---------- together: a race (duel.js) ----------
 // Everyone at the table gets the same puzzle and plays it on their own phone; the lowest score wins, which is the solo score
@@ -1035,7 +1077,7 @@ function ringOn(i, slot, soft) {
   if (!at || !host) return;
   const old = rings.get(i);
   if (old) { clearTimeout(old.timer); old.g.remove(); }
-  const x = at.c + 0.5, y = at.r + 0.5, r = DISC + 0.16, g = svgEl("g", { class: `brg-ping${soft ? " soft" : ""}` }, host);
+  const [x, y] = centre(i), r = DISC + 0.16, g = svgEl("g", { class: `brg-ping${soft ? " soft" : ""}` }, host);
   g.style.setProperty("--pinger", `var(--p${slot})`);
   svgEl("circle", { cx: x, cy: y, r, class: "brg-ping-glow" }, g);
   svgEl("circle", { cx: x, cy: y, r, class: "brg-ping-ring" }, g);
@@ -1075,6 +1117,7 @@ function showBoard(board, info) {
   if (info.fresh || !S) {                                       // a board not drawn before: its puzzle on the screen
     S = { undo: [], redo: [], ms: 0, lit: null, ...run };
     P = puzzleFor(S);
+    fitView();
     message = null; sentDone = false;
     mask = halves(S);
     setHidden(board);
@@ -1094,7 +1137,7 @@ function showBoard(board, info) {
 async function coopAnother() {
   if (!coop || !S) return;
   if (started() && !(await sure("Start a new puzzle for both of you? This one isn't solved.", { yes: "New puzzle" }))) return;
-  const k = { size: S.size, level: S.level, twist: S.twist }, { seed, puzzle } = await nextPuzzle(k);
+  const k = { size: S.size, level: S.level, twist: S.twist, ...(S.shape ? { shape: S.shape } : {}) }, { seed, puzzle } = await nextPuzzle(k);
   if (puzzle) await coop.renew(shareOf(fromPuzzle(isLevel(S) ? "level" : "random", seed, k, puzzle, isLevel(S) ? { lv: S.lv } : {}), splitting));
 }
 async function joinPartner() {
