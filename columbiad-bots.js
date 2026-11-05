@@ -275,3 +275,8 @@ export function findShots(lvl, { da = 2, dc = 0.1, dt = 0.5, starts = 14, runs =
 }
 
 export { clampAim };
+
+/** Whether a level has a moon (a body drawn as one): such a level must need it. */
+export const hasMoon = lvl => (lvl.bodies || []).some(b => b.kind === "moon" || b.id === "moon" || b.id === "moon2");
+/** The level with every moon's pull zeroed (it stays where it is and a shell can still hit it): a shot that wins here was not using the Moon. */
+export const withoutPull = lvl => ({ ...lvl, bodies: lvl.bodies.map(b => (b.kind === "moon" || b.id === "moon" || b.id === "moon2") ? { ...b, mu: 0 } : b) });

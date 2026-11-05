@@ -6,10 +6,10 @@
 //   node tools/columbiad-find.mjs all write          everything (slow)
 //   options: n=3000 (random samples), seed=1
 // Reports for each level: the share of random samples that win ("luck"), the best shots' windows (angle degrees, power units, and seconds of launch time
-// where the world moves: the difficulty is the size of that window), how many straight shots at the first ring win (must be 0 unless the level is `open`).
+// where the world moves: the difficulty is the size of that window), how many straight shots at the first ring win (must be 0 unless the level is `open`). On a level with a Moon only shots that lose with the Moon's pull zeroed are kept.
 import { writeFileSync } from "node:fs";
 import { LEVELS } from "../columbiad-levels.js";
-import { periodOf, descend, cost, robustness, windowOf, timeWindow } from "../columbiad-bots.js";
+import { periodOf, descend, cost, robustness, windowOf, timeWindow, hasMoon, withoutPull } from "../columbiad-bots.js";
 import { validate, shoot, uniform, padAt, ringAt, isMoving, DELAY_MAX, BARRELS } from "../columbiad-engine.js";
 
 const args = process.argv.slice(2), write = args.includes("write"), all = args.includes("all");
@@ -38,7 +38,7 @@ if (!picked.length) { console.log("no level chosen"); process.exit(0); }
 for (const lvl of picked) {
   const t0 = performance.now(), bad = validate(lvl), P = periodOf(lvl), moving = isMoving(lvl), cap = lvl.barrels ?? BARRELS, site = lvl.site ?? 90;
   const tm = moving ? Math.min(lvl.delayMax ?? DELAY_MAX, P || 10) : 0, band = lvl.band || {}, lean = band.lean ?? 90, [lo, hi] = band.charge || [0.5, cap];
-  const cells = [];
+  const cells = [], moony = hasMoon(lvl), dry = moony ? withoutPull(lvl) : lvl;
   let wins = 0;
   for (let k = 0; k < N; k++) {
     const mv = { angle: r2(site - lean + 2 * lean * rnd(3 * k)), charge: r2(lo + (hi - lo) * rnd(3 * k + 1)), t: moving ? r2(tm * rnd(3 * k + 2) * 10) / 10 : 0 };
@@ -54,12 +54,17 @@ for (const lvl of picked) {
   }
   const found = [];
   for (const s of starts) {
-    const d = descend(lvl, s, { steps: [1, 0.1, 0.4], floor: [0.05, 0.01, 0.1] });
-    if (d.cost >= 0) continue;
+    const d0 = descend(lvl, s, { steps: [1, 0.1, 0.4], floor: [0.05, 0.01, 0.1] });
+    if (d0.cost >= 0) continue;
+    const d = { ...d0, t: moving ? r2(Math.round(d0.t * 10) / 10) : d0.t };               // the countdown is kept in tenths of a second (clampAim): store a shot the game can fly
+    if (moving && !shoot(lvl, d, [0, 0], { watch: false }).won) continue;
+    if (moony && shoot(dry, { angle: d.angle, charge: d.charge, t: d.t }, [0, 0], { watch: false }).won) continue;   // a shot that wins with the Moon's pull zeroed does not use the Moon (5 November 2026, Korbi)
     if (found.some(f => Math.abs(f.angle - d.angle) < 0.3 && Math.abs(f.charge - d.charge) < 0.03 && Math.abs(f.t - d.t) < 0.2)) continue;
-    found.push({ angle: d.angle, charge: d.charge, t: d.t, margin: r2(-d.cost), rob: robustness(lvl, d, 100, 31) });
+    const f = { angle: d.angle, charge: d.charge, t: d.t, margin: r2(-d.cost), rob: robustness(lvl, d, 100, 31) };
+    const w = windowOf(lvl, f), tw0 = moving ? timeWindow(lvl, f, 0.1, 6).width : 6;
+    found.push({ ...f, size: w.da * w.dc * Math.min(tw0, 6) });                         // how big a window a thumb has to find
   }
-  found.sort((a, b) => b.rob - a.rob || b.margin - a.margin);
+  found.sort((a, b) => (b.rob >= 0.9) - (a.rob >= 0.9) || b.size - a.size || b.rob - a.rob);   // the roomiest of the robust ones first
   const top = [];
   for (const j of found) { if (top.length >= 2) break; if (top.every(p => Math.abs(p.angle - j.angle) > 3 || Math.abs(p.charge - j.charge) > 0.3 || (moving && Math.abs(p.t - j.t) > 1.5))) top.push(j); }
   if (!top.length) { console.log(`${lvl.id} ${lvl.name.padEnd(22)} NO SOLUTION  luck ${(wins / N * 100).toFixed(2)}%  best cost ${cells[0].c.toFixed(2)} at ${cells[0].angle}/${cells[0].charge}/${cells[0].t}  ${bad.join("; ")}`); continue; }

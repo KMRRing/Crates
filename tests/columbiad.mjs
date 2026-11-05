@@ -9,7 +9,7 @@
 import * as E from "../columbiad-engine.js";
 import { LEVELS, SECTIONS, dailyLevel, hasMovers } from "../columbiad-levels.js";
 import { PROOFS, STRAIGHT } from "../columbiad-proofs.js";
-import { windowOf } from "../columbiad-bots.js";
+import { windowOf, hasMoon, withoutPull } from "../columbiad-bots.js";
 import * as A from "../columbiad-aim.js";
 
 let bad = 0;
@@ -193,13 +193,16 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
     const ends = !!p0 && [[p0.win.a0, p0.charge], [p0.win.a1, p0.charge], [p0.angle, p0.win.c0], [p0.angle, p0.win.c1]].every(([a, c]) => E.shoot(lvl, { angle: a, charge: c, t: p0.t }, [0, 0]).won);
     const tOk = !moving || (p0 && p0.t >= 0 && p0.t <= (lvl.delayMax ?? E.DELAY_MAX) && p0.tw > 0);
     // a level that moves has no one straight line (the ring is somewhere else by the time a shell gets there): a straight shot there is a lucky timing, so what is asked is that the way round the stored shot takes is not the straight one
-    const st = STRAIGHT[lvl.id], off = p0 ? Math.abs(((p0.angle - bearingOf(lvl, p0.t) + 540) % 360) - 180) : 0, straightOk = lvl.open ? st !== undefined : moving ? st <= 30 && off > 3 : st === 0;
-    check(proofs.length >= 1 && wins.every(Boolean) && w / 20 >= 0.7 && ends && tOk && p0.win.da > 0 && straightOk && !!first,
-      `${lvl.id} ${lvl.name}: ${proofs.map(p => `${p.angle} degrees at power ${p.charge}${moving ? ` fired at T+${p.t}` : ""}`).join("; ")} win; holds ${(w / 20 * 100).toFixed(0)}% under the scatter, window ${p0 ? `${p0.win.da} degrees by ${p0.win.dc} power${moving ? ` by ${p0.tw} s` : ""}` : "?"}; straight shots win ${st}%${lvl.open ? " (open: the straight way is allowed)" : ""}`);
+    const st = STRAIGHT[lvl.id], off = p0 ? Math.abs(((p0.angle - bearingOf(lvl, p0.t) + 540) % 360) - 180) : 0, straightOk = lvl.open ? st !== undefined : moving ? st <= 10 && off > 3 : st === 0;
+    // 5 November 2026, Korbi: a level with a Moon must make the player use it. Zero its pull and no stored shot may still win (the ring rides the Moon, or hides behind it, so
+    // the pull is part of the way there). The finder keeps only shots that fail this way. A level that launches from the Moon is no exception: the pad is on it, and its pull is still what the shot leaves under.
+    const dry = hasMoon(lvl) ? withoutPull(lvl) : null, usesMoon = !dry || proofs.every(p => !E.shoot(dry, p, [0, 0]).won);
+    check(proofs.length >= 1 && wins.every(Boolean) && w / 20 >= 0.7 && ends && tOk && p0.win.da > 0 && straightOk && usesMoon && !!first,
+      `${lvl.id} ${lvl.name}: ${proofs.map(p => `${p.angle} degrees at power ${p.charge}${moving ? ` fired at T+${p.t}` : ""}`).join("; ")} win; holds ${(w / 20 * 100).toFixed(0)}% under the scatter, window ${p0 ? `${p0.win.da} degrees by ${p0.win.dc} power${moving ? ` by ${p0.tw} s` : ""}` : "?"}; straight shots win ${st}%${lvl.open ? " (open: the straight way is allowed)" : ""}${dry ? (usesMoon ? "; lose with the Moon's pull zeroed" : "; WIN WITHOUT THE MOON") : ""}`);
   }
-  // straight shots, fresh, on the first level of each chapter that stands still (the finder checks every level on a finer scan and stores the share)
+  // straight shots, fresh, on the first level of each chapter that stands still (the finder checks every level on a finer scan and stores the share; the stored share is what the proofs above hold to: 0 where it stands still, at most one in ten where a ring moves with a Moon)
   for (const sec of SECTIONS) {
-    const lvl = sec.levels.find(l => !E.isMoving(l) && !l.open);
+    const lvl = sec.levels.find(l => !E.isMoving(l) && !l.open && l.goal?.type !== "orbit");
     if (!lvl) continue;
     const b = bearingOf(lvl), first = (lvl.gates || [lvl.target])[0];
     let straightWins = 0;
