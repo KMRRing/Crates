@@ -47,6 +47,9 @@ export function createPlan(ctx) {
   // tap to look at the stow done)
   let drag = null, press = null, fx = null, anim = null, hatch = "open";
   const on = () => ctx.active();
+  const deep = () => ctx.deep?.() || null;                          // the 3D view (stow-gl.js), when the player has it and the device can
+  const depth = () => F.decks || 1;
+  const layerOf = i => (F.n2 ? Math.floor(i / F.n2) : 0);
 
   // ---------- a level ----------
   function show(level, plan, kept = null) {
@@ -58,12 +61,13 @@ export function createPlan(ctx) {
     hatch = P.done ? "shut" : "open";                              // a stow already done opens with its hatch shut
     fx = null; anim = null;
     clearDrag();
-    const svg = $("board");
+    const svg = $("board"), d = deep();
+    scene?.release?.();
     svg.replaceChildren();
-    if (F.decks) {
+    if (F.decks || d) {
       svg.dataset.kind = "deck";
-      scene = holdScene(svg, F, ctx.view());
-      reach = reachFor(F, level.pieces.flatMap(p => [0, 1, 2, 3].map(o => pieceFor(turned(cellsOf(p.c), o), true))));
+      scene = d ? d.holdScene(svg, F, ctx.view()) : holdScene(svg, F, ctx.view());
+      reach = reachFor(F, level.pieces.flatMap(p => [0, 1, 2, 3].map(o => pieceFor(turned(cellsOf(p.c), o), !!F.decks))));
       frame();
     } else {
       scene = null;
@@ -192,7 +196,11 @@ export function createPlan(ctx) {
     }
     if (ghost) for (const i of ghost) tag(i, drag.j);
     scene.px = unitsPer() / scale();
-    const o = { board, tint, ghost, ghostTint: drag ? colour[drag.j] : 1, bad, marks, heavy, plugs: L.plugs, sides: !!L.keel };
+    const lot = new Array(F.n).fill(0), plugLive = new Map();
+    for (let i = 0; i < F.n; i++) if (occ[i] >= 0) lot[i] = occ[i];
+    if (ghost && drag) for (const i of ghost) lot[i] = drag.j;
+    for (const i of L.plugs || []) if (occ[i] >= 0) plugLive.set(i, !!L.pieces[occ[i]].reefer);
+    const o = { board, tint, ghost, ghostTint: drag ? colour[drag.j] : 1, bad, marks, heavy, plugs: L.plugs, sides: !!L.keel, lot, plugLive, deadCells: F.decks ? null : au.dead };
     if (anim) Object.assign(o, anim.frame());
     if (fx?.cells) o.seat = fx.cells;
     scene.draw(o);
@@ -252,10 +260,11 @@ export function createPlan(ctx) {
   /** A piece on its own: in the tray (fit: every piece on the level's one scale, centred) or in hand (at the hold's). */
   function pieceSvg(j, o, fit) {
     const svg = document.createElementNS(SVG, "svg");
-    if (F.decks) {
+    if (scene) {
       svg.setAttribute("class", "sw-piece deck");
       svg.dataset.kind = "deck";
-      svg.shape = drawPiece(svg, F, pieceFor(cellsAt(j, o), true), ctx.view(), { fit, tint: colour[j], reach, mark: markOf(L.pieces[j]), heavy: tonnes(L.pieces[j]) > 1 });
+      const how = { fit, tint: colour[j], reach, mark: markOf(L.pieces[j]), heavy: tonnes(L.pieces[j]) > 1, lot: j, px: unitsPer() };
+      svg.shape = (deep()?.drawPiece || drawPiece)(svg, F, pieceFor(cellsAt(j, o), !!F.decks), ctx.view(), how);
       return svg;
     }
     const xy = cellsAt(j, o), [w, h] = extent(xy);
@@ -273,7 +282,7 @@ export function createPlan(ctx) {
     ctx.turned(turns);
     const tileNow = () => $("tray").querySelector(`.sw-mf[data-j="${j}"]`), svg = tileNow()?.querySelector("svg");
     const swap = () => { const b = tileNow(); if (!drag && b) b.replaceChild(pieceSvg(j, turns[j], true), b.querySelector("svg")); };
-    if (svg && !F.decks && !still()) { svg.classList.add("turning"); setTimeout(swap, 150); }
+    if (svg && !scene && !still()) { svg.classList.add("turning"); setTimeout(swap, 150); }
     else swap();
   }
 
@@ -328,7 +337,7 @@ export function createPlan(ctx) {
     const at = toBoard(cx, cy);
     let best = null, d = Infinity;
     if (at) for (const t of drag.list) { const dd = Math.hypot(t.x - at.x, t.y - at.y); if (dd < d) { d = dd; best = t; } }
-    const t = best && d <= (F.decks ? 0.9 : 0.75) ? best : null;
+    const t = best && d <= (scene ? 0.9 : 0.75) ? best : null;
     // in a hold, a piece with a place to go is drawn there, among the crates; anywhere else, it's in hand
     el.style.visibility = scene && t ? "hidden" : "visible";
     if (t === drag.place && drag.drawn) return;
@@ -372,9 +381,16 @@ export function createPlan(ctx) {
   addEventListener("pointercancel", e => { if (on() && (drag?.id === e.pointerId || press?.id === e.pointerId)) { clearDrag(); render(); } });
   // a stowed piece in a flat hold is dragged out of it (in decks the board turns the hold, and Undo takes pieces out)
   $("board").addEventListener("pointerdown", e => {
-    if (!on() || scene || !P) return;
+    if (!on() || !P || (scene && (F.decks || P.done))) return;
     if (P.done) { peek(); return; }
-    const at = toBoard(e.clientX, e.clientY), i = at && F.index.get(`${Math.floor(at.x)},${Math.floor(at.y)}`);
+    const at = toBoard(e.clientX, e.clientY);
+    let i = null;
+    if (scene) {                                                    // 3D: the stowed piece whose goods are under the finger (else the hold turns)
+      const occ = occupancy(L, placed(), F);
+      let d = 0.62;
+      if (at) for (let k = 0; k < F.n; k++) if (occ[k] >= 0) { const [cx, cy] = scene.centre(k), dd = Math.hypot(cx - at.x, cy - at.y); if (dd < d) { d = dd; i = k; } }
+      if (i !== null) e.stopImmediatePropagation();
+    } else i = at && F.index.get(`${Math.floor(at.x)},${Math.floor(at.y)}`);
     if (i === undefined || i === null) return;
     const occ = occupancy(L, placed(), F), j = occ[i];
     if (j >= 0) startPress(j, e, "hold");
@@ -405,7 +421,7 @@ export function createPlan(ctx) {
       const occ = occupancy(L, placed(), F), idx = [];
       for (let i = 0; i < F.n; i++) if (occ[i] === j) idx.push(i);
       const s = seat(F, occ, idx);
-      if (!F.decks) {
+      if (!scene) {
         let d = "";
         for (const side of s.sides) if (side.flush) { const [x, y] = F.cells[side.i].c, k = SIDES.findIndex(q => q[0] === side.d[0] && q[1] === side.d[1]), q = SIDES[k]; d += `M${x + q[2]} ${y + q[3]}L${x + q[4]} ${y + q[5]}`; }
         fx = { j, flush: d, tight: s.tight };
@@ -413,14 +429,14 @@ export function createPlan(ctx) {
         setTimeout(() => { if (fx?.j === j) { fx = null; render(); } }, 700);
         render();
       } else lower(j, idx, s.tight);
-    } else if (move?.kind === "lift" && F.decks && was) rise(move.j, was);
+    } else if (move?.kind === "lift" && scene && was) rise(move.j, was);
     else render();
     if (P.done && !was?.done) setTimeout(() => {
       if (!P.done || hatch !== "open") return;
       hatch = still() ? "shut" : "closing";
       render();
       setTimeout(() => { if (hatch === "closing") hatch = "shut"; }, 700);
-    }, F.decks ? 560 : 360);
+    }, scene ? 560 : 360);
   }
   /** A word rising from where a piece seated. */
   function pop(text, idx) {
@@ -444,7 +460,7 @@ export function createPlan(ctx) {
     const seated = { cells: new Set(idx) };
     const done = () => { anim = null; fx = seated; if (tight) pop("Tight", idx); render(); setTimeout(() => { if (fx === seated) { fx = null; render(); } }, 420); };
     if (still()) { done(); return; }
-    const low = Math.min(...idx.map(i => Math.floor(i / F.n2))), rise0 = F.decks + 0.6 - low, ease = t => 1 - (1 - t) * (1 - t), t0 = performance.now();
+    const low = Math.min(...idx.map(layerOf)), rise0 = depth() + 0.6 - low, ease = t => 1 - (1 - t) * (1 - t), t0 = performance.now();
     const mine = anim = { frame: () => ({ lift: new Map(idx.map(i => [i, rise0 * (1 - ease(Math.min(1, (performance.now() - t0) / 190)))])) }) };
     const step = now => { if (anim !== mine) return; render(); if (now - t0 < 190) requestAnimationFrame(step); else done(); };
     requestAnimationFrame(step);
@@ -454,7 +470,7 @@ export function createPlan(ctx) {
     if (still()) { render(); return; }
     const occ = occupancy(L, placedList(L, was), F), idx = [];
     for (let i = 0; i < F.n; i++) if (occ[i] === j) idx.push(i);
-    const low = Math.min(...idx.map(i => Math.floor(i / F.n2))), up = F.decks + 0.6 - low, t0 = performance.now(), keep = P;
+    const low = Math.min(...idx.map(layerOf)), up = depth() + 0.6 - low, t0 = performance.now(), keep = P;
     // drawn as it was, the piece rising, then the hold as it is now
     P = was;
     const mine = anim = { frame: () => ({ lift: new Map(idx.map(i => [i, up * Math.min(1, (performance.now() - t0) / 170) ** 2])) }) };
@@ -531,8 +547,10 @@ export function createPlan(ctx) {
 
   return {
     show, update, render, undo, peek,
-    redraw() { if (!L) return; if (scene) frame(); render(); },
+    /** The screen resized or the hold is turning (turning: only the hold, the tray follows when it has stopped). */
+    redraw(turning = false) { if (!L) return; if (scene) frame(); if (turning && scene) { if (on() && P) drawBoard(drag?.place?.idx || null); return; } render(); },
     get scene() { return scene; },
+    get drag() { return drag; },
     get busy() { return !!(drag || anim); },
     get level() { return L; },
     get plan() { return P; },

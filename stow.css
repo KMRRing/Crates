@@ -57,6 +57,7 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806
 /* a hold in decks, in 3D (stow-3d.js): the floor and the far walls in the hold's own tones, the decks marked on the
    walls, the rim in brass; crates lit from the upper left (tops lightest, the sides in light and in shade) */
 .sw-board[data-kind="deck"] { cursor: grab; }
+.sw-board.deep { background: transparent; }   /* the 3D picture (stow-gl.js) is the canvas under it */
 [data-kind="deck"] .floor { fill: var(--sw-cell); stroke: var(--sw-gap); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 /* a square hold's far walls ruled a crate apart, like squared paper; a hexagon's zigzag would only be busy */
 [data-kind="deck"] .wall { fill: color-mix(in srgb, var(--sw-cell) 55%, var(--sheet)); }

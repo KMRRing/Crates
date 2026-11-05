@@ -30,6 +30,8 @@ export function createLoose(ctx) {
   let progress = read(PROGRESS, {});                               // { levelId: { stars, best } }
   let cellEls = [], drag = null, picked = null, flashing = null;
   const on = () => ctx.active();
+  const deep = () => ctx.deep?.() || null;                          // the 3D view (stow-gl.js), when the player has it and the device can
+  const layerOf = i => (F.n2 ? Math.floor(i / F.n2) : 0);
 
   function fresh(level) {
     const f = makeField(level.field);
@@ -50,8 +52,9 @@ export function createLoose(ctx) {
   // ---------- the hold ----------
   const unitsPer = () => { const m = $("board").getScreenCTM(); return m ? m.a : 30; };
   function buildBoard() {
-    const svg = $("board");
-    if (F.decks) { svg.dataset.kind = "deck"; scene = holdScene(svg, F, ctx.view()); frameHold(); return; }
+    const svg = $("board"), d = deep();
+    scene?.release?.();
+    if (F.decks || d) { svg.dataset.kind = "deck"; svg.replaceChildren(); scene = d ? d.holdScene(svg, F, ctx.view()) : holdScene(svg, F, ctx.view()); frameHold(); return; }
     scene = null;
     const pad = F.kind === "hex" ? 0.55 : F.kind === "tri" ? 0.3 : 0.35;
     const w = F.box.w + 2 * pad, h = F.box.h + 2 * pad;
@@ -83,7 +86,9 @@ export function createLoose(ctx) {
     if (scene) {
       scene.px = unitsPer() / scale();
       const ghostTint = drag?.colour || (picked != null ? colourOf(piecesNow()[picked]) : 1);
-      scene.draw({ board, tint: S.tint, ghost, ghostTint, lit: ghost && foresee(ghost, board), gone: clearing });
+      const will = new Set();
+      if (ghost && !F.decks) for (const li of filledBy(F, board, ghost)) for (const i of F.lines[li].cells) will.add(i);
+      scene.draw({ board, tint: S.tint, ghost, ghostTint, lit: ghost && (F.decks ? foresee(ghost, board) : will), gone: clearing });
       return;
     }
     const will = new Set(), mine = new Set(ghost || []);
@@ -131,11 +136,11 @@ export function createLoose(ctx) {
     return extents.get(kind);
   }
   function pieceSvg(p, { fit = false } = {}) {
-    if (F.decks) {                                                 // in the hold's own view; shape: its frame and middle
+    if (scene) {                                                   // in the hold's own view; shape: its frame and middle
       const svg = document.createElementNS(SVG, "svg");
       svg.setAttribute("class", "sw-piece deck");
       svg.dataset.kind = "deck";
-      svg.shape = drawPiece(svg, F, p, ctx.view(), { fit, tint: colourOf(p) });
+      svg.shape = (deep()?.drawPiece || drawPiece)(svg, F, p, ctx.view(), { fit, tint: colourOf(p), px: unitsPer() });
       return svg;
     }
     const s = shapeOf(p), svg = document.createElementNS(SVG, "svg");
@@ -185,7 +190,7 @@ export function createLoose(ctx) {
     });
   }
   // how far apart two places are, about: a hold's drops lie a crate apart, nearer as the view looks along them
-  const spacing = () => (F.decks ? 1.2 : F.kind === "hex" ? Math.sqrt(3) : F.kind === "tri" ? 0.58 : 1);
+  const spacing = () => (scene ? 1.2 : F.kind === "hex" ? Math.sqrt(3) : F.kind === "tri" ? 0.58 : 1);
   function toBoard(px, py) {
     const svg = $("board"), m = svg.getScreenCTM();
     if (!m) return null;
@@ -270,7 +275,7 @@ export function createLoose(ctx) {
     if (!S.slots.some(Boolean)) { S.tray++; S.slots = [true, true, true]; }
     settle();
     save();
-    if (scene) lower(before, tintBefore, idx, colourOf(p), r.waves);
+    if (scene) lower(before, tintBefore, idx, colourOf(p), r.waves, r.cleared);
     else flash(before, idx, r.cleared);
   }
   /** The lines a move filled go out where they stood (the board just before, the piece in), then the hold is as it is. */
@@ -284,15 +289,16 @@ export function createLoose(ctx) {
   }
   /** A move in a hold, shown as it happens: the piece lowered from over the hatch to where it rests, then each wave of
    *  the clearing: the lines lit and gone, and the crates over them settling down, which may fill more. */
-  function lower(before, tintBefore, idx, colour, waves) {
+  function lower(before, tintBefore, idx, colour, waves, cleared = []) {
     const ease = t => 1 - (1 - t) * (1 - t), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const withPiece = [...before], tint = [...tintBefore];
     for (const i of idx) { withPiece[i] = 1; tint[i] = colour; }
-    const low = Math.min(...[...idx].map(i => Math.floor(i / F.n2))), rise = F.decks + 0.6 - low;
+    const low = Math.min(...[...idx].map(layerOf)), rise = (F.decks || 1) + 0.6 - low;
+    if (!F.decks) waves = cleared.length ? [{ before: withPiece, carried: tint, cleared, moved: [] }] : [];       // a flat hold: the lines go, nothing settles
     const phases = [{ ms: 170, draw: t => scene.draw({ board: withPiece, tint, lift: new Map([...idx].map(i => [i, rise * (1 - ease(t))])) }) }];
     for (const w of waves) {
       phases.push({ ms: 300, once: true, draw: () => scene.draw({ board: w.before, tint: w.carried, gone: new Set(w.cleared) }) });
-      if (w.moved.length) phases.push({ ms: 190, draw: t => scene.draw({ board: w.after, tint: w.carry, lift: new Map(w.moved.map(([a, b]) => [b, (Math.floor(a / F.n2) - Math.floor(b / F.n2)) * (1 - ease(t))])) }) });
+      if (w.moved.length) phases.push({ ms: 190, draw: t => scene.draw({ board: w.after, tint: w.carry, lift: new Map(w.moved.map(([a, b]) => [b, (layerOf(a) - layerOf(b)) * (1 - ease(t))])) }) });
     }
     if (still) { render(); return; }
     flashing = { anim: true };
@@ -374,7 +380,7 @@ export function createLoose(ctx) {
     },
     leave() { clearDrag(); },
     render,
-    redraw() { if (scene) frameHold(); drawBoard(); drawTray(); },
+    redraw(turning = false) { if (scene) frameHold(); drawBoard(); if (!(turning && scene)) drawTray(); },
     tap: tapHold,
     again() { play(byId.get(L.id)); },
     next() { const n = nextLevel(); if (n) play(n); },

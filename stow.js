@@ -13,14 +13,15 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
-import { part, action, line, todayPart } from "./menu.js";
+import { part, action, line, todayPart, choice } from "./menu.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { sure } from "./sure.js";
 import { today, noteStars, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, waitMark } from "./loading.js";
 
 const $ = id => document.getElementById(id);
-const MODE = "stow:mode", RUN = "stow:plan", PLANS = "stow:plans", DAILY = "stow:daily", DAYPLAN = "stow:dayplan", TURNED = "stow:view";
+const LOOK = "stow:look", MODE = "stow:mode", RUN = "stow:plan", PLANS = "stow:plans", DAILY = "stow:daily", DAYPLAN = "stow:dayplan", TURNED = "stow:view";
 const APP = 3;                    // this code's version of the together state (3: one manifest shared; 2: Loose cargo's hands)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -46,6 +47,23 @@ let progress = read(PLANS, {});                                 // { manifestId:
 let run = null;                                                 // the manifest in play solo: { id, plan, turns }
 const inRoom = () => !!together?.room;
 const showing = () => (inRoom() ? "plan" : mode);
+
+// ---------- the 3D view (stow-gl.js, three.js, loaded when wanted) ----------
+// The player's own choice is kept as plain text under stow:look only when they pick one; with none, Settings' 2D mode
+// (battery saver) decides. A hold in decks has a flat drawing of its own (stow-3d.js), which is what Flat shows.
+let deep = null, gl = null;                                      // deep: what the pages draw 3D with, or null
+const kept = () => { try { return localStorage.getItem(LOOK); } catch { return null; } };
+async function useGL() {
+  const want = !IN_FRAME && wants3D(kept(), "3d");
+  if (want && gl === null) {
+    try { const m = await import("./stow-gl.js"); gl = m.supported() ? m : false; } catch (e) { console.error(e); gl = false; }
+  }
+  deep = want && gl ? { holdScene: (svg, F, cam) => { const s = gl.holdScene3D(svg, F); s.setCam(cam); return s; }, drawPiece: gl.drawPiece3D } : null;
+}
+/** Draw the page again in the view now chosen. */
+function reshow() {
+  if (inRoom() && S()) { shownTable = null; onState(S()); } else enter(mode);
+}
 
 // ---------- a tap of the phone ----------
 // vibrate where there is one; on an iPhone (none), a switch toggled while the finger's down gives the same tap
@@ -73,6 +91,7 @@ const names = {
 const plan = createPlan({
   $, toast, haptic, names,
   view: () => view,
+  deep: () => deep,
   active: () => showing() === "plan",
   canAct: () => !inRoom() || (!together.room.data?.done && turnNow(S(), present()) === mySlot()),
   commit: m => (inRoom() ? commitRoom(m) : commitSolo(m)),
@@ -85,7 +104,7 @@ const plan = createPlan({
     $("retryBtn").className = n ? "sw-go quiet" : "sw-go";
   },
 });
-const loose = createLoose({ $, read, write, toast, view: () => view, active: () => showing() === "loose", stars: () => noteStars("loose", loose.starsAll()) });
+const loose = createLoose({ $, read, write, toast, view: () => view, deep: () => deep, active: () => showing() === "loose", stars: () => noteStars("loose", loose.starsAll()) });
 const current = () => (showing() === "loose" ? loose : plan);
 const starsAll = () => Object.values(progress).reduce((n, p) => n + (p?.stars || 0), 0);   // the manifests' (Loose cargo's are its own tile's)
 
@@ -279,6 +298,11 @@ function openMenu() {
       part(body, "content").append(campaign(lv => { close(); openPlan(lv); }, lv => !isOpen(lv)));
     }
   }
+  if (!IN_FRAME && gl !== false) part(body, "settings").append(choice("View", [["3d", "3D"], ["flat", "Flat"]], deep ? "3d" : "flat", async v => {
+    try { localStorage.setItem(LOOK, v); } catch { /* private mode */ }
+    await useGL();
+    reshow();
+  }));
   const day = read(DAILY, {})[today()];
   part(body, "about").append(line(ME === "loose" ? `${loose.starsAll()} of ${loose.total} stars` : `${starsAll()} of ${MANIFESTS.length * 3} stars${day ? ` · today's ${"★".repeat(day)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -327,7 +351,7 @@ function turnBy(dir) {
     const k = Math.min(1, (now - t0) / 260), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k);
     view = { ...view, az: Math.round((((from + (to - from) * e) % 360) + 360) % 360) };
     scene.setCam(view);
-    current().redraw();
+    current().redraw(k < 1);
     if (k < 1) requestAnimationFrame(step); else write(TURNED, view);
   };
   requestAnimationFrame(step);
@@ -347,13 +371,13 @@ $("board").addEventListener("pointermove", e => {
   turning.moved = true;
   view = { az: Math.round(((turning.az - dx * 0.45) % 360 + 360) % 360), el: Math.round(Math.max(EL_MIN, Math.min(EL_MAX, turning.el + dy * 0.3))) };
   current().scene?.setCam(view);
-  queued ||= requestAnimationFrame(() => { queued = 0; current().redraw(); });
+  queued ||= requestAnimationFrame(() => { queued = 0; current().redraw(true); });
 });
 const endTurn = e => {
   if (!turning || e.pointerId !== turning.id) return;
   const was = turning;
   turning = null;
-  if (was.moved) write(TURNED, view);
+  if (was.moved) { write(TURNED, view); current().redraw(); }
   else if (e.type === "pointerup") { if (showing() === "loose") loose.tap(e); else plan.peek(); }
 };
 $("board").addEventListener("pointerup", endTurn);
@@ -370,6 +394,8 @@ window.__stow = {
 };
 
 $("app").dataset.mode = mode;
+await useGL();
+onDefaultChange(() => { if (kept() == null) useGL().then(reshow); });       // Settings' 2D mode, live
 enter(mode);
 noteStars("stow", starsAll());
 noteStars("loose", loose.starsAll());

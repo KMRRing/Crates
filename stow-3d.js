@@ -6,21 +6,21 @@
 // are left off so the eye sees in; the far walls carry the decks' marks. What the cargo hides and the player must see
 // shows through it, dashed: a consignment (its stamp), and a crate a move would clear and where the piece would come to
 // rest (their outlines, in the piece's enamel: as in Block Blast, what a piece would clear takes its colour).
-import { drops, makeField, poolFor } from "./stow-engine.js";
+import { drops, makeField, placements, poolFor } from "./stow-engine.js";
 
-const RAD = Math.PI / 180;
+export const RAD = Math.PI / 180;
 /** Where the view starts: turned a little off square, looking down into the hold. */
 export const VIEW = { az: 28, el: 44 };
 export const EL_MIN = 22, EL_MAX = 80;
 // a deck's height, in the plan's units (a square's side, a hexagon's corner radius, a triangle's side)
 const DECK = { square: 1, hex: 1.15, tri: 0.8 };
-const f3 = v => (Math.abs(v) < 5e-4 ? "0" : v.toFixed(3));
+export const f3 = v => (Math.abs(v) < 5e-4 ? "0" : v.toFixed(3));
 const pts = list => list.map(([x, y]) => `${f3(x)},${f3(y)}`).join(" ");
 const seg = ([x1, y1], [x2, y2], cls) => `<line class="${cls}" x1="${f3(x1)}" y1="${f3(y1)}" x2="${f3(x2)}" y2="${f3(y2)}"/>`;
 
 /** A hold's plan as a drawing needs it, worked out once: each cell's corners and edges (the outward normal of each, and
  *  the cell across it, or -1 where the edge is the hold's side), the plan's centre and its reach from it. */
-function geometry(field) {
+export function geometry(field) {
   if (field.geo) return field.geo;
   const plan = field.plan, key = p => `${p[0].toFixed(3)},${p[1].toFixed(3)}`, byEdge = new Map();
   const cells = plan.cells.map((c, i) => {
@@ -46,7 +46,7 @@ function geometry(field) {
 
 /** The camera's map: plan point and height to the drawing; depth (larger is nearer the eye); which sides face the eye,
  *  and how much light a side takes (from the upper left). */
-function lens(geo, cam) {
+export function lens(geo, cam) {
   const a = cam.az * RAD, e = cam.el * RAD, ca = Math.cos(a), sa = Math.sin(a), ce = Math.cos(e), se = Math.sin(e);
   return {
     p: (x, y, z) => { const u = x - geo.cx, v = y - geo.cy; return [ca * u - sa * v, se * (sa * u + ca * v) - ce * z]; },
@@ -60,14 +60,15 @@ function lens(geo, cam) {
  *  the decks at every tilt, so turning or tilting the view never resizes the frame (Korbi, 4 November 2026). */
 export function frameOf(field, pad = 0.35) {
   const g = geometry(field);
-  if (g.frame) return g.frame;
+  const kept = (g.frames ||= {});
+  if (kept[pad]) return kept[pad];
   let top = 0, bottom = 0;
   for (let el = EL_MIN; el <= EL_MAX; el += 1) {
     const e = el * RAD;
     top = Math.min(top, -g.R * Math.sin(e) - g.H * Math.cos(e));
     bottom = Math.max(bottom, g.R * Math.sin(e));
   }
-  return (g.frame = [-g.R - pad, top - pad, 2 * g.R + 2 * pad, bottom - top + 2 * pad]);
+  return (kept[pad] = [-g.R - pad, top - pad, 2 * g.R + 2 * pad, bottom - top + 2 * pad]);
 }
 
 /** The bounds of the hold itself (floor and rim) on the drawing for a camera: [x0, y0, x1, y1]. Always inside frameOf. */
@@ -231,7 +232,7 @@ export function holdScene(svg, field, cam) {
   return scene;
 }
 /** A round button with an arrow turning the way it turns the hold (1: clockwise, seen from above). */
-function turnArrow(x, y, r, dir) {
+export function turnArrow(x, y, r, dir) {
   const at = d => [x + Math.cos(d * RAD) * r * 0.52 * dir, y + Math.sin(d * RAD) * r * 0.52];
   const [a, b] = [at(-150), at(110)], t = 110 * RAD, tx = -Math.sin(t) * dir, ty = Math.cos(t), nx = Math.cos(t) * dir, ny = Math.sin(t), h = r * 0.3;
   const head = [[b[0] + tx * h, b[1] + ty * h], [b[0] - tx * h * 0.2 + nx * h * 0.75, b[1] - ty * h * 0.2 + ny * h * 0.75], [b[0] - tx * h * 0.2 - nx * h * 0.75, b[1] - ty * h * 0.2 - ny * h * 0.75]];
@@ -243,8 +244,21 @@ function turnArrow(x, y, r, dir) {
 const roomy = new Map();
 /** A hold big enough for any piece, for drawing pieces the level's hold can't show whole. */
 const bigHold = (kind, decks) => roomy.get(kind) || roomy.set(kind, makeField(kind === "square" ? { kind, w: 6, h: 6, decks } : kind === "hex" ? { kind, radius: 3, decks } : { kind, size: 3, decks })).get(kind);
-/** Where a piece's cells sit, as a hold's columns and heights: from the first place it can be lowered. */
-function cellsOf(field, piece) {
+/** A flat field seen as a hold one deck deep, so the 3D drawings can take either. */
+export function deckField(F) {
+  if (F.decks) return F;
+  return F.deep || (F.deep = { spec: F.spec, kind: F.kind, decks: 1, plan: F, n2: F.n, n: F.n, cells: F.cells, cache: F.cache, index: F.index });
+}
+const roomyFlat = new Map();
+const bigFlat = kind => roomyFlat.get(kind) || roomyFlat.set(kind, makeField(kind === "square" ? { kind, w: 9, h: 9 } : kind === "hex" ? { kind, radius: 5 } : { kind, size: 5 })).get(kind);
+/** Where a piece's cells sit, as a hold's columns and heights: from the first place it can be lowered (a flat field's, on
+ *  its one deck, anywhere it fits). */
+export function cellsOf(field, piece) {
+  if (!field.decks) {
+    let f = field, idx = placements(f, piece)[0];
+    if (!idx) { f = bigFlat(field.kind); idx = placements(f, piece)[0]; }
+    return { f: deckField(f), cells: [...idx].map(col => ({ col, z: 0 })) };
+  }
   let f = field, d = drops(field, piece)[0];
   if (!d) { f = bigHold(field.kind, 4); d = drops(f, piece)[0]; }
   return { f, cells: [...d.col].map((col, j) => ({ col, z: d.dz[j] })) };
