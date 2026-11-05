@@ -7,18 +7,22 @@
   --mr-good: #2F7D5B; --mr-bad: #A8382B; --mr-gilt: #C8923A;
   --mr-tile: var(--tile); --mr-water: #5E93B4; --mr-wood: #9A6A3B; --mr-wood-lo: #5E3F20; --mr-hull: #2F4F66; --mr-deck: #D9B97A; --mr-crate: #B5432F;
   --mr-logo-tint: #D4E7EA; --mr-logo-edge: var(--logo-edge);
+  --mr-stone: #A79F8C; --mr-stone-lo: #5F584A; --mr-bound: #C8923A;
 }
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) { --mr-in: #7CC4CC; --mr-good: #7FC2A8; --mr-bad: #E8806F; --mr-gilt: #E2B865; --mr-water: #6F9FC0; --mr-wood: #B8844F; --mr-wood-lo: #7A5430; --mr-hull: #86A9C2; --mr-deck: #E0C58E; --mr-crate: #D8705A;
+    --mr-stone: #8E8672; --mr-stone-lo: #3A352B; --mr-bound: #E2B865;
     --mr-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --mr-logo-tint: #1B3A3E; }
 }
 html[data-mode="night"] { --mr-in: #7CC4CC; --mr-good: #7FC2A8; --mr-bad: #E8806F; --mr-gilt: #E2B865; --mr-water: #6F9FC0; --mr-wood: #B8844F; --mr-wood-lo: #7A5430; --mr-hull: #86A9C2; --mr-deck: #E0C58E; --mr-crate: #D8705A;
+  --mr-stone: #8E8672; --mr-stone-lo: #3A352B; --mr-bound: #E2B865;
   --mr-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --mr-logo-tint: #1B3A3E; }
 .mr-mark { display: inline-block; }
 .mr-mark svg { width: 100%; height: 100%; display: block; }
 
 .mr-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .1rem .6rem; margin: .6rem 0 .5rem;
   font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
+.mr-kind.long { font-size: .6rem; letter-spacing: calc(.05em * var(--track)); }
 .mr-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .mr-time small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--mr-bad); font-variant-numeric: tabular-nums; }
 .mr-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
@@ -43,6 +47,12 @@ html[data-mode="night"] { --mr-in: #7CC4CC; --mr-good: #7FC2A8; --mr-bad: #E8806
 .mr-post { fill: var(--mr-wood-lo); stroke: color-mix(in srgb, var(--mr-wood) 65%, #fff); stroke-width: .04; }
 .mr-c.moored .mr-pile { fill: var(--mr-good); }
 .mr-c.moored .mr-plat { stroke: var(--mr-good); stroke-width: .07; }
+.mr-c.half .mr-post { stroke: var(--mr-good); stroke-width: .08; }
+/* a sea wall on the edge between two cells: dressed stone with a course line and a bollard at each end; never in the way of a tap */
+.mr-wall { pointer-events: none; }
+.mr-stone { fill: var(--mr-stone); stroke: var(--mr-stone-lo); stroke-width: .04; }
+.mr-course { fill: none; stroke: var(--mr-stone-lo); stroke-width: .025; opacity: .55; }
+.mr-bollard { fill: var(--mr-stone-lo); stroke: color-mix(in srgb, var(--mr-stone) 70%, #fff); stroke-width: .03; }
 /* a barge: a slate hull, a timber deck, a crate */
 .mr-barge { opacity: 0; pointer-events: none; }
 .mr-c.barge .mr-barge { opacity: 1; }
@@ -54,7 +64,8 @@ html[data-mode="night"] { --mr-in: #7CC4CC; --mr-good: #7FC2A8; --mr-bad: #E8806
 .mr-ring { fill: none; stroke: transparent; stroke-width: .08; pointer-events: none; }
 .mr-c.lit .mr-ring { stroke: var(--mr-gilt); stroke-width: .1; }
 .mr-c.why .mr-ring { stroke: var(--mr-gilt); stroke-width: .08; stroke-dasharray: .14 .09; }
-/* the counts: the barges a row or column holds */
+/* the counts: the barges a row or column holds; a bound (3+, ≤3) on a warm plate, as Bridges does */
+.mr-bound { fill: color-mix(in srgb, var(--mr-bound) 26%, var(--mr-tile)); stroke: var(--mr-bound); stroke-width: .035; pointer-events: none; }
 .mr-clue { font-family: Archivo, Arial, sans-serif; font-weight: 800; font-size: .56px; fill: var(--ink-soft); text-anchor: middle; pointer-events: none; }
 .mr-clue.done { fill: var(--mr-good); }
 .mr-clue.over { fill: var(--mr-bad); }
