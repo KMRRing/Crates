@@ -46,3 +46,10 @@ Implements section 8 of the Gears 2 design as built. Where this file and the des
 ## Fixtures
 
 `pipes-gear-fixture.js`: `FIXTURES = { idle, train, ratio, pitches, riser, bridge, jam, clash, hands, date, moon }`, each `{ name, note, plan, frame }`. More are added there with a header line.
+
+## Added since (5 November 2026)
+
+- `workings(L, res)`: for each train `{ id, index, items: [{ c, type: "barrel" | "step" | "station" | "sink", factor, comp }] }`, for the strip under the board. `pipes-gear-book.js` lists every level (`LEVELS`, `CHAPTERS`, `BOOKS`, `sigOf`); a level with `v` is of Book II on (Book I has none and shows no strip, no layer chips).
+- The flat view (`pipes-view-2d.js`) is the reference renderer and also has `runNow()`, `stop()`, `pulse(c)`, `onTick(k, total)` (the power wave, for sound), `setMotion(on)`; `view.hit` gives `{ kind: "cell", c, sub }`. The controller is `pipes-gear-run.js`; the 3D view takes the same `plan` and `frame`.
+- Today's and random plates are ordinary level data (`pipes-gear-daily.js`): ids `d<YYYYMMDD>` and `r<n>`, `chapter` the band (`easy`, `medium`, `hard`), with `daily` or `random` set.
+- `mirrorPiece` matches wheels within 3.3 units (an elbow duo's port wheel may sit 3 off its edge); a mirrored pin's `goal.w` is remapped to the same wheel.

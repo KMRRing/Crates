@@ -16,6 +16,7 @@ const BOOKS = [
   { key: "III", name: "Pitches", rule: "Tooth sizes (modules) never mesh; trains of different sizes must not touch." },
   { key: "IV", name: "Layers", rule: "Wheels on different layers pass over each other; an arbor carries wheels of several sizes." },
   { key: "V", name: "Complications", rule: "A train ends in a complication that wants an exact speed." },
+  { key: "VI", name: "Grandes complications", rule: "Several trains on one plate, each with its own mainspring, tooth size and complication." },
 ];
 const sp = (m, ls, fams = { S: 2, D: 3, T: 2 }, extra = {}) => ({ mods: m, layers: ls, fams, ...extra });
 const speedOf = lv => F.parse(lv.spec.trains[0].sink.goal.speed);
@@ -88,6 +89,22 @@ const CHAPTERS = [
     recipe: i => ({ cols: 5, rows: i < 2 ? 5 : 6, maxSols: 4, extras: { pins: 2, clicks: 1 },
       trains: [{ m: 5, l: 1, pieces: [5, 6, 7, 8, 9][i], bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), asym: true, stacks: 2, minStacks: 1, stackOnly: rateStack, stackWeight: 8, goal: { type: "escape" }, variety: 0.2 }] }),
     need: lv => F.cmp(speedOf(lv), [2, 1]) >= 0 },
+  { key: "x", book: "VI", name: "Set pieces", rule: "A watch with several complications: each train has its own mainspring and its own tooth size, and none may touch another.",
+    names: ["Perpetual calendar", "Minute repeater", "Tourbillon", "Grande complication"], nodes: [800, 1500, 2500, 4000],
+    recipe: i => [
+      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2 }, touch: true, trains: [
+        { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, asym: true, goal: { type: "escape" }, variety: 0.2 },
+        { m: 4, l: 1, pieces: 6, bends: 1, palette: sp([4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "date", ring: true }, stations: 1, stationType: "hands", variety: 0.2 }] },
+      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2 }, touch: true, trains: [
+        { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "wheel" }, variety: 0.2 },
+        { m: 6, l: 1, pieces: 6, bends: 1, palette: sp([6], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, stations: 2, stationType: "chime", goal: { type: "chime" }, variety: 0.2 }] },
+      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2, bridges: 2 }, trains: [
+        { m: 5, l: 1, pieces: 11, bends: 2, palette: sp([5], [1, 2, 3], { S: 2, D: 3, T: 2, K: 1, R: 1 }), stacks: 3, minStacks: 2, stackOnly: rateStack, stackWeight: 6, goal: { type: "tourbillon" }, stations: 1, stationType: "hands", variety: 0.2 }] },
+      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 4, clicks: 2, bridges: 2 }, touch: true, trains: [
+        { m: 5, l: 1, pieces: 5, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "escape" }, variety: 0.2 },
+        { m: 4, l: 1, pieces: 4, bends: 1, palette: sp([4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "date", ring: true }, variety: 0.2 },
+        { m: 6, l: 1, pieces: 4, bends: 1, palette: sp([6], [1]), goal: { type: "chime" }, variety: 0.2 }] },
+    ][i], need: () => true },
 ];
 
 const want = process.argv.slice(2);

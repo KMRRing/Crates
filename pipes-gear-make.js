@@ -79,7 +79,7 @@ function dress(route, tr, palette, r) {
           for (const q2 of shape.ports) {
             if (q2.s !== p.b || shape.comp[q2.w] !== shape.comp[q.w]) continue;
             const ex = shape.wheels[q2.w];
-            if (i === total - 1 && tr.end && (ex.m !== tr.end.m || ex.l !== tr.end.l)) continue;
+            if (i === total - 1 && tr.end && ((tr.end.m !== undefined && ex.m !== tr.end.m) || (tr.end.l !== undefined && ex.l !== tr.end.l))) continue;
             cand.push({ kind, fam, rot, shape, entry: q.w, exit: q2.w, weight });
           }
         }
