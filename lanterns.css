@@ -82,6 +82,7 @@ html[data-mode="night"] { --lan-in: #6FBFCC; --lan-good: #7FC2A8; --lan-bad: #E8
 .lan3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: calc(1.2rem * var(--k)); height: calc(1.2rem * var(--k)); padding: 0 calc(.15rem * var(--k)); box-sizing: border-box; border-radius: 999px;
   border: 1.5px solid var(--ink); background: var(--lan-tile); color: var(--ink); font-weight: 800; font-size: calc(.78rem * var(--k)); font-variant-numeric: tabular-nums; line-height: 1;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 35%, transparent); will-change: transform; }
+.lan3-n[data-bound] { background: var(--lan-gilt); color: #1d2a33; }
 .lan3-n.met { background: color-mix(in srgb, var(--lan-good) 26%, var(--lan-tile)); border-color: var(--lan-good); }
 .lan3-n.over { background: color-mix(in srgb, var(--lan-bad) 42%, var(--lan-tile)); border-color: var(--lan-bad); color: var(--lan-bad); box-shadow: 0 0 0 2px var(--lan-bad); }
 .lan3-n.why { box-shadow: 0 0 0 2px var(--lan-gilt); }

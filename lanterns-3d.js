@@ -14,7 +14,8 @@
 // screen's own rate (the ships never stop moving); the ships advance by the time between frames, so a pause holds them.
 // Throws where there is no WebGL (the page then keeps the flat board).
 import * as THREE from "./vendor/three.js";
-import { cellAtGround, cellXZ, runsFrom, fitDistance, homeElevation } from "./lanterns-model.js";
+import { groundOf, cellAtOn, wayVec, hexHalf, edgeDistance, fitDistance, homeElevation } from "./lanterns-model.js";
+import { puzzleOf, trace, numberText } from "./lanterns-engine.js";
 
 const DEG = Math.PI / 180;
 const FOV = 58 * DEG, MIN_EL = 20 * DEG, MAX_EL = 82 * DEG, HOME_AZ = 0;
@@ -71,18 +72,20 @@ export function createModel(host, opts = {}) {
     tower: solid({ color: 0xffffff }), band: solid({ color: 0xb5432f }), cap: solid({ color: 0x3b4a58 }), buoy: solid({ color: 0xf4efe2 }),
     lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }), beam: glass(0xffe9a0, 0.3), comet: glass(0xfff6d0, 0.55),
     cliff: solid({ color: 0xffffff, vertexColors: true, roughness: 0.95 }), hull: solid({ color: 0x5b3e2d }), sail: solid({ color: 0xffffff, side: 2 }),
+    mirror: new THREE.MeshStandardMaterial({ color: 0xe6f2f8, emissive: 0x58727f, roughness: 0.2, metalness: 0.4, flatShading: true }),
   };
   // a beam that runs off the board goes on over the water and thins out: its opacity falls with the distance past the board's edge
   // (a few strips of falling opacity would band). The edge is the board's half-width, set with each puzzle.
-  const FADE = { uEdge: { value: 6 }, uSpan: { value: SPILL } };
+  // The edge is the board's own: a square's half-width, or a hexagon's (uHex 1) apothem, measured as edgeDistance() does.
+  const FADE = { uEdge: { value: 6 }, uSpan: { value: SPILL }, uHex: { value: 0 } };
   for (const m of [M.beam, M.comet]) {
-    m.customProgramCacheKey = () => "lanterns-spill";
+    m.customProgramCacheKey = () => "lanterns-spill2";
     m.onBeforeCompile = sh => {
-      sh.uniforms.uEdge = FADE.uEdge; sh.uniforms.uSpan = FADE.uSpan;
+      sh.uniforms.uEdge = FADE.uEdge; sh.uniforms.uSpan = FADE.uSpan; sh.uniforms.uHex = FADE.uHex;
       sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vPast;")
         .replace("#include <project_vertex>", "#include <project_vertex>\nvec4 wp = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nwp = instanceMatrix * wp;\n#endif\nvPast = (modelMatrix * wp).xz;");
-      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vPast;\nuniform float uEdge;\nuniform float uSpan;")
-        .replace("#include <dithering_fragment>", "#include <dithering_fragment>\ngl_FragColor.a *= 1.0 - smoothstep(uEdge, uEdge + uSpan, max(abs(vPast.x), abs(vPast.y)));");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vPast;\nuniform float uEdge;\nuniform float uSpan;\nuniform float uHex;")
+        .replace("#include <dithering_fragment>", "#include <dithering_fragment>\nfloat edgeD = uHex > 0.5 ? max(abs(vPast.y), abs(vPast.y) * 0.5 + abs(vPast.x) * 0.8660254) : max(abs(vPast.x), abs(vPast.y));\ngl_FragColor.a *= 1.0 - smoothstep(uEdge, uEdge + uSpan, edgeD);");
     };
   }
   // the sky: a dome that follows the camera, haze at the rim fading up to the sky's colour; the sea's fog is the haze's colour, so the water melts into it
@@ -104,12 +107,16 @@ export function createModel(host, opts = {}) {
 
   // ---------- the world: rebuilt for each puzzle ----------
   let N = 0, black = null, size = 0, world = null, sea = null, seaTop = [], slabs = null, rocks = null, chips = [];
-  let towers = null, bands = null, lamps = null, caps = null, buoys = null, beams = null, comets = null;
+  let towers = null, bands = null, lamps = null, caps = null, buoys = null, beams = null, comets = null, panels = null;
+  let Pz = null, ground = [], beamCap = 0, beamParts = [];            // Pz: the engine's puzzle; ground: each cell's middle on the water; beamParts: each beam as a polyline (see refresh)
+  const hexed = () => Pz?.shape === "hex";
+  const at = x => ground[x];                                           // a cell's [x, z]
   let cliffs = [], ships = [], shipParts = null, shipPose = null, HALF = 60, ZMIN = -59, ZMAX = 18;   // the strait runs ±HALF; ships sail from ZMIN (in the haze) to ZMAX (below the frame)
-  let marks = "", br = null, hint = null, fitPts = [], tightPts = [], lightList = [], runs = [];   // what is on show
+  let marks = "", br = null, hint = null, fitPts = [], tightPts = [], lightList = [];   // what is on show
   const disposeWorld = () => {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
-    world = sea = slabs = rocks = towers = bands = lamps = caps = buoys = beams = comets = shipParts = null;
+    world = sea = slabs = rocks = towers = bands = lamps = caps = buoys = beams = comets = shipParts = panels = null;
+    beamCap = 0;
     cliffs = []; ships = [];
     labels.replaceChildren();
     chips = [];
@@ -119,7 +126,9 @@ export function createModel(host, opts = {}) {
   function build(puzzle) {
     disposeWorld();
     N = puzzle.size; size = N;
-    black = Uint8Array.from(puzzle.grid, ch => (ch === "." ? 0 : 1));
+    Pz = puzzleOf(puzzle.size, puzzle.grid, null, { board: puzzle.board, k: puzzle.reach });
+    ground = groundOf(Pz.board);
+    black = Pz.black;
     world = new THREE.Group();
     scene.add(world);
     // the sea: a long channel through the middle of the scene, its top moving gently, running off in the fog at both ends
@@ -133,27 +142,41 @@ export function createModel(host, opts = {}) {
     world.add(sea);
     // a shoal under every white cell, a rock on every black one
     const whites = [], blacks = [];
-    for (let x = 0; x < N * N; x++) (black[x] ? blacks : whites).push(x);
-    slabs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.92, SLAB + 0.1, 0.92), M.slab, Math.max(1, whites.length));
+    for (let x = 0; x < Pz.cells; x++) (black[x] ? blacks : whites).push(x);
+    // a shoal is a square slab, or a hexagonal one (a six-sided cylinder, a corner towards the far strait, as the flat board draws them)
+    slabs = new THREE.InstancedMesh(hexed() ? new THREE.CylinderGeometry(0.54, 0.54, SLAB + 0.1, 6) : new THREE.BoxGeometry(0.92, SLAB + 0.1, 0.92), M.slab, Math.max(1, whites.length));
     slabs.count = whites.length;
     slabs.userData.cells = whites;
-    whites.forEach((x, i) => { const [cx, cz] = cellXZ(N, x); slabs.setMatrixAt(i, MA.makeTranslation(cx, -0.05 - SLAB / 2 + 0.06, cz)); slabs.setColorAt(i, CA.set(0xffffff)); });
+    whites.forEach((x, i) => { const [cx, cz] = at(x); slabs.setMatrixAt(i, MA.makeTranslation(cx, -0.05 - SLAB / 2 + 0.06, cz)); slabs.setColorAt(i, CA.set(0xffffff)); });
     world.add(slabs);
-    rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), M.rock, Math.max(1, blacks.length * 2));
-    rocks.count = blacks.length * 2;
-    blacks.forEach((x, i) => {
-      const [cx, cz] = cellXZ(N, x);
+    // a mirror is a short stone plinth with a tall silvered panel along its axis (a rock without the boulder: the panel is what you see)
+    const mirrors = blacks.filter(x => Pz.mir[x]);
+    if (mirrors.length) {
+      panels = new THREE.InstancedMesh(new THREE.BoxGeometry(0.92, 0.78, 0.07), M.mirror, mirrors.length);
+      mirrors.forEach((x, i) => {
+        const [cx, cz] = at(x), ch = Pz.board.mirrors[Pz.mir[x] - 1], a = ((ch === "-" ? 0 : ch === "/" ? (hexed() ? 60 : 45) : hexed() ? 120 : 135) * Math.PI) / 180;
+        panels.setMatrixAt(i, MA.compose(VA.set(cx, 0.46, cz), QA.setFromAxisAngle(UP, a), VB.set(1, 1, 1)));
+      });
+      panels.frustumCulled = false;
+      world.add(panels);
+    }
+    const stone = blacks.filter(x => !Pz.mir[x]).concat(mirrors);     // (every rock gets its boulders; a mirror's are low)
+    rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), M.rock, Math.max(1, stone.length * 2));
+    rocks.count = stone.length * 2;
+    stone.forEach((x, i) => {
+      const [cx, cz] = at(x), low = Pz.mir[x] ? 0.45 : 1;
       for (let k = 0; k < 2; k++) {
-        const s = k ? 0.5 + jitter(x, 3) * 0.2 : 0.82 + jitter(x, 1) * 0.12, h = k ? 0.5 : 0.7 + jitter(x, 2) * 0.2;
+        const s = (k ? 0.5 + jitter(x, 3) * 0.2 : 0.82 + jitter(x, 1) * 0.12) * (hexed() ? 0.92 : 1), h = (k ? 0.5 : 0.7 + jitter(x, 2) * 0.2) * low;
         QA.setFromAxisAngle(UP, jitter(x, 4 + k) * 6.28);
         MA.compose(VA.set(cx + (k ? (jitter(x, 5) - 0.5) * 0.3 : 0), h * 0.5 - 0.02 + (k ? 0.18 : 0), cz + (k ? (jitter(x, 6) - 0.5) * 0.3 : 0)), QA, VB.set(s, h, s));
         rocks.setMatrixAt(i * 2 + k, MA);
         rocks.setColorAt(i * 2 + k, CA.set(k ? 0xd9d4ca : 0xffffff));
       }
-      if (puzzle.grid[x] !== "#") {
+      if (Pz.num[x] >= 0) {
         const chip = document.createElement("div");
         chip.className = "lan3-n";
-        chip.textContent = puzzle.grid[x];
+        chip.textContent = numberText(Pz, x);
+        if (Pz.rel[x]) chip.dataset.bound = Pz.rel[x] === 1 ? "least" : "most";
         labels.appendChild(chip);
         chips.push({ el: chip, x, p: new THREE.Vector3(cx, 0.98, cz), w: 0, h: 0 });
       }
@@ -169,16 +192,24 @@ export function createModel(host, opts = {}) {
     caps = new THREE.InstancedMesh(new THREE.ConeGeometry(0.25, 0.22, 14), M.cap, cap);
     buoys = new THREE.InstancedMesh(new THREE.SphereGeometry(0.1, 10, 8), M.buoy, cap);
     for (const m of [towers, bands, lamps, caps, buoys]) { m.count = 0; m.frustumCulled = false; world.add(m); }
-    beams = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.02, 1), M.beam, cap * 4);
-    comets = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.03, 1), M.comet, cap * 4);
-    for (const m of [beams, comets]) { m.count = 0; m.frustumCulled = false; world.add(m); }
-    const h = N / 2 + 0.12;
+    makeBeams(cap * 4);
+    const [hx, hz] = hexed() ? hexHalf(N) : [N / 2, N / 2], h = hx + 0.12, v = hz + 0.12;
     fitPts = []; tightPts = [];
-    for (const y of [-0.1, 1.15]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) { fitPts.push(sx * (h + SIDE), y, sz * h); tightPts.push(sx * h, y, sz * h); }
-    FADE.uEdge.value = N / 2;
+    for (const y of [-0.1, 1.15]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) { fitPts.push(sx * (h + SIDE), y, sz * v); tightPts.push(sx * h, y, sz * v); }
+    FADE.uEdge.value = hexed() ? hz : N / 2;
+    FADE.uHex.value = hexed() ? 1 : 0;
     marks = ""; br = null; hint = null;
     applySkin();
     resize();
+  }
+
+  /** The beams' strips and the comets that run along them: room for `n` pieces each (a beam is a polyline, a piece one stretch of it), grown when a puzzle's lanterns need more. */
+  function makeBeams(n) {
+    for (const m of [beams, comets]) if (m) { world.remove(m); m.geometry.dispose(); m.dispose?.(); }
+    beamCap = n;
+    beams = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.02, 1), M.beam, n);
+    comets = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.03, 1), M.comet, n * 2);
+    for (const m of [beams, comets]) { m.count = 0; m.frustumCulled = false; world.add(m); }
   }
 
   // ---------- the cliffs: rock massifs down both sides of the channel ----------
@@ -291,15 +322,15 @@ export function createModel(host, opts = {}) {
     if (!world) return;
     const k = skinNow(), whites = slabs.userData.cells, lit = br?.lit, hinted = new Set(hint?.set || []), why = new Set(hint?.focus || []);
     const clash = new Set(br?.clash || []), dark = new Set(br?.dark || []);
-    lightList = []; runs = [];
+    lightList = [];
     let nb = 0;
     whites.forEach((x, i) => {
       const m = marks[x];
       CA.set(hinted.has(x) ? k.hint : why.has(x) ? k.hint : dark.has(x) ? k.dark : lit?.[x] ? k.lit : k.slab);
       if (why.has(x) && !hinted.has(x)) CA.lerp(new THREE.Color(k.slab), 0.45);
       slabs.setColorAt(i, CA);
-      if (m === "1") { lightList.push(x); runs.push(runsFrom(N, black, x)); }
-      else if (m === "2") { const [cx, cz] = cellXZ(N, x); buoys.setMatrixAt(nb++, MA.makeTranslation(cx, 0.1, cz)); }
+      if (m === "1") lightList.push(x);
+      else if (m === "2") { const [cx, cz] = at(x); buoys.setMatrixAt(nb++, MA.makeTranslation(cx, 0.1, cz)); }
     });
     slabs.instanceColor.needsUpdate = true;
     buoys.count = nb;
@@ -307,7 +338,7 @@ export function createModel(host, opts = {}) {
     const n = lightList.length;
     towers.count = bands.count = lamps.count = caps.count = n;
     lightList.forEach((x, i) => {
-      const [cx, cz] = cellXZ(N, x), bad = clash.has(x);
+      const [cx, cz] = at(x), bad = clash.has(x);
       towers.setMatrixAt(i, MA.makeTranslation(cx, TOWER / 2 - 0.02, cz));
       bands.setMatrixAt(i, MA.makeTranslation(cx, TOWER * 0.5, cz));
       lamps.setMatrixAt(i, MA.makeTranslation(cx, TOWER - 0.02 + 0.08, cz));
@@ -316,25 +347,44 @@ export function createModel(host, opts = {}) {
     });
     for (const m of [towers, bands, lamps, caps]) m.instanceMatrix.needsUpdate = true;
     if (towers.instanceColor) towers.instanceColor.needsUpdate = true;
-    // the beams: a pale strip along each run, on the water a little over the shoals
+    // the beams: each is a polyline over the water (straight on a plain board, bent at a mirror), drawn as a pale strip along each straight stretch
+    beamParts = [];
+    lightList.forEach((x, i) => { for (const st of beamOf(x)) beamParts.push({ i, st, total: st.reduce((a, s) => a + s.len, 0) }); });
+    const pieces = beamParts.reduce((a, p) => a + p.st.length, 0);
+    if (pieces > beamCap) makeBeams(Math.ceil(pieces * 1.5));
     let b = 0;
-    lightList.forEach((x, i) => {
-      const [cx, cz] = cellXZ(N, x), r = runs[i];
-      [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dx, dz], d) => {
-        const len = r[d];
-        if (!len) return;
-        const reach = len + 0.5 + spill(cx, cz, dx, dz, len);
-        MA.compose(VA.set(cx + (dx * reach) / 2, 0.09, cz + (dz * reach) / 2), QA.identity(), VB.set(dx ? reach : 0.32, 1, dz ? reach : 0.32));
-        beams.setMatrixAt(b++, MA);
-      });
+    for (const { st } of beamParts) st.forEach((s, j) => {
+      const e0 = j ? BEND : 0, e1 = j < st.length - 1 ? BEND : 0, L = s.len + e0 + e1, ux = (s.x2 - s.x1) / s.len, uz = (s.z2 - s.z1) / s.len, m = (e1 - e0) / 2;
+      MA.compose(VA.set((s.x1 + s.x2) / 2 + ux * m, 0.09, (s.z1 + s.z2) / 2 + uz * m), QA.setFromAxisAngle(UP, Math.atan2(-uz, ux)), VB.set(L, 1, 0.32));
+      beams.setMatrixAt(b++, MA);
     });
     beams.count = b;
     beams.instanceMatrix.needsUpdate = true;
     placeChips(true);
     wake();
   }
-  /** How far past the board a run of `len` cells from (cx, cz) towards (dx, dz) goes on: it does if nothing stops it before the edge. */
-  const spill = (cx, cz, dx, dz, len) => (Math.abs(dx ? cx + dx * (len + 0.5) : cz + dz * (len + 0.5)) >= N / 2 - 0.01 ? SPILL : 0);
+  const BEND = 0.16;                                                   // a stretch of beam reaches this far past a bend, so the corner is filled
+  /** A lantern's beams from the engine's rays: for each way, its polyline as straight stretches [{ x1, z1, x2, z2, len }], the last running on past the board's edge (where it thins out) or to the rock that stops it. */
+  function beamOf(x) {
+    const [cx, cz] = at(x), out = [];
+    for (const { cells, ended, way } of trace(Pz.board, Pz.black, Pz.mir, Pz.k, x, true).paths) {
+      if (!cells.length) continue;
+      const pts = [[cx, cz], ...cells.map(at)], last = pts[pts.length - 1], [vx, vz] = wayVec(Pz.shape, way), ext = 0.5 + (ended === "edge" ? SPILL : 0);
+      pts.push([last[0] + vx * ext, last[1] + vz * ext]);
+      const st = [];
+      let start = pts[0], prev = pts[0], d0 = null;
+      for (let k = 1; k < pts.length; k++) {
+        const p = pts[k], dx = p[0] - prev[0], dz = p[1] - prev[1], l = Math.hypot(dx, dz);
+        if (l < 1e-6) continue;
+        const d = [dx / l, dz / l];
+        if (d0 && (Math.abs(d[0] - d0[0]) > 1e-3 || Math.abs(d[1] - d0[1]) > 1e-3)) { st.push([start, prev]); start = prev; }
+        d0 = d; prev = p;
+      }
+      st.push([start, prev]);
+      out.push(st.map(([a, b]) => ({ x1: a[0], z1: a[1], x2: b[0], z2: b[1], len: Math.hypot(b[0] - a[0], b[1] - a[1]) })));
+    }
+    return out;
+  }
   function paintChips() {
     const over = new Set(br?.over || []), short = new Set(br?.short || []), done = new Set(br?.done || []), why = new Set(hint?.focus || []);
     for (const c of chips) {
@@ -435,18 +485,24 @@ export function createModel(host, opts = {}) {
     const winning = winUntil > now;
     let c = 0;
     lightList.forEach((x, i) => {
-      const [cx, cz] = cellXZ(N, x), r = runs[i];
+      const [cx, cz] = at(x);
       MA.makeRotationY(t * 1.6 + i);
       MA.setPosition(cx, TOWER - 0.02 + 0.27, cz);
       caps.setMatrixAt(i, MA);
-      [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dx, dz], d) => {
-        const len = r[d];
-        if (!len) return;
-        const reach = len + 0.5 + spill(cx, cz, dx, dz, len), at = still ? 0.5 * reach + 0.45 : (t * 1.8 + i * 0.37 + d * 0.21) % (reach + 0.9);
-        const end = Math.min(at, reach), start = Math.max(0, at - 0.9), seg = Math.max(0.05, end - start), mid = (start + end) / 2;
-        MA.compose(VA.set(cx + dx * mid, 0.11, cz + dz * mid), QA.identity(), VB.set(dx ? seg : 0.2, 1, dz ? seg : 0.2));
-        comets.setMatrixAt(c++, MA);
-      });
+    });
+    beamParts.forEach((part, pi) => {
+      const reach = part.total, at0 = still ? 0.5 * reach + 0.45 : (t * 1.8 + part.i * 0.37 + pi * 0.21) % (reach + 0.9);
+      const end = Math.min(at0, reach), start = Math.max(0, at0 - 0.9);
+      let from = 0;
+      for (const s of part.st) {
+        const a = Math.max(start, from), z = Math.min(end, from + s.len);
+        if (z > a + 0.001 && c < comets.instanceMatrix.count) {
+          const ux = (s.x2 - s.x1) / s.len, uz = (s.z2 - s.z1) / s.len, m = ((a + z) / 2) - from;
+          MA.compose(VA.set(s.x1 + ux * m, 0.11, s.z1 + uz * m), QA.setFromAxisAngle(UP, Math.atan2(-uz, ux)), VB.set(Math.max(0.05, z - a), 1, 0.2));
+          comets.setMatrixAt(c++, MA);
+        }
+        from += s.len;
+      }
     });
     comets.count = c;
     comets.instanceMatrix.needsUpdate = true;
@@ -483,7 +539,7 @@ export function createModel(host, opts = {}) {
     if (!world) return -1;
     const [sx, sy] = canvasPoint(cx, cy);
     for (const y of [TOWER * 0.55, 0]) {          // the middle of a tower first: it hides the cell behind it
-      const p = groundAt(sx, sy, y), x = cellAtGround(N, p.x, p.z);
+      const p = groundAt(sx, sy, y), x = cellAtOn(Pz.board, ground, p.x, p.z);
       if (x >= 0 && !black[x] && (y === 0 || marks[x] === "1")) return x;
     }
     return -1;
@@ -625,13 +681,13 @@ export function createModel(host, opts = {}) {
     zoomTo(z, cx, cy) { zoomAt(z, cx, cy); },
     /** For tests: the page's (clientX, clientY) of cell `x`'s middle, as a finger would tap it. */
     where(x, y = 0) {
-      const [cx, cz] = cellXZ(N, x), r = canvas.getBoundingClientRect();
+      const [cx, cz] = at(x), r = canvas.getBoundingClientRect();
       VA.set(cx, y, cz).project(camera);
       return { x: r.left + ((VA.x + 1) / 2) * r.width, y: r.top + ((1 - VA.y) / 2) * r.height };
     },
     pick: cellUnder,
     shoalAt,
-    get live() { return { ships: ships.length, cliffs: cliffs.reduce((n, m) => n + m.count, 0), lanterns: lightList.length, buoys: buoys?.count || 0, beams: beams?.count || 0, chips: chips.length, shown, frames: drawn }; },
+    get live() { return { ships: ships.length, cliffs: cliffs.reduce((n, m) => n + m.count, 0), lanterns: lightList.length, buoys: buoys?.count || 0, beams: beams?.count || 0, mirrors: panels?.count || 0, hex: hexed(), chips: chips.length, shown, frames: drawn }; },
     dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeWorld(); skyGeo.dispose(); renderer.dispose(); },
   };
 }

@@ -19,6 +19,30 @@ export function runsFrom(N, black, x) {
   }
   return out;
 }
+const SQ3_2 = Math.sqrt(3) / 2;
+/** Where a board's cells sit on the ground: the board's own centres (a neighbour one unit away), moved so the board is centred on the origin. */
+export function groundOf(B) {
+  const xs = B.xy.map(p => p[0]), ys = B.xy.map(p => p[1]);
+  const ox = (Math.min(...xs) + Math.max(...xs)) / 2, oz = (Math.min(...ys) + Math.max(...ys)) / 2;
+  return B.xy.map(([x, y]) => [x - ox, y - oz]);
+}
+/** The cell of board B under a point of the ground (a hex board: the cell whose middle is nearest, if the point is on it), or −1. */
+export function cellAtOn(B, ground, x, z) {
+  if (B.shape !== "hex") return cellAtGround(B.N, x, z);
+  let best = -1, d2 = 0.6 * 0.6;
+  ground.forEach(([cx, cz], i) => { const d = (x - cx) ** 2 + (z - cz) ** 2; if (d < d2) { d2 = d; best = i; } });
+  return best;
+}
+const HEX_ANGLES = [0, 180, 60, 240, 120, 300];
+/** The way d of a board's rays as a unit step on the ground (x right, z towards the viewer, as the page draws it: up is −z). */
+export function wayVec(shape, d) {
+  if (shape === "hex") { const a = (HEX_ANGLES[d] * Math.PI) / 180; return [Math.cos(a), -Math.sin(a)]; }
+  return [[0, -1], [0, 1], [-1, 0], [1, 0]][d];
+}
+/** The ground the hex board covers: half its width, and half its height, in cells. */
+export const hexHalf = N => [N / 2, ((N - 1) / 2) * SQ3_2 + 0.58];
+/** The farthest a point is from the board's middle, in the board's own shape (a square: the larger of |x| and |z|; a hexagon with flat top and bottom: its apothem measure). */
+export const edgeDistance = (hex, x, z) => (hex ? Math.max(Math.abs(z), Math.abs(z) * 0.5 + Math.abs(x) * SQ3_2) : Math.max(Math.abs(x), Math.abs(z)));
 /** How far back the camera stands for the whole board to fill the view: the largest, over the points, of what it takes to keep each inside the frustum. */
 export function fitDistance(pts, az, el, look, tx, ty, mx = 0, my = 0) {
   const cosE = Math.cos(el), sinE = Math.sin(el);

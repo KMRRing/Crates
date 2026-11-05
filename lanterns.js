@@ -500,7 +500,7 @@ function wave() {
 // ---------- 3D: the same run as a sea of lighthouses, played the same way (lanterns-3d.js, loaded when first asked for) ----------
 let model = null, modelFor = null;
 /** What the sea can't draw yet: set to nothing once it can. */
-const modelBlocked = () => !!P && (P.shape === "hex" || P.k > 0 || P.mir.some(Boolean) || P.rel.some(Boolean));
+const modelBlocked = () => false;
 /** The sea follows the run: a new puzzle is built into it, a change of marks raises and lowers lighthouses, a hint's cells glow. */
 function feedModel() {
   if (!model || viewShown !== "model" || !S || !P) return;
