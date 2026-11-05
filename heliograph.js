@@ -15,7 +15,7 @@ import { createHelp } from "./heliograph-help-ui.js";
 import { ORDER } from "./heliograph-help.js";
 import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
 import { createFlat } from "./heliograph-flat.js";
-import { defaultIs3D } from "./mode3d.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, toggle } from "./menu.js";
@@ -111,13 +111,29 @@ function playLevel(n) {
 
 // ---------- the tube ----------
 const view = createView();
-let scene;
-try {
-  if (!defaultIs3D()) throw new Error("2D mode (battery saver): the flat tube");   // Settings; no choice of its own to keep in this game
-  scene = (await import("./heliograph-3d.js")).createScene($("stage"), view);
-} catch {
-  scene = createFlat($("stage"), view);
+let scene, sceneIs3D = false;
+/** The 3D tube (three.js is fetched only now) or the flat one: the player's own choice if kept (`prefs.look`, "3d" or "flat", written only when picked), else Settings' 2D mode; where there is no WebGL, flat. */
+async function makeScene(three) {
+  try {
+    if (!three) throw new Error("the flat tube");
+    scene = (await import("./heliograph-3d.js")).createScene($("stage"), view);
+    sceneIs3D = true;
+  } catch {
+    scene = createFlat($("stage"), view);
+    sceneIs3D = false;
+  }
 }
+const kept = () => { const l = read(PREFS, {}).look; return l === "3d" || l === "flat" ? l : null; };
+await makeScene(wants3D(kept(), "3d"));
+/** Changes the tube under the game in hand (Menu, View); `remember` writes the choice. */
+async function setLook(l, remember = true) {
+  if (remember) { prefs.look = l; if (!IN_FRAME) write(PREFS, prefs); }
+  if ((l === "3d") === sceneIs3D) return;
+  scene.dispose();
+  await makeScene(l === "3d");
+  if (S) render();
+}
+onDefaultChange(is3D => { if (!kept()) setLook(is3D ? "3d" : "flat", false); });   // Settings' 2D mode, live
 
 /** Where the chosen mirror's handle stands: a step out from its face, on the side the eye sees. */
 function knobOf(s) {
@@ -547,7 +563,7 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
   if (inLevels()) content.append(levelList());
-  if (!IN_FRAME) part(body, "settings").append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; write(PREFS, prefs); }));
+  if (!IN_FRAME) part(body, "settings").append(choice("View", [["3d", "3D"], ["flat", "Flat"]], sceneIs3D ? "3d" : "flat", v => { setLook(v); }), toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; write(PREFS, prefs); }));
   const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length, about = part(body, "about");
   about.append(line(inLevels()
     ? `This game: ${fmt(S.score)} in ${plural(S.shots, "shot")}; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`

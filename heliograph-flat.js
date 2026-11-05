@@ -169,11 +169,14 @@ export function createFlat(host, view) {
     ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x - r * 0.9, y + r * 0.75); ctx.lineTo(x + r * 0.9, y + r * 0.75); ctx.closePath();
     ctx.strokeStyle = k.ink; ctx.lineWidth = 1; ctx.stroke();
   }
-  new ResizeObserver(resize).observe(host);
-  new MutationObserver(() => { k = skin(); paint(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
+  const sizeWatch = new ResizeObserver(resize), skinWatch = new MutationObserver(() => { k = skin(); paint(); });
+  sizeWatch.observe(host);
+  skinWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   resize();
   return {
     canvas,
+    /** Takes the canvas away (the player chose the other view). */
+    dispose() { sizeWatch.disconnect(); skinWatch.disconnect(); canvas.remove(); },
     draw(f) { frame = f; paint(); },
     shot(before, r) { frame = { ...frame, s: r.state }; return new Promise(done => setTimeout(done, 350)); },
     redraw: paint,

@@ -776,15 +776,22 @@ export function createScene(host, view) {
     }
   }
 
-  new ResizeObserver(resize).observe(host);
-  new MutationObserver(() => { applySkin(); wake(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
-  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applySkin(); wake(); });
+  const sizeWatch = new ResizeObserver(resize), skinWatch = new MutationObserver(() => { applySkin(); wake(); }), mq = matchMedia("(prefers-color-scheme: dark)"), onScheme = () => { applySkin(); wake(); };
+  sizeWatch.observe(host);
+  skinWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
+  mq.addEventListener?.("change", onScheme);
   canvas.addEventListener("webglcontextlost", e => e.preventDefault());
   applySkin();
   resize();
 
   return {
     canvas,
+    /** Lets go of the graphics card and the watchers (the player chose the flat view). */
+    dispose() {
+      cancelAnimationFrame(raf); raf = -1;                                 // (wake() starts nothing while raf is set)
+      sizeWatch.disconnect(); skinWatch.disconnect(); mq.removeEventListener?.("change", onScheme);
+      renderer.dispose(); renderer.forceContextLoss?.(); canvas.remove();
+    },
     live: true,                                                           // a shot in play calls back (sound, as things happen)
     /** Draws the game as it stands: the light's way, the mirror chosen and its knob, the crystals the beam would shatter. */
     draw(frame) { lastFrame = frame; wake(); paint(); },
