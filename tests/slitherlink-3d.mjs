@@ -2,7 +2,8 @@
 // cog's course on the sea side, the tap rule the two views share, the camera's fit, and that the page offers the view without writing the default.
 import fs from "node:fs";
 import { generate, puzzleOf, LINE } from "../slitherlink-engine.js";
-import { insideCells, coastSegments, coastDistance, heightAt, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, edgeAtPoint, groundPoint, fitDistance, FOV, ELEVATION, MARGIN, HILL } from "../slitherlink-3d-geo.js";
+import { boardOf } from "../slitherlink-twist.js";
+import { normalise, insideCells, coastSegments, coastDistance, heightAt, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, edgeAtPoint, groundPoint, fitDistance, FOV, ELEVATION, MARGIN, HILL } from "../slitherlink-3d-geo.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -102,6 +103,18 @@ check(heightAt(0, 3, 3) === 0 && heightAt(5, 3, 3) > 0, "a hill's height is noth
   check(/setPixelRatio\(Math\.min\(devicePixelRatio \|\| 1, 2\)\)/.test(gl), "WebGL's pixel ratio is capped at 2");
   check(!/\b(alert|confirm|prompt)\(/.test(gl + js), "no browser pop-ups");
   check(/animating\(\) \|\| now < busyUntil/.test(gl), "frames go on only while something moves");
+}
+
+// Korbi, 5 November 2026 ("first landfall: the 3d version doesn't show the right island"): the chart draws P.view normalised, and
+// normalising once overwrote a square board's H (its count of horizontal edges) with its height, so the land was read from the wrong edges.
+for (const [size, level, seed] of [[5, "easy", 21], [7, "easy", 22], [10, "medium", 23]]) {
+  const pz = generate(seed, size, level, false), P = puzzleOf(size, pz.grid, pz.sol), n = normalise(P.view), tag = `${size}x${size}`;
+  check(n.H === P.g.H && n.bw === size && n.bh === size, `${tag}: the chart's board keeps its edge count (H ${n.H}) and has its size as bw, bh`);
+  check(insideCells(n, pz.sol).every((v, k) => v === insideCells(P.g, pz.sol)[k]), `${tag}: the land the chart builds from its board is the inside of the loop`);
+}
+{
+  const hex = normalise(boardOf("hex", 5));
+  check(hex.W === hex.bw && hex.H === hex.bh && hex.bw > 0, "a honeycomb takes its box as W and H, as before");
 }
 
 process.exit(bad ? 1 : 0);

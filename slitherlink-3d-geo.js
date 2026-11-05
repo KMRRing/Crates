@@ -277,3 +277,13 @@ export function fitDistance(hw, hh, el, tx, ty, padX, padY) {
   }
   return d;
 }
+
+/** The board with its corner moved to 0, 0 (a honeycomb's corners start below zero), its width and height as bw by bh, and its causeways' dots. */
+export function normalise(src) {
+  const [bx0, by0, bx1, by1] = src.box || [0, 0, src.C, src.R], mv = ([x, y]) => [x - bx0, y - by0];
+  // The board's size is bw by bh. A square board's own `H` is its count of horizontal edges (where the vertical ones begin in a
+  // marks string), which insideCells and edgeAtPoint read: only a honeycomb, which has none, takes W and H for its size.
+  const size = { bw: bx1 - bx0, bh: by1 - by0, ...(src.H == null ? { W: bx1 - bx0, H: by1 - by0 } : {}) };
+  if (!src.epos) return { ...src, ...size, tun: [], dotOf: Array.from({ length: src.V }, (_, i) => i) };
+  return { ...src, pos: src.pos.map(mv), epos: src.epos.map(([a, b, c, d]) => [a - bx0, b - by0, c - bx0, d - by0]), cpos: src.cpos.map(mv), cpoly: src.cpoly?.map(poly => poly.map(mv)), dots: src.dots.map(mv), ...size, ox: bx0, oy: by0 };
+}

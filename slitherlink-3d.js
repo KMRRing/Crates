@@ -7,7 +7,7 @@
 import * as THREE from "./vendor/three.js";
 import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 import { LINE, CROSS, INSIDE, OUTSIDE, labelOf } from "./slitherlink-engine.js";
-import { MARGIN, LAND_BASE, edgeEnds, insideCells, insideAt, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, coastDistance, heightAt, groundPoint, fitDistance, FOV, ELEVATION } from "./slitherlink-3d-geo.js";
+import { normalise, MARGIN, LAND_BASE, edgeEnds, insideCells, insideAt, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, coastDistance, heightAt, groundPoint, fitDistance, FOV, ELEVATION } from "./slitherlink-3d-geo.js";
 import * as T from "./slitherlink-3d-tex.js";
 
 const BUSY_MS = 1000 / 40;
@@ -96,12 +96,6 @@ export function createChart(host, opts = {}) {
     }
     return m;
   };
-  /** The board with its corner moved to 0, 0 (a honeycomb's corners start below zero), its width and height, and its causeways' dots. */
-  const normalise = src => {
-    const [bx0, by0, bx1, by1] = src.box || [0, 0, src.C, src.R], mv = ([x, y]) => [x - bx0, y - by0];
-    if (!src.epos) return { ...src, W: bx1 - bx0, H: by1 - by0, tun: [], dotOf: Array.from({ length: src.V }, (_, i) => i) };
-    return { ...src, pos: src.pos.map(mv), epos: src.epos.map(([a, b, c, d]) => [a - bx0, b - by0, c - bx0, d - by0]), cpos: src.cpos.map(mv), cpoly: src.cpoly?.map(poly => poly.map(mv)), dots: src.dots.map(mv), W: bx1 - bx0, H: by1 - by0, ox: bx0, oy: by0 };
-  };
   /** What a cell's clue reads as: "3", "2+", "≤1", "i" or "o" (the shaded clues), or "" for none. */
   const glyph = k => (twisted ? labelOf(clue[k]) : clue[k] === INSIDE ? "i" : clue[k] === OUTSIDE ? "o" : clue[k] >= 0 && clue[k] <= 4 ? String(clue[k]) : "");
   const instanced = (geo, mat, n, cast = false) => {
@@ -124,7 +118,7 @@ export function createChart(host, opts = {}) {
   function set(puzzle) {
     clearIsland(); solveAt = null;     // the last puzzle's land, town, cog and sea go with it
     disposeAll();
-    g = normalise(puzzle.g); C = g.W; R = g.H; offX = g.ox || 0; offY = g.oy || 0; clue = puzzle.clue; twisted = !!puzzle.twisted;
+    g = normalise(puzzle.g); C = g.bw; R = g.bh; offX = g.ox || 0; offY = g.oy || 0; clue = puzzle.clue; twisted = !!puzzle.twisted;
     ends = Array.from({ length: g.E }, (_, e) => edgeEnds(g, e));
     const m = MARGIN, { canvas: vc } = T.vellum(C, R, m, 1 + C * 7 + R);
     const top = std({ map: tex(vc), bumpMap: ptex(T.grain(2), Math.max(C, R) / 3), bumpScale: 0.9, roughness: 0.96 });
