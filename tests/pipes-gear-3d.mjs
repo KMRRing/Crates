@@ -166,5 +166,27 @@ if (have("pipes-3d-geo.js")) {
   check(lacking.length === 0, "no 3D file asks for a three.js class the trimmed bundle lacks" + (lacking.length ? ": " + [...new Set(lacking)].join(", ") : ""));
 }
 
+// ---------- the real levels: where each instrument goes, and the page's wiring ----------
+{
+  const { LEVELS } = await import("../pipes-gear-book.js");
+  const E = await import("../pipes-gear-engine.js");
+  let full = 0, compact = 0, bad3 = 0;
+  for (const spec of LEVELS) {
+    const plan = E.planOf(E.parseLevel(spec));
+    for (const t of plan.trains) {
+      if (!M.REACH[t.sink.goal?.type] || t.sink.goal?.ring) continue;
+      if (M.fullSize(plan, t)) full++; else compact++;
+    }
+    const mg = M.marginsFor(plan);
+    if (!Object.values(mg).every(v => v >= 0.4 && v < 2.8)) bad3++;
+  }
+  check(full + compact > 60 && compact > 0, `real levels: ${full} instruments have the margin to themselves, ${compact} are built compact on their sink's square`);
+  check(bad3 === 0, "real levels: every plate's margins stay sane (the board keeps the room)");
+  const page = fs.readFileSync(root + "pipes.js", "utf8");
+  check(/pipes:view/.test(page) && /wants3D/.test(page) && /IN_FRAME/.test(page) && /remember/.test(page), "the page keeps pipes:view only when picked, and asks mode3d.js for the default");
+  check(!/"pipes:daily"/.test(page.slice(page.indexOf("for (const k of [")).split("\n")[0]), "start-up does not delete today's stars (pipes:daily)");
+}
+
+
 console.log(bad ? `\n${bad} FAILED` : "\nall ok");
 process.exit(bad ? 1 : 0);

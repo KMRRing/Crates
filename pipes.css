@@ -272,3 +272,12 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 #app.view3d .pi-board { width: 100cqw; height: 100cqh; border-radius: 6px; background: transparent; }
 #app.view3d .pi-board canvas { cursor: pointer; }
 .pi-pulse3 { position: absolute; transform: translate(-50%, -50%); border: 3px solid var(--pi-in); border-radius: 6px; pointer-events: none; animation: pi-pulse .55s ease-in-out 2; }
+
+/* a big hand (the set pieces') on a short phone: the tiles shrink a little and the status keeps one line, so the plate keeps its height */
+@media (max-height: 700px) {
+  #app.pipes:has(.pi-hand.wrap) .pi-hand.wrap { gap: .25rem; margin-bottom: .2rem; }
+  #app.pipes:has(.pi-hand.wrap) .pi-hand.wrap .pi-q.pi-h { flex-basis: 2.05rem; height: 2.05rem; }
+  #app.puzzle:has(.pi-hand.wrap) .pi-status { min-height: 1.35em; }
+  #app.puzzle:has(.pi-hand.wrap) #status { -webkit-line-clamp: 1; line-clamp: 1; }
+  #app.pipes:has(.pi-hand.wrap) .pi-bar { margin-top: .3rem; }
+}
