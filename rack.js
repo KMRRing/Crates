@@ -3,6 +3,7 @@
 // rack, takes your tiles one at a time (tap a tile, tap a square; tap a laid tile to take it back), says what the word is
 // worth or why it is refused as you go, and shows a game's end with the leftover tiles settled.
 import { rules, CELLS, HAND, valueOf, premiumAt, evaluate, isEmptyBoard } from "./rack-rules.js";
+import { ramp } from "./ramp.js";
 import { LEVEL_NAMES, bestPlay, warm } from "./rack-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -19,7 +20,10 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const NAMES = ["", "Quill", "Sable", "Pip"];                                // the computer players, by seat
 
 let opts = { level: "medium", players: 2, ...read(OPTS, {}) };
-if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The computer players' strength is the hidden
+// ramp (ramp.js), its first step the old saved choice.
+const OLD_LEVEL = LEVEL_NAMES.some(([k]) => k === opts.level) ? opts.level : "medium";
+const levelNow = () => ramp("rack", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 if (![2, 3, 4].includes(opts.players)) opts.players = 2;
 const saveOpts = () => write(OPTS, opts);
 
@@ -35,7 +39,7 @@ function toast(msg, ms = 2600) {
 let V = null, page = null;
 const randomRounds = seatRounds("rack");                                    // random mode's round: a game
 page = seatPage({
-  rules, id: "rack", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
+  rules, id: "rack", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(),
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -229,6 +233,7 @@ $("swapGo").addEventListener("click", () => {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const w = v.state.winners, won = w.length === 1 && w[0] === v.seat;
+  if (!page.atTable) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -291,7 +296,6 @@ function openMenu() {
   page.menu(playPart);
   playPart.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); warm(v); }));
   set.append(choice("Players in a new game", [[2, "2"], [3, "3"], [4, "4"]], opts.players, v => { opts.players = Number(v); saveOpts(); }));
   set.append(line("The number of players applies from the next game."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("rack:streak", { now: 0, best: 0 });
@@ -309,4 +313,4 @@ addEventListener("resize", () => draw());
 window.__rack = { page, hint, get view() { return V; }, opts };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
-setTimeout(() => warm(opts.level), 400);                                    // the computer's word list, built while you look at the board
+setTimeout(() => warm(levelNow()), 400);                                    // the computer's word list, built while you look at the board

@@ -2,6 +2,7 @@
 // each on their own phone. The rules are banquet-rules.js's, the running seats.js's (solo, or a table through
 // seats-ui.js). This page draws the table: the other player at the top, the hands shown in the middle with the calls
 // in large characters, your hand and your call at the foot: a tap on a hand and a tap on a call throws.
+import { ramp } from "./ramp.js";
 import { rules, HUA, SHIWU, HANDS, LIMITS, SHOW_MS, callsFor } from "./banquet-rules.js";
 import { handOf } from "./banquet-draw.js";
 import { createCourse, progressOf } from "./course.js";
@@ -25,7 +26,13 @@ const LEVELS = [["easy", "Easy"], ["sharp", "Sharp"]];
 const GAMES = [["huaquan", "划拳"], ["shiwu", "十五二十"]];
 
 let opts = { mode: "huaquan", limit: 3, level: "sharp", voice: true, ...read(OPTS, {}) };
-if (!LIMITS.includes(opts.limit)) opts.limit = 3;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A game is three lives each and the narrator speaks,
+// whatever an older save chose. The computer is the hidden ramp (its first step the old saved choice); a lesson's game plays
+// the level its chapter names, once.
+Object.assign(opts, { limit: 3, voice: true });
+const OLD_LEVEL = opts.level;
+let lessonLevel = null, lessonNext = null;
+const levelNow = () => lessonLevel || ramp("banquet", LEVELS.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -51,7 +58,7 @@ let ui = { key: "", hand: null, queued: null, sent: false };
 let page = null;
 const randomRounds = seatRounds("banquet");   // random mode's round: a match
 page = seatPage({
-  rules, id: "banquet", app: 1, pace: 650, botName: () => BOT, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "banquet", app: 1, pace: 650, botName: () => BOT, level: () => levelNow(), voice: () => opts.voice,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? BOT;
@@ -188,6 +195,7 @@ function throwNow(m) {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable && !lessonLevel) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -206,6 +214,7 @@ function showEnd(v) {
 }
 function newGame() {
   $("endDlg").open && $("endDlg").close();
+  lessonLevel = lessonNext; lessonNext = null;
   page.deal({ mode: opts.mode, limit: opts.limit }, 2);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -237,7 +246,7 @@ const course = createCourse({
   onPlay: step => {
     const level = step?.level || "easy", name = LEVELS.find(([k]) => k === level)?.[1] || level;
     if (page.atTable) { toast(`Your table plays on: try Lao Wang on ${name} when you're back to solo`); return; }
-    opts.level = level;
+    lessonNext = level;
     if (step?.mode) opts.mode = step.mode;
     saveOpts();
     newGame();
@@ -260,10 +269,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Game", GAMES, opts.mode, v => { opts.mode = v; saveOpts(); }));
-  set.append(choice("Lives each", LIMITS.map(n => [n, `${n} lives`]), opts.limit, v => { opts.limit = Number(v); saveOpts(); }));
-  set.append(choice("The computer", LEVELS, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(line("The game and its end apply from the next game."));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
+  set.append(line("The game applies from the next game."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("banquet:streak", { now: 0, best: 0 });
   const rushBests = bestsLine(rush.bests());
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));

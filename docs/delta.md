@@ -11,3 +11,5 @@ A field of hexes with gaps: join the numbers in pairs with paths through operati
 - The same seed must give the same board on every phone (today's board, shared links): tries are counted, never timed, and nothing that deals a board may use `Math.exp`, `pow`, `log` or trig, which differ in the last bit between browsers (`tests/delta-gen.mjs` reads the source for them).
 - A new generator changes every seed's board: bump `GEN` in `delta-gen.js`, so spare boards kept in browsers (key `delta:spares<GEN>`) are dropped quietly; a link or an earlier Today's board deals differently under it.
 - Where the worker can't run, boards are dealt on the page; a board asked of a worker that failed once never came.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu has no choices but Today's. The level is the hidden ramp (`delta:ramp`, up after a board solved without a clue; first step the level of the board that was kept).

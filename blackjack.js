@@ -34,6 +34,8 @@ const view = tableView("blackjack");     // Menu, View: the flat felt or the fel
 const applyView = () => $("app").classList.toggle("bj3", view.get() === "3d");
 const opts = { chip: 500, coach: "on", fast: false, ...read(OPTS, {}) };
 // the coach was once on or off: on was the chart's play marked, which is what Always still does
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Quick dealing is off; the coach is on or off.
+opts.fast = false;
 if (opts.coach === true) opts.coach = "on"; else if (opts.coach === false) opts.coach = "off"; else if (!isCoach(opts.coach)) opts.coach = "on";
 let hinted = null;                  // the decision the coach was asked about (hintKey), so its play shows until you've played
 let last = null;                    // your last play, judged: { look, play, ok, say }, until the next round is dealt
@@ -285,8 +287,7 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the plays, the chart, the table", () => course.open()), action("Blackjack on one page", showRules, "link"));
   const st = part(body, "settings");
   st.append(view.choice(() => { applyView(); fitCards(); }));
-  st.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; hinted = null; last = null; saveOpts(); render(); }));
-  st.append(toggle("Quick dealing", opts.fast, on => { opts.fast = on; saveOpts(); }));
+  st.append(toggle("Coach", opts.coach !== "off", on => { opts.coach = on ? "on" : "off"; hinted = null; last = null; saveOpts(); render(); }));
   part(body, "about").append(line(`${S.rounds} round${S.rounds === 1 ? "" : "s"}; you hold ${hk(S.balance)}${S.toppedUp ? `, topped up ${S.toppedUp} time${S.toppedUp === 1 ? "" : "s"}` : ""}. Playing the chart, the table keeps ${(strategyFor(S.rules).edge * 100).toFixed(2)}% of what you bet. Play money: nothing real is staked.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

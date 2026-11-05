@@ -24,6 +24,8 @@ const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stri
 
 let S = null;                       // the game (sicbo-engine.js's), as saved
 const opts = { chip: 100, fast: false, ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The rolls take their time, whatever an older save chose.
+opts.fast = false;
 let rolling = false;
 let placed = [];                    // the chips put down since the last round, in order, for Undo: [key, amount]
 let shown = null;                   // the last round, while its result stays on the layout: { dice, lit, results, net }
@@ -157,7 +159,6 @@ function openMenu() {
   if (S.balance < START) play.append(action(`Top up to ${hk(START)}`, () => { S.balance = START; S.toppedUp++; save(); render(); }));
   const cp = progressOf("sicbo", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the bets, the dice, what each keeps", () => course.open()), action("Sic Bo on one page", showRules, "link"));
-  part(body, "settings").append(toggle("Quick rolls", opts.fast, on => { opts.fast = on; saveOpts(); }));
   part(body, "about").append(line(`${S.rounds} round${S.rounds === 1 ? "" : "s"}; you hold ${hk(S.balance)}${S.toppedUp ? `, topped up ${S.toppedUp} time${S.toppedUp === 1 ? "" : "s"}` : ""}. Play money: nothing real is staked.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

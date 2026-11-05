@@ -38,7 +38,10 @@ function fitSides(ids) {
   return keep;
 }
 const opts = { squeeze: false, chip: 1000, sides: ["pairsplus", "lucky6", "six", "monkey"], ...read(OPTS, {}) };
-opts.sides = fitSides(opts.sides);
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The table pays no commission, the side bets are the
+// default ones and no cards are squeezed, whatever an older save chose.
+opts.sides = fitSides(["pairsplus", "lucky6", "six", "monkey"]);
+opts.squeeze = false;
 let playing = false;                // a hand being dealt out
 let shown = null;                   // the last hand on the felt: { hand, bets (on it), open (cards turned), settled, done }
 let asking = null;                  // the ask button held: "B" or "P", the scoreboard showing where it would go
@@ -224,33 +227,6 @@ function openMenu() {
   if (S.balance < START) play.append(action(`Top up to ${hk(START)}`, () => { S.balance = START; S.toppedUp++; save(); render(); }));
   const cp = progressOf("baccarat", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the bets, the cards, the roads", () => course.open()), action("Baccarat on one page", showRules, "link"));
-  const content = part(body, "content");
-  content.append(choice("Table", [["nocommission", "No commission 免佣"], ["commission", "Commission 佣金"]], S.table, v => {
-    if (playing) return;
-    S.table = v;
-    save();
-    render();
-  }));
-  // the side bets, as many as two rows hold: one ticked past that pushes out the earliest
-  content.append(ticks("Side bets", SIDES.map(sd => [sd.id, sd.name]), opts.sides, picked => {
-    const added = picked.find(id => !opts.sides.includes(id));
-    let keep = picked;
-    while (room(keep) > SIDE_ROOM) {
-      const out = opts.sides.find(old => keep.includes(old) && old !== added);
-      if (!out) break;
-      keep = keep.filter(id => id !== out);
-    }
-    const trimmed = keep.length < picked.length;
-    opts.sides = keep;
-    saveOpts();
-    if (!playing) {
-      const off = Object.keys(S.bets).filter(id => !spotsHere().includes(id));
-      if (off.length) { S.bets = Object.fromEntries(Object.entries(S.bets).filter(([id]) => spotsHere().includes(id))); save(); }
-    }
-    render();
-    if (trimmed) openMenu();
-  }));
-  part(body, "settings").append(toggle("Squeeze my cards", opts.squeeze, on => { opts.squeeze = on; saveOpts(); }));
   part(body, "about").append(line(`${S.hands} hand${S.hands === 1 ? "" : "s"} dealt; you hold ${hk(S.balance)}${S.toppedUp ? `, topped up ${S.toppedUp} time${S.toppedUp === 1 ? "" : "s"}` : ""}. Play money: nothing real is staked.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -276,5 +252,6 @@ window.__baccarat = { get state() { return S; }, dealNow, bet, course };
 
 S = upgrade(read(RUN, null));
 if (!valid(S)) S = newGame(Math.floor(Math.random() * 2 ** 31));
+S.table = "nocommission";
 save();
 render();

@@ -10,8 +10,9 @@ import { cluePool, cleanSources, sourcesFromSubjects, ALL_SOURCES, KIND_LABEL, s
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -21,7 +22,6 @@ import { openBranch, joiningWords } from "./rooms.js";
 import { getSync } from "./net.js";
 import { busy } from "./loading.js";
 
-dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (dropdown.js)
 
 const $ = id => document.getElementById(id);
 const RUN = "codeword:run", TIMES = "codeword:times", OPTS = "codeword:opts";
@@ -45,7 +45,17 @@ delete opts.pair;
 /** What the next random grid is dealt from: the knowledge Settings has on, and whether what's marked for removal is in. */
 const dealSpec = () => ({ src: sourcesFromSubjects(subjectsOn()), inc: markedIn() ? 1 : 0 });
 const keepOpts = () => write(OPTS, opts);
-$("level").value = opts.level;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp, its first rung the old
+// saved choice; the ladder steps up after a grid solved without a hint.
+const OLD = { size: opts.size, level: opts.level };
+const SIZE_LIST = Object.keys(SIZES), LEVEL_LIST = Object.keys(LEVEL_NAMES);
+const RUNGS = rungs(SIZE_LIST, LEVEL_LIST);
+/** The size and level the next random grid deals. */
+const rungNow = () => {
+  const { size, level } = split(ramp("codeword", RUNGS, { start: startFor(RUNGS, SIZE_LIST, LEVEL_LIST, OLD.size, OLD.level) }));
+  opts.size = size; opts.level = level;
+  return { size, level };
+};
 
 // ---------- the workers: grids and hints, off the page ----------
 // Two: one for what the player waits on (a grid, a hint), one for the grid made ahead, so a hint
@@ -183,7 +193,6 @@ function begin(s, run = newRun()) {
   message = null;
   clockFrom = null;
   at = S.at && P.num[S.at.k] ? S.at : firstAt();
-  $("level").value = S.mode === "daily" ? opts.level : S.opts.level;   // the menu offers the level a random grid will have
   if (!S.duel && !IN_FRAME) history.replaceState(null, "", hashFor(S));
   build();
   save();
@@ -192,10 +201,10 @@ function begin(s, run = newRun()) {
   if (!S.duel && !IN_FRAME && S.mode !== "daily") makeSpare({ ...S.opts, split: false });
 }
 /** A new grid: a random one with the menu's choices (the level from the header), or today's, the same for everyone. */
-async function start(mode, level = opts.level) {
+async function start(mode, level = rungNow().level) {
   const daily = mode === "daily";
   // today's grid is dealt from every source with nothing marked for removal, the same for everyone
-  const o = daily ? { level: DAILY.level, size: DAILY.size, src: ALL_SOURCES, inc: 0 } : { level, size: opts.size, ...dealSpec() };
+  const o = daily ? { level: DAILY.level, size: DAILY.size, src: ALL_SOURCES, inc: 0 } : { level, size: rungNow().size, ...dealSpec() };
   const puzzle = daily ? await makeGrid(o, today(), "Setting today's grid") : takeSpare(o) || await makeGrid(o, null);
   if (!puzzle) { toast("Couldn't make a grid: try again"); return; }
   begin({ mode, opts: o, puzzle });
@@ -353,6 +362,7 @@ function finish() {
   if (S.duel) { tell(true); save(); }
   else {
     S.fresh = recordBest(sc);
+    if (S.mode === "random") { rungNow(); ramp.won(!S.run.hints); }
     if (S.mode === "daily") noteDayTime("codeword", sc, P.seed);   // today's grid: the first solve's score
     save();
     roundOver("codeword");
@@ -579,7 +589,7 @@ function lobby() {
 const duel = createDuel({
   game: "codeword", name: "Codeword", accent: "--cw-in", line: $("others"), toast, lower: true,
   deal: async () => {
-    const o = { level: $("level").value, size: opts.size, ...dealSpec() };
+    const o = { ...rungNow(), ...dealSpec() };
     const puzzle = takeSpare(o) || await makeGrid(o, null, "Setting the grid for everyone");
     return { level: o.level, size: o.size, puzzle };
   },
@@ -590,7 +600,7 @@ const duel = createDuel({
     begin({ mode: "duel", duel: true, opts: { level: match.level, size: match.size, src: ALL_SOURCES, inc: 0 }, puzzle: match.puzzle, begun, at: same ? kept.at : null }, same ? kept.run : newRun());
     tell(S.run.done);
   },
-  onLobby: match => { S = null; P = null; $("level").value = LEVEL_NAMES[match.level] ? match.level : "medium"; render(); },
+  onLobby: match => { S = null; P = null; render(); },
   onLeave: () => solo(),
 });
 /** What the table sees of this grid: the letters in, and the score once it's cracked. */
@@ -615,7 +625,7 @@ const together = createTogether({
   slots: 2,
   // the table, with the one who deals it already seated (sitDown hands a new table over as it's dealt)
   fresh: async players => {
-    const puzzle = await makeGrid({ level: $("level").value, size: opts.size, ...dealSpec(), split: true }, null, "Setting the grid for you both");
+    const puzzle = await makeGrid({ ...rungNow(), ...dealSpec(), split: true }, null, "Setting the grid for you both");
     return freshTable(players, { app: 1, puzzle, asked: Number(new URLSearchParams(location.search).get("new")) || 0, now: now() });
   },
   onState: g => {
@@ -623,7 +633,7 @@ const together = createTogether({
     if (!stopOffset) stopOffset = together.room?.sync.serverOffset?.(ms => { offset = ms || 0; }) || null;
     T = g;
     S = null;
-    if (changedGrid) { P = puzzleOf(g); LAY = layoutOf(P); won = false; build(); at = firstAt(); $("level").value = P.level; }
+    if (changedGrid) { P = puzzleOf(g); LAY = layoutOf(P); won = false; build(); at = firstAt(); }
     // the pair's record goes under the game's own id (together.js's result would file it under the branch's)
     if (g.done && !won) { celebrate(); const r = resultOf(g); if (r && reported !== r.match) { reported = r.match; reportDuo("codeword", r.match, r).catch(e => console.error(e)); } }
     if (!g.done) { won = false; $("board").classList.remove("won"); }
@@ -706,24 +716,19 @@ function toast(msg, ms = 2600) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const sizeChoice = () => choice("Size", Object.entries(SIZES).map(([k, v]) => [k, v.label]), opts.size, v => { opts.size = v; keepOpts(); });
   if (T) {                                                    // the split key: the table's own
     const t = part(body, "together"), partner = first(together.partner()?.name);
     t.append(line(`The split key with ${partner}: you hold ${mySlot() ? "14 to 26" : "1 to 13"}, ${partner} the rest.`),
       action(T.done ? "A new grid" : "A new grid now", () => tableNewGrid(), T.done ? "primary" : ""), action("Back to solo", () => together.leave(), "link"));
-    part(body, "content").append(mirror("Level", $("level")), sizeChoice());
     showMenu(body);
     return;
   }
   if (duel.on) {                                              // a race: the table's own, and what the next one deals
     duel.menu(part(body, "together"));
-    part(body, "content").append(mirror("Level", $("level")), sizeChoice());
     showMenu(body);
     return;
   }
   part(body, "play").append(action("New grid", () => confirmStart("random"), "primary"));
-  const content = part(body, "content");
-  content.append(mirror("Level", $("level")), sizeChoice());
   todayPart(body, { app: "codeword", play: () => start("daily"), playing: S?.mode === "daily" && unpack(S.puzzle).seed === today(), busy: started() });
   const best = S ? read(TIMES, {})[bestKey(S.opts)] : null;
   part(body, "about").append(
@@ -757,7 +762,7 @@ function showRules() {
 async function tableNewGrid() {
   if (!T) return;
   if (!T.done && filledAt(T, P) > P.givens.length && !(await sure("Start a new grid? This one isn't cracked."))) return;
-  const puzzle = await makeGrid({ level: $("level").value, size: opts.size, ...dealSpec(), split: true }, null, "Setting the grid for you both");
+  const puzzle = await makeGrid({ ...rungNow(), ...dealSpec(), split: true }, null, "Setting the grid for you both");
   if (puzzle) together.act(g => newGrid(g, puzzle, now()));
 }
 async function confirmStart(mode) {
@@ -819,14 +824,6 @@ $("hintBtn").addEventListener("click", useHint);
 $("clueSkip").addEventListener("click", skipOption);
 $("checkBtn").addEventListener("click", useCheck);
 $("nextBtn").addEventListener("click", () => { if (T) tableNewGrid(); else if (duel.on) duel.open(); else start("random"); });
-$("level").addEventListener("change", async () => {
-  opts.level = $("level").value;
-  keepOpts();
-  if (T) { tableNewGrid(); return; }
-  if (duel.on) { if (!(await duel.newMatch())) $("level").value = duel.match?.level || "medium"; return; }
-  if (S && $("level").value === S.opts.level && S.mode !== "daily") return;
-  if (!(await confirmStart("random"))) $("level").value = S?.opts.level || "medium";
-});
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) { duel.resync(); together.resync(); } });
 window.addEventListener("pagehide", () => clockPause());

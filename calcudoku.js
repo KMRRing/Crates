@@ -17,8 +17,9 @@ import { presentSlots } from "./duel-core.js";
 import { branchPath } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -27,7 +28,6 @@ import { tallyEdit, onceEdit } from "./board-share.js";
 import { recordEdits, cursorsOf as partnerCursors } from "./digits-coop.js";
 import calcudokuCoop from "./calcudoku-coop.js";
 
-dropdown(document.getElementById("size"));
 
 const $ = id => document.getElementById(id);
 const RUN = "calcudoku:run", SETTINGS = "calcudoku:settings", TIMES = "calcudoku:times", SPARES = "calcudoku:spares", TOGETHER = "calcudoku:together";
@@ -63,6 +63,20 @@ settings.level = levelFor(settings.rules, settings.size, LEVELS[settings.level] 
 if (!PACES[settings.pace]) settings.pace = "keen";
 if (settings.computer !== "partner") settings.computer = "off";          // "rival" (racing you) was dropped
 const saveSettings = () => write(SETTINGS, settings);
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp for each kind of grid, its
+// first rung the old saved choice; the ladder steps up after a grid solved without a hint. Pace and tidy notes are fixed.
+settings.tidy = true;
+settings.pace = "keen";
+const OLD = { size: settings.size, level: settings.level };
+const SIZE_LIST = [4, 5, 6, 7, 8, 9], LEVEL_LIST = Object.keys(LEVELS);
+const RUNGS = Object.fromEntries(Object.keys(RULES).map(r => [r, rungs(SIZE_LIST, LEVEL_LIST, (n, l) => !!levelsOf(r, n)[l])]));
+/** The size and level the next grid of these rules deals. */
+const rungNow = () => {
+  const list = RUNGS[settings.rules];
+  const { size, level } = split(ramp("calcudoku", list, { id: settings.rules, start: startFor(list, SIZE_LIST, LEVEL_LIST, OLD.size, OLD.level) }));
+  settings.size = Number(size); settings.level = level;
+  return { size: settings.size, level };
+};
 const kindKey = k => `${k.rules}:${k.size}:${k.level}`;
 const kindOf = p => ({ rules: p.rules, size: p.n, level: p.level });
 const kindName = k => `${RULES[k.rules].label} ${SIZES[k.size].label} · ${LEVELS[k.level].label}`;
@@ -134,7 +148,6 @@ function begin(s) {
   message = null; hintShown = null; highlight = 0; flash = null;
   clockFrom = null;
   if (!IN_FRAME) history.replaceState(null, "", `${location.search}${hashFor(S)}`);
-  syncSize(P.n);
   soloBoard();
   if (S.mode === "pair" && !S.done) botPlan();
   save();
@@ -147,13 +160,13 @@ async function start(mode = "random") {
   if (COOP) {       // another grid for both of you
     if (!coop) return;
     let grid;
-    try { grid = await dealGrid({ rules: settings.rules, size: settings.size, level: settings.level }); }
+    try { grid = await dealGrid({ rules: settings.rules, ...rungNow() }); }
     catch (e) { console.error(e); toast("Couldn't make a grid, try again"); return; }
     await coop.renew(coopShare(fresh(grid, "random")));
     return;
   }
   const daily = mode === "daily";
-  const kind = daily ? { ...DAILY, seed: today() } : { rules: settings.rules, size: settings.size, level: settings.level };
+  const kind = daily ? { ...DAILY, seed: today() } : { rules: settings.rules, ...rungNow() };
   let grid;
   try { grid = await dealGrid(kind, daily ? "Setting today's grid" : "Setting the grid"); }
   catch (e) { console.error(e); toast("Couldn't make a grid, try again"); return; }
@@ -321,6 +334,7 @@ function finishSolo() {
     const times = read(TIMES, {}), key = kindKey(kindOf(P));
     S.done.fresh = times[key] == null || score < times[key];
     if (S.done.fresh) { times[key] = score; write(TIMES, times); }
+    if (S.mode === "random") { rungNow(); ramp.won(!S.hints); }
   }
   if (S.mode === "daily") noteDayTime("calcudoku", score, P.seed);     // today's grid: the first solve, time and hints
   flash = { key: `done:${S.done.at}`, cells: [...Array(P.n * P.n).keys()] };
@@ -484,7 +498,7 @@ const togetherMode = () => read(TOGETHER, null) || (new URLSearchParams(location
 const duel = createDuel({
   game: "calcudoku", name: "Calcudoku", accent: "--calcudoku-in", line: $("table"), toast, lower: true,
   deal: async () => {
-    const grid = await dealGrid({ rules: settings.rules, size: settings.size, level: settings.level });
+    const grid = await dealGrid({ rules: settings.rules, ...rungNow() });
     return { seed: grid.seed, mode: togetherMode(), grid };
   },
   describe: m => `${kindName({ rules: m.grid.rules, size: m.grid.n, level: m.grid.level })}: ${m.mode === "split" ? "one grid for the table, each of you seeing your own share of the clues" : "the same grid for everyone, the fastest solve wins"}`,
@@ -497,14 +511,12 @@ function lobby(match) {
   clockPause();
   M = { match, n: null, lobby: true };
   setGrid(match.grid);
-  syncSize(P.n);
   makeBoard(P.cages.map(() => false));
   render();
 }
 async function playMatch(match, { begun, kept, n }) {
   clockPause();
   setGrid(match.grid);
-  syncSize(P.n);
   const cells = P.n * P.n, same = kept && kept.n === n && kept.seed === match.seed;
   M = { match, n, begun, mode: match.mode, sel: same ? kept.sel : -1, notes: same ? !!kept.notes : false, hints: same ? kept.hints || 0 : 0,
     entries: same && validEntries(kept.entries, cells) ? kept.entries : freshEntries(cells), done: same ? kept.done || null : null, wrong: [], hist: same ? kept.hist || [] : [] };
@@ -809,26 +821,18 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 /** The rules, size and level the next grid deals (the size from the header's select, as every game has it). */
-function contentPart(body, atTable) {
-  const content = part(body, "content"), have = levelsOf(settings.rules, settings.size);
-  content.append(
-    choice("Rules", Object.entries(RULES).map(([k, r]) => [k, r.label]), settings.rules, v => { settings.rules = v; settings.level = levelFor(v, settings.size, settings.level); saveSettings(); openMenu(); }),
-    mirror("Size", $("size")),
-    choice("Level", Object.keys(have).map(k => [k, LEVELS[k].label]), settings.level, v => { settings.level = v; saveSettings(); openMenu(); }),
-    line(`${RULES[settings.rules].label}: ${RULES[settings.rules].note.toLowerCase()}. ${LEVELS[settings.level].label}: ${LEVELS[settings.level].note.toLowerCase()}.${atTable ? " Another grid deals it for everyone." : ""}`));
+function contentPart(body) {
+  part(body, "content").append(choice("Kind", Object.entries(RULES).map(([k, r]) => [k, r.label]), settings.rules, v => { settings.rules = v; saveSettings(); openMenu(); }));
 }
 function settingsPart(body, atTable) {
   const s = part(body, "settings");
   if (!atTable) {
-    s.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
-    if (settings.computer !== "off") s.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }),
+    s.append(toggle("Computer partner", settings.computer === "partner", on => { settings.computer = on ? "partner" : "off"; saveSettings(); openMenu(); }));
+    if (settings.computer !== "off") s.append(
       line("You and Codex each see part of the clues; its digits show as it finds them. From the next grid."));
   }
-  s.append(toggle("Mark clashes", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }),
-    toggle("Clear pencil marks as you write", settings.tidy, v => { settings.tidy = v; saveSettings(); }));
+  s.append(toggle("Mark clashes", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }));
 }
-/** The header's size: the grid's own while one is shown, the settings' otherwise. */
-function syncSize(n = settings.size) { $("size").value = String(n); }
 async function fillNotes() {
   if (!S || S.done) return;
   // in a co-op the marks are the grid's: filling them in replaces the ones your partner has made too
@@ -879,14 +883,6 @@ $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (M) { if (M.mode === "split") nextMatch(); else duel.open(); } else start("random"); });
 $("todayBtn").addEventListener("click", () => start("daily"));
-$("size").addEventListener("change", async () => {
-  settings.size = Number($("size").value);
-  settings.level = levelFor(settings.rules, settings.size, settings.level);
-  saveSettings();
-  if (duel.on) return;                               // at a table, it's what Another grid deals
-  if (!(await confirmStart("random")) && P) { settings.size = P.n; saveSettings(); syncSize(P.n); }    // kept the grid: its size stays
-});
-syncSize();
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); coop?.together.resync(); } render(); });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
@@ -932,7 +928,6 @@ function showBoard(board, info) {
   if (info.fresh || !S) {
     S = { sel: -1, notes: false, ms: 0, wrong: [], ...run };
     setGrid(S.grid);
-    syncSize(P.n);
     message = null; hintShown = null; highlight = 0; flash = null; sentDone = false; sentAt = null;
   } else {
     S.entries.v = run.entries.v; S.entries.n = run.entries.n;
@@ -950,7 +945,7 @@ async function joinPartner() {
   const { startCoop } = await import("./coop-page.js");
   coop = await startCoop("calcudoku", {
     toast, show: showBoard,
-    fresh: async () => coopShare(fresh(await dealGrid({ rules: settings.rules, size: settings.size, level: settings.level }), "random")),
+    fresh: async () => coopShare(fresh(await dealGrid({ rules: settings.rules, ...rungNow() }), "random")),
     bar: el => { $("kind").hidden = true; $("kind").after(el); },
   });
   if (!coop && !IN_FRAME) loadSolo();

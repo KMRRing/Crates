@@ -22,3 +22,5 @@ The rules (October 2026, as in every classic) are a sheet of their own, from Rul
 Not done: a split board for more than two, hex boards past 11 across.
 
 Co-op (3 November 2026, `docs/coop.md`, `hitori-coop.js`): a paired partner who watches a solo puzzle can ask to join it, and both then edit one board with every number shown to both: not the split board above, which is dealt as its own match on `duel.js` and never shared this way (a table's run is not `hitori:run`). Kept cells are shared notes. No Point (the split board's), and a shared solve earns no best, today's time or Random round; the host's `hitori:run` follows the shared board.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Board (Square or Hex). Size and level are the hidden ramp for each board (`hitori:ramp:square`, `hitori:ramp:hex`; `ramp-steps.js` lists the size-and-level rungs easiest first; up after a puzzle solved without a hint; first rung the nearest to the saved size and level). Bests stay keyed by board, size and level.

@@ -12,10 +12,13 @@ import { busy, waitMark } from "./loading.js";
 import { sure } from "./sure.js";
 import "./pwa.js";
 import { gameHref, GAMES, branchPath, otherHere, joiningWords } from "./rooms.js";
-import { dropdown } from "./dropdown.js";
-import { part, action, mirror, isPaused, onPause, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, action, isPaused, onPause, todayPart } from "./menu.js";
 
-dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The level is the hidden ramp, its first rung the level of the
+// board kept from before; the ladder steps up after a board solved without a clue.
+let oldLevel = null;
+const levelNow = () => ramp("delta", Object.keys(LEVELS), { start: oldLevel ??= S?.level || "easy" });
 
 const $ = id => document.getElementById(id);
 const STORE = "delta:solo", SPARES = `delta:spares${GEN}`;      // a spare is a board of the generator that dealt it: a new generator takes a new key
@@ -117,7 +120,7 @@ async function soloBoard(seed, level) {
 }
 
 /** Deals a new board (a hard one can take a moment, so the screen says so first). */
-async function newBoard(level = S.level) {
+async function newBoard(level = levelNow()) {
   if (S && !S.done && pathList(S.paths).length && !(await sure("Start a new board? This one isn't finished."))) { render(); return; }
   if (level === "today") {                                     // today's puzzle: solo, timed for the games screen
     if (together.room) { render(); return; }
@@ -163,7 +166,7 @@ function afterChange() {
     if (S.daily && !together.room) noteDayTime("delta", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
     const at = Date.now();
     if (together.room) together.act(g => { if (g.done) return false; g.done = { won: true, at }; });
-    else { S.done = { won: true, at }; roundOver("delta"); }
+    else { S.done = { won: true, at }; if (!S.daily) { levelNow(); ramp.won(!S.clues?.length); } roundOver("delta"); }
   }
   saveSolo();
   render();
@@ -315,7 +318,6 @@ const showVerdicts = () => !!S.done || LEVELS[S.level].verdicts === "now" || all
 // ---------- rendering ----------
 function render() {
   if (!S) return;
-  $("level").value = S.daily ? "today" : S.level;
   drawPartner();
   drawBoard();
   const shown = LEVELS[S.level].pairsShown;
@@ -533,7 +535,6 @@ function drawMenu() {
   play.append(action("New board", () => newBoard(), "primary"));
   if (!S.done) play.append(action("Show the solution", giveUp));
   if (!together.room) todayPart(body, { app: "delta", play: () => newBoard("today"), playing: S.daily === today() });   // newBoard asks before it leaves a board you've started
-  if (!together.room) part(body, "content").append(mirror("Level", $("level")));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   else part(body, "about").append(action("Copy a link to this board", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
@@ -581,7 +582,7 @@ const together = createTogether({
   onPresence: () => render(),
   onLeave: () => {
     joined(); sentDraw = null;
-    S = loadSolo(); if (!S) { soloBoard(null, "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render();
+    S = loadSolo(); if (!S) { soloBoard(null, levelNow()); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render();
   },
 });
 
@@ -610,7 +611,6 @@ $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newBoard(); });
 $("clueBtn").addEventListener("click", clue);
 $("clearBtn").addEventListener("click", clearAll);
-$("level").addEventListener("change", e => newBoard(e.target.value));
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); together.resync(); } });
 window.addEventListener("pagehide", clockPause);
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
@@ -636,7 +636,7 @@ async function soloStart() {
   const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
   if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
   else if (!S && forToday && !code) { await soloBoard(today(), DAILY_LEVEL); if (S) { S.daily = today(); saveSolo(); render(); } }
-  else if (!S) await soloBoard(null, "easy");
+  else if (!S) await soloBoard(null, levelNow());
   else {
     shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level);
     // today's, once the board you left is drawn (it asks before leaving one you've started)

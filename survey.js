@@ -14,14 +14,13 @@ import { createBlock } from "./survey-3d.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, choice, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 
-const sizeDropdown = dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 // RUN: the free block in play. TRACK: "levels" or "free", the way played. CAMP: the level being played and the stars won in each.
@@ -49,8 +48,10 @@ if (!IN_FRAME && read(ERA, 0) < 2) {
 let S = null;              // { seed, mode ("random", "daily", "level" or "duel"), size (null in a level), level (0 on, in a level), readings, run (the engine's), fresh (a new best) }
 let P = null;              // its puzzle, made from the seed
 let tool = "chip";
-let readings = read(READ, "seams");   // what the next random block is read with (the menu's choice)
-if (!READINGS[readings]) readings = "seams";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A block is read with its seams marked, whatever an older save
+// chose; its size is the hidden ramp, up one after a block cleared without a hint.
+const readings = "seams";
+const sizeNow = () => ramp("survey", Object.keys(SIZES));
 sound.on = read(SOUND, true) !== false;
 let track = "levels";      // the way played (set below, once a saved block can be told from a stray one)
 let camp = { at: 0, stars: LEVELS.map(() => 0) };
@@ -157,7 +158,6 @@ function begin(s, run = newRun(), at = {}) {
   message = !S.duel && isLevel(S) && !started() && !S.run.done ? introOf(S.level) : null;
   clockFrom = null;
   stage.hidden = false;
-  if (!isLevel(S)) $("size").value = S.size;
   view?.set(P, S.run);
   if (!S.duel) {
     track = isLevel(S) ? "levels" : "free";
@@ -168,7 +168,7 @@ function begin(s, run = newRun(), at = {}) {
   clockRun();
   render();
 }
-function start(mode, size = $("size").value) {
+function start(mode, size = sizeNow()) {
   const daily = mode === "daily";
   begin({ seed: daily ? today() : randomSeed(), mode, size: daily ? DAILY.size : size, readings: daily ? DAILY.readings : readings });
 }
@@ -255,6 +255,7 @@ function finish() {
   if (S.duel) { tell(true); save(); }
   else {
     S.fresh = isLevel(S) ? recordLevel(sc) : recordBest(sc);
+    if (S.mode === "random") { sizeNow(); ramp.won(!r.hints); }
     if (S.mode === "daily") noteDayTime("survey", sc, S.seed);      // today's block: the first clear's score
     save();
     roundOver("survey");
@@ -307,8 +308,6 @@ function drawResult() {
 function chrome() {
   const level = !!S && isLevel(S);
   $("app").classList.toggle("lv", level);
-  $("size").hidden = level;
-  sizeDropdown.sync();
   $("parWrap").hidden = !level;
   $("levelBtn").hidden = !level;
   if (level) $("levelBtn").textContent = `Level ${S.level + 1}`;
@@ -336,7 +335,7 @@ function lobby() {
 // score (time plus penalties) at a cleared block wins. Your own block, bests and today's stay as they were.
 const duel = createDuel({
   game: "survey", name: "Survey", accent: "--sv-in", line: $("rival"), toast, lower: true,
-  deal: () => ({ seed: randomSeed(), size: SIZES[$("size").value] ? $("size").value : "small", readings }),
+  deal: () => ({ seed: randomSeed(), size: sizeNow(), readings }),
   describe: m => `${SIZES[m.size]?.label || "Small"}, ${(READINGS[m.readings] || READINGS.seams).toLowerCase()}: the same block for everyone, the fastest clear wins`,
   play: (match, { begun, kept }) => {
     const size = SIZES[match.size] ? match.size : "small", rd = READINGS[match.readings] ? match.readings : "seams";
@@ -344,7 +343,7 @@ const duel = createDuel({
     begin({ seed: match.seed, mode: "duel", size, readings: rd, duel: true }, same ? kept.run : newRun(), { begun });
     tell(S.run.done);
   },
-  onLobby: match => { S = null; P = null; $("size").value = SIZES[match.size] ? match.size : "small"; render(); },
+  onLobby: match => { S = null; P = null; render(); },
   onLeave: resume,
 });
 /** What the table sees of this block: the rock left, and the score once it is cleared. */
@@ -410,10 +409,8 @@ function levelList() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const readingsChoice = () => choice("Readings", Object.entries(READINGS), readings, v => { readings = v; write(READ, v); });
   if (duel.on) {                                              // a match: the table's own, and the size and readings the next one deals
     duel.menu(part(body, "together"));
-    part(body, "content").append(mirror("Size", $("size")), readingsChoice());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -421,7 +418,6 @@ function openMenu() {
   part(body, "play").append(action("New block", () => (levels ? confirmLevelBlock() : confirmStart("random")), "primary"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
-  else content.append(mirror("Size", $("size")), readingsChoice());
   todayPart(body, {
     app: "survey", play: () => { if (track !== "free") { track = "free"; write(TRACK, track); } start("daily"); },
     playing: S?.mode === "daily" && S.seed === today() && !S.run.done, busy: started(),
@@ -541,11 +537,6 @@ $("nextBtn").addEventListener("click", () => {
   if (duel.on) duel.open();
   else if (isLevel(S)) { if (S.level + 1 < COUNT && isOpen(S.level + 1)) playLevel(S.level + 1); else openMenu(); }
   else start("random");
-});
-$("size").addEventListener("change", async () => {
-  if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
-  if (S && $("size").value === S.size && S.mode !== "daily") return;
-  if (!(await confirmStart("random"))) $("size").value = S?.size || "small";
 });
 for (const b of $("tools").querySelectorAll("[data-tool]")) b.addEventListener("click", () => { tool = b.dataset.tool; message = null; render(); });
 $("hintBtn").addEventListener("click", useHint);

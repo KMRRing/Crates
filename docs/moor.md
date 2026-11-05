@@ -15,3 +15,5 @@ Tents (trees and tents), as docks and barges (4 November 2026). Moor a barge bes
 - **The 3D view only shows the run**: it has no state of its own (`prefs.view` in `moor:prefs` keeps 2D or 3D). Only checked in Chromium (SwiftShader); no SVG filters, WebGL pixel ratio capped at 2.
 - **A pinch's first finger is not "the" finger** (`moor-gesture.js`, `tests/moor-gesture.mjs`): the 3D view once kept it as the one that may tap, so lifting it first left the harbour deaf to every later tap and drag. Fingers are state that empties when the last lifts.
 - **The harbour's camera looks past the board toward the sea** (`CZ`, `SEA_VIEW`), and the sky is a dome with a fake `Fog` object (the bundled three.js has none; the renderer reads only its fields). A pixel above the horizon has no water under it: `groundAt` answers far off, so no cell is picked.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu has no choices but Today's and the view. Size and level are the hidden ramp (`moor:ramp`, rungs from `ramp-steps.js`, up after a puzzle solved without a hint; first rung the saved size and level).

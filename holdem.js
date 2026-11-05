@@ -4,6 +4,7 @@
 // table: the other seats round its top, flanking yours at the foot, the pot and the board between them; your two cards,
 // the coach as you choose (a hint when you ask, a word on each move of yours it would have made otherwise, or its move at
 // every decision), the size of a raise, and your buttons below.
+import { ramp } from "./ramp.js";
 import { rules, alive, legal, sizes, blindsOf, potOf, HANDS, RAKES, DEFAULTS, STACK, SHOW_MS, FOLDED_MS } from "./holdem-rules.js";
 import { LEVEL_NAMES } from "./holdem-bot.js";
 import { think, sameMove, BUDGET } from "./holdem-think.js";
@@ -38,6 +39,13 @@ const NAMES = ["Ah Keung", "Mei Ling", "Lao Ho", "Siu Ming", "Ah Lan", "Dai Lo"]
 // otherwise; on (Always), its move at each of your decisions as well
 const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
 let opts = { level: "hard", hands: DEFAULTS.hands, rake: DEFAULTS.rake, seats: 5, odds: false, coach: "hints", ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A game is the default length with the default commission
+// and five seats, no odds line, whatever an older save chose (a game in hand keeps its own rules, in its state). The computer's
+// strength is the hidden ramp, its first step the old saved choice (a lesson's game plays Easy, once).
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { hands: DEFAULTS.hands, rake: DEFAULTS.rake, seats: 5, odds: false });
+let lesson = false, lessonNext = false;
+const levelNow = () => (lesson ? "easy" : ramp("holdem", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL }));
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 if (!HANDS.includes(opts.hands)) opts.hands = DEFAULTS.hands;
 if (!RAKES.includes(opts.rake)) opts.rake = DEFAULTS.rake;
@@ -62,7 +70,7 @@ const cap = s => s[0].toUpperCase() + s.slice(1);
 let V = null, page = null, raiseTo = null, sizeMoved = false, sizeKey = "", eqCache = { key: "", v: null }, oddsCache = { key: "", v: null };
 const randomRounds = seatRounds("holdem", ["shown"]);   // random mode's round: a hand
 page = seatPage({
-  rules, id: "holdem", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
+  rules, id: "holdem", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(),
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -476,6 +484,7 @@ $("whyClose").addEventListener("click", () => $("whyDlg").close());
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const s = v.state, won = s.winners.includes(v.seat);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -493,9 +502,10 @@ function showEnd(v) {
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }
-function newGame() {
+function newGame(hands) {
   if ($("endDlg").open) $("endDlg").close();
-  page.deal(gameOptions(), opts.seats);
+  lesson = lessonNext; lessonNext = false;
+  page.deal({ ...gameOptions(), ...(typeof hands === "number" && { hands }) }, opts.seats);
 }
 $("endAgain").addEventListener("click", newGame);
 $("endTable").addEventListener("click", () => $("endDlg").close());
@@ -511,11 +521,9 @@ const course = createCourse({
   id: "holdem", course: COURSE, stage: holdemStage(), cls: "hd", inFrame: IN_FRAME, onRules: showRules,
   onPlay: () => {
     if (!page.host) { toast("Only the host starts a game"); return; }
-    opts.level = "easy";
-    opts.hands = 10;
-    saveOpts();
-    newGame();
-    toast("Ten hands against Easy players: the menu changes both", 3600);
+    lessonNext = true;
+    newGame(10);
+    toast("Ten hands against Easy players", 3600);
   },
 });
 
@@ -531,13 +539,7 @@ function openMenu() {
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));
-  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; keep(); word = null; hinted = null; draw(); }));
-  set.append(choice("A game is", HANDS.map(n => [n, `${n} hands`]), opts.hands, v => { opts.hands = Number(v); keep(); }));
-  set.append(choice("House commission", RAKES.map(n => [n, n ? `${n}%` : "None"]), opts.rake, v => { opts.rake = Number(v); keep(); }));
-  set.append(choice("Seats at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.seats, v => { opts.seats = Number(v); keep(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
-  set.append(line("The length, commission and seats apply from the next game."));
-  set.append(toggle("Odds line", opts.odds, on => { opts.odds = on; keep(); draw(); }));
+  set.append(toggle("Coach", opts.coach !== "off", on => { opts.coach = on ? (opts.coach === "off" ? "hints" : opts.coach) : "off"; keep(); word = null; hinted = null; draw(); }));
   const r = read(RECORD, { played: 0, won: 0 }), best = read(BEST, null);
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${typeof best === "number" ? `; best result +${fmt(best)}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

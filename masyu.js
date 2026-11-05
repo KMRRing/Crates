@@ -7,8 +7,9 @@ import { SIZES, LEVELS, DAILY, NONE, LINE, CROSS, puzzleOf, generate, nextMark, 
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -48,7 +49,11 @@ const prefs = { size: 8, level: "easy", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level) });
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp, its first rung the old
+// saved choice; the ladder steps up after a puzzle solved without a hint.
+const RUNGS = rungs(SIZES, Object.keys(LEVELS));
+const OLD = { size: prefs.size, level: prefs.level };
+const chosenKind = () => { const { size, level } = split(ramp("masyu", RUNGS, { start: startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level) })); return { size: Number(size), level: levelOn(Number(size), level) }; };
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
@@ -125,7 +130,6 @@ function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
   P = puzzleOf(S.size, S.grid, S.sol);
   message = null; clockFrom = null;
-  $("level").value = levelOn(S.size, S.level);
   if (!IN_FRAME) history.replaceState(null, "", hashOf(S));
   drawBoard();
   save();
@@ -312,6 +316,7 @@ function finish() {
   S.done = { ms, score: scoreOf(ms) };
   S.lit = null;
   S.fresh = recordBest(S.done.score);
+  if (S.mode === "random") { const k = chosenKind(); if (k.size === S.size && k.level === S.level) ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("masyu", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
   roundOver("masyu");
@@ -531,20 +536,12 @@ function openMenu() {
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action("The rules", showRules, "link"));
   if (!COOP) todayPart(body, { app: "masyu", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
-  content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-  content.append(mirror("Level", $("level")));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? bestOf(S) : null;
   const about = part(body, "about");
   about.append(line(S ? `${kindText({ size: S.size, level: S.came || S.level })}: ${COOP ? (S.done ? "solved" : "not solved yet") : best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Draw the loop through every pearl."));
   if (!COOP) about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
-}
-/** The size changed in the menu: the header's level follows, and a spare is made ready. */
-function kindChanged() {
-  const k = chosenKind();
-  $("level").value = k.level;
-  refill(k);
 }
 async function clearBoard() {
   if (!S || S.done) return;
@@ -583,7 +580,6 @@ async function openLinked(l) {
 }
 
 // ---------- wiring ----------
-dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "masyu");
 document.querySelector(".msy-mark").innerHTML = APPS.find(a => a.id === "masyu")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
@@ -591,13 +587,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => start("random"));
-$("level").addEventListener("change", async () => {
-  const v = $("level").value;
-  if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;
-  const before = prefs.level;
-  prefs.level = v; savePrefs();
-  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
-});
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
@@ -645,7 +634,6 @@ function showBoard(board, info) {
     P = puzzleOf(S.size, S.grid, S.sol);
     message = null; sentDone = false;
     cancelPress();                                          // a finger drawing on the board that has just been replaced
-    $("level").value = levelOn(S.size, S.level);
     drawBoard();
   } else {
     S.marks = run.marks; S.hints = run.hints; S.done = run.done;
@@ -666,5 +654,4 @@ async function joinPartner() {
   });
   if (!coop && !IN_FRAME) solo();
 }
-$("level").value = chosenKind().level;
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); }); else solo();

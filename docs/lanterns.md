@@ -12,3 +12,5 @@ Akari ("Light Up", Nikoli's: house name per `docs/classics.md`, the old name onl
 - **Hint steps are applied one at a time but a Hard or Expert pass settles everything it can** (`trialStep` without `rec`); the hint takes only the first.
 - **3D draws no shadows and no filters** (Safari blurs a filter on a large picture): the beams are stacked translucent strips. It was only looked at in Chromium.
 - **The 3D frame is slid up, not tilted** (`fit` in `lanterns-3d.js`): the board fills the width and a tall card has room above it, so the projection is shifted to show the far strait; picking uses the same matrices. A real horizon and sky show only when the player turns the view low. The bundle has no `Fog` or `BufferAttribute`: fog is a plain object the renderer reads, and ships keep to lanes beside the board (never over a cell).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu has no choices but Today's and the view. Size and level are the hidden ramp (`lanterns:ramp`, rungs from `ramp-steps.js`, up after a puzzle solved without a hint; first rung the saved size and level).

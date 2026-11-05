@@ -17,3 +17,5 @@ Score and bests as Circuit's. Held sideways, the board takes the left with all t
 Not done: the head-to-head and a split board on `duel.js`, the computer rival, boards past 10×10 and odd sizes (the tree loop needs an even side), and Expert.
 
 Co-op (3 November 2026, `docs/coop.md`, `masyu-coop.js`): a paired partner joins and draws on the same loop; a shared solve earns no best, today's time or Random round, and the host's `masyu:run` follows the shared board. A stroke is many edge edits, so undoing it puts back each edge only if it is still as you left it: a line your partner drew or rubbed out since stays theirs.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu has no choices but Today's. Size and level are the hidden ramp (`masyu:ramp`, rungs from `ramp-steps.js`, up after a puzzle solved without a hint; first rung the saved size and level).

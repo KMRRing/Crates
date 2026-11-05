@@ -4,12 +4,13 @@
 // made in hitori-worker.js. This file keeps the run, the clock and the taps, draws the board, and plays it together on
 // one table (duel.js): a race, everyone the same puzzle on their own phone, or the split board, two players on one
 // board, each seeing half of its numbers.
-import { SHAPES, SIZES, LEVELS, levelsFor, levelOn, DAILY, puzzleOf, solutions, generate, nextMark, withMark, solvedBy, breaks, hintFor, ownerOf, aloneSettles, NONE, SHADE, KEEP, B, U } from "./hitori-engine.js";
+import { SHAPES, SIZES, LEVELS, LEVEL_LIST, levelsFor, levelOn, DAILY, puzzleOf, solutions, generate, nextMark, withMark, solvedBy, breaks, hintFor, ownerOf, aloneSettles, NONE, SHADE, KEEP, B, U } from "./hitori-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -58,7 +59,12 @@ if (!SHAPES[prefs.shape]) prefs.shape = "square";
 for (const sh of Object.keys(SHAPES)) if (!SIZES[sh].includes(prefs.size?.[sh])) prefs.size = { ...prefs.size, [sh]: SIZES[sh][Math.min(1, SIZES[sh].length - 1)] };
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => ({ shape: prefs.shape, size: prefs.size[prefs.shape], level: levelOn(prefs.shape, prefs.size[prefs.shape], prefs.level) });
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp for each board, its first
+// rung the old saved choice; the ladder steps up after a puzzle solved without a hint.
+const RUNGS = Object.fromEntries(Object.keys(SHAPES).map(sh => [sh, rungs(SIZES[sh], LEVEL_LIST, (n, l) => levelsFor(sh, n).includes(l))]));
+const OLD = { size: { ...prefs.size }, level: prefs.level };
+const rungOf = sh => { const { size, level } = split(ramp("hitori", RUNGS[sh], { id: sh, start: startFor(RUNGS[sh], SIZES[sh], LEVEL_LIST, OLD.size[sh], OLD.level) })); return { shape: sh, size: Number(size), level }; };
+const chosenKind = () => rungOf(prefs.shape);
 
 // ---------- making puzzles ----------
 // Puzzles are made in a worker, so the screen stays responsive while a large Expert board is steered to its level, and
@@ -139,8 +145,6 @@ function begin(s) {
   delete S.rival;                                    // a run saved when a computer could race you
   P = puzzleOf(S.shape, S.size, S.grid, S.sol);
   message = null; pointing = false; clockFrom = null;
-  $("level").value = levelOn(S.shape, S.size, S.level);
-  offerLevels(S.shape, S.size);
   if (!together() && !IN_FRAME) history.replaceState(null, "", hashOf(S));
   drawBoard();
   save();
@@ -336,6 +340,7 @@ function finish() {
   else if (S.mode === "pair") pairDone(ms);
   else {
     S.fresh = recordBest(S.done.score);
+    if (S.mode === "random") { const k = chosenKind(); if (k.shape === S.shape && k.size === S.size && k.level === S.level) ramp.won(!S.hints); }
     if (S.mode === "daily") noteDayTime("hitori", S.done.score, S.seed);       // today's puzzle: the first solve's time
     save();
     roundOver("hitori");
@@ -494,12 +499,6 @@ function render() {
   if (!S) $("board").replaceChildren();
   drawStrip(); drawLine(); drawResult();
 }
-/** The board's levels: those this shape and size offer (a hex board has no Medium; the widest no Expert). */
-function offerLevels(shape, size) {
-  const offered = levelsFor(shape, size);
-  for (const o of $("level").options) o.disabled = !offered.includes(o.value);
-}
-
 // ---------- together: one table (duel.js), a race or the split board ----------
 // A match is dealt by whoever starts it: a race (everyone the same puzzle on their own phone; the lowest time plus
 // hints wins; up to six, from a party too) or, for two, the split board (one board for both, each seeing the numbers
@@ -510,7 +509,7 @@ const duel = createDuel({
   deal: dealMatch,
   describe: m => (m.mode === "pair" ? `The split board, ${kindText(m)}: you each see half the numbers, and solve it as one` : `A race, ${kindText(m)}: the same puzzle for everyone, the fastest solve wins`),
   play: (match, { begun, kept }) => (match.mode === "pair" ? playPair(match) : playRace(match, begun, kept)),
-  onLobby: match => { S = null; P = null; svg = null; $("level").value = LEVELS[match.level] ? match.level : "easy"; render(); },
+  onLobby: match => { S = null; P = null; svg = null; render(); },
   onLeave: () => { stopTable(); solo(); },
 });
 /** The match the table plays next: a party's is a race; a pair's is the split board or a race, as chosen. */
@@ -707,8 +706,6 @@ function openMenu() {
   const content = part(body, "content");
   const boardChoices = () => {
     content.append(choice("Board", Object.entries(SHAPES), prefs.shape, v => { prefs.shape = v; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(choice("Size", SIZES[prefs.shape].map(n => [n, String(n)]), prefs.size[prefs.shape], v => { prefs.size = { ...prefs.size, [prefs.shape]: v }; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(mirror("Level", $("level")));
   };
   if (duel.on) {
     part(body, "play").append(action("The rules", showRules, "link"));
@@ -736,13 +733,8 @@ function openMenu() {
   if (!COOP) about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-/** The board or its size changed in the menu: the header's levels follow, and the level moves to one the board offers. */
-function kindChanged() {
-  const k = chosenKind();
-  offerLevels(k.shape, k.size);
-  $("level").value = k.level;
-  refill(k);
-}
+/** The board changed in the menu: its prefetched puzzle follows. */
+function kindChanged() { refill(chosenKind()); }
 async function clearBoard() {
   if (!S || S.done) return;
   if (!(await sure(coop ? "Clear every mark on the board? It clears it for both of you." : "Clear every mark on the board?", { yes: "Clear" }))) return;
@@ -780,7 +772,6 @@ async function openLinked(l) {
 }
 
 // ---------- wiring ----------
-dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "hitori");
 document.querySelector(".hi-mark").innerHTML = APPS.find(a => a.id === "hitori")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
@@ -791,19 +782,6 @@ $("nextBtn").addEventListener("click", () => {
   if (S?.mode === "duel") duel.open();
   else if (S?.mode === "pair") duel.again();
   else start("random");
-});
-$("level").addEventListener("change", async () => {
-  const v = $("level").value;
-  if (duel.on) {                                                // a new match at that level, for everyone at the table
-    prefs.level = v; savePrefs();
-    const ok = S?.mode === "pair" ? (S.done || (await sure("Start a new board at that level? This one isn't solved.", { yes: "New board" }))) && (duel.again(), true) : await duel.newMatch();
-    if (!ok) $("level").value = duel.match?.level || v;
-    return;
-  }
-  if (S && S.mode !== "daily" && v === S.level && S.shape === prefs.shape && S.size === prefs.size[prefs.shape]) return;
-  const before = prefs.level;
-  prefs.level = v; savePrefs();
-  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.shape, S.size, S.level) : before; }
 });
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
@@ -852,8 +830,6 @@ function showBoard(board, info) {
     P = puzzleOf(S.shape, S.size, S.grid, S.sol);
     message = null; sentDone = false; pointing = false;
     cancelPress();                                          // a finger holding a cell on the board that has just been replaced
-    $("level").value = levelOn(S.shape, S.size, S.level);
-    offerLevels(S.shape, S.size);
     drawBoard();
   } else {
     S.marks = run.marks; S.hints = run.hints; S.done = run.done;
@@ -874,8 +850,6 @@ async function joinPartner() {
   });
   if (!coop && !IN_FRAME) solo();
 }
-offerLevels(prefs.shape, prefs.size[prefs.shape]);
-$("level").value = chosenKind().level;
 // a party of two in the address (&coop=1): its one board; else a match in the address: its table, with no solo puzzle made under it
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
 else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });

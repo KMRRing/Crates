@@ -12,12 +12,15 @@ import { getSync } from "./net.js";
 import { reportDuo, today, noteDayTime, arrivedForToday, playerId, sayWhere } from "./suite.js";
 import { roundOver } from "./random.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
-import { dropdown } from "./dropdown.js";
-import { part, action, mirror, isPaused, onPause, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, action, isPaused, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { sideways, scale } from "./wide.js";
 
-dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The level is the hidden ramp, its first rung the level of the
+// board kept from before; the ladder steps up after a board solved without a clue.
+let oldLevel = null;
+const levelNow = () => ramp("slate", ["easy", "medium", "hard"], { start: oldLevel ??= S?.level || "easy" });
 
 const $ = id => document.getElementById(id);
 // Saves, the room branch and the switcher id keep the game's first name (Glyph), so saved boards and rooms in
@@ -349,11 +352,11 @@ async function giveUp() {
   roundOver(GAME);
 }
 
-async function newBoard(level = S.level) {
-  if (!S.done && placements() && !(await sure("Leave this board unfinished?"))) { $("level").value = S.daily ? "today" : S.level; return; }
+async function newBoard(level = levelNow()) {
+  if (!S.done && placements() && !(await sure("Leave this board unfinished?"))) { return; }
   $("menuDlg").close();
   if (level === "today") {                                     // today's puzzle: solo, timed for the games screen
-    if (room) { $("level").value = S.daily ? "today" : S.level; return; }
+    if (room) { return; }
     soloBoard(today(), DAILY_LEVEL); S.daily = today(); saveSolo(); render(); return;
   }
   if (!room) { soloBoard(randomSeed(), level); return; }
@@ -374,6 +377,7 @@ function afterChange() {
   if (end) {
     clockPause();
     if (end.won && S.daily && !room) noteDayTime("slate", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
+    if (!S.daily && !room) { levelNow(); if (end.won) ramp.won(!hintsUsed()); else ramp.lost(); }
     act(g => { if (g.done) return false; g.done = { ...end, at: Date.now() }; });
     roundOver(GAME);
     return;
@@ -547,7 +551,7 @@ function leave() {
   seated();
   setRoomParam(null);
   S = loadSolo();
-  if (!S) { soloBoard(randomSeed(), $("level").value || "easy"); return; }
+  if (!S) { soloBoard(randomSeed(), levelNow()); return; }
   resetCursor();
   shownDone = S.done ? JSON.stringify(S.done) : null;
   clockRun();
@@ -601,7 +605,6 @@ function render() {
   const g = grid(), fs = fields(), letters = lettersFrom(S.board, S.log);
   if (!cursor || !g.cells.includes(cursor)) resetCursor();
   const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed(), hintsLeft = limitsFor(S.level).hints - hintsUsed();
-  $("level").value = S.daily ? "today" : S.level;
   labelLeft($("checkBtn"), "Check", left);
   $("checkBtn").disabled = !!S.done || left === 0 || thinking;
   labelLeft($("hintBtn"), "Suggest", hintsLeft);
@@ -1005,7 +1008,6 @@ function drawMenu() {
   $("menuTitle").textContent = room ? "Playing together" : "Menu";
   part(body, "play").append(action("New board", () => newBoard(), "primary"), action(S.done ? "Show the result" : "Show our fill", giveUp));
   if (!room) todayPart(body, { app: "glyph", play: () => newBoard("today"), playing: S.daily === today() });   // newBoard asks before it leaves a board you've started
-  if (!room) part(body, "content").append(mirror("Level", $("level")));
   if (room) part(body, "together").append(action("Back to solo", () => leave(), "link"));
   else part(body, "about").append(action("Copy a link to this board", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }
@@ -1201,7 +1203,6 @@ $("checkBtn").addEventListener("click", check);
 $("hintBtn").addEventListener("click", suggestWord);
 $("defineClose").addEventListener("click", () => $("defineDlg").close());
 $("clearBtn").addEventListener("click", clear);
-$("level").addEventListener("change", e => newBoard(e.target.value));
 window.addEventListener("resize", () => render());
 $("board").addEventListener("pointerdown", () => { pressing = true; });
 addEventListener("pointerup", lifted);
@@ -1224,7 +1225,7 @@ S = loadSolo();                              // a table dealt as you sit down is
 function soloStart() {
   if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d)) soloBoard(+hash.s, ["easy", "medium", "hard"].includes(hash.d) ? hash.d : "easy");
   else if (!S && forToday && !code) { soloBoard(today(), DAILY_LEVEL); S.daily = today(); saveSolo(); render(); }
-  else if (!S) soloBoard(randomSeed(), "easy");
+  else if (!S) soloBoard(randomSeed(), levelNow());
   else {
     shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render();
     if (ending()) afterChange();                // out of lives before it could be told (another tab, a save from a moment ago)
