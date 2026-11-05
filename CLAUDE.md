@@ -144,6 +144,7 @@ in `tests/offline.mjs`, which fails until you do. The service worker's logic is 
   `suite.js`): `noteComparable`, `noteDayTime`, or `<game>:daily` by the day.
 - **The tile opens today's** while it's still to play (`#today`): a game with a daily takes it with
   `arrivedForToday()` at start-up and opens today's, asking before it leaves a run you've started.
+- **A played day is recorded for you** (`ledger:played`, for the Ledger): `suite.js` notes it when your page writes a changed `best`, `daily`, `ranked`, `streak`, `stars`, `lessons`, `course`, `progress`, `today`, `count` or `wins`, and `roundOver` does. A game that keeps none of those and has no round calls `notePlayed()` from `suite.js` at its first move.
 - Today's is a button, not a mode: `todayPart` from `menu.js` (Korbi, 4 November 2026)
 
 ## Random mode

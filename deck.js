@@ -23,7 +23,7 @@ import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import { markedIn } from "./topics-on.js";
 import { scopeNow, labelOf, openScope } from "./deck-row.js";
-import { inScope, sayScope, revised } from "./deck-scope.js";
+import { inScope, sayScope, revised, asked, aboutTopic } from "./deck-scope.js";
 import { speak } from "./voice.js";
 import { check } from "./typing.js";
 import { COURSES } from "./parley-courses.js";
@@ -130,10 +130,12 @@ function arrange(items) {
   }
   return out.flatMap(x => (x.block ? shuffle(Math.random, blocks.get(x.block)) : [x]));
 }
-function startReview() {
-  const items = arrange(dueNow().slice(0, MAX_REVIEW));
-  if (!items.length) { overview(); return; }
-  session = { items, at: 0, right: 0, wrong: 0 };
+/** `topic`: a one-off review of that subject (by label) from every game, whatever the device's scope; nothing is kept. */
+function startReview(topic = null) {
+  if (typeof topic !== "string") topic = null;          // a click hands over its event
+  const items = arrange((topic ? aboutTopic(pile.due(), topic, labelOf(kbIndex)) : dueNow()).slice(0, MAX_REVIEW));
+  if (!items.length) { overview(); if (topic) toast(`Nothing due in ${topic} yet.`); return; }
+  session = { items, at: 0, right: 0, wrong: 0, topic };
   $("overview").hidden = true;
   $("review").hidden = false;
   ask();
@@ -528,7 +530,7 @@ function finish(emptied = false) {
 /** The scope changed with a review under way: the cards it no longer covers leave the stack (deck-scope.js, revised), the one
  *  on show too if it isn't answered yet. The stack isn't topped up; a later review deals what is in. */
 function reviseSession() {
-  if (!session || $("review").hidden) return;
+  if (!session || session.topic || $("review").hidden) return;       // a topic's one-off review keeps its own cards
   const r = revised(session.items, session.at, answered, scopeNow(), labelOf(kbIndex));
   if (!r.dropped) return;
   session.items = r.items;
@@ -614,6 +616,12 @@ window.__deck = { get session() { return session; }, startReview, overview, pile
 try { await refreshPunt(); } catch { /* the stored questions still serve */ }
 overview();
 // the games screen's Deck button comes here as deck.html#review (or sets it, when it's pressed on this page): a review at once
-const fromAddress = () => { if (location.hash === "#review") { history.replaceState(null, "", location.pathname + location.search); if (!session || $("review").hidden) startReview(); } };
+// and the Ledger's "Review this" as deck.html#review&topic=Law (or #topic=Law): that topic only, this once (deck-scope.js, asked)
+const fromAddress = () => {
+  const a = asked(location.hash);
+  if (!a.review) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if (!session || $("review").hidden) startReview(a.topic);
+};
 addEventListener("hashchange", fromAddress);
 fromAddress();

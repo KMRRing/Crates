@@ -107,8 +107,12 @@ function touched(k, v) {
 Storage.prototype.setItem = function (k, v) {
   if (this === localStorage && WATCHING && !k.startsWith("suite:")) return;      // watching: their game, nothing of yours is written
   if (this === localStorage && frozen?.some(p => k.startsWith(p))) return;        // a game just started over: nothing of it comes back before the reload
+  const was = this === localStorage && SIGN.test(k) ? raw.get(k) : null;
   raw.set.call(this, k, v);
-  if (this === localStorage) touched(k, String(v));
+  if (this === localStorage) {
+    touched(k, String(v));
+    if (was !== String(v) && SIGN.test(k) && k.startsWith(`${pageGame()}:`)) notePlayed();      // a sign that changed: a start-up that rewrites the same figure isn't play
+  }
 };
 Storage.prototype.removeItem = function (k) {
   if (this === localStorage && WATCHING && !k.startsWith("suite:")) return;
@@ -189,6 +193,25 @@ export async function resetGame(app) {
 // The day, the same for everyone (days.js): the UTC date as YYYYMMDD. It seeds every game's daily, which is dealt on the
 // device (offline too) and is the same set wherever you are, rolling over at the same moment for everyone.
 export { today };
+// ---------- days played ----------
+// The Ledger's "games played" and its daily dots: { game: [YYYYMMDD…] }, the last PLAYED_DAYS per game, kept under
+// ledger:played (not suite:, which stays on the device) so every device adds to it. A day is noted when the page is
+// actually played: a comparable result, a streak, a day's time or count (the note* calls below), any write of a game's own
+// sign of progress (best, daily, stars… on its page; the hook in setItem), or a round counted for Random (random.js).
+// Never in a watching page: it is your partner's game, and nothing there is yours.
+export const PLAYED = "ledger:played", PLAYED_DAYS = 120;
+const SIGN = /:(best|daily|ranked|streak|stars|lessons|course|progress|today|count|wins)$/;
+let playedNoted = "";                                    // "game/day" last written from this page, so a day costs one write
+export function notePlayed(app = pageGame(), day = String(today())) {
+  try {
+    if (WATCHING || !app || playedNoted === `${app}/${day}`) return;
+    const all = json(PLAYED, null), have = all && typeof all === "object" && !Array.isArray(all) ? all : {}, days = Array.isArray(have[app]) ? have[app] : [];
+    playedNoted = `${app}/${day}`;
+    if (days.includes(day)) return;
+    have[app] = [...days, day].sort().slice(-PLAYED_DAYS);
+    localStorage.setItem(PLAYED, JSON.stringify(have));
+  } catch { /* private mode */ }
+}
 /** Games whose best counts only comparable runs: the daily, and the Standard preset (everything in, default settings,
  *  nothing from your pile or your history dealt in). The games screen and your partner see only these. */
 export const RANKED = new Set(["chart", "quote", "punt", "crates"]);

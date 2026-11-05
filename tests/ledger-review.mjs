@@ -64,12 +64,40 @@ eq(j.reads, [{ label: "Law", kind: "over", n: 5 }], "the plain read: more commit
 
 // next steps
 eq(r.next.map(n => n.kind), ["review", "course", "daily"], "three next steps: review, a course, a daily");
-eq(r.next.map(n => n.href), ["deck.html#topic=Law", "./maths.html", "./quote.html#today"], "each a link: the weakest subject, the course with lessons left, a daily not done today (the most kept lately)");
+eq(r.next.map(n => n.href), ["deck.html#review&topic=Law", "./maths.html", "./quote.html#today"], "each a link: the weakest subject, the course with lessons left, a daily not done today (the most kept lately)");
 check(/Law/.test(r.next[0].text) && /7 lessons left/.test(r.next[1].why) && /1 of the last 14/.test(r.next[2].why), "and each says why");
 
 // the empty state: a new player with a settings key only
 const e = review({ snap: { "punt:settings": "{}" }, apps: base.apps, sections: base.sections, marks: {}, items: [], stats: {}, subjectOf: null, now: NOW });
 check(e.empty && e.next.length === 0 && e.topics.subjects === 0 && e.health.streak === 0, "a new player: empty, no suggestions, no streak");
+
+// days played (ledger:played, suite.js): the games played in a week and the dots come from it where a game keeps it
+{
+  const p = fakeProfile(), ymd = t => new Date(t).toISOString().slice(0, 10).replace(/-/g, ""), back = d => ymd(NOW - d * 86400e3);
+  p.snap["ledger:played"] = JSON.stringify({ rack: [back(2), back(9)], glyph: [back(0), back(1), back(5)], sudoku: [back(9)], whispers: "junk" });
+  const q = review(p), gq = id => q.games.find(x => x.id === id);
+  eq([q.headline.last.played, q.headline.prev.played], [9, 3], "games played: Rack (never saved a thing) and Sudoku (its save is this week, its played day last week) count from the log");
+  check(gq("rack").started && !gq("rack").stalled && gq("rack").kept === 2 && gq("rack").dots[11] && !gq("rack").dots[13], "a game played only (no sign saved) is started, with its dots");
+  check(gq("glyph").dots[13] && gq("glyph").dots[12] && gq("glyph").dots[8] && gq("glyph").kept === 4, "Slate's days are logged as slate: its daily's day and its played days make the dots");
+  check(q.headline.last.dailies === r.headline.last.dailies && !gq("rack").daily, "a day played is not a daily kept");
+  check(!gq("whispers").started, "an unreadable entry plays no days");
+  p.snap["ledger:played"] = "{broken";
+  check(review(p).headline.last.played === 7, "an unreadable log falls back to what the saves say");
+}
+// the pile's history (pile.js): misses in the last 30 days, and the review streak
+{
+  const p = fakeProfile(), ymd = t => new Date(t).toISOString().slice(0, 10).replace(/-/g, ""), back = d => +ymd(NOW - d * 86400e3);
+  const law = p.items.filter(it => p.subjectOf(it.about?.[0]) === "Law");
+  law[0].h = [[back(40), 2], [back(31), 0], [back(29), 0], [back(10), 1], [back(3), 0], [back(0), 2]];      // 3 misses inside 30 days (29, 3 and 0 back), 2 outside or right
+  law[1].h = [[back(5), 1]];
+  const q = review(p), l = q.topics.weak.find(s => s.label === "Law");
+  check(l.misses30 === 3 + 0 + 3, `Law's misses in 30 days count each answer in the history (3 + 0), the others by their latest (3 items): ${l.misses30}`);
+  const streakOnly = fakeProfile();
+  streakOnly.stats = {}; streakOnly.items = streakOnly.items.slice(0, 3);
+  streakOnly.items[0].h = [[back(0), 1], [back(1), 1]]; streakOnly.items[1].h = [[back(2), 0], [back(4), 1]]; streakOnly.items[2].h = [[back(3), 2]];
+  const s = review(streakOnly).health;
+  check(s.streak === 3 && s.reviewedToday, "the review streak counts the days an item came back (today, yesterday, two back) and not the day a miss put one in (three back)");
+}
 
 // the record gains the days with a review (the streak's source)
 L.reset(); L.noteRecall(86400e3, true); L.noteRecall(86400e3, false);

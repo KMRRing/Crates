@@ -76,3 +76,19 @@ export function sayScope(scope) {
   const out = [n(s.games.length, "game", "games"), n(s.subjects.length, "topic", "topics")].filter(Boolean);
   return out.length ? `Left out: ${out.join(" and ")}.` : "Everything: every game and every topic.";
 }
+
+/**
+ * A review asked for by the address (the games screen's Deck button: #review; the Ledger's "Review this": #review&topic=Law,
+ * or #topic=Law): { review, topic }. A topic, by its label, is a one-off scope for that review only: every game, just the
+ * cards about that topic. It is never kept (suite:deck is the device's own choice) and a card about nothing in the base is out of it.
+ */
+export function asked(hash) {
+  const parts = String(hash || "").replace(/^#/, "").split("&");
+  let topic = null;
+  for (const p of parts) if (p.startsWith("topic=")) { try { topic = decodeURIComponent(p.slice(6)) || null; } catch { /* a broken escape names no topic */ } }
+  return { review: topic != null || parts.includes("review"), topic };
+}
+/** The address that asks for a review of a topic: what the Ledger links to. */
+export const topicAddress = label => `#review&topic=${encodeURIComponent(label)}`;
+/** The items about a topic (by label): any of their entities has that subject. */
+export const aboutTopic = (items, label, subjectOf) => items.filter(it => it.about?.some(id => subjectOf(id) === label));

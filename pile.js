@@ -9,6 +9,7 @@
 // new content. Deck is the tile that reviews everything due, across the games.
 
 import { noteRecall } from "./ledger-log.js";
+import { today } from "./days.js";
 
 const STORE = "pile:items", SETTINGS = "pile:settings", DAY = 24 * 60 * 60 * 1000;
 export const PILES = [
@@ -49,6 +50,14 @@ function load() {
   return items;
 }
 function save() { write(STORE, items); }
+
+/** An item's last answers, oldest first: [[YYYYMMDD, 1 right | 0 wrong when it came back | 2 the miss that put it in the pile]…],
+ *  at most HISTORY. Items stored before it existed have none (`it.h` absent): the Ledger then falls back on their latest answer. */
+export const HISTORY = 8;
+export const historyOf = it => (Array.isArray(it?.h) ? it.h : []);
+function remember(it, code, now) {
+  it.h = [...historyOf(it).slice(1 - HISTORY), [today(new Date(now)), code]];
+}
 
 /**
  * The learning mode, one for every game (its menu's "Learning mode"):
@@ -103,6 +112,7 @@ export function record(game, key, payload, why) {
   delete it.learned;                                   // a learned item that's missed again is back in the piles
   it.fails++;
   it.last = { at: now, why };
+  remember(it, all[id] ? 0 : 2, now);
   all[id] = it;
   save();
   return it;
@@ -138,6 +148,7 @@ export function answer(game, key, right) {
     it.due = now;
   }
   it.last = { at: now, why: right ? "right" : "wrong" };
+  remember(it, right ? 1 : 0, now);
   save();
   return it;
 }

@@ -2,6 +2,7 @@
 // it a snapshot of the saved keys, the pile's items, the Ledger's record and the knowledge base's subjects; nothing is
 // read or written here. It reads other games' keys by their prefix and never writes them.
 import { weekOf } from "./ledger-log.js";
+import { topicAddress } from "./deck-scope.js";
 
 export const DAY = 24 * 60 * 60 * 1000;
 const RECENT = 14;              // days: "lately", the row of dots, and when a started game counts as stalled
@@ -38,9 +39,9 @@ function byGame(snap) {
 }
 
 /** One game's figures from its saved keys: { started, best, bestAt, stars, lessons, levels, days:Set, lastAt }. */
-function gameOf(app, keys, meta, marks, now) {
-  const out = { id: app.id, name: app.name, href: app.href, sec: app.sec, started: !!keys, best: null, bestAt: null, stars: null, lessons: null, levels: null, streak: null, days: new Set(), lastAt: null, daily: DAILY_KINDS.has(marks[app.id]) };
-  if (!keys) return out;
+function gameOf(app, keys, meta, marks, played, now) {
+  const out = { id: app.id, name: app.name, href: app.href, sec: app.sec, started: !!keys, best: null, bestAt: null, stars: null, lessons: null, levels: null, streak: null, days: new Set(), played: new Set(played), lastAt: null, daily: DAILY_KINDS.has(marks[app.id]) };
+  if (!keys) { out.started = out.played.size > 0; out.lastAt = out.started ? dayTime([...out.played].sort().pop()) : null; return out; }
   const get = n => keys[n]?.v, at = n => meta[keys[n]?.key] ?? null;
   const ranked = get("ranked");
   if (ranked && typeof ranked === "object") { out.best = num(ranked.best); out.bestAt = at("ranked"); if (ranked.day?.key) out.days.add(String(ranked.day.key)); }
@@ -69,8 +70,15 @@ function gameOf(app, keys, meta, marks, now) {
   let last = 0;
   for (const n of Object.keys(keys)) last = Math.max(last, at(n) || 0);
   for (const d of out.days) last = Math.max(last, dayTime(d));
+  for (const d of out.played) last = Math.max(last, dayTime(d));
   out.lastAt = last || null;
   return out;
+}
+
+/** Misses in the last `days` days: from the item's history (pile.js), else, for an item stored before it, its latest answer. */
+function missesSince(it, now, days) {
+  if (Array.isArray(it.h)) { const from = ymd(now - (days - 1) * DAY); return it.h.filter(([d, c]) => c !== 1 && String(d) >= from).length; }
+  return it.last?.why && it.last.why !== "right" && it.last.why !== "new" && now - it.last.at < days * DAY ? 1 : 0;
 }
 
 /** Streak of days ending today (or yesterday, so a day not yet played doesn't break it). */
@@ -90,13 +98,15 @@ export function review(ctx) {
   const { snap = {}, apps = [], sections = [], marks = {}, items = [], stats = {}, subjectOf = null, now = Date.now() } = ctx;
   let meta = {}; try { meta = JSON.parse(snap["suite:meta"]) || {}; } catch { /* no solo code: nothing is stamped */ }
   const kept = byGame(snap), today = ymd(now);
+  let log = {}; try { const l = JSON.parse(snap["ledger:played"]); if (l && typeof l === "object" && !Array.isArray(l)) log = l; } catch { /* nothing logged yet */ }
+  const playedOf = id => { const l = log[id] || (id === "glyph" ? log.slate : null); return Array.isArray(l) ? l : []; };
 
   // ----- the games -----
-  const games = apps.filter(a => a.sec !== "appendix").map(a => gameOf(a, kept.get(a.id === "glyph" ? "slate" : a.id), meta, marks, now));
+  const games = apps.filter(a => a.sec !== "appendix").map(a => gameOf(a, kept.get(a.id === "glyph" ? "slate" : a.id), meta, marks, playedOf(a.id), now));
   for (const g of games) {
     g.recent = g.lastAt != null && now - g.lastAt < RECENT * DAY;
     g.stalled = g.started && g.lastAt != null && !g.recent;
-    g.dots = Array.from({ length: RECENT }, (_, i) => g.days.has(ymd(now - (RECENT - 1 - i) * DAY)));   // oldest first, today last
+    g.dots = Array.from({ length: RECENT }, (_, i) => { const d = ymd(now - (RECENT - 1 - i) * DAY); return g.days.has(d) || g.played.has(d); });   // oldest first, today last
     g.kept = g.dots.filter(Boolean).length;
     g.left = g.lessons?.of && g.lessons.done < g.lessons.of ? g.lessons.of - g.lessons.done : 0;
     g.todayDone = g.days.has(today);
@@ -116,7 +126,7 @@ export function review(ctx) {
       if (it.learned) s.learned++; else s.held++;
       s.passes += it.passes || 0;
       s.fails += Math.max(0, (it.fails || 0) - 1);               // the first miss put it in the pile: it was no recall
-      if (it.last?.why && it.last.why !== "right" && it.last.why !== "new" && now - it.last.at < 30 * DAY) s.misses30++;
+      s.misses30 += missesSince(it, now, 30);
       if (it.game === "punt") { const w = it.last?.why; if (w === "wrong") s.punt.wrong++; else if (w === "lowStake") s.punt.low++; else if (w === "pass") s.punt.pass++; }
     }
   }
@@ -134,7 +144,10 @@ export function review(ctx) {
   // ----- revision health -----
   const due = live.filter(it => it.due <= now), late = due.map(it => now - it.due).sort((a, b) => b - a);
   const reviewDays = new Set(Object.keys(stats.days || {}));
-  for (const it of items) if (it.last?.at && it.last.why !== "new") reviewDays.add(ymd(it.last.at));
+  for (const it of items) {
+    if (Array.isArray(it.h)) { for (const [d, c] of it.h) if (c !== 2) reviewDays.add(String(d)); }      // an answer when it came back, not the miss that put it in
+    else if (it.last?.at && it.last.why !== "new") reviewDays.add(ymd(it.last.at));
+  }
   for (const [g, a] of Object.entries(kept.get("deck") || {})) if (a.v?.key && g === "count") reviewDays.add(String(a.v.key));
   const health = {
     due: due.length, oldest: late[0] ?? 0, median: late.length ? late[late.length >> 1] : 0,
@@ -152,7 +165,8 @@ export function review(ctx) {
     const played = new Set();
     let dailies = 0;
     for (const g of games) {
-      let on = [...g.days].some(d => inWeek(dayTime(d), w)) || inWeek(g.lastAt, w);
+      const inW = d => inWeek(dayTime(d), w);
+      let on = [...g.played].some(inW) || [...g.days].some(inW) || (!g.played.size && inWeek(g.lastAt, w));     // a game with no log yet: its latest save
       for (const d of g.days) if (g.daily && inWeek(dayTime(d), w)) dailies++;
       if (on) played.add(g.id);
     }
@@ -177,7 +191,7 @@ export function review(ctx) {
   // ----- next steps: each a link -----
   const next = [];
   const target = weak[0];
-  if (target) next.push({ kind: "review", text: `Review ${target.label}`, why: `${target.held} held, ${target.rate == null ? "none recalled yet" : `${Math.round(100 * target.rate)}% recalled`}: your weakest subject.`, href: `deck.html#topic=${encodeURIComponent(target.label)}` });
+  if (target) next.push({ kind: "review", text: `Review ${target.label}`, why: `${target.held} held, ${target.rate == null ? "none recalled yet" : `${Math.round(100 * target.rate)}% recalled`}: your weakest subject.`, href: `deck.html${topicAddress(target.label)}` });
   else if (health.due) next.push({ kind: "review", text: `Review ${health.due} due`, why: `${span(health.oldest)} overdue at the oldest.`, href: "deck.html#review" });
   const course = games.filter(g => g.left).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0) || a.name.localeCompare(b.name))[0]
     || games.filter(g => g.stalled).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0))[0];

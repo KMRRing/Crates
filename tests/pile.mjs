@@ -72,6 +72,23 @@ check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's ba
   check([...P.recent("crossword")].join() === "c,b,d,e" && P.recent("nothing").size === 0, `dealt lately keeps the latest four, oldest dropped: ${[...P.recent("crossword")]}`);
   P.clear();
 }
+{ // each item keeps its last answers (HISTORY), small, and an item stored before it works as before
+  P.clear();
+  const d = P.historyOf({ h: [[20261101, 1]] }), last = () => P.all().find(x => x.key === "h");
+  check(d.length === 1 && P.historyOf({}).length === 0 && P.historyOf(null).length === 0 && P.historyOf({ h: "junk" }).length === 0, "history reads from what's stored, and an item without one has none");
+  P.record("punt", "h", {}, "wrong");
+  check(JSON.stringify(last().h.map(x => x[1])) === "[2]" && /^\d{8}$/.test(String(last().h[0][0])), "the miss that put it in is noted, with its day (YYYYMMDD) and code 2");
+  P.answer("punt", "h", true); P.answer("punt", "h", false); P.record("punt", "h", {}, "pass");
+  check(JSON.stringify(last().h.map(x => x[1])) === "[2,1,0,0]", "right is 1, wrong when it came back is 0, a miss again in a game is 0");
+  for (let i = 0; i < 12; i++) P.answer("punt", "h", i % 2 === 0);
+  check(last().h.length === P.HISTORY && P.HISTORY === 8, `capped at the last ${P.HISTORY} answers`);
+  check(JSON.stringify(last().h.map(x => x[1])) === "[1,0,1,0,1,0,1,0]", "and they are the newest ones, in order (the twelve answers ended wrong)");
+  check(JSON.stringify(P.all()).length < 400, `small: an item with a full history is ${JSON.stringify(P.all()[0]).length} bytes`);
+  // an item stored before history: answering starts one
+  localStorage.setItem("pile:items", JSON.stringify({ "punt:old": { id: "punt:old", game: "punt", key: "old", added: 1, seen: 0, fails: 1, passes: 0, pile: 0, due: 1, last: { at: 1, why: "wrong" }, payload: {} } }));
+  const fresh = await import("../pile.js?again");
+  check(fresh.all()[0].h === undefined && fresh.answer("punt", "old", true).h.length === 1, "an item stored before history is read as before, and starts one with its next answer");
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
 

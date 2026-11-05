@@ -6,7 +6,7 @@
 // later, unless you Stay. While it's on, the game's title wears RANDOM and its menu opens on Next game and Stop, as the
 // games screen does. Solo only: never in a partner's watching frame, a duo match, a table, a party or an offline party.
 // The rules (which games, what a round of each is, the pick) are random-core.js's.
-import { IN_FRAME, dailyDue } from "./suite.js";
+import { IN_FRAME, dailyDue, notePlayed } from "./suite.js";
 import { lan } from "./net.js";
 import { ticks, line, menuHead, dropMenuHead, PAUSERS } from "./menu.js";
 import { ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound } from "./random-core.js";
@@ -97,6 +97,7 @@ function arm(id, button) {
  */
 export function roundOver(app) {
   try {
+    if (!IN_FRAME) notePlayed(app === "glyph" ? "slate" : app);      // a round counted is a day played (ledger:played), Random or not
     if (!here || fired || (ALIAS[app] || app) !== here.id) return false;
     if (!soloNow()) { stop(); return false; }
     if (!acted) return false;

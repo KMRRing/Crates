@@ -3,7 +3,7 @@
 // cards only about it, not a card with another topic in; a card about nothing the base knows follows its game; the topics
 // on offer; the ticks of the sheet; and that the games screen, Settings and Deck's page are wired to it.
 import fs from "node:fs";
-import { scopeOf, keptScope, whole, covers, inScope, topicsOf, withOut, afterTicks, sayScope, revised } from "../deck-scope.js";
+import { scopeOf, keptScope, whole, covers, inScope, topicsOf, withOut, afterTicks, sayScope, revised, asked, topicAddress, aboutTopic } from "../deck-scope.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -75,6 +75,18 @@ check(revised([], 0, false, { games: ["punt"] }, of).dropped === 0, "an empty st
 r = revised(stack, 1, false, { games: ["punt"] }, null);
 check(r.items.every(c => c.game !== "punt" || c.id === "punt:norway") && r.dropped === 1, "with no index loaded a card is judged by its game alone");
 
+// ---------- a review asked for by the address ----------
+check(same(asked(""), { review: false, topic: null }) && same(asked("#today"), { review: false, topic: null }) && same(asked(undefined), { review: false, topic: null }), "no address, or someone else's, asks for nothing");
+check(same(asked("#review"), { review: true, topic: null }), "#review is a review of the device's scope");
+check(same(asked("#review&topic=Law"), { review: true, topic: "Law" }) && same(asked("#topic=Law"), { review: true, topic: "Law" }), "#review&topic= and #topic= both ask for a review of that topic");
+check(asked("#review&topic=" + encodeURIComponent("Art & Design")).topic === "Art & Design" && asked("#topic=%E0%A4%A").topic === null && asked("#topic=").topic === null, "a label with an ampersand survives; a broken escape or an empty one names no topic");
+check(topicAddress("Art & Design") === "#review&topic=Art%20%26%20Design" && asked(topicAddress("Art & Design")).topic === "Art & Design", "the Ledger's link is the address Deck reads");
+{
+  const stack = [card("punt", "norway"), card("chart", "mona", "leo"), card("parley"), card("quote", "exile")];
+  check(same(aboutTopic(stack, "Painters", of).map(c => c.id), ["chart:mona+leo"]) && aboutTopic(stack, "Nothing", of).length === 0, "a topic's cards: any of a card's things in it; a card about nothing in the base is in none");
+  check(same(aboutTopic(stack, "Law", of), [stack[3]]), "and it is judged by the topic alone, whatever games the device left out");
+}
+
 // ---------- the pages are wired to it ----------
 const apps = fs.readFileSync(root + "apps.js", "utf8"), deckJs = fs.readFileSync(root + "deck.js", "utf8"), row = fs.readFileSync(root + "deck-row.js", "utf8"), html = fs.readFileSync(root + "deck.html", "utf8");
 check(/class="rd-cell" data-deck/.test(apps) && /bindDeckRow\(\{\s*row: dlg\.querySelector\("\[data-deck\]"\)/.test(apps), "the games screen has its Deck cell, first in the banner");
@@ -83,7 +95,8 @@ check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Deck and Random on this 
 check(/KEY = "suite:deck"/.test(row) && /deck\.html#review/.test(row) && /IN_FRAME/.test(row) && /\blan\b/.test(row), "the Deck button keeps its scope under a suite: key, starts a review by the address, and keeps out of a partner's frame and an offline party");
 check(/import\("\.\/kb-index\.js"\)/.test(row) && !/^import[^\n]*kb-index/m.test(row), "the knowledge base's index is fetched only when it's needed, not carried by every page");
 check(/revised\(session\.items, session\.at, answered/.test(deckJs) && /addEventListener\("close", reviseSession/.test(deckJs) && /return sheet;/.test(row), "Deck's page revises the stack under review when the sheet of games and topics closes");
-check(/inScope\(pile\.due\(\)/.test(deckJs) && /arrange\(dueNow\(\)/.test(deckJs) && /#review/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
+check(/inScope\(pile\.due\(\)/.test(deckJs) && /arrange\(\(topic \? aboutTopic\(pile\.due\(\), topic, labelOf\(kbIndex\)\) : dueNow\(\)\)/.test(deckJs) && /asked\(location\.hash\)/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
+check(/session\.topic \|\|/.test(deckJs) && !/suite:deck/.test(deckJs), "a topic's review is one-off: the sheet's changes leave its cards alone, and the scope kept on the device isn't touched");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("deck scope: games and topics left in or out, as the sheet, the games screen's line and Deck's review all read them");
