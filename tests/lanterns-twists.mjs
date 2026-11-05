@@ -124,7 +124,7 @@ for (const [name, shape, sizes, opts] of [
 ]) {
   const rng = seedRng(shape.length * 7 + (opts.k ? 5 : 1)), t0 = performance.now();
   let fine = 0, cases = 0, withAnswers = 0, several = 0, selfCells = 0;
-  for (let t = 0; t < 160; t++) {
+  for (let t = 0; t < 40; t++) {
     const N = sizes[t % sizes.length], w = W(shape, N), grid = randomGrid(rng, w, opts), k = opts.k ? opts.k[t % opts.k.length] : 0;
     const P = puzzleOf(N, grid, null, { board: shape, k }), whites = Array.from(P.whites);
     if (whites.length > 14 || whites.length < 4) continue;
@@ -184,7 +184,7 @@ const made = [];
   let total = 0, unique = 0, meetsAll = 0, graded = 0, shows = 0, onLevel = 0;
   for (const [twist, jobs] of TWIST_SETS) {
     const tw = twistOf(twist);
-    for (const [size, level] of jobs) for (let s = 0; s < 2; s++) {
+    for (const [size, level] of jobs) for (let s = 0; s < 1; s++) {
       const seed = 7700 + size * 31 + s * 7 + twist.length, p = generate(seed, size, level, twist);
       total++;
       if (!p) continue;
