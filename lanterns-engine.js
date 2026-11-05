@@ -38,7 +38,7 @@ export const TWISTS = { ranges: "Ranges", short: "Short beams", mirrors: "Mirror
 export const TWIST_ORDER = ["ranges", "short", "mirrors", "hex"];
 /** A twist as the flags it is: from "mirrors+hex", or the flags themselves (anything else is none). */
 export function twistOf(t) {
-  const set = new Set(typeof t === "string" ? t.split("+") : TWIST_ORDER.filter(k => t?.[k]));
+  const set = new Set(typeof t === "string" ? t.split(/[+ ]/) : TWIST_ORDER.filter(k => t?.[k]));
   const out = { ranges: set.has("ranges"), short: set.has("short"), mirrors: set.has("mirrors"), hex: set.has("hex") };
   out.plain = !TWIST_ORDER.some(k => out[k]);
   return out;

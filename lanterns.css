@@ -23,7 +23,7 @@ html[data-mode="night"] { --lan-in: #6FBFCC; --lan-good: #7FC2A8; --lan-bad: #E8
   font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
 .lan-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .lan-time small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--lan-bad); font-variant-numeric: tabular-nums; }
-.lan-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
+.lan-kind { min-width: 0; white-space: normal; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 
 /* the board: the stage, framed in a double rule (a brass edge, a hairline four pixels inside it) */
@@ -40,18 +40,28 @@ html[data-mode="night"] { --lan-in: #6FBFCC; --lan-good: #7FC2A8; --lan-bad: #E8
 .lan-dot { fill: var(--ink-soft); pointer-events: none; opacity: 0; }
 .lan-c.dot .lan-dot { opacity: 1; }
 .lan-num { font-family: Archivo, Arial, sans-serif; font-weight: 800; font-size: .56px; fill: var(--sheet); text-anchor: middle; pointer-events: none; }
+/* the twists: a bound ("2+", "≤1") sits on a warm plate; a mirror is a rock with a bright slash; a lantern's beams are drawn as lines where a mirror bends them; the reach of a short beam is written above the board */
+.lan-plate { fill: var(--lan-gilt); pointer-events: none; }
+.lan-num.lan-bound { font-size: .4px; fill: #1d2a33; letter-spacing: -.01px; }
+.lan-c.done .lan-num.lan-bound { fill: #0f4a30; }
+.lan-c.over .lan-num.lan-bound { fill: var(--lan-bad); }
+.lan-mir { fill: color-mix(in srgb, var(--lan-rock) 62%, var(--lan-tile)); }
+.lan-slash { stroke: var(--sheet); stroke-width: .1; stroke-linecap: round; pointer-events: none; }
+.lan-beam { fill: none; stroke: var(--lan-gilt); stroke-width: .1; stroke-linecap: round; stroke-linejoin: round; stroke-opacity: .62; pointer-events: none; }
+.lan-reach-t { font-family: Archivo, Arial, sans-serif; font-weight: 800; font-size: .46px; fill: var(--brass-lo, var(--ink)); letter-spacing: .02px; text-transform: uppercase; pointer-events: none; }
+.lan-reach-bar { stroke: var(--lan-gilt); stroke-width: .12; stroke-linecap: round; pointer-events: none; }
+.lan-reach .lan-ray { stroke-width: .06; }
 .lan-c.done .lan-num { fill: color-mix(in srgb, var(--lan-good) 55%, var(--sheet)); }
 .lan-c.over .lan-num { fill: var(--lan-bad); }
 .lan-c.over .lan-rock { fill: color-mix(in srgb, var(--lan-bad) 24%, var(--lan-rock)); stroke: var(--lan-bad); stroke-width: .06; }
 /* a lighthouse: a pale tower with a red band, a gilt lamp under a dark cap; its two small rays are the lamp lit */
-.lan-lamp { display: none; pointer-events: none; }
-.lan-c.light .lan-lamp { display: inline; }
+.lan-lamp { pointer-events: none; }
 .lan-tower { fill: var(--sheet); stroke: var(--ink); stroke-width: .035; stroke-linejoin: round; }
 .lan-band { fill: var(--lan-bad); }
 .lan-room { fill: var(--lan-gilt); stroke: var(--ink); stroke-width: .03; }
 .lan-cap { fill: var(--ink); }
 .lan-ray { fill: none; stroke: var(--lan-gilt); stroke-width: .045; stroke-linecap: round; }
-.lan-c.clash .lan-tower { fill: color-mix(in srgb, var(--lan-bad) 40%, var(--sheet)); stroke: var(--lan-bad); }
+.lan-lamp.clash .lan-tower { fill: color-mix(in srgb, var(--lan-bad) 40%, var(--sheet)); stroke: var(--lan-bad); }
 .lan-c.clash .lan-cell { stroke: var(--lan-bad); stroke-width: .07; }
 .lan-ring { fill: none; stroke: transparent; stroke-width: .08; pointer-events: none; }
 .lan-c.hint .lan-ring { stroke: var(--lan-gilt); stroke-width: .1; }
@@ -133,3 +143,26 @@ html[data-theme="office"] .lan-go { border-radius: 14px; background: var(--lan-i
   letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html[data-theme="office"] .lan-toast { border-radius: 10px; }
 html[data-theme="office"] .lan-kind { font-stretch: 100%; }
+
+/* the ladder in the menu: levels three to a row under their chapter, each a board in miniature (the shape and a mark of the twist) */
+#menuBody .lan-chap { margin: .9rem 0 .15rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+#menuBody .lan-chap:first-child { margin-top: .4rem; }
+.lan-chap-about { margin: 0 0 .4rem; font-size: .78rem; line-height: 1.35; color: var(--ink-soft); }
+.lan-lgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.lan-lgrid button { display: grid; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.lan-lgrid button.done { background: var(--lan-in-soft); }
+.lan-lgrid button[aria-current] { border-color: var(--lan-in); box-shadow: inset 0 0 0 1.5px var(--lan-in); }
+.lan-lgrid button:disabled { opacity: .4; cursor: default; }
+.lan-lmap { aspect-ratio: 1; width: 100%; }
+.lan-lmap svg { width: 100%; height: 100%; display: block; }
+.lan-lmap .w { fill: var(--lan-tile); stroke: color-mix(in srgb, var(--ink) 18%, var(--lan-tile)); stroke-width: .05; }
+.lan-lmap .r { fill: var(--lan-rock); }
+.lan-lmap .m { stroke: var(--sheet); stroke-width: .16; stroke-linecap: round; }
+.lan-lmap .b { fill: var(--lan-gilt); }
+.lan-lmap .l { fill: var(--lan-gilt); stroke: var(--ink); stroke-width: .06; }
+.lan-lmap .s { stroke: var(--lan-gilt); stroke-width: .12; stroke-linecap: round; stroke-opacity: .7; }
+.lan-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
+.lan-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.lan-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
+.lan-lname { font-size: .62rem; line-height: 1.2; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.lan-lsize { font-size: .62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
