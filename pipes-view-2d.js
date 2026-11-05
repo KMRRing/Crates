@@ -165,7 +165,7 @@ export function createView({ board, onGesture, onLost } = {}) {
     svg = el("svg", { viewBox: `${-PAD} ${-PAD} ${p.cols * T + 2 * PAD} ${p.rows * T + 2 * PAD}`, role: "img", "aria-label": `${p.name}: the plate` });
     gGround = el("g", { class: "ground" }, svg);
     gWheels = el("g", { class: "wheels" }, svg);
-    gTop = el("g", { class: "top" }, svg);
+    gTop = el("g", { class: "marks" }, svg);
     chips = document.createElement("div");
     chips.className = "pi-chips";
     board.append(svg, chips);
@@ -180,7 +180,7 @@ export function createView({ board, onGesture, onLost } = {}) {
     gGround.replaceChildren();
     for (let c = 0; c < plan.cols * plan.rows; c++) {
       const [x, y] = cellXY(c), g = el("g", { transform: `translate(${x} ${y})` }, gGround), ter = plan.terrain[c];
-      el("rect", { x: 1, y: 1, width: T - 2, height: T - 2, rx: 6, class: ter === "pillar" ? "tile rock" : "tile" }, g);
+      el("rect", { x: 1, y: 1, width: T - 2, height: T - 2, rx: 6, class: ter === "pillar" ? "slot rock" : "slot" }, g);
       if (ter === "pillar") { el("circle", { cx: 30, cy: 30, r: 11, class: "g-pillar" }, g); el("circle", { cx: 30, cy: 30, r: 5, class: "g-screw" }, g); el("path", { d: "M26 30H34", class: "g-slot" }, g); }
       else if (ter.startsWith("bridge")) {
         // a low bridge: a band across the square with Geneva stripes, and its height in pips
@@ -263,7 +263,7 @@ export function createView({ board, onGesture, onLost } = {}) {
       const [lx, ly] = px(gear.x, gear.y - radius(gear.m, gear.n) - 4);
       const chip = document.createElement("span");
       chip.className = `pi-chip ${cm.status}`;
-      chip.style.left = `${lx}%`; chip.style.top = `${ly}%`;
+      chip.style.left = `clamp(1.7rem, ${lx}%, calc(100% - 1.7rem))`; chip.style.top = `max(1.2rem, ${ly}%)`;
       chip.textContent = cm.status === "ok" ? `×${F.fmt(cm.want, true)}` : cm.status === "off" ? `wants ×${F.fmt(cm.want, true)}` : cm.status === "wrong" ? `wrong way` : `×${F.fmt(cm.has, true)} → ×${F.fmt(cm.want, true)}`;
       chips.append(chip);
     }

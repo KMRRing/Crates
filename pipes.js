@@ -3,8 +3,8 @@
 // the old saves cleared, and the games screen's Random round. The board is pipes-train-ui.js. The 3D map (Cube) is parked:
 // MAP_ON below turns it back on (its files, pipes-map-*.js and the old-model engine pipes-puzzle*.js, are kept whole, and its
 // saved keys pipes:map and pipes:mapstars are left alone).
-import { createPuzzle } from "./pipes-train-ui.js";
-import { STAR_LIFTS } from "./pipes-train.js";
+import { createPuzzle } from "./pipes-gear-run.js";
+import { STAR_LIFTS } from "./pipes-gear-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
@@ -50,16 +50,15 @@ function setMode(m) {
 // ---------- the rules ----------
 function showRules() {
   $("rulesBody").innerHTML = `
-    <p>Wind a watch's train. Every level is a plate and a hand of gears, and every piece must go down: power leaves the <b>mainspring</b> (the barrel with its coil), runs through all of them, gear to gear, and turns the <b>dial</b> at the end the way it is asked. No clock, no queue.</p>
+    <p>Wind a watch's train. Every level is a plate and a hand of gears, and every piece must go down: power leaves a <b>mainspring</b> (the barrel with its coil, turning clockwise), runs through the pieces, wheel to wheel, and must reach its <b>dial</b> or <b>complication</b> turning the way and at the speed it wants.</p>
     <ul>
-      <li><b>Tap a piece in the hand</b>, then a square, to lay it. <b>Tap a piece you've laid</b> to take it back up (it's in your hand again). Pieces never turn.</li>
-      <li>A <b>single gear</b> fills its square and meshes with whatever gear is beside it, on any side. A <b>duo</b> is two small gears meshed inside one square, a <b>trio</b> three: only the two at the ends reach out, one to each of two sides, so they pass the power straight through or round a corner and mesh with nothing else. Every gear is always drawn whole.</li>
-      <li><b>Meshed gears turn opposite ways.</b> The mainspring turns clockwise, and a small arrow on each gear it drives says which way that gear turns. A single and a trio pass the turn on as it is; a <b>duo</b> flips it, because it has an even number of gears. Count them.</li>
-      <li>A <b>jam</b>: two gears that mesh but would have to turn the <b>same</b> way, an odd loop of meshes. Gears beside each other mesh whether you meant them to or not, so a train that touches itself beside a duo jams. The gears flash red and stop, and the level can't be solved while any jam stands.</li>
-      <li>A <b>load</b> (a ring with an arrow) takes a single gear only, and it must turn the way shown. The dial must turn the way its arrow shows.</li>
-      <li>A <b>pillar</b> can't be built on. A <b>fixed gear</b> (dark, with a copper mark) is already pinned to the plate, and the train must run through it.</li>
-      <li><b>Undo</b> is free, as many times as you like. <b>Hint</b> shows where the next piece goes, or which of yours is in the way; with one, the level can earn only the one star. Solved, the whole train turns, with a soft tick (the menu's Sound).</li>
-      <li><b>Stars</b>: one for solving a level, two for solving it without a hint, three for that and hardly any piece taken back up (${STAR_LIFTS} at most, and one more for every six pieces in the hand).</li>
+      <li><b>Tap a piece in the hand</b> to hold it; <b>tap it again to turn it</b>; tap a square to lay it (it takes the turn that suits the square unless you chose one). Or <b>drag it onto the board</b>: the ghost rides above your finger and shows a clash in red. Tap a laid piece to turn it; <b>press and hold</b> (or switch Lift on) to take it back up. The first forty levels never turn.</li>
+      <li>A <b>single</b> wheel fills its square and meshes on any side. A <b>duo</b> is two wheels meshed inside one square, a <b>trio</b> three; only the two ends reach out. A <b>stack</b> is a wheel and a pinion on one arbor, on two layers: it changes the speed. A <b>riser</b> carries the turn from one layer to another.</li>
+      <li><b>Meshed wheels turn opposite ways</b>; a small arrow on each wheel says which way. Along a chain of meshes every wheel has the same <b>tooth rate</b> (teeth times speed); only a stack changes it. A chip on the dial shows the speed it has and the speed it wants, as a fraction of the mainspring's.</li>
+      <li><b>Tooth sizes</b> (modules 4, 5, 6: rose, gilt, steel) never mesh. Two sizes on one layer <b>clash</b>. Wheels on <b>different layers</b> pass over each other. Two trains must not mesh at all, even at one size: leave a gap.</li>
+      <li>A <b>jam</b>: a loop of meshes that cannot turn, because it comes round to a wheel at another direction (an odd loop) or another speed (the tooth ratios round it do not multiply to 1: a <b>bind</b>). Jammed wheels flash oxblood and stop.</li>
+      <li>A <b>click</b> (a ring with an arrow) takes a single wheel, which must turn that way. A <b>pillar</b> can't be built on; a <b>bridge</b> lets only low pieces under it (its pips are the layers that fit). A <b>pinned piece</b> (dark, with a copper mark) is fixed, and the train must run through it.</li>
+      <li><b>Undo</b> is free. <b>Hint</b> shows the next piece, turned as it goes; with one, the level can earn only one star. <b>Look</b> shows every wheel's teeth and lets you isolate a layer. <b>Stars</b>: one for solving, two without a hint, three for that and hardly any piece taken back up (${STAR_LIFTS} at most, and one more for every six pieces in the hand; turning a piece you've laid counts).</li>
     </ul>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
@@ -97,7 +96,7 @@ $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 // the buttons under the board belong to whichever board is showing
 for (const [id, fn] of [["pzUndo", b => b.undo()], ["pzClear", b => b.clear()], ["pzHint", b => b.hint()], ["pzAgain", b => b.again()], ["pzNext", b => b.next()],
-  ["pzLift", b => b.toggleLift()], ["pzLook", b => b.look()]]) $(id).addEventListener("click", () => fn(cur()));
+  ["pzLift", b => b.toggleLift?.()], ["pzLook", b => b.look()]]) $(id).addEventListener("click", () => fn(cur()));
 onPause(() => cur().pause(), () => cur().resume());
 window.addEventListener("resize", () => cur().resize?.());
 window.__pipes = { get mode() { return mode; }, boards, setMode };

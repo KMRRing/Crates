@@ -124,13 +124,15 @@ dialog.pi-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 /* over the stage's foot, clear of the buttons under it */
 #app.pipes ~ .pi-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 7.5rem); }
 
-/* ---------- held sideways: the stage at the left with all the height; the numbers, the queue and the buttons beside it ---------- */
+/* ---------- held sideways: the stage at the left with all the height; the numbers, the workings, the hand and the buttons beside it ---------- */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.pipes { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
-  #app.pipes .pi-stage { grid-column: 1; grid-row: 2 / span 4; margin-top: .8rem; }
+  #app.pipes { --beside: 19rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  #app.pipes .pi-stage { grid-column: 1; grid-row: 2 / span 5; margin-top: .8rem; }
   #app.pipes .pi-hud { grid-column: 2; grid-row: 2; margin-top: 1rem; }
-  #app.pipes .pi-queue { grid-column: 2; grid-row: 3; flex-wrap: wrap; }
-  #app.pipes .pi-bar { grid-column: 2; grid-row: 5; align-content: end; }
+  #app.pipes .pi-workings { grid-column: 2; grid-row: 3; }
+  #app.pipes .pi-layers-row { grid-column: 2; grid-row: 4; }
+  #app.pipes .pi-queue { grid-column: 2; grid-row: 5; flex-wrap: wrap; align-content: flex-start; }
+  #app.pipes .pi-bar { grid-column: 2; grid-row: 6; align-content: end; }
   #app.pipes .pi-status { white-space: normal; }
 }
 /* a hand of many kinds (the 3D map's) keeps to one row: smaller tiles */
@@ -191,3 +193,76 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-board .gear.jam :is(.g-rim, .g-hole, .g-hub) { opacity: .55; }
 @keyframes pi-jam { from { opacity: 1; } to { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .pi-board .gear.jam .g-body { animation: none; } }
+
+/* ---------- Gears 2 (5 November 2026): tooth sizes are metals, layers are shadows, goals carry chips ---------- */
+:root { --gr-rose: #D9967F; --gr-rose-dark: #8E5240; --gr-blue: #8EA3BE; --gr-blue-dark: #3F546F; }
+[hidden] { display: none !important; }
+.pi-board { position: relative; }
+.pi-board .slot { fill: var(--pi-tile); stroke: var(--pi-tile-edge); stroke-width: 1; }
+.pi-board .slot.rock { fill: var(--pi-rock); }
+.pi-board .bridge { fill: color-mix(in srgb, var(--gr-steel) 30%, var(--pi-ground)); stroke: var(--gr-steel-dark); stroke-width: 1.2; opacity: .85; }
+.pi-board .stripe { stroke: color-mix(in srgb, var(--gr-steel) 55%, transparent); stroke-width: 1.4; fill: none; }
+.pi-board .bridge-pip { fill: var(--gr-ink); opacity: .7; }
+:is(.pi-board, .pi-queue) .gear.m4 :is(.g-body, .g-tooth) { fill: var(--gr-rose); stroke: var(--gr-rose-dark); }
+:is(.pi-board, .pi-queue) .gear.m6 :is(.g-body, .g-tooth) { fill: var(--gr-blue); stroke: var(--gr-blue-dark); }
+:is(.pi-board, .pi-queue) .gear.m4 .g-rim { stroke: var(--gr-rose-dark); }
+:is(.pi-board, .pi-queue) .gear.m6 .g-rim { stroke: var(--gr-blue-dark); }
+:is(.pi-board, .pi-queue) .gear.barrel .g-body { fill: color-mix(in srgb, var(--gr-steel) 72%, var(--pi-ground)); stroke: var(--gr-steel-dark); }
+:is(.pi-board, .pi-queue) .gear.pin .g-body { filter: none; opacity: .92; }
+.pi-board .gear.pin :is(.g-body) { stroke-width: 1.6; }
+.pi-board .gear.idle { opacity: .96; }
+.pi-board .gear.faded { opacity: .22; }
+.pi-board .g-shadow { fill: #000; opacity: .32; }
+.pi-board .g-pip, .pi-queue .g-pip { fill: var(--gr-ink); opacity: .75; }
+.pi-board .g-n { fill: var(--gr-ink); font-weight: 800; pointer-events: none; }
+.pi-board .gear.clash .g-body { fill: color-mix(in srgb, var(--pi-bad) 70%, #fff); }
+.pi-board .mark-bad { fill: none; stroke: var(--pi-bad); stroke-width: 2.6; pointer-events: none; }
+.pi-board .mark-bad.round { stroke-dasharray: 4 3; }
+.pi-board .pulse { fill: none; stroke: var(--pi-in); stroke-width: 3; animation: pi-pulse .55s ease-in-out 2; pointer-events: none; }
+.pi-board .g-moon { fill: #1F2B45; stroke: var(--pi-pipe-dark); stroke-width: 1.2; }
+.pi-board .g-moon-gold { fill: #E3C26B; }
+.pi-board .g-moon-bg { fill: #1F2B45; }
+.pi-board .g-star { fill: #E3C26B; }
+.pi-board .g-balance, .pi-board .g-cage { fill: none; stroke: var(--pi-pipe); stroke-width: 1.8; }
+.pi-board .g-hairspring { fill: none; stroke: var(--gr-steel); stroke-width: .8; }
+.pi-board .g-spoke { stroke: var(--pi-pipe); stroke-width: 1.2; }
+.pi-board .g-post { fill: var(--gr-steel); }
+.pi-board .g-cyl { fill: var(--gr-steel-dark); stroke: var(--gr-steel); stroke-width: 1; }
+.pi-board .g-pin { fill: var(--pi-pipe); }
+.pi-board .g-window { fill: var(--gr-dial); stroke: var(--pi-pipe-dark); stroke-width: 1; }
+.pi-board .g-hand.sec { stroke: var(--pi-bad); stroke-width: 1; }
+.pi-board .stake { fill: var(--pi-in); }
+.pi-chips { position: absolute; inset: 0; pointer-events: none; }
+.pi-chip { position: absolute; transform: translate(-50%, -100%); padding: .08rem .3rem; border-radius: 3px; background: var(--sheet); color: var(--ink); box-shadow: 0 0 0 1px var(--brass);
+  font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.25; }
+.pi-chip.ok { color: var(--pi-good); box-shadow: 0 0 0 1px var(--pi-good); }
+:is(.pi-chip, .pi-w):is(.slow, .fast, .wrong) { color: var(--pi-bad); box-shadow: 0 0 0 1px var(--pi-bad); }
+.pi-chip.off { color: var(--ink-soft); }
+.pi-queue .pi-h { overflow: visible; }
+.pi-queue .pi-h svg { overflow: hidden; border-radius: 4px; }
+.pi-queue .pi-h { touch-action: none; }
+
+/* the workings: one line a train, in the order the power runs; a chip pulses its square */
+.pi-workings { display: grid; gap: .22rem; margin-top: .45rem; }
+.pi-work { display: flex; gap: .3rem; align-items: center; min-height: 1.45rem; overflow-x: auto; scrollbar-width: none; }
+.pi-work::-webkit-scrollbar { display: none; }
+.pi-w-id { flex: none; display: grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 3px; background: var(--pi-pipe); color: var(--gr-ink); font-size: .72rem; font-weight: 800; }
+.pi-w-id.m4 { background: var(--gr-rose); }
+.pi-w-id.m6 { background: var(--gr-blue); }
+.pi-w { flex: none; min-height: 1.35rem; padding: 0 .4rem; border: 0; border-radius: 3px; background: var(--tile); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge); font: inherit;
+  font-size: .72rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; touch-action: manipulation; }
+.pi-w.ok { color: var(--pi-good); box-shadow: inset 0 0 0 1px var(--pi-good); }
+.pi-w:is(.slow, .fast, .wrong) { box-shadow: inset 0 0 0 1px var(--pi-bad); }
+.pi-w.off { color: var(--ink-soft); }
+.pi-layers-row { display: flex; align-items: center; gap: .3rem; margin-top: .35rem; min-height: 1.9rem; }
+.pi-layers-row small { font-size: .62rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); margin-right: .15rem; }
+.pi-layers-row .pi-layer { width: 1.9rem; height: 1.9rem; font-size: .8rem; }
+.pi-layers-row .pi-layer:first-of-type { width: auto; padding: 0 .55rem; }
+.pi-look { margin-left: auto; min-height: 1.9rem; padding: 0 .8rem; border: 0; border-radius: 4px; background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); font: inherit; font-size: .72rem;
+  font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+.pi-look[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); box-shadow: none; }
+.pi-go.on { background: var(--plate); color: var(--plate-ink); }
+.pi-book { margin: 1rem 0 0; font-size: .82rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.pi-chap { margin: .5rem 0 .2rem; }
+.pi-controls.puzzle:has(#pzLift:not([hidden])) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pi-controls.puzzle.done { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
