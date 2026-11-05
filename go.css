@@ -98,3 +98,18 @@ html[data-theme="office"] .go-wood { rx: .15px; }
 .go3-tip { position: absolute; left: .5rem; right: .5rem; top: .5rem; margin: 0; padding: .3rem .5rem; border-radius: 4px; text-align: center; font-size: .72rem; line-height: 1.3; pointer-events: none;
   background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink-soft); border: 1px solid var(--tile-edge); }
 .go3-tip[hidden] { display: none; }
+
+/* ---------- the course's stage (go-course.js) ---------- */
+.ln-sheet.gl { --ln-in: var(--go-in); }
+.gc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; height: 100cqh; min-height: 0; box-sizing: border-box; padding: .2rem 0; }
+.gc[hidden] { display: none; }
+.gc-board-box { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: center; container-type: size; }
+.gc-board { width: min(100cqw, 100cqh); max-height: 100cqh; }
+.gc-note { margin: 0; min-height: 1.1em; font-size: .85rem; color: var(--ink-soft); text-align: center; }
+/* the course's board has its own gradients (the game's board may be hidden, and a hidden SVG's gradients do not draw) */
+.gc-board .go-stone .gb, .gc-board .go-ghost.gb { fill: url(#gc-gb); }
+.gc-board .go-stone .gw, .gc-board .go-ghost.gw { fill: url(#gc-gw); }
+.gc-ring { fill: none; stroke: var(--go-mark); stroke-width: .09; pointer-events: none; }
+.gc-ring.ok { stroke: var(--go-good); }
+.gc-lib { fill: var(--go-mark); stroke: var(--go-line); stroke-width: .03; pointer-events: none; }
+.gc-board.small .go-star { display: none; }                  /* star points mean nothing on a board this small */

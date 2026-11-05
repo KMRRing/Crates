@@ -5,7 +5,7 @@
 import { BLACK, WHITE } from "./go-rules.js";
 
 const NS = "http://www.w3.org/2000/svg";
-const MARGIN = 0.95;                        // room round the lines for the coordinates, in line spacings
+export const MARGIN = 0.95;                        // room round the lines for the coordinates, in line spacings
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 
 export function starPoints(n) {

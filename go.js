@@ -9,6 +9,8 @@ import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { ramp } from "./ramp.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE, boardStage } from "./go-course.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
@@ -235,7 +237,7 @@ function finish() {
     const won = res.winner === run.human;
     if (won) rec.won++;
     write(RECORD, rec);
-    if (levelNow() === run.level) won ? ramp.won(true) : ramp.lost();
+    if (!run.lesson && levelNow() === run.level) won ? ramp.won(true) : ramp.lost();
     noteStreak("go", won);
   }
   draw();
@@ -344,10 +346,12 @@ function draw() {
 }
 
 // ---------- a new game ----------
-function startGame() {
+// A lesson's game is the course's last step: 9x9, you Black, Novice, and the ramp and the menu's choices left alone.
+function startGame(lesson = false) {
   if ($("endDlg").open) $("endDlg").close();
-  const g = newGame({ size: opts.size, handicap: opts.side === "two" ? 0 : opts.handicap });
-  run = { game: g, human: opts.side, level: levelNow(), phase: "play", dead: [], result: null, est: null, low: 0 };
+  const side = lesson ? "b" : opts.side;
+  const g = newGame({ size: lesson ? 9 : opts.size, handicap: side === "two" ? 0 : opts.handicap });
+  run = { game: g, human: side, level: lesson ? "novice" : levelNow(), lesson: lesson || undefined, phase: "play", dead: [], result: null, est: null, low: 0 };
   pending = -1; thinking = 0; held = null; reading = 0;
   syncReplay();
   saveRun();
@@ -385,6 +389,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <p>${LEVELS.map(l => `<b>${esc(l.name)}</b>: ${esc(l.note)}`).join(". ")}.</p>`;
   $("aboutDlg").showModal();
 }
+// Learn (Menu): the course from the rules to a first game (go-course.js); its last step starts that game against Novice.
+const course = createCourse({
+  id: "go", course: COURSE, cls: "gl", inFrame: IN_FRAME, onRules: showRules, stage: boardStage(),
+  onPlay: async () => {
+    if (run && run.phase === "play" && run.game.moves.length > 8 && !(await sure("Start the lesson's game? The one you are playing isn't finished.", { yes: "Start", no: "Keep playing" }))) return;
+    startGame(true);
+  },
+});
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -394,6 +406,8 @@ function openMenu() {
     startGame();
   }, "primary"));
   play.append(action(in3d ? "Play in 2D" : "Play in 3D", () => setView(in3d ? "2d" : "3d"), "link"));
+  const cp = progressOf("go", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Go, from the rules", () => course.open()));
   play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
