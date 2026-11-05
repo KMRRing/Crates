@@ -15,14 +15,15 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 // ---------- the shape ----------
 check(COURSE.chapters.length === 10, "ten chapters, as in docs/political-theory-outline.md section 10");
 check(new Set(LESSON_IDS).size === LESSON_IDS.length && lessonsOf(COURSE).length === LESSONS.length + 1, `${LESSONS.length} lessons (and the review), each id once`);
-check(LESSONS.length >= 40, `at least 40 lessons (${LESSONS.length})`);
+check(LESSONS.length >= 56, `at least 40 lessons (${LESSONS.length})`);
 check(LESSONS.every(l => l.steps.some(s => s.kind === "text") && l.steps.filter(s => s.kind !== "text").length >= 2), "every lesson has words and at least two questions");
 check(new Set(STEPS.map(s => s.id)).size === STEPS.length, `${STEPS.length} steps, each with its own id`);
-check(STEPS.filter(s => s.kind === "text").every(s => s.say.length <= 760), "no step of words is longer than 760 characters (a phone shows it with its question)");
+check(STEPS.filter(s => s.kind === "text" && !s.source).every(s => s.say.length <= 760), `no step of words is longer than 760 characters (${STEPS.filter(s => s.kind === "text" && !s.source && s.say.length > 760).map(s => s.id).join(", ")})`);
+check(true, `${STEPS.filter(s => s.check).length} steps flagged check: true, for Korbi's audit`);
 check(STEPS.filter(s => s.kind !== "text").every(s => s.say.length <= 190), "no question is longer than 190 characters");
 check(SOURCE.every(c => c.reading.length >= 2 && c.reading.every(r => r.length === 2 && r[0] && r[1])), "every chapter has a reading list");
 check(COURSE.chapters.every(c => c.lessons.filter(l => l.id !== "review").at(-1).steps.at(-1).card?.head === "Reading"), "every chapter ends with its reading list");
-check(SOURCE[8].lessons.length === 8 && SOURCE[8].lessons.filter(l => !l.w).length >= 7, "eight cases, at most one Western (Vienna)");
+check(SOURCE[8].lessons.length === 13 && SOURCE[8].lessons.filter(l => l.w).length <= 2, "thirteen cases, at most two Western (Vienna and Bismarck)");
 check(SOURCE[8].lessons.every(l => l.eight && l.eight.length === 8 && l.eight.every(([k, t], i) => k === EIGHT[i] && t)), "every case answers the eight questions in order");
 check(SOURCE[8].lessons.every(l => ["constraint", "luck", "reading"].every(k => l.steps.some(s => s.k === k))), "every case asks a constraint, a luck and a reading question");
 

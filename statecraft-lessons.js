@@ -10,6 +10,19 @@ import { K3, K4 } from "./statecraft-c2.js";
 import { K5, K6 } from "./statecraft-c3.js";
 import { K7, K8 } from "./statecraft-c4.js";
 import { K9, K10 } from "./statecraft-c5.js";
+import { CLAUSEWITZ, SEA, ECON, CASES_NEW } from "./statecraft-c6.js";
+
+/** Puts new lessons into a chapter straight after the lesson `id` (or at its end). */
+function insertAfter(ch, id, lessons) { const at = id ? ch.lessons.findIndex(l => l.id === id) + 1 : ch.lessons.length; ch.lessons.splice(at, 0, ...lessons); }
+insertAfter(K4, null, CLAUSEWITZ);
+insertAfter(K5, "s5b", SEA.slice(0, 3));
+insertAfter(K5, "s5d", SEA.slice(3));
+insertAfter(K7, "s7a", ECON);
+insertAfter(K9, "s9g", CASES_NEW);
+K9.reading.push(["Steinberg", "Bismarck: A Life (2011)"], ["Gall", "Bismarck: The White Revolutionary (1980)"], ["Lee Kuan Yew", "The Singapore Story (1998)"], ["Mauzy and Milne", "Singapore Politics under the People's Action Party (2002)"],
+  ["Kostiner", "The Making of Saudi Arabia, 1916 to 1936 (1993)"], ["Al-Rasheed", "A History of Saudi Arabia (2002)"], ["Brown", "Gandhi: Prisoner of Hope (1989)"], ["Guha", "Gandhi: The Years That Changed the World, 1914 to 1948 (2018)"], ["Desai and Vahed", "The South African Gandhi (2015)"]);
+K7.reading.push(["Farrell and Newman", "'Weaponized Interdependence', International Security (2019)"], ["Drezner", "The Sanctions Paradox (1999)"], ["Pape", "'Why Economic Sanctions Do Not Work', International Security (1997)"], ["Mulder", "The Economic Weapon (2022)"]);
+K5.reading.push(["Till", "Seapower: A Guide for the Twenty-First Century (2004)"], ["Van Creveld", "Supplying War (1977)"]);
 
 export const SOURCE = [K1, K2, K3, K4, K5, K6, K7, K8, K9, K10];
 
@@ -20,7 +33,7 @@ function shuffled(items, id) {
 }
 
 function stepOf(raw, id, lesson) {
-  const base = { id, view: raw.view || lesson.view, routes: lesson.routes || [], w: raw.w ?? lesson.w ?? 0, k: raw.k };
+  const base = { id, view: raw.view || lesson.view, routes: lesson.routes || [], w: raw.w ?? lesson.w ?? 0, k: raw.k, ...(raw.check ? { check: true } : {}) };
   const own = raw.card || (lesson.view ? null : lesson.card);
   if (raw.tap) return { ...base, kind: "tap", say: raw.q, tap: raw.tap, why: raw.why, pts: [raw.tap.target, ...raw.tap.decoys] };
   if (raw.order) return { ...base, kind: "order", say: raw.q, order: raw.order, items: shuffled(raw.order, id), why: raw.why, card: own, pts: raw.pts || lesson.pts };
@@ -39,7 +52,7 @@ function lessonOf(src, ch, last) {
   // A lesson with no map shows its first card of terms behind every step that has none of its own (a quotation is not one: it belongs to its step).
   const l = src.view ? src : { ...src, card: src.card || src.steps.find(s => s.card && !s.card.quote)?.card };
   const raws = [...l.steps];
-  if (l.eight) raws.splice(1, 0, { say: `The case on one card: the eight questions asked of every actor in this course.`, card: { head: "Eight questions", rows: l.eight }, eightCard: true });
+  if (l.eight) raws.splice(1, 0, { say: `The case on one card: the eight questions asked of every actor in this course.`, card: { head: "Eight questions", rows: l.eight }, eightCard: true, ...(l.check ? { check: true } : {}) });
   const steps = raws.map((raw, i) => stepOf(raw, `${l.id}.${i + 1}`, l));
   if (last) steps.push({ id: `${l.id}.r`, kind: "text", view: l.view, routes: [], w: 0, pts: l.pts, say: "Where to read more. This list is the source for the chapter: where a fact is argued, the lesson gives the range and who disputes it.", card: { head: "Reading", rows: ch.reading } });
   return { id: l.id, title: l.title, view: l.view, pts: l.pts, steps };

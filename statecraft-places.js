@@ -14,6 +14,10 @@ const PLACES = [
   ["damascus", "Damascus", 33.51, 36.29], ["jerusalem", "Jerusalem", 31.77, 35.21], ["yanan", "Yan'an", 36.6, 109.5], ["belgrade", "Belgrade", 44.82, 20.46],
   ["delhi", "Delhi", 28.61, 77.21], ["jakarta", "Jakarta", -6.2, 106.85], ["cape-town", "Cape Town", -33.92, 18.42], ["pretoria", "Pretoria", -25.75, 28.19],
   ["durban", "Durban", -29.86, 31.02], ["addis-ababa", "Addis Ababa", 9.03, 38.74], ["adwa", "Adwa", 14.17, 38.89], ["harar", "Harar", 9.31, 42.12],
-  ["djibouti", "Djibouti", 11.59, 43.15],
+  ["djibouti", "Djibouti", 11.59, 43.15], ["hormuz", "Strait of Hormuz", 26.57, 56.25], ["suez", "Suez", 29.97, 32.55], ["tsushima", "Tsushima Strait", 34.4, 129.3],
+  ["vladivostok", "Vladivostok", 43.12, 131.89], ["moscow", "Moscow", 55.75, 37.62], ["kuala-lumpur", "Kuala Lumpur", 3.14, 101.69], ["riyadh", "Riyadh", 24.71, 46.68],
+  ["jeddah", "Jeddah", 21.54, 39.17], ["dammam", "Dammam", 26.43, 50.1], ["porbandar", "Porbandar", 21.64, 69.6], ["johannesburg", "Johannesburg", -26.2, 28.04],
+  ["sedan", "Sedan", 49.7, 4.94], ["koniggratz", "Königgrätz", 50.21, 15.83], ["gibraltar", "Strait of Gibraltar", 35.97, -5.6], ["istanbul-strait", "Bosporus", 41.12, 29.07],
+  ["kunming", "Kunming", 25.04, 102.71], ["prenzlau", "Prenzlau", 53.32, 13.86], ["zhuhai", "Zhuhai", 22.27, 113.58], ["xiamen", "Xiamen", 24.48, 118.09],
 ];
 for (const [id, name, lat, lon] of PLACES) if (!OWN_BY_ID.has(id)) OWN_BY_ID.set(id, { id, name, lat, lon });
