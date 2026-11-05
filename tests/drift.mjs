@@ -4,8 +4,10 @@
 // again, a game of the old square field made into the new, and the simple players clearing the early levels.
 import { SHAPES, SHAPE_IDS } from "../drift-shapes.js";
 import { EMPTY, WATER, QUEUE, MOORED, SEALED, rules, newGame, upgrade, blow, shove, lineRuns, lines, gale, lay, moves, room, filled, worth, stars, foggy, validate, geo } from "../drift-engine.js";
-import { SECTIONS, LEVELS, levelRules, openRules } from "../drift-levels.js";
+import { SECTIONS, LEVELS, levelRules, openRules, quayFor, QUAY_ODDS } from "../drift-levels.js";
 import { play } from "../drift-bots.js";
+import { readFileSync } from "node:fs";
+import { NAMES } from "../drift-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -121,7 +123,7 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
   const m = moves(g)[0], r = lay(sq, g, m), cells = g.cells.slice();
   cells[m] = g.next[0].c;
   for (const q of g.strays) cells[q.at] = q.colour;
-  check(threw && r.squall.length === 2 && JSON.stringify(gale("t7", cells, g.plan[0].w, g.stakes).cells) === JSON.stringify(r.state.cells), "laid there, refused; the strays land where forecast, before the wind, so the turn shown beforehand is the turn played");
+  check(threw && r.squall.length === 2 && JSON.stringify(gale("t7", cells, g.plan[0].w, g.stakes).cells) === JSON.stringify(r.state.cells), "laid there, refused; the strays land where forecast, before the wind, so the forecast is the turn played");
   const two = Array.from({ length: 7 }, (_, y) => [...Array(7).keys()].map(x => ((x + 2 * y) % 4)).join(""));
   two[0] = `..${two[0].slice(2)}`;
   // two empty squares, and a squall due the turn after this one: it may stray on one square at most, the last stays free
@@ -224,7 +226,9 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
   check(LEVELS.every(l => !validate(levelRules(l)).length) && new Set(LEVELS.map(l => l.shape)).size >= 5, `every level is valid, on at least five different quays (${[...new Set(LEVELS.map(l => l.shape))].join(", ")})`);
   check(LEVELS.every(l => SECTIONS.find(s => s.id === l.section).levels.some(x => x.id === l.id)) && LEVELS.every(l => l.note && l.name), "each has a name and a note");
   const evs = LEVELS.filter(l => l.section === 8).length;
-  check(evs === 2 && openRules("hull").shape === "hull" && openRules("nonsense").shape === "quay", "open sail takes the quay chosen");
+  check(evs === 2 && openRules("hull").shape === "hull" && openRules("nonsense").shape === "quay", "open sail plays the quay it is given");
+  const dealt = {}; for (let sd = 0; sd < 4000; sd++) { const q = quayFor(sd * 7919 + 13); dealt[q] = (dealt[q] || 0) + 1; }
+  check(Object.keys(QUAY_ODDS).every(id => SHAPES[id]) && Object.keys(QUAY_ODDS).every(id => dealt[id] > 150) && Object.values(dealt).every(n => n <= dealt.hull) && quayFor(5) === quayFor(5), `each new game is dealt a quay at random from the seed, the hull most often (${JSON.stringify(dealt)})`);
 }
 
 // ---------- saved and opened again ----------
@@ -254,6 +258,14 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
   check(anywhere.every(t => t < 150), `open sail on the hull: laying anywhere fills the quay in about ${anywhere.join(", ")} turns`);
   const g = play(openRules("quay"), 3, "greedy", 300);
   check(g.turns > Math.max(...anywhere) * 0.5 && g.score > 0, `laying for the wind lasts longer (${g.turns} turns, ${g.score} points)`);
+}
+
+// ---------- the page: no preview, trade goods ----------
+{
+  const page = readFileSync(new URL("../drift.js", import.meta.url), "utf8");
+  check((page.match(/\blay\(/g) || []).length === 1 && !/\bshow\(/.test(page), "the page plays the turn once, on let go, and never shows its result beforehand (Korbi, 4 November 2026)");
+  check(new Set(NAMES).size === 4 && ["salt", "herring", "furs", "amber"].every(n => NAMES.includes(n)), "the four goods are trade goods: salt, herring, furs, amber");
+  check(!/SHAPE_IDS|pickShape/.test(page) && /quayFor\(seed\)/.test(page), "the quay is dealt at random, never chosen");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

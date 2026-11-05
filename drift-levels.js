@@ -1,6 +1,6 @@
 // Drift's voyage: sixteen levels in eight sections, each section bringing one event (drift-engine.js says what each
-// does), each level a quay (drift-shapes.js) and a set of orders: crates of each good (salt, grain, cloth, timber) to
-// ship before the turns run out. Open sail is the endless game on a quay of your choosing.
+// does), each level a quay (drift-shapes.js) and a set of orders: crates of each good (salt, herring, furs, amber) to
+// ship before the turns run out. Open sail is the endless game on a quay dealt at random (quayFor).
 import { rules } from "./drift-engine.js";
 import { SHAPES } from "./drift-shapes.js";
 
@@ -11,11 +11,11 @@ export const SECTIONS = [
   ] },
   { id: 2, name: "Moorings", event: "moor", blurb: "The wind veers every turn. Every sixth crate comes moored: it stays put and the others pile against it.", levels: [
     { id: "2-1", name: "Bollards", note: "A moored crate is a wall you place. Build a line against it, or keep a pair apart from the crate that would spoil it.", shape: "basin", goods: 3, moor: 6, orders: [6, 6, 3, 0], turns: 22 },
-    { id: "2-2", name: "The long cargo", note: "Cloth ships only in lines of four or more: a line of three is spent and counts for nothing.", shape: "eight", goods: 3, moor: 6, orders: [6, 3, 4, 0], runs: [0, 0, 4, 0], mix: [2, 2, 2, 1], turns: 32 },
+    { id: "2-2", name: "The long cargo", note: "Furs ship only in lines of four or more: a line of three is spent and counts for nothing.", shape: "eight", goods: 3, moor: 6, orders: [6, 3, 4, 0], runs: [0, 0, 4, 0], mix: [2, 2, 2, 1], turns: 32 },
   ] },
   { id: 3, name: "Squalls", event: "squall", blurb: "Stray crates blow onto the quay before the wind, drawn faint where they will land.", levels: [
     { id: "3-1", name: "Storm season", note: "A squall lays a stray crate every fourth turn, none making a line where it lands. No crate can be laid on a faint one.", shape: "lagoon", goods: 3, moor: 6, squall: { every: 4, count: 1 }, orders: [9, 9, 3, 0], turns: 30 },
-    { id: "3-2", name: "Heavy weather", note: "Squalls come every third turn, two crates at a time. Cloth and timber need lines of four.", shape: "hull", goods: 4, moor: 6, squall: { every: 3, count: 2 }, mix: [2, 2, 2, 2], orders: [3, 6, 4, 4], runs: [0, 0, 4, 4], turns: 38 },
+    { id: "3-2", name: "Heavy weather", note: "Squalls come every third turn, two crates at a time. Furs and amber need lines of four.", shape: "hull", goods: 4, moor: 6, squall: { every: 3, count: 2 }, mix: [2, 2, 2, 2], orders: [3, 6, 4, 4], runs: [0, 0, 4, 4], turns: 38 },
   ] },
   { id: 4, name: "Crosswinds", event: "gust", blurb: "Some turns a second gust follows the wind at once, from another quarter.", levels: [
     { id: "4-1", name: "Two winds", note: "A double arrow in the queue is a turn with two winds. The crates settle after the first, then the second blows.", shape: "pier", goods: 3, moor: 6, gust: { p: 0.3 }, orders: [6, 6, 6, 0], turns: 24 },
@@ -41,7 +41,16 @@ export const SECTIONS = [
 export const LEVELS = SECTIONS.flatMap(s => s.levels.map(l => ({ ...l, section: s.id })));
 /** The rules a level is played by. */
 export const levelRules = l => rules(l);
-/** The endless game on a chosen quay: the squalls speed up as it goes, and the other events come in late and light. */
+// Open sail's quays and how often each is dealt: the classic hull is common.
+export const QUAY_ODDS = { hull: 4, quay: 1, pier: 2, basin: 2, eight: 2, lagoon: 2 };
+/** The quay a new endless game is dealt, from its seed (the player does not choose: Korbi, 4 November 2026). */
+export function quayFor(seed) {
+  const ids = Object.keys(QUAY_ODDS), tot = ids.reduce((a, id) => a + QUAY_ODDS[id], 0);
+  let x = ((Math.imul((seed >>> 0) ^ 0x51ED270B, 0x9E3779B1) >>> 0) / 4294967296) * tot;
+  for (const id of ids) if ((x -= QUAY_ODDS[id]) < 0) return id;
+  return "hull";
+}
+/** The endless game on a given quay: the squalls speed up as it goes, and the other events come in late and light. */
 export const openRules = shape => rules({
   shape: SHAPES[shape] ? shape : "quay", start: 8, moor: 6, seal: 12, squall: { pace: true },
   gust: { p: 0.1, from: 20 }, wave: { p: 0.08, from: 40 }, fog: { p: 0.06, from: 60 }, rock: { p: 0.03, from: 90, max: 4 },

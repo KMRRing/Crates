@@ -10,7 +10,7 @@
 // column one square, a second gust follows the wind at once, fog hides the queue beyond the turn, a rock rises from the
 // water on an empty square, a crate comes moored (it stays put whatever the wind) or with the harbour master's seal
 // (it ships every crate of its good). A squall's strays and a rock are drawn on the squares they will take, and no crate
-// can be laid there; the turn shown beforehand is lay() itself, so it is the turn you get.
+// can be laid there; lay() plays exactly what the forecast showed.
 //
 // A game is one object, as saved: { v: 2, seed, n (draws made), shape, cells (a good 0-3, -1 empty, -2 water or rock,
 // row by row), stakes (the moored squares), rocks, next (the QUEUE crates to lay: { c, k: 0 plain, 1 moored, 2 sealed }),
@@ -21,7 +21,7 @@
 import { SHAPES } from "./drift-shapes.js";
 
 export const GOODS = 4, QUEUE = 5, EMPTY = -1, WATER = -2;
-export const NAMES = ["salt", "grain", "cloth", "timber"];
+export const NAMES = ["salt", "herring", "furs", "amber"];   // display only: the engine knows goods 0-3
 export const WINDS = ["north", "east", "south", "west"];
 export const PLAIN = 0, MOORED = 1, SEALED = 2;
 // the squalls of an endless game: until so many turns, every so many turns, so many stray crates

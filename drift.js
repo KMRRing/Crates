@@ -1,22 +1,24 @@
 // Drift: crates on a quay of some shape (a hull, a pier, a basin...) and the weather, queued five turns ahead. Press an
-// empty square and the turn is shown before you let go: the crate laid there, the strays, rock and wave that are coming,
-// the wind(s) blown, the lines that would ship ringed and what the turn would score; slide to another square to see it,
-// let go to lay the crate. Two games share the page: the Voyage (drift-levels.js: sixteen levels of orders, a new event
-// to a section) and Open sail (endless, for the score, on a quay you pick). The rules are drift-engine.js's; this file
-// draws the quay, plays each turn out and keeps the game.
-import { SHAPES, SHAPE_IDS } from "./drift-shapes.js";
-import { WATER, EMPTY, MOORED, SEALED, NAMES, WINDS, QUEUE, newGame, upgrade, lay, blow, shove, lineRuns, worth, stars, foggy, room } from "./drift-engine.js";
-import { SECTIONS, LEVELS, levelRules, openRules } from "./drift-levels.js";
+// empty square and a ghost of the crate shows where it will lie; let go to lay it, and only then does the wind play out
+// (Korbi, 4 November 2026: no preview of the result). Two games share the page: the Voyage (drift-levels.js: sixteen
+// levels of orders, a new event to a section) and Open sail (endless, for the score, on a quay dealt at random). The rules
+// are drift-engine.js's; this file keeps the game and plays each turn out on a board that is either flat (SVG, below) or
+// 3D (drift-3d.js), the same calls on both.
+import { SHAPES } from "./drift-shapes.js";
+import { WATER, EMPTY, MOORED, SEALED, NAMES, WINDS, QUEUE, newGame, upgrade, lay, blow, shove, stars, foggy, room } from "./drift-engine.js";
+import { SECTIONS, LEVELS, levelRules, openRules, quayFor } from "./drift-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice } from "./menu.js";
+import { part, action, line, choice, toggle, onPause } from "./menu.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
+import { sound } from "./drift-sound.js";
 import { sure, notice } from "./sure.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "drift:run", VOYAGE = "drift:voyage", MODE = "drift:mode", CAMP = "drift:camp", SHAPE = "drift:shape", BEST = "drift:best", EVENTS = "drift:events", HINT = "drift:hint";
+const RUN = "drift:run", VOYAGE = "drift:voyage", MODE = "drift:mode", CAMP = "drift:camp", VIEW = "drift:view", SOUND = "drift:sound", BEST = "drift:best", EVENTS = "drift:events", HINT = "drift:hint";
 const CELL = 10, PAD = 7;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -30,15 +32,18 @@ let S = null;            // the game (drift-engine.js's), as saved
 let R = null;            // the rules it is played by
 let playing = false;     // a turn being played out
 let press = null;        // a pointer pressing the quay
-let aim = -1;            // the square whose turn is shown
+let aim = -1;            // the square a ghost of the crate is on
+let fast = false;        // a tap during a turn: the rest of it is finished at once
+let shown = null;        // the game as it was at the start of the turn being played (its weather is still on show)
+let view = null;         // the board: flat (below) or 3D
 let W = 7, H = 7;        // the quay's size
 
 const inVoyage = () => mode === "voyage";
 const level = () => LEVELS[Math.min(camp.at, LEVELS.length - 1)];
 const bests = () => { const b = read(BEST, {}); return typeof b === "number" ? { quay: b } : b; };
+const bestAll = () => Math.max(0, ...Object.values(bests()).filter(Number.isFinite));   // the quays are dealt at random, so one best for them all
 
 // ---------- the game kept ----------
-function rulesNow() { return inVoyage() ? levelRules(level()) : openRules(read(SHAPE, "quay")); }
 const sizeOf = g => SHAPES[g.shape];
 const valid = g => g && (g.v === 1 ? Array.isArray(g.cells) && g.cells.length === 49 && Array.isArray(g.winds) : g.v === 2 && SHAPES[g.shape] && g.cells?.length === SHAPES[g.shape].w * SHAPES[g.shape].h && g.plan?.length === QUEUE);
 function save() { if (inVoyage()) write(VOYAGE, { level: level().id, game: S }); else write(RUN, S); }
@@ -57,7 +62,10 @@ function begin(g) {
   render();
   introduce();
 }
-function newRun() { begin(newGame(rulesNow(), Math.floor(Math.random() * 2 ** 31))); }
+function newRun() {
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  begin(newGame(inVoyage() ? levelRules(level()) : openRules(quayFor(seed)), seed));
+}
 function resume() { const g = savedGame(); if (g) begin(g); else newRun(); }
 
 /** The event a section brings, said once, the first time a level of it opens. */
@@ -79,12 +87,16 @@ const el = (tag, attrs = {}, ...kids) => {
 const at = i => [(i % W) * CELL, Math.floor(i / W) * CELL];
 const xy = (x, y) => y * W + x;
 const openAt = (cells, x, y) => x >= 0 && y >= 0 && x < W && y < H && cells[xy(x, y)] !== WATER;
-// each good a mark of its own (a dot, a ring, a bar, a chevron), so crates are told apart without their colour
-const MARKS = [
-  () => el("circle", { class: "dr-fill", cx: 5, cy: 5, r: 1.6 }),
-  () => el("circle", { class: "dr-stroke", cx: 5, cy: 5, r: 1.9 }),
-  () => el("path", { class: "dr-stroke", d: "M3 5H7" }),
-  () => el("path", { class: "dr-stroke", d: "M3.2 5.9L5 3.9L6.8 5.9" }),
+// The four goods, drawn as icons in a ten by ten box, each its own silhouette and colour: a salt sack tied at the neck, a
+// herring barrel with hoops, a bale of furs with tawny fur showing and cords round it, a lump of faceted amber.
+const ICONS = [
+  () => [el("path", { class: "body", d: "M3 3.1Q5 2.2 7 3.1Q9.2 5 8.7 7.6Q8.4 9.1 6.8 9.1H3.2Q1.6 9.1 1.3 7.6Q.8 5 3 3.1Z" }), el("path", { class: "body", d: "M3.6 3.1Q3.1 1.6 4.4 1.4Q5 2.1 5.6 1.4Q6.9 1.6 6.4 3.1Z" }),
+    el("path", { class: "tie", d: "M3.4 3.3Q5 4.1 6.6 3.3" }), el("path", { class: "line", d: "M2.2 7.1Q3 8.5 5 8.6M7 5.6Q7.4 6.6 7 7.4" })],
+  () => [el("path", { class: "body", d: "M2.8 1.6H7.2C9.1 3.4 9.1 6.8 7.2 8.8H2.8C.9 6.8 .9 3.4 2.8 1.6Z" }), el("ellipse", { class: "lid", cx: 5, cy: 1.7, rx: 2.3, ry: .75 }),
+    el("path", { class: "hoop", d: "M1.4 3.5Q5 4.6 8.6 3.5M1 5.4Q5 6.5 9 5.4M1.4 7.4Q5 8.5 8.6 7.4" }), el("path", { class: "fish", d: "M3.9 1.7Q4.7 1.2 5.5 1.7Q4.7 2.2 3.9 1.7ZM5.4 1.7L6.1 1.3V2.1Z" })],
+  () => [el("path", { class: "body", d: "M1 3.5H9V8Q9 9.2 8 9.2H2Q1 9.2 1 8Z" }), el("path", { class: "fur", d: "M1 3.7L1.4 2L2.5 3.2L3.4 1.6L4.4 3.2L5.3 1.6L6.3 3.2L7.2 1.7L8.1 3.2L8.8 2L9 3.7Z" }),
+    el("path", { class: "cord", d: "M3.6 3.4V9.2M6.4 3.4V9.2" })],
+  () => [el("path", { class: "body", d: "M5 1L8.5 2.6L9.1 6L6.8 8.9L3.2 9L1 5.8L2 2.7Z" }), el("path", { class: "facet", d: "M5 1L4.4 5L9.1 6M4.4 5L1 5.8M4.4 5L3.2 9M4.4 5L6.8 8.9M2 2.7L4.4 5M8.5 2.6L4.4 5" }), el("path", { class: "hi", d: "M3.1 3.3L4.5 2.3" })],
 ];
 // the glyphs of the weather and the crates that bring it, in a ten by ten box
 const GLYPH = {
@@ -104,10 +116,7 @@ function glyph(id, cls = "") {
 }
 /** A crate of good c (a moored one with an anchor in its corner, a sealed one with the harbour master's wax): in a ten by ten box, placed by an outer group so its own can move. */
 function crateEl(c, cls = "", [x, y] = [0, 0], kind = 0) {
-  const body = el("g", { class: `dr-crate k${c}${kind === MOORED ? " moored" : ""}${kind === SEALED ? " sealed" : ""} ${cls}`.trim() },
-    el("rect", { class: "box", x: .7, y: .7, width: 8.6, height: 8.6, rx: 1.2 }),
-    el("path", { class: "slat", d: "M1.6 2.9H8.4M1.6 7.1H8.4" }),
-    el("path", { class: "bracket", d: "M1.2 2.6V1.2H2.6M7.4 1.2H8.8V2.6M8.8 7.4V8.8H7.4M2.6 8.8H1.2V7.4" }), MARKS[c]());
+  const body = el("g", { class: `dr-crate k${c}${kind === MOORED ? " moored" : ""}${kind === SEALED ? " sealed" : ""} ${cls}`.trim() }, el("ellipse", { class: "shadow", cx: 5, cy: 9.3, rx: 3.7, ry: .7 }), ...ICONS[c]());
   if (kind === MOORED) body.append(el("circle", { class: "pin", cx: 7.6, cy: 7.6, r: 1.7 }), el("path", { class: "anchor", d: "M7.6 6.5V8.7M6.8 7.1H8.4M6.6 8.1C6.8 8.8 7.2 9 7.6 9S8.4 8.8 8.6 8.1" }));
   if (kind === SEALED) body.append(el("circle", { class: "wax", cx: 7.4, cy: 2.7, r: 2 }), el("path", { class: "waxstar", d: "M7.4 1.5L7.8 2.4L8.7 2.5L8 3.1L8.2 4L7.4 3.5L6.6 4L6.8 3.1L6.1 2.5L7 2.4Z" }));
   return el("g", { transform: `translate(${x} ${y})`, "data-cell": "" }, body);
@@ -208,6 +217,11 @@ function drawBoard(cells, extra = {}) {
   }
   cells.forEach((c, i) => { if (c >= 0) crates.append(crateAt(c, i, extra.fresh?.includes(i) ? "fresh" : "", stakes.has(i) ? MOORED : extra.sealAt === i ? SEALED : 0)); });
   const marks = el("g", {});
+  if (extra.ghost) {                                       // where the crate would lie: its ghost on a lit square
+    const g = extra.ghost, [gx, gy] = at(g.at);
+    marks.append(el("rect", { class: "dr-aim", x: gx + .3, y: gy + .3, width: 9.4, height: 9.4, rx: 1.4 }));
+    crates.append(crateAt(g.c, g.at, "ghost", g.k));
+  }
   for (const i of extra.ring || []) { const [x, y] = at(i); marks.append(el("rect", { class: "dr-ring", x: x + .2, y: y + .2, width: 9.6, height: 9.6, rx: 1.4 })); }
   if (extra.tag) {
     const [x, y] = at(extra.tag[1]), t = el("text", { class: "dr-tag", x: Math.min(W * CELL - 8, Math.max(8, x + CELL / 2)), y: Math.max(3.4, y - 1.4) });
@@ -217,7 +231,7 @@ function drawBoard(cells, extra = {}) {
   const wave = extra.wave === undefined ? S.plan[0].wave : extra.wave;
   const kids = [seaLayer(), deckLayer(cells, wind), ...(wave && ahead ? [waveLayer(wave)] : []), crates, marks, frameLayer(wind)];
   if (!hinted() && S.turns < 3 && S.status === "play" && !extra.fresh) {
-    kids.push(el("g", { class: "dr-hint" }, ...["Press a square to see the turn:", "the crate, then the wind", "blows everything one way"].map((t, k) => {
+    kids.push(el("g", { class: "dr-hint" }, ...["Press a square and let go", "to lay the crate; then the", "wind blows everything one way"].map((t, k) => {
       const n = el("text", { x: W * CELL / 2, y: H * CELL / 2 - 4 + k * 5.4 });
       n.textContent = t;
       return n;
@@ -230,7 +244,7 @@ function drawBoard(cells, extra = {}) {
 // ---------- the strip, the orders, the queue ----------
 const stat = (label, value) => { const s = document.createElement("span"), b = document.createElement("b"); b.textContent = value; s.append(`${label} `, b); return s; };
 function drawStrip() {
-  const best = bests()[S.shape] || 0;
+  const best = bestAll();
   $("strip").replaceChildren(...(inVoyage()
     ? [stat("Turn", `${Math.min(S.turns + (S.status === "play" ? 1 : 0), R.turns)}/${R.turns}`), stat("Score", fmt(S.score)), stat("Room", room(S))]
     : [stat("Score", fmt(S.score)), stat("Room", room(S)), stat("Best", fmt(Math.max(best, S.score)))]));
@@ -314,7 +328,7 @@ function drawSide(text) {
       $("againBtn").textContent = S.status === "won" ? "Replay" : "Try again";
       next.hidden = !(S.status === "won" && camp.at < LEVELS.length - 1);
     } else {
-      const best = bests()[S.shape] || 0;
+      const best = bestAll();
       $("verdict").textContent = `No room left on the quay: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
       $("againBtn").textContent = "New game";
     }
@@ -324,35 +338,71 @@ function drawSide(text) {
   $("coming").setAttribute("aria-label", `Coming: ${Array.from({ length: QUEUE }, (_, k) => (k > 0 && foggy(S) ? "hidden by fog" : describeTurn(k))).join("; then ")}`);
   $("line").textContent = text ?? (inVoyage() && S.turns === 0 && !hinted() ? level().note : weatherWords());
 }
-function render() { drawBoard(S.cells); drawStrip(); drawOrders(); drawSide(); }
+function render() { paint(S.cells); drawStrip(); drawOrders(); drawSide(); }
 
-const shipWords = by => by.map((n, c) => (n ? `${n} ${NAMES[c]}` : "")).filter(Boolean).join(", ");
-/** The turn a square would make, shown: the quay after the first wind, the lines that would ship ringed, what it would do. */
-function show(i) {
-  const r = lay(R, S, i), first = blow(S.shape, r.start, r.winds[0], r.stakes0).cells;
-  const ring = lineRuns(S.shape, first).size ? [...lineRuns(S.shape, first).keys()] : [];
-  if (r.sealed >= 0) first.forEach((c, j) => { if (c === r.sealed && !ring.includes(j)) ring.push(j); });
-  const rocks = r.reef >= 0 ? [...S.rocks, r.reef] : S.rocks;
-  drawBoard(first, { ring, tag: r.gain ? [`+${fmt(r.gain)}`, i] : null, stakes: r.laid.k === MOORED ? [...r.stakes0] : r.stakes0, strays: [], reef: -1, wave: null, rocks, wind: r.winds[0], omens: false });
-  const t = r.state;
-  let words = r.cleared ? `Ships ${r.cleared}: ${shipWords(r.by)}${r.gain ? ` (+${fmt(r.gain)})` : ""}` : `Blown ${WINDS[r.winds[0]]}: nothing ships`;
-  if (inVoyage()) {
-    const spent = r.by.reduce((a, n, c) => a + (R.orders[c] && S.shipped[c] < R.orders[c] ? n - r.ok[c] : 0), 0);
-    if (spent) words += `; ${plural(spent, "crate")} in a line too short for the order: wasted`;
-    if (t.status === "won") words += "; fills the last order";
-    else if (t.status === "lost") words += `; ${t.why.toLowerCase().replace(/\.$/, "")}`;
-  } else if (t.status === "lost") words += "; and the quay is full";
-  if (r.winds.length > 1) words += `; then ${WINDS[r.winds[1]]}`;
-  drawSide(words);
+/** What the forecast has the sky do this turn (a squall or its strays, fog, a rogue wave, a second gust). */
+const skyOf = g => { const p = g.plan[0]; return { squall: !!p.squall || g.strays.length > 0, fog: !!p.fog, wave: !!p.wave, gust: p.w2 != null }; };
+/** The board drawn: these cells, with what the game shows by default (the wind, moorings, rocks, the omens) unless `extra` says. */
+function paint(cells, extra = {}) {
+  const g = shown || S;
+  view.draw(cells, { wind: g.plan[0].w, stakes: g.stakes, rocks: g.rocks, strays: g.strays, reef: g.reef, wave: g.plan[0].wave, ...extra, shape: S.shape, sky: skyOf(g) });
 }
 
-// ---------- a turn ----------
-const wait = ms => new Promise(r => setTimeout(r, document.hidden ? 0 : ms));
-const animate = (node, frames, opts) => (node?.animate ? node.animate(frames, { fill: "both", ...opts }).finished.catch(() => {}) : Promise.resolve());
+// ---------- the flat board ----------
+const running = new Set();
+const animate = (node, frames, opts) => {
+  if (fast || !node?.animate) return Promise.resolve();
+  const a = node.animate(frames, { fill: "both", ...opts });
+  running.add(a);
+  return a.finished.catch(() => {}).finally(() => running.delete(a));
+};
 const node = i => $("board").querySelector(`#tiles [data-cell="${i}"] > g`);
+const slideFrom = ([f, t], ms, easing) => { const [fx, fy] = at(f), [tx, ty] = at(t); return animate(node(t), [{ transform: `translate(${fx - tx}px, ${fy - ty}px)` }, { transform: "translate(0, 0)" }], { duration: ms, easing }); };
+const flatView = {
+  flat: true,
+  draw: drawBoard,
+  async place(i) {
+    sound.drop((shown || S).next[0].c);
+    await animate(node(i), [{ transform: "scale(.4)", opacity: .3 }, { transform: "scale(1)", opacity: 1 }], { duration: 160, easing: "ease-out" });
+  },
+  async arrive(list, reef) {
+    if (list.length) sound.rain(0.5);
+    await Promise.all([...list.map(j => animate(node(j), [{ transform: "scale(.7)", opacity: .4 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" })), ...(reef >= 0 ? [animate(node(reef), [{ transform: "scale(.3)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 300, easing: "ease-out" })] : [])]);
+  },
+  async shove(moved) { sound.wash(0.6); await Promise.all(moved.map(m => slideFrom(m, 260, "ease-in-out"))); },
+  async slide(moved, wind, cells) {
+    for (const [, t] of moved.slice(0, 3)) sound.slide(cells[t], 0.25);
+    await Promise.all(moved.map(m => slideFrom(m, 200, "ease-in")));
+    for (const [, t] of moved.slice(0, 2)) sound.thud(cells[t]);
+  },
+  async ship(cleared) {
+    sound.bell(cleared.length >= 5 ? 2 : 1);
+    await Promise.all(cleared.map(j => animate(node(j), [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(1.4)", opacity: 0 }], { duration: 260, easing: "ease-in" })));
+  },
+  popup(cells, gain) {
+    const fx = $("board").querySelector("#fx"), u = [...new Set(cells)];
+    if (!fx || !u.length) return;
+    const x = u.reduce((a, k) => a + at(k)[0], 0) / u.length + CELL / 2, y = u.reduce((a, k) => a + at(k)[1], 0) / u.length + CELL / 2;
+    const t = el("text", { class: `dr-pop${u.length >= 6 ? " big" : ""}`, x: x.toFixed(1), y: y.toFixed(1) });
+    t.textContent = `+${fmt(gain)}`;
+    fx.append(t);
+    animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-12px)", opacity: 0 }], { duration: 1000, easing: "ease-out" });
+  },
+  finish() { for (const a of running) a.finish(); },
+  cell(px, py) {
+    const m = $("board").getScreenCTM();
+    if (!m) return -1;
+    const p = new DOMPoint(px, py).matrixTransform(m.inverse()), x = Math.floor(p.x / CELL), y = Math.floor(p.y / CELL);
+    return openAt(S.cells, x, y) ? xy(x, y) : -1;
+  },
+  theme() {}, resize() {}, dispose() {},
+};
+
+// ---------- a turn ----------
 async function commit(i) {
   if (playing || S.status !== "play") return;
   playing = true;
+  fast = view.fast = false;
   aim = -1;
   const before = S, r = lay(R, S, i);
   S = r.state;
@@ -360,40 +410,46 @@ async function commit(i) {
   write(HINT, true);
   noteBest();
   drawSide(" ");
+  shown = before;            // the weather of the turn being played stays on show until it has played
   // the crate laid, the squall's strays and the rock, the wave, then the wind gust by gust, a sealed crate's shipment among them
   let cells = before.cells.slice(), stakes = r.laid.k === MOORED ? [...before.stakes, i] : before.stakes.slice(), rocks = before.rocks.slice();
   cells[i] = r.laid.c;
   const wind = before.plan[0].w;
-  const show_ = extra => drawBoard(cells, { wind, stakes, strays: [], reef: -1, wave: null, rocks, ...extra });
-  show_({ fresh: [i], strays: before.strays, reef: before.reef, wave: before.plan[0].wave, sealAt: r.laid.k === SEALED ? i : -1 });
-  await animate(node(i), [{ transform: "scale(.4)", opacity: .3 }, { transform: "scale(1)", opacity: 1 }], { duration: 160, easing: "ease-out" });
-  if (r.squall.length || r.reef >= 0) {
-    for (const { at: j, colour } of r.squall) cells[j] = colour;
-    if (r.reef >= 0) { cells[r.reef] = WATER; rocks = [...rocks, r.reef]; }
-    show_({ fresh: [...r.squall.map(q => q.at), ...(r.reef >= 0 ? [r.reef] : [])], wave: before.plan[0].wave });
-    await Promise.all([...r.squall.map(q => animate(node(q.at), [{ transform: "scale(.7)", opacity: .4 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" })), ...(r.reef >= 0 ? [animate(node(r.reef), [{ transform: "scale(.3)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 300, easing: "ease-out" })] : [])]);
-  }
-  if (r.wave) {
-    const w = shove(S.shape, cells, r.wave, stakes);
-    cells = w.cells;
-    show_({});
-    await Promise.all(w.moved.map(([f, t]) => { const [fx, fy] = at(f), [tx, ty] = at(t); return animate(node(t), [{ transform: `translate(${fx - tx}px, ${fy - ty}px)` }, { transform: "translate(0, 0)" }], { duration: 260, easing: "ease-in-out" }); }));
-  }
-  for (const gust of r.gusts) {
-    if (!gust.sealed) {
-      const b = blow(S.shape, cells, gust.wind, stakes);
-      cells = b.cells;
-      drawBoard(cells, { wind: gust.wind, stakes, strays: [], reef: -1, wave: null, rocks });
-      await Promise.all(b.moved.map(([f, t]) => { const [fx, fy] = at(f), [tx, ty] = at(t); return animate(node(t), [{ transform: `translate(${fx - tx}px, ${fy - ty}px)` }, { transform: "translate(0, 0)" }], { duration: 200, easing: "ease-in" }); }));
+  const put = extra => paint(cells, { wind, stakes, strays: [], reef: -1, wave: null, rocks, ...extra });
+  try {
+    put({ fresh: [i], strays: before.strays, reef: before.reef, wave: before.plan[0].wave, sealAt: r.laid.k === SEALED ? i : -1 });
+    await view.place(i);
+    if (r.squall.length || r.reef >= 0) {
+      for (const { at: j, colour } of r.squall) cells[j] = colour;
+      if (r.reef >= 0) { cells[r.reef] = WATER; rocks = [...rocks, r.reef]; }
+      put({ fresh: [...r.squall.map(q => q.at), ...(r.reef >= 0 ? [r.reef] : [])], wave: before.plan[0].wave });
+      await view.arrive(r.squall.map(q => q.at), r.reef);
     }
-    if (!gust.cleared.length) continue;
-    drawBoard(cells, { ring: gust.cleared, wind: gust.wind, stakes, strays: [], reef: -1, wave: null, rocks });
-    await Promise.all(gust.cleared.map(j => animate(node(j), [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(1.4)", opacity: 0 }], { duration: 260, easing: "ease-in" })));
-    for (const j of gust.cleared) cells[j] = EMPTY;
-    stakes = stakes.filter(j => cells[j] >= 0);
+    if (r.wave) {
+      const w = shove(S.shape, cells, r.wave, stakes);
+      cells = w.cells;
+      put({});
+      await view.shove(w.moved);
+    }
+    for (const gust of r.gusts) {
+      if (!gust.sealed) {
+        const b = blow(S.shape, cells, gust.wind, stakes);
+        cells = b.cells;
+        put({ wind: gust.wind });
+        await view.slide(b.moved, gust.wind, b.cells);
+      }
+      if (!gust.cleared.length) continue;
+      put({ ring: gust.cleared, wind: gust.wind });
+      await view.ship(gust.cleared, gust.wind);
+      for (const j of gust.cleared) cells[j] = EMPTY;
+      stakes = stakes.filter(j => cells[j] >= 0);
+    }
+  } finally {
+    shown = null;
+    fast = view.fast = false;
+    render();
   }
-  render();
-  if (r.gain) popup(r.gusts.flatMap(g => g.cleared), r.gain);
+  if (r.gain) view.popup(r.gusts.flatMap(g => g.cleared), r.gain);
   playing = false;
   if (S.status === "won" && inVoyage()) wonLevel();
   if (S.status !== "play") roundOver("drift");
@@ -407,32 +463,24 @@ function wonLevel() {
   const n = stars(R, S), id = level().id;
   if (n > (camp.stars[id] || 0)) { camp.stars[id] = n; write(CAMP, camp); }
 }
-function popup(cells, gain) {
-  const fx = $("board").querySelector("#fx"), u = [...new Set(cells)];
-  if (!fx || !u.length) return;
-  const x = u.reduce((a, k) => a + at(k)[0], 0) / u.length + CELL / 2, y = u.reduce((a, k) => a + at(k)[1], 0) / u.length + CELL / 2;
-  const t = el("text", { class: `dr-pop${u.length >= 6 ? " big" : ""}`, x: x.toFixed(1), y: y.toFixed(1) });
-  t.textContent = `+${fmt(gain)}`;
-  fx.append(t);
-  animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-12px)", opacity: 0 }], { duration: 1000, easing: "ease-out" });
-}
-
 // ---------- pressing the quay ----------
-function cellAt(px, py) {
-  const m = $("board").getScreenCTM();
-  if (!m) return -1;
-  const p = new DOMPoint(px, py).matrixTransform(m.inverse()), x = Math.floor(p.x / CELL), y = Math.floor(p.y / CELL);
-  return openAt(S.cells, x, y) ? xy(x, y) : -1;
-}
 function aimAt(e) {
-  const k = cellAt(e.clientX, e.clientY), omen = S.strays.some(q => q.at === k) || S.reef === k, i = k >= 0 && S.cells[k] === EMPTY && !omen ? k : -1;
+  const k = view.cell(e.clientX, e.clientY), omen = S.strays.some(q => q.at === k) || S.reef === k, i = k >= 0 && S.cells[k] === EMPTY && !omen ? k : -1;
   if (i === aim && !omen) return;
   aim = i;
-  if (i >= 0) show(i);
-  else { drawBoard(S.cells); drawSide(omen ? "Something lands there with the weather: lay the crate elsewhere" : undefined); }
+  const next = S.next[0];
+  if (i >= 0) { paint(S.cells, { ghost: { at: i, c: next.c, k: next.k } }); drawSide(`Let go to lay the ${NAMES[next.c]} crate here`); }
+  else { paint(S.cells); drawSide(omen ? "Something lands there with the weather: lay the crate elsewhere" : undefined); }
 }
-$("board").addEventListener("pointerdown", e => {
-  if (playing || S.status !== "play" || e.button > 0 || cellAt(e.clientX, e.clientY) < 0) return;
+const field = $("field");
+// a tap during a turn finishes it at once; the first touch of all lets the page make sound
+addEventListener("pointerdown", () => {
+  sound.prime();
+  view.wake?.();
+  if (playing && !fast) { fast = view.fast = true; view.finish(); }
+}, true);
+field.addEventListener("pointerdown", e => {
+  if (playing || S.status !== "play" || e.button > 0 || view.cell(e.clientX, e.clientY) < 0) return;
   e.preventDefault();
   press = e.pointerId;
   aim = -2;
@@ -440,17 +488,17 @@ $("board").addEventListener("pointerdown", e => {
 });
 addEventListener("pointermove", e => {
   if (press === e.pointerId) aimAt(e);
-  else if (press == null && !playing && S.status === "play" && e.pointerType === "mouse" && e.target.closest?.("#board")) aimAt(e);   // a mouse shows a turn as it passes
+  else if (press == null && !playing && S.status === "play" && e.pointerType === "mouse" && e.target.closest?.("#field")) aimAt(e);   // a mouse shows its ghost as it passes
 });
 addEventListener("pointerup", e => {
   if (press !== e.pointerId) return;
   press = null;
-  const i = cellAt(e.clientX, e.clientY);
+  const i = view.cell(e.clientX, e.clientY);
   if (i >= 0 && i === aim) commit(i);
   else { aim = -1; render(); }
 });
 addEventListener("pointercancel", e => { if (press === e.pointerId) { press = null; aim = -1; render(); } });
-$("board").addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && press == null && aim >= 0 && !playing) { aim = -1; render(); } });
+field.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && press == null && aim >= 0 && !playing) { aim = -1; render(); } });
 
 // ---------- the menu ----------
 /** The menu's big button: a game that has scored is asked about before it is thrown away. */
@@ -505,15 +553,6 @@ function miniShape(id) {
   sh.open.forEach((o, i) => { if (o) svg.append(el("rect", { x: i % sh.w, y: Math.floor(i / sh.w), width: 1, height: 1 })); });
   return svg;
 }
-async function pickShape(id) {
-  if (id === S.shape && !inVoyage()) return;
-  if (!inVoyage() && S.turns > 0 && S.status === "play" && !(await sure(`Start a new game on the ${SHAPES[id].name.toLowerCase()}? This one is at ${fmt(S.score)}.`, { yes: "New game" }))) { openMenu(); return; }
-  write(SHAPE, id);
-  write(RUN, null);
-  mode = "open";
-  write(MODE, mode);
-  resume();
-}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -521,11 +560,18 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Game", [["voyage", "Voyage"], ["open", "Open sail"]], mode, m => { setMode(m); openMenu(); }));
   if (inVoyage()) content.append(levelList());
-  else content.append(choice("Quay", SHAPE_IDS.map(id => [id, SHAPES[id].name]), S.shape, pickShape));
-  const best = bests()[S.shape] || 0, beaten = Object.keys(camp.stars).length, total = Object.values(camp.stars).reduce((a, b) => a + b, 0), about = part(body, "about");
+  const set = part(body, "settings");
+  set.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
+  set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], view.flat ? "flat" : "3d", async v => {
+    write(VIEW, v);
+    if ((v === "flat") === !!view.flat) return;
+    await makeView();
+    render();
+  }));
+  const best = bestAll(), beaten = Object.keys(camp.stars).length, total = Object.values(camp.stars).reduce((a, b) => a + b, 0), about = part(body, "about");
   about.append(line(inVoyage()
     ? `This game: ${fmt(S.score)} in ${plural(S.turns, "turn")}; ${beaten} of ${LEVELS.length} levels filled, ${plural(total, "star")}`
-    : `This game: ${fmt(S.score)} in ${plural(S.turns, "turn")}${best ? `; your best on the ${SHAPES[S.shape].name.toLowerCase()} ${fmt(best)}` : ""}`));
+    : `This game: ${fmt(S.score)} in ${plural(S.turns, "turn")} on the ${SHAPES[S.shape].name.toLowerCase()}${best ? `; your best ${fmt(best)}` : ""}`));
   const how = document.createElement("p");
   how.className = "note";
   how.textContent = "The weather: a squall blows stray crates on to the quay; a rogue wave shoves a row or column one square; a second gust follows the wind; fog hides the queue; a rock rises from the water; a moored crate stays put; a sealed crate ships every crate of its good. Each is forecast in the queue under the field, and drawn on the quay a turn ahead.";
@@ -541,7 +587,26 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", () => newRun());
 $("nextBtn").addEventListener("click", () => playLevel(Math.min(camp.at + 1, LEVELS.length - 1)));
 
-// for tests and debugging
-window.__drift = { get state() { return S; }, get rules() { return R; }, commit, cellAt, newRun, playLevel, setMode, show };
+// ---------- the board: 3D where the device can draw it and the player has not chosen flat ----------
+// drift:view is the player's own choice ("3d" or "flat"), written only when they make it; else the suite's default (mode3d.js)
+async function makeView() {
+  view?.dispose();
+  view = null;
+  if (wants3D(read(VIEW, null), "3d")) {
+    try { view = (await import("./drift-3d.js")).create3D(field); }
+    catch (err) { console.warn("Drift: no 3D here, so the quay is drawn flat.", err); }
+  }
+  view ||= flatView;
+  field.classList.toggle("is3d", !view.flat);
+}
+sound.on = read(SOUND, true);
+new MutationObserver(() => view?.theme()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => view?.theme());
+onPause(() => view.pause?.(true), () => view.pause?.(false));
+onDefaultChange(async () => { if (read(VIEW, null) != null) return; await makeView(); render(); });   // Settings' 2D mode, live
 
+// for tests and debugging
+window.__drift = { get state() { return S; }, get rules() { return R; }, get view() { return view; }, commit, newRun, playLevel, setMode, skyOf };
+
+await makeView();
 resume();
