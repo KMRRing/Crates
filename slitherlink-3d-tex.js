@@ -96,11 +96,15 @@ export function walnut(seed = 5, size = 1024) {
  * The ink is drawn twice a pixel apart so it looks pressed into the vellum rather than printed.
  */
 export function numeral(ch, state, size = 128) {
-  const c = make(size, size), g = c.getContext("2d");
+  const c = make(size, size), g = c.getContext("2d"), bound = ch.length > 1;
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = `italic 700 ${size * 0.78}px ${SERIF}`;
+  g.font = `italic 700 ${size * (bound ? 0.5 : 0.78)}px ${SERIF}`;
   const col = state === "o" ? OXBLOOD : INK;
   g.globalAlpha = state === "m" ? 0.34 : 1;
+  if (bound) {                                             // a bound ("2+", "≤1") is written on a patch of brass wash, as the flat board has it
+    g.fillStyle = state === "o" ? "rgba(168,56,43,0.26)" : "rgba(200,146,58,0.34)"; g.strokeStyle = state === "o" ? OXBLOOD : "rgba(160,112,40,0.7)"; g.lineWidth = size * 0.014;
+    g.beginPath(); g.roundRect(size * 0.1, size * 0.28, size * 0.8, size * 0.44, size * 0.1); g.fill(); g.stroke();
+  }
   g.shadowColor = col; g.shadowBlur = size * 0.015;
   g.fillStyle = col;
   g.fillText(ch, size / 2, size * 0.54);

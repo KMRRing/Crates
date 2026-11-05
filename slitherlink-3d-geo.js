@@ -1,6 +1,8 @@
 // Portolan's chart in 3D: the plain arithmetic (no three.js, so Node tests it). Board coordinates are the flat board's: a corner is
 // (x, y) with x across to C and y down to R, an edge's index as slitherlink-engine.js has it (the horizontal edges first, then the
-// vertical ones), so the 3D view and the 2D one read taps the same way. Once the loop is drawn its inside is the land and its
+// vertical ones), so the 3D view and the 2D one read taps the same way. A honeycomb (5 November 2026) is the same with its corners,
+// edges and cells given by the board (`pos`, `epos`, `cpos`, `cpoly`: slitherlink-twist.js's boardOf, moved so its corner is at 0, 0);
+// a square board with causeways has its edges' ends in `epos` too (a causeway's dot is two nodes there). Once the loop is drawn its inside is the land and its
 // outside the sea; everything here that makes the land, the sea, the harbour and the cog's course is derived from the lines drawn.
 import { LINE } from "./slitherlink-engine.js";
 
@@ -20,11 +22,13 @@ const fbm = (x, y, s) => (vnoise(x * 0.9, y * 0.9, s) * 0.58 + vnoise(x * 1.9 + 
 
 /** A flat board's corner count and where an edge runs: [x1, y1, x2, y2]. */
 export function edgeEnds(g, e) {
+  if (g.epos) return g.epos[e];
   const W = g.C + 1, a = g.ea[e], b = g.eb[e];
   return [a % W, Math.floor(a / W), b % W, Math.floor(b / W)];
 }
 /** Which cells the drawn lines enclose (1 inside): an even-odd count of the vertical lines left of a cell on its row. */
 export function insideCells(g, marks) {
+  if (g.shape === "hex") { const segs = coastSegments(g, marks); return Uint8Array.from(g.cpos, ([x, y]) => insideAt(segs, x, y)); }
   const { R, C, H } = g, out = new Uint8Array(R * C);
   for (let r = 0; r < R; r++) {
     let par = 0;
@@ -38,14 +42,20 @@ export function coastSegments(g, marks) {
   for (let e = 0; e < g.E; e++) if (marks[e] === LINE) out.push(edgeEnds(g, e));
   return out;
 }
-/** The distance from a point to the nearest of a set of axis-aligned segments. */
+/** The distance from a point to the nearest of a set of segments. */
 export function coastDistance(segs, x, y) {
   let best = Infinity;
   for (const [x1, y1, x2, y2] of segs) {
-    const dx = Math.max(Math.min(x1, x2) - x, 0, x - Math.max(x1, x2)), dy = Math.max(Math.min(y1, y2) - y, 0, y - Math.max(y1, y2)), d = dx * dx + dy * dy;
+    const ex = x2 - x1, ey = y2 - y1, t = Math.max(0, Math.min(1, ((x - x1) * ex + (y - y1) * ey) / (ex * ex + ey * ey))), dx = x - x1 - t * ex, dy = y - y1 - t * ey, d = dx * dx + dy * dy;
     if (d < best) best = d;
   }
   return Math.sqrt(best);
+}
+/** 1 if a point is inside the loop drawn (an odd number of its segments cross a ray to the right of it), else 0: the even-odd rule, which is also what a loop that crosses itself at a causeway means by its land. */
+export function insideAt(segs, x, y) {
+  let par = 0;
+  for (const [x1, y1, x2, y2] of segs) if ((y1 > y) !== (y2 > y) && x1 + ((y - y1) * (x2 - x1)) / (y2 - y1) > x) par ^= 1;
+  return par;
 }
 /** The island's height at a point `d` from the coast: nothing at the shore, rising with a hill's noise, never above HILL. */
 export function heightAt(d, x, y) {
@@ -60,7 +70,7 @@ export function loopPath(g, marks) {
   let at = g.ea[start], e = start, n = 0;
   const first = at;
   do {
-    path.push([at % W, Math.floor(at / W)]);
+    path.push(g.pos ? g.pos[at] : [at % W, Math.floor(at / W)]);
     used.add(e);
     at = g.ea[e] === at ? g.eb[e] : g.ea[e];
     const next = g.vedges[at].find(f => marks[f] === LINE && !used.has(f));
@@ -71,8 +81,18 @@ export function loopPath(g, marks) {
 }
 const area2 = pts => { let s = 0; for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length]; s += x1 * y2 - x2 * y1; } return s; };
 /** A course round the coast, `out` cells to sea of it, with its corners rounded: the cog's way. Returns [x, y] points, closed (no repeat). */
-export function seaCourse(path, out) {
+export function seaCourse(path, out, inside = null) {
   if (!path) return [];
+  if (inside) {                                              // any loop (a honeycomb's, or one that crosses itself): each side of it told by looking at which is outside
+    const n = path.length, norm = path.map((p, i) => {
+      const b = path[(i + 1) % n], dx = b[0] - p[0], dy = b[1] - p[1], l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l;
+      return inside((p[0] + b[0]) / 2 + nx * 0.05, (p[1] + b[1]) / 2 + ny * 0.05) ? [-nx, -ny] : [nx, ny];
+    });
+    return smooth(path.map((p, i) => {
+      const a = norm[(i + n - 1) % n], b = norm[i], k = 1 + a[0] * b[0] + a[1] * b[1];
+      return [p[0] + ((a[0] + b[0]) * out) / k, p[1] + ((a[1] + b[1]) * out) / k];
+    }));
+  }
   const sign = area2(path) > 0 ? 1 : -1;                    // which side is outward depends on the way round
   const n = path.length, pts = path.map((p, i) => {
     const a = path[(i + n - 1) % n], b = path[(i + 1) % n];
@@ -80,8 +100,12 @@ export function seaCourse(path, out) {
     const k = 1 + t1[0] * t2[0] + t1[1] * t2[1];                          // 2 on a straight run, 1 at a corner, which moves out along the diagonal
     return [p[0] + ((t1[1] + t2[1]) * sign * out) / k, p[1] - ((t1[0] + t2[0]) * sign * out) / k];
   });
+  return smooth(pts);
+}
+/** Chaikin's cut: a closed polyline's corners rounded. */
+function smooth(pts) {
   let cur = pts;
-  for (let k = 0; k < 3; k++) {                             // Chaikin's cut: corners rounded
+  for (let k = 0; k < 3; k++) {
     const nxt = [];
     for (let i = 0; i < cur.length; i++) { const a = cur[i], b = cur[(i + 1) % cur.length]; nxt.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); }
     cur = nxt;
@@ -127,6 +151,7 @@ export function seaColour(d) { return lin(d < 1 ? mix(SHALLOW, MID, d) : mix(MID
  * so the top faces up. Returns flat arrays for a BufferGeometry, the hill-top, and the sample function the harbour and the trees use.
  */
 export function landMesh(g, marks) {
+  if (g.shape === "hex") return landMeshHex(g, marks);
   const inside = insideCells(g, marks), segs = coastSegments(g, marks), { R, C } = g, S = SUB, cache = new Map();
   const positions = [], colors = [], index = [];
   const top = { x: 0, y: 0, h: -1 };
@@ -152,14 +177,49 @@ export function landMesh(g, marks) {
   }
   return { positions: new Float32Array(positions), colors: new Float32Array(colors), index: new Uint32Array(index), top, inside, segs };
 }
+/** The honeycomb's island: each hexagon inside the loop in six wedges from its middle, each wedge cut into small triangles, corners shared, so the coast is exactly the hexagons' edges. */
+const WEDGE = 4;
+function landMeshHex(g, marks) {
+  const inside = insideCells(g, marks), segs = coastSegments(g, marks), cache = new Map(), positions = [], colors = [], index = [], top = { x: 0, y: 0, h: -1 };
+  const vert = (x, y) => {
+    const key = `${Math.round(x * 1000)},${Math.round(y * 1000)}`;
+    let v = cache.get(key);
+    if (v == null) {
+      const d = coastDistance(segs, x, y), h = heightAt(d, x, y);
+      v = positions.length / 3;
+      positions.push(x, h, y);
+      colors.push(...landColour(h, d, x, y));
+      cache.set(key, v);
+      if (h > top.h) { top.h = h; top.x = x; top.y = y; }
+    }
+    return v;
+  };
+  const tri = (a, b, c) => {                                 // wound so the top faces up
+    const [ax, , az] = [positions[a * 3], 0, positions[a * 3 + 2]], up = (positions[b * 3 + 2] - az) * (positions[c * 3] - ax) - (positions[b * 3] - ax) * (positions[c * 3 + 2] - az);
+    if (up > 0) index.push(a, b, c); else index.push(a, c, b);
+  };
+  const N = WEDGE;
+  for (let k = 0; k < g.cells; k++) {
+    if (!inside[k]) continue;
+    const [cx, cy] = g.cpos[k], poly = g.cpoly[k];
+    for (let i = 0; i < 6; i++) {
+      const [bx, by] = poly[i], [ex, ey] = poly[(i + 1) % 6], at = (a, b) => vert(cx + ((bx - cx) * a + (ex - cx) * b) / N, cy + ((by - cy) * a + (ey - cy) * b) / N);
+      for (let a = 0; a < N; a++) for (let b = 0; a + b < N; b++) {
+        tri(at(a, b), at(a + 1, b), at(a, b + 1));
+        if (a + b < N - 1) tri(at(a + 1, b), at(a + 1, b + 1), at(a, b + 1));
+      }
+    }
+  }
+  return { positions: new Float32Array(positions), colors: new Float32Array(colors), index: new Uint32Array(index), top, inside, segs };
+}
 /** The sea: every square of the vellum that is not land (the margin too), coloured by its distance from the coast. Corners are not shared (squares are flat colour-blended). */
 export function seaMesh(g, marks, w, h) {
-  const inside = insideCells(g, marks), segs = coastSegments(g, marks), { R, C } = g, positions = [], colors = [], index = [];
-  const lines = (n, m) => { const out = [-m]; for (let i = 0; i < n * SEA_SUB; i++) out.push(i / SEA_SUB); out.push(n, n + m); return out; };
+  const hex = g.shape === "hex", inside = insideCells(g, marks), segs = coastSegments(g, marks), { R, C } = hex ? { R: g.H, C: g.W } : g, positions = [], colors = [], index = [];
+  const lines = (n, m) => { const out = [-m]; for (let i = 0; i < n * SEA_SUB - 1e-9; i++) out.push(i / SEA_SUB); out.push(n, n + m); return out; };
   const xs = lines(C, w), ys = lines(R, h);
   for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) {
     const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
-    if (cx > 0 && cx < C && cy > 0 && cy < R && inside[Math.floor(cy) * C + Math.floor(cx)]) continue;
+    if (!hex && cx > 0 && cx < C && cy > 0 && cy < R && inside[Math.floor(cy) * C + Math.floor(cx)]) continue;     // (a honeycomb's sea lies whole under its land, which hides it: the squares can't follow a hexagon's edge)
     const k = positions.length / 3;
     for (const [x, y] of [[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i], ys[j + 1]], [xs[i + 1], ys[j + 1]]]) { positions.push(x, 0, y); colors.push(...seaColour(coastDistance(segs, x, y))); }
     index.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
@@ -168,9 +228,14 @@ export function seaMesh(g, marks, w, h) {
 }
 
 /** The harbour: where on the coast the town and the pier are, and which way is out to sea. Taken from the course's start, so it is the same every time. */
-export function harbourOf(path) {
+export function harbourOf(path, inside = null) {
   if (!path) return null;
-  const sign = area2(path) > 0 ? 1 : -1, a = path[0], b = path[1], tx = Math.sign(b[0] - a[0]), ty = Math.sign(b[1] - a[1]);
+  const a = path[0], b = path[1];
+  if (inside) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l, mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    return { x: mx, y: my, out: inside(mx + nx * 0.05, my + ny * 0.05) ? [-nx, -ny] : [nx, ny] };
+  }
+  const sign = area2(path) > 0 ? 1 : -1, tx = Math.sign(b[0] - a[0]), ty = Math.sign(b[1] - a[1]);
   return { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, out: [sign * ty, -sign * tx] };
 }
 

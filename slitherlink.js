@@ -490,12 +490,12 @@ function paint() {
 
 // ---------- 3D: the same board as a cartographer's chart (slitherlink-3d.js, loaded when first asked for) ----------
 let model = null, modelFor = null, modelShown = false;
-/** Whether the chart is what shows now: asked for, drawable, and a board it draws. */
-const modelOn = () => viewShown === "3d" && !!model && !!P && !P.twisted;
+/** Whether the chart is what shows now: asked for and drawable (it draws every board and twist). */
+const modelOn = () => viewShown === "3d" && !!model && !!P;
 /** The chart follows the run: a new puzzle is built into it, every change of the marks, the rules broken, a hint's edges or a solve is shown. */
 function feedModel(fresh, sets) {
   if (!modelOn() || !S) return;
-  if (fresh || modelFor !== P) { model.set({ g: P.g, clue: P.clue }); modelFor = P; sets = null; }
+  if (fresh || modelFor !== P) { model.set({ g: P.view, clue: P.clue, twisted: !!P.twisted }); modelFor = P; sets = null; }
   if (!sets) { const br = breaks(P, S.marks); sets = { over: new Set([...br.over, ...br.shade]), met: new Set(br.met), wrong: new Set(br.loop), bad: new Set(br.bad), lit: new Set(S.lit?.set || []) }; }
   model.update({ marks: S.marks, over: sets.over, met: sets.met, wrong: sets.wrong, bad: sets.bad, lit: sets.lit, why: [S.lit?.cell ?? -1, S.lit?.cell2 ?? -1], vertex: S.lit?.vertex ?? -1, solved: !!S.done });
 }

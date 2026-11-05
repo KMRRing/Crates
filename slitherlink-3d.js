@@ -6,8 +6,8 @@
 // while something moves. Throws where there is no WebGL (the page then keeps the flat board).
 import * as THREE from "./vendor/three.js";
 import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
-import { LINE, CROSS, INSIDE, OUTSIDE } from "./slitherlink-engine.js";
-import { MARGIN, LAND_BASE, edgeEnds, insideCells, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, coastDistance, heightAt, groundPoint, fitDistance, FOV, ELEVATION } from "./slitherlink-3d-geo.js";
+import { LINE, CROSS, INSIDE, OUTSIDE, labelOf } from "./slitherlink-engine.js";
+import { MARGIN, LAND_BASE, edgeEnds, insideCells, insideAt, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, coastDistance, heightAt, groundPoint, fitDistance, FOV, ELEVATION } from "./slitherlink-3d-geo.js";
 import * as T from "./slitherlink-3d-tex.js";
 
 const BUSY_MS = 1000 / 40;
@@ -83,7 +83,7 @@ export function createChart(host, opts = {}) {
   const INK = new THREE.Color(T.INK), OX = new THREE.Color(T.OXBLOOD), GILT = new THREE.Color(T.GILT);
 
   // ---------- the puzzle's own objects ----------
-  let g = null, C = 0, R = 0, clue = [], ends = [], paper = null, bar = null, guide = null, crossM = null, halo = null, joints = null, dots = null, digits = [], rings = [], disposables = [];
+  let g = null, C = 0, R = 0, offX = 0, offY = 0, twisted = false, clue = [], ends = [], bridges = null, paper = null, bar = null, guide = null, crossM = null, halo = null, joints = null, dots = null, digits = [], rings = [], disposables = [];
   let prog = [], tgt = [], widthJ = [], look = null, marksNow = "", solved = false, solveAt = null, built = null, still = false;
   const digitMats = new Map();
   const digitMat = (ch, state, bad) => {
@@ -96,6 +96,14 @@ export function createChart(host, opts = {}) {
     }
     return m;
   };
+  /** The board with its corner moved to 0, 0 (a honeycomb's corners start below zero), its width and height, and its causeways' dots. */
+  const normalise = src => {
+    const [bx0, by0, bx1, by1] = src.box || [0, 0, src.C, src.R], mv = ([x, y]) => [x - bx0, y - by0];
+    if (!src.epos) return { ...src, W: bx1 - bx0, H: by1 - by0, tun: [], dotOf: Array.from({ length: src.V }, (_, i) => i) };
+    return { ...src, pos: src.pos.map(mv), epos: src.epos.map(([a, b, c, d]) => [a - bx0, b - by0, c - bx0, d - by0]), cpos: src.cpos.map(mv), cpoly: src.cpoly?.map(poly => poly.map(mv)), dots: src.dots.map(mv), W: bx1 - bx0, H: by1 - by0, ox: bx0, oy: by0 };
+  };
+  /** What a cell's clue reads as: "3", "2+", "≤1", "i" or "o" (the shaded clues), or "" for none. */
+  const glyph = k => (twisted ? labelOf(clue[k]) : clue[k] === INSIDE ? "i" : clue[k] === OUTSIDE ? "o" : clue[k] >= 0 && clue[k] <= 4 ? String(clue[k]) : "");
   const instanced = (geo, mat, n, cast = false) => {
     const m = new THREE.InstancedMesh(geo, mat, n);
     m.frustumCulled = false; m.castShadow = cast; m.receiveShadow = true;
@@ -104,6 +112,7 @@ export function createChart(host, opts = {}) {
   };
   function disposeAll() {
     for (const o of [paper, bar, guide, crossM, halo, joints, dots, ...digits, ...rings]) if (o) { board.remove(o); o.dispose?.(); }
+    if (bridges) { board.remove(bridges); bridges.traverse(o => { if (o.material && !Object.values(M).includes(o.material)) o.material.dispose?.(); }); bridges = null; }
     for (const o of disposables) { o.parent?.remove(o); o.geometry?.dispose?.(); }
     for (const t of textures.splice(1)) t.dispose();               // the desk's stays
     digitMats.clear();
@@ -115,7 +124,7 @@ export function createChart(host, opts = {}) {
   function set(puzzle) {
     clearIsland(); solveAt = null;     // the last puzzle's land, town, cog and sea go with it
     disposeAll();
-    g = puzzle.g; C = g.C; R = g.R; clue = puzzle.clue;
+    g = normalise(puzzle.g); C = g.W; R = g.H; offX = g.ox || 0; offY = g.oy || 0; clue = puzzle.clue; twisted = !!puzzle.twisted;
     ends = Array.from({ length: g.E }, (_, e) => edgeEnds(g, e));
     const m = MARGIN, { canvas: vc } = T.vellum(C, R, m, 1 + C * 7 + R);
     const top = std({ map: tex(vc), bumpMap: ptex(T.grain(2), Math.max(C, R) / 3), bumpScale: 0.9, roughness: 0.96 });
@@ -134,14 +143,13 @@ export function createChart(host, opts = {}) {
     dots = instanced(cyl, M.ink, g.V);
     prog = new Array(g.E).fill(0); tgt = prog.slice();
     widthJ = Array.from({ length: g.E }, (_, e) => 0.115 + 0.02 * (((Math.sin(e * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1));
-    for (let k = 0; k < g.R * g.C; k++) {
-      const n = clue[k];
+    for (let k = 0; k < g.cells; k++) {
+      const ch = glyph(k);
       let mesh = null;
-      if (n === INSIDE) mesh = new THREE.Mesh(quad, digitMat("i", "n", false));
-      else if (n === OUTSIDE) mesh = new THREE.Mesh(quad, digitMat("o", "n", false));
-      else if (n >= 0 && n <= 4) mesh = new THREE.Mesh(quad, digitMat(String(n), "n", false));
+      if (ch) mesh = new THREE.Mesh(quad, digitMat(ch, "n", false));
       if (mesh) {
-        mesh.scale.set(0.84, 1, 0.84); mesh.position.set(k % C + 0.5, 0.011, Math.floor(k / C) + 0.5);
+        const hexed = g.shape === "hex", [cx, cy] = g.cpos?.[k] || [k % C + 0.5, Math.floor(k / C) + 0.5];
+        mesh.scale.set(hexed ? 1.05 : 0.84, 1, hexed ? 1.05 : 0.84); mesh.position.set(cx, 0.011, cy);
         mesh.renderOrder = 6; mesh.receiveShadow = true;
         board.add(mesh);
       }
@@ -149,15 +157,33 @@ export function createChart(host, opts = {}) {
     }
     for (let i = 0; i < 2; i++) {
       const r = new THREE.Mesh(quad, std({ map: tex(T.hintRing()), transparent: true, depthWrite: false }));
-      r.scale.set(0.96, 1, 0.96); r.position.y = 0.014; r.visible = false; r.renderOrder = 7;
+      r.scale.set(g.shape === "hex" ? 1.3 : 0.96, 1, g.shape === "hex" ? 1.3 : 0.96); r.position.y = 0.014; r.visible = false; r.renderOrder = 7;
       board.add(r); rings.push(r);
     }
+    buildBridges();
     look = null; marksNow = ""; solved = false; solveAt = null;
     dressDesk();
     fit();
     shapeLight();
     placeAll(0);
     wake();
+  }
+
+  /** A causeway: the loop crosses itself here. The across-strand rides over on a little stone bridge with parapets, and the up-down one runs under it as a ford (a strip of water). */
+  function buildBridges() {
+    if (!g.tun?.length) return;
+    bridges = new THREE.Group();
+    const stone = std({ color: 0xcdbb94, roughness: 0.9 }), rail = std({ color: 0x4a3a28, roughness: 0.85 }), water = std({ color: 0x4f8fb0, roughness: 0.3, transparent: true, opacity: 0.85 });
+    for (const t of g.tun) {
+      const [x, y] = g.dots[t], gr = new THREE.Group();
+      mesh(box, water, [0.2, 0.004, 0.62], [0, 0.009, 0], gr, false);
+      mesh(box, stone, [0.62, 0.05, 0.22], [0, 0.07, 0], gr);
+      for (const z of [-0.1, 0.1]) mesh(box, rail, [0.62, 0.05, 0.03], [0, 0.115, z], gr);
+      for (const xx of [-0.22, 0.22]) mesh(box, stone, [0.1, 0.06, 0.26], [xx, 0.035, 0], gr);
+      gr.position.set(x, 0, y);
+      bridges.add(gr);
+    }
+    board.add(bridges);
   }
 
   // ---------- the desk's things, placed in what the frame leaves of it ----------
@@ -260,32 +286,37 @@ export function createChart(host, opts = {}) {
     const inkH = 0.014 + 0.05 * lift;
     const joint = new Float32Array(g.V), jointBad = new Uint8Array(g.V);
     for (let e = 0; e < g.E; e++) {
-      const [x1, y1, x2, y2] = ends[e], horiz = y1 === y2, mx = (x1 + x2) / 2, my = (y1 + y2) / 2, p = prog[e], w = widthJ[e];
+      const [x1, y1, x2, y2] = ends[e], horiz = y1 === y2, slant = x1 !== x2 && y1 !== y2, len = slant ? Math.hypot(x2 - x1, y2 - y1) : 1, turn = slant ? -Math.atan2(y2 - y1, x2 - x1) : 0, mx = (x1 + x2) / 2, my = (y1 + y2) / 2, p = prog[e], w = widthJ[e];
       const isLit = lit?.has(e), m = marks[e];
       if (p > 0.002) {
-        const cx = x1 + ((x2 - x1) * p) / 2, cy = y1 + ((y2 - y1) * p) / 2;
-        place(bar, e, cx, INK_Y + inkH / 2, cy, horiz ? p + w * 0.2 * p : w, inkH, horiz ? w : p + w * 0.2 * p);
+        const cx = x1 + ((x2 - x1) * p) / 2, cy = y1 + ((y2 - y1) * p) / 2, along = (p + w * 0.2 * p) * len;
+        if (slant) place(bar, e, cx, INK_Y + inkH / 2, cy, along, inkH, w, turn);
+        else place(bar, e, cx, INK_Y + inkH / 2, cy, horiz ? along : w, inkH, horiz ? w : along);
         const col = CC.copy(INK);
         if (wrong?.has(e)) col.copy(OX);
         if (flash) col.lerp(GILT, flash(e));
         bar.setColorAt(e, col);
         for (const v of [g.ea[e], g.eb[e]]) { joint[v] = Math.max(joint[v], p); if (wrong?.has(e)) jointBad[v] = 1; }
       } else HIDE(bar, e);
-      if (m === LINE && p > 0.99) HIDE(guide, e); else place(guide, e, mx, 0.011, my, horiz ? 1 : 0.026, 0.004, horiz ? 0.026 : 1);
+      if (m === LINE && p > 0.99) HIDE(guide, e);
+      else if (slant) place(guide, e, mx, 0.011, my, len, 0.004, 0.026, turn);
+      else place(guide, e, mx, 0.011, my, horiz ? 1 : 0.026, 0.004, horiz ? 0.026 : 1);
       const crossed = m === CROSS;
       for (let k = 0; k < 2; k++) {
         const i = e * 2 + k;
         if (crossed) { place(crossM, i, mx, 0.013, my, isLit ? 0.3 : 0.2, 0.004, isLit ? 0.07 : 0.034, (k ? 1 : -1) * Math.PI / 4); crossM.setColorAt(i, isLit ? GILT : CC.set(0xffffff)); } else HIDE(crossM, i);
       }
-      if (isLit) place(halo, e, mx, 0.008, my, horiz ? 1.12 : (m === LINE ? 0.2 : 0.1), 0.004, horiz ? (m === LINE ? 0.2 : 0.1) : 1.12); else HIDE(halo, e);
+      if (isLit && slant) place(halo, e, mx, 0.008, my, len * 1.12, 0.004, m === LINE ? 0.2 : 0.1, turn);
+      else if (isLit) place(halo, e, mx, 0.008, my, horiz ? 1.12 : (m === LINE ? 0.2 : 0.1), 0.004, horiz ? (m === LINE ? 0.2 : 0.1) : 1.12);
+      else HIDE(halo, e);
       if (isLit) halo.setColorAt(e, GILT);
     }
     for (let v = 0; v < g.V; v++) {
-      const x = v % (g.C + 1), y = Math.floor(v / (g.C + 1)), isBad = bad?.has(v), isLit = look?.vertex === v;
+      const [x, y] = g.pos ? g.pos[v] : [v % (g.C + 1), Math.floor(v / (g.C + 1))], dot = g.dotOf[v], isBad = bad?.has(dot), isLit = look?.vertex != null && look.vertex >= 0 && g.dotOf[look.vertex] === dot, tunnelDot = g.tun.includes(dot);
       if (joint[v] > 0.05) place(joints, v, x, INK_Y + inkH / 2, y, 0.066 * Math.min(1, joint[v] * 1.2) + 0.002, inkH, 0.066 * Math.min(1, joint[v] * 1.2) + 0.002); else HIDE(joints, v);
       joints.setColorAt(v, jointBad[v] ? OX : INK);
       const r = isBad ? 0.1 : isLit ? 0.11 : 0.042;
-      place(dots, v, x, DOT_Y + (isBad || isLit ? 0.003 : 0.001), y, r, isBad || isLit ? 0.006 : 0.004, r);
+      if (tunnelDot) HIDE(dots, v); else place(dots, v, x, DOT_Y + (isBad || isLit ? 0.003 : 0.001), y, r, isBad || isLit ? 0.006 : 0.004, r);
       dots.setColorAt(v, isBad ? OX : isLit ? GILT : C2.set(0x3a2d20));
     }
     for (const m of [bar, guide, crossM, halo, joints, dots]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
@@ -297,13 +328,13 @@ export function createChart(host, opts = {}) {
     for (let e = 0; e < g.E; e++) tgt[e] = marksNow[e] === LINE ? 1 : 0;
     if (still || !shown) prog = tgt.slice();
     for (let k = 0; k < digits.length; k++) {
-      const d = digits[k], n = clue[k];
+      const d = digits[k], ch = glyph(k);
       if (!d) continue;
       const badCell = next.over?.has(k), metCell = next.met?.has(k);
-      d.material = n === INSIDE ? digitMat("i", "n", badCell) : n === OUTSIDE ? digitMat("o", "n", badCell) : digitMat(String(n), badCell ? "o" : metCell && !next.solved ? "m" : "n", false);
+      d.material = ch === "i" || ch === "o" ? digitMat(ch, "n", badCell) : digitMat(ch, badCell ? "o" : metCell && !next.solved ? "m" : "n", false);
     }
     const why = [next.why?.[0], next.why?.[1]].filter(x => x != null && x >= 0);
-    rings.forEach((r, i) => { const k = why[i]; r.visible = k != null; if (k != null) r.position.set(k % C + 0.5, 0.014, Math.floor(k / C) + 0.5); });
+    rings.forEach((r, i) => { const k = why[i]; r.visible = k != null; if (k != null) { const [cx, cy] = g.cpos?.[k] || [k % C + 0.5, Math.floor(k / C) + 0.5]; r.position.set(cx, 0.014, cy); } });
     if (next.solved && !was) {
       solved = true;
       buildIsland(marksNow);
@@ -335,6 +366,8 @@ export function createChart(host, opts = {}) {
   function buildIsland(marks) {
     clearIsland();
     const lm = landMesh(g, marks), sm = seaMesh(g, marks, MARGIN, MARGIN), path = loopPath(g, marks), S = Math.max(0.8, Math.min(1.5, Math.max(C, R) / 7));
+    const free = g.shape === "hex" || g.tun.length > 0;           // a loop that isn't a plain square outline: its sides are told by looking at which is outside
+    const outside = free ? (x, y) => !insideAt(lm.segs, x, y) : null, insidePt = free ? (x, y) => !!insideAt(lm.segs, x, y) : (x, y) => !!lm.inside[Math.floor(y) * C + Math.floor(x)];
     const geo = (m, colors) => {
       const b = new THREE.BufferGeometry();
       b.setAttribute("position", new THREE.Float32BufferAttribute(m.positions, 3));
@@ -353,7 +386,7 @@ export function createChart(host, opts = {}) {
     board.add(sea, landGroup);
     const ground = (x, y) => heightAt(coastDistance(lm.segs, x, y), x, y);
     // the harbour town, a pier, a flag on the highest hill, trees
-    const hb = harbourOf(path), houses = [], hs = 0.2 * Math.min(S, 1.3);
+    const hb = harbourOf(path, free ? (x, y) => !!insideAt(lm.segs, x, y) : null), houses = [], hs = 0.2 * Math.min(S, 1.3);
     const [ox, oy] = hb ? hb.out : [0, 1], tx = -oy, ty = ox;           // out to sea, and along the shore
     const wallA = std({ color: 0xe9dcc0, roughness: 0.9 }), wallB = std({ color: 0xd9bf86, roughness: 0.9 }), roofA = std({ color: 0xa8482f, roughness: 0.8 }), roofB = std({ color: 0x8a5a36, roughness: 0.8 });
     if (hb) for (let i = 0; i < 6; i++) {
@@ -366,7 +399,7 @@ export function createChart(host, opts = {}) {
       landGroup.add(gr); houses.push(gr);
     }
     const pier = new THREE.Mesh(box, std({ color: 0x6b4a2c, roughness: 0.9 }));
-    if (hb) { const L = 0.62; pier.scale.set(ox ? L : 0.1, 0.03, ox ? 0.1 : L); pier.position.set(hb.x + (ox * (L / 2 - 0.12)), 0.03, hb.y + (oy * (L / 2 - 0.12))); pier.castShadow = true; pier.receiveShadow = true; board.add(pier); }
+    if (hb) { const L = 0.62, tilted = ox !== 0 && oy !== 0; pier.scale.set(ox ? L : 0.1, 0.03, ox ? 0.1 : L); if (tilted) { pier.scale.set(L, 0.03, 0.1); pier.rotation.y = -Math.atan2(oy, ox); } pier.position.set(hb.x + (ox * (L / 2 - 0.12)), 0.03, hb.y + (oy * (L / 2 - 0.12))); pier.castShadow = true; pier.receiveShadow = true; board.add(pier); }
     const flag = new THREE.Group();
     { const f = 0.8 * Math.min(S, 1.3), top = lm.top;
       mesh(cyl, std({ color: 0x4a3524 }), [0.012, f, 0.012], [0, f / 2, 0], flag);
@@ -381,7 +414,7 @@ export function createChart(host, opts = {}) {
       const want = Math.min(48, Math.round(area * 1.6));
       for (let tries = 0; trees.length < want && tries < 600; tries++) {
         const x = rnd() * C, y = rnd() * R;
-        if (!inside[Math.floor(y) * C + Math.floor(x)]) continue;
+        if (!insidePt(x, y)) continue;
         const d = coastDistance(lm.segs, x, y), h = ground(x, y);
         if (d < 0.32 || h > 0.58 || Math.hypot(x - lm.top.x, y - lm.top.y) < 0.4) continue;
         if (hb && Math.hypot(x - (hb.x - ox * 0.75), y - (hb.y - oy * 0.75)) < 0.8) continue;
@@ -394,7 +427,7 @@ export function createChart(host, opts = {}) {
     trees.forEach((t, i) => treeMesh.setColorAt(i, CC.setRGB(0.1 + t[4] * 0.1, 0.3 + t[4] * 0.14, 0.1)));
     landGroup.add(treeMesh);
     // the cog and its course
-    const poly = seaCourse(path, 0.34), crs = course(poly), dock = hb ? crs.nearest(hb.x + ox * 0.34, hb.y + oy * 0.34) : 0;
+    const poly = seaCourse(path, 0.34, free ? (x, y) => !!insideAt(lm.segs, x, y) : null), crs = course(poly), dock = hb ? crs.nearest(hb.x + ox * 0.34, hb.y + oy * 0.34) : 0;
     const ship = new THREE.Group(), sc = 0.9 * Math.min(S, 1.4);
     { const shape = new THREE.Shape();
       shape.moveTo(-0.3, 0.12); shape.lineTo(-0.22, 0); shape.lineTo(0.2, 0); shape.lineTo(0.36, 0.12); shape.lineTo(0.2, 0.09); shape.lineTo(-0.2, 0.09); shape.lineTo(-0.3, 0.12);
@@ -468,11 +501,11 @@ export function createChart(host, opts = {}) {
   function point(cx, cy) {
     if (!C) return null;
     const { o, d } = rayAt(...canvasPoint(cx, cy)), p = groundPoint(o, d);
-    return p ? { x: p[0] + C / 2, y: p[1] + R / 2 } : null;
+    return p ? { x: p[0] + C / 2 + offX, y: p[1] + R / 2 + offY } : null;
   }
   /** The page point of a board position. */
   function project(x, y) {
-    V.set(x - C / 2, 0, y - R / 2).project(camera);
+    V.set(x - offX - C / 2, 0, y - offY - R / 2).project(camera);
     const r = canvas.getBoundingClientRect();
     return { x: r.left + ((V.x + 1) / 2) * r.width, y: r.top + ((1 - V.y) / 2) * r.height };
   }
