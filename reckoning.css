@@ -15,12 +15,16 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-mark { display: inline-block; }
 .rk-mark svg { width: 100%; height: 100%; display: block; }
 
-.rk-sky { position: relative; margin-top: .45rem; border: 1px solid var(--brass); border-radius: 6px; overflow: hidden; background: var(--yard); }
+/* the quay is the whole screen (Korbi, 5 November 2026: "courier should be full screen"): fixed, edge to edge, no band; the hearts and the
+   score keep clear of the menu's button at the top right and everything low clears the home bar */
+:root { --rk-top: env(safe-area-inset-top, 0px); --rk-bot: env(safe-area-inset-bottom, 0px); }
+#app.reckoning { position: fixed; inset: 0; max-width: none; max-height: none; margin: 0; padding: 0; overflow: hidden; background: var(--yard); }
+.rk-sky { position: absolute; inset: 0; overflow: hidden; background: var(--yard); }
 .rk-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
 .rk-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* over the quay */
-.rk-hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: .6rem; padding: .5rem .65rem; pointer-events: none;
+.rk-hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: .6rem; padding: calc(var(--rk-top) + .5rem) calc(env(safe-area-inset-right, 0px) + 3.6rem) .5rem calc(env(safe-area-inset-left, 0px) + .65rem); min-height: 2.5rem; box-sizing: border-box; pointer-events: none;
   font-variant-numeric: tabular-nums; }
 .rk-hearts { display: inline-flex; gap: .2rem; min-width: 4.4rem; font-size: 1.15rem; line-height: 1; }
 .rk-heart { color: var(--rk-bad); }
@@ -42,13 +46,13 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
   color: var(--ink); text-shadow: 0 0 .5rem var(--sheet), 0 0 .5rem var(--sheet), 0 0 .2rem var(--sheet); transition: opacity .25s; }
 .rk-toast.on { opacity: 1; }
 .rk-toast.good { color: var(--rk-good); } .rk-toast.bad { color: var(--rk-bad); }
-.rk-hint { position: absolute; left: 1rem; right: 1rem; bottom: 4.4rem; margin: 0; padding: .55rem .7rem; border: 1px solid var(--brass); border-radius: 5px; text-align: center;
+.rk-hint { position: absolute; left: 1rem; right: 1rem; bottom: calc(var(--rk-bot) + 4.4rem); margin: 0; padding: .55rem .7rem; border: 1px solid var(--brass); border-radius: 5px; text-align: center;
   background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink); font-size: .88rem; line-height: 1.35; pointer-events: none; }
 .rk-hint:empty { display: none; }
 
 /* the question: over the top of the quay, under the hearts, with the three answers, one to a lane in the order the lanes
    lie across the quay, so the card above the hero is the lane he is in */
-.rk-ask { position: absolute; left: .65rem; right: .65rem; top: 2.6rem; display: grid; gap: .35rem; pointer-events: none; }
+.rk-ask { position: absolute; left: .65rem; right: .65rem; top: calc(var(--rk-top) + 3.3rem); display: grid; gap: .35rem; pointer-events: none; }
 .rk-ask[hidden] { display: none; }
 .rk-q { margin: 0; padding: .4rem .55rem; border: 1px solid var(--brass); border-radius: 5px; background: color-mix(in srgb, var(--sheet) 92%, transparent);
   font-size: .86rem; line-height: 1.25; font-weight: 650; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -62,7 +66,7 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-card.here { box-shadow: 0 0 0 2px var(--brass); }
 
 /* the run is over: a sheet over the quay */
-.rk-result { position: absolute; inset: auto .6rem .6rem; max-height: calc(100% - 1.2rem); display: grid; grid-template-rows: auto minmax(0, auto) auto; gap: .5rem; padding: .7rem; border: 1px solid var(--brass);
+.rk-result { position: absolute; inset: auto .6rem calc(var(--rk-bot) + .6rem); max-height: calc(100% - var(--rk-top) - var(--rk-bot) - 4rem); display: grid; grid-template-rows: auto minmax(0, auto) auto; gap: .5rem; padding: .7rem; border: 1px solid var(--brass);
   border-radius: 6px; background: var(--sheet); }
 .rk-result[hidden] { display: none; }
 .rk-verdict { margin: 0; display: grid; gap: .2rem; font-size: .85rem; font-weight: 600; color: var(--ink); }
@@ -116,19 +120,19 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-splace { overflow-wrap: anywhere; }
 
 /* "That felt wrong": a low bar of its own under the quay's hint; and the Feel lab, whose buttons are big and low, for a thumb */
-.rk-flagbar { position: absolute; left: .6rem; right: .6rem; bottom: .55rem; display: flex; gap: .5rem; pointer-events: none; }
+.rk-flagbar { position: absolute; left: .6rem; right: .6rem; bottom: calc(var(--rk-bot) + .55rem); display: flex; gap: .5rem; pointer-events: none; }
 .rk-flag { pointer-events: auto; min-height: 2.8rem; padding: 0 .9rem; border: 1px solid var(--brass); border-radius: 5px; background: color-mix(in srgb, var(--sheet) 88%, transparent);
   color: var(--ink); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
 .rk-flag[hidden] { display: none; }
 .rk-fnote { margin-left: auto; }
 .rk-labon .rk-hud { visibility: hidden; }
-.rk-labtop { white-space: pre-line; line-height: 1.5; position: absolute; left: 0; right: 0; top: .7rem; margin: 0; text-align: center; pointer-events: none; font-size: .8rem; font-weight: 800;
+.rk-labtop { white-space: pre-line; line-height: 1.5; position: absolute; left: 0; right: 0; top: calc(var(--rk-top) + 3.3rem); margin: 0; text-align: center; pointer-events: none; font-size: .8rem; font-weight: 800;
   font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink);
   text-shadow: 0 0 .4rem var(--sheet), 0 0 .4rem var(--sheet); }
 .rk-labbig { position: absolute; left: 0; right: 0; top: 30%; margin: 0; text-align: center; pointer-events: none; font-size: 5rem; font-weight: 800; line-height: 1; color: var(--rk-in);
   text-shadow: 0 0 .6rem var(--sheet), 0 0 .6rem var(--sheet); }
 .rk-labtop[hidden], .rk-labbig[hidden], .rk-lab[hidden] { display: none; }
-.rk-lab { position: absolute; left: .6rem; right: .6rem; bottom: 4.1rem; max-height: calc(100% - 5rem); overflow-y: auto; display: grid; gap: .5rem; align-content: start; padding: .7rem;
+.rk-lab { position: absolute; left: .6rem; right: .6rem; bottom: calc(var(--rk-bot) + 4.1rem); max-height: calc(100% - var(--rk-top) - 6rem); overflow-y: auto; display: grid; gap: .5rem; align-content: start; padding: .7rem;
   border: 1px solid var(--brass); border-radius: 6px; background: var(--sheet); }
 .rk-lhead { margin: 0; font-size: .95rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
 .rk-lnote { margin: 0; font-size: .78rem; line-height: 1.3; color: var(--ink-soft); }
