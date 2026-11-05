@@ -17,6 +17,8 @@ import { sure } from "./sure.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
 import "./pwa.js";
+import { createFlatBench } from "./slipway-2d.js";   // the timber drawn on a plain canvas, for 2D mode and where there is no WebGL
+import { wants3D, onDefaultChange } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
 const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts", MODE = "slipway:mode", RAND = "slipway:rand", DAILY = "slipway:daily";
@@ -560,6 +562,7 @@ function openMenu() {
   }
   part(body, "settings").append(
     toggle("Show what a tool would take", opts.preview, on => { opts.preview = on; saveOpts(); }),
+    choice("View", [["3d", "3D"], ["flat", "Flat"]], benchIs3D ? "3d" : "flat", v => { setLook(v); }),
     toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }),
     toggle("Sound", opts.sound, on => { opts.sound = on; setSound(on); saveOpts(); }));
   part(body, "about").append(line(`${totalStars()} of ${LEVELS.length * 3} stars. Three for the par, two for one tool over, one for freeing it at all.`));
@@ -571,8 +574,16 @@ bindSwitcher($("appsBtn"), "slipway");
 document.querySelector(".sw-mark").innerHTML = APPS.find(a => a.id === "slipway")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-try {
-  bench = (await import("./slipway-3d.js")).createBench($("bench"));
+/** The 3D bench (three.js is fetched only now) or the flat one (slipway-2d.js): the player's own choice if kept (`opts.look`, "3d" or "flat", written only when picked), else Settings' 2D mode; where there is no WebGL, flat. */
+async function makeBench(three) {
+  try {
+    if (!three) throw new Error("the flat bench");
+    bench = (await import("./slipway-3d.js")).createBench($("bench"));
+    benchIs3D = true;
+  } catch {
+    try { bench = createFlatBench($("bench")); benchIs3D = false; }
+    catch (err) { console.warn("Slipway: no canvas here.", err); $("nogl").hidden = false; return; }
+  }
   bench.ghost = opts.ghost;
   const c = bench.canvas;
   c.addEventListener("pointerdown", onDown);
@@ -582,10 +593,20 @@ try {
   c.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !pointers.size) { bench.cursor(null); if (!aimed) noGhost(); } });
   c.addEventListener("contextmenu", e => e.preventDefault());
   c.addEventListener("wheel", e => { e.preventDefault(); bench.orbit(0, 0, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
-} catch (err) {
-  console.warn("Slipway: no WebGL here.", err);
-  $("nogl").hidden = false;
 }
+let benchIs3D = false;
+const keptLook = () => (opts.look === "3d" || opts.look === "flat" ? opts.look : null);
+await makeBench(wants3D(keptLook(), "3d"));
+/** Menu, View: the 3D bench or the flat one, the block in hand carried across; `remember` writes the choice (the suite's default is never written). */
+async function setLook(l, remember = true) {
+  if (remember) { opts.look = l; if (!IN_FRAME) saveOpts(); }
+  if (!bench || (l === "3d") === benchIs3D) return;
+  pointers.clear();
+  bench.dispose?.();
+  await makeBench(l === "3d");
+  if (bench && B) { bench.setBlock(B); markViews(); }
+}
+onDefaultChange(is3D => { if (!keptLook()) setLook(is3D ? "3d" : "flat", false); });   // Settings' 2D mode, live
 {
   // the games screen's tile opens today's while it is still to play
   const wantsDaily = arrivedForToday() && !IN_FRAME && dailyStars() == null;

@@ -447,8 +447,15 @@ export function createBench(host) {
   applySkin();
   resize();
 
+  /** Lets go of the graphics card and the watchers (the player chose the flat bench). */
+  function dispose() {
+    dead = true; cancelAnimationFrame(frameId);
+    ro.disconnect(); mo.disconnect();
+    renderer.dispose(); renderer.forceContextLoss?.(); canvas.remove();
+  }
+
   return {
-    canvas, setBlock, refresh, replaced, ray, eye, forward, orbit, view, offcut, reframe, redraw: invalidate,
+    dispose, canvas, setBlock, refresh, replaced, ray, eye, forward, orbit, view, offcut, reframe, redraw: invalidate,
     cursor: setCursor, guide: setGuide, cutGhost: setCut, throwChips, reveal: setReveal,
     /** Where the camera is, as degrees of azimuth and elevation (for marking which named view it is in). */
     angles: () => [az / DEG, el / DEG],
