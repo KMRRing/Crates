@@ -1,4 +1,4 @@
-// Atoll's rules, puzzles and reasoning. Some cells carry a number: each is an island of exactly that many cells,
+// Dujiang's rules, puzzles and reasoning. Some cells carry a number: each is an island of exactly that many cells,
 // joined edge to edge, with that one number in it. Every other cell is sea. The sea is one piece (no cell of it cut off
 // from the rest) and holds no 2×2 block, so the islands have to be spread over the board and the sea can't pool. Every
 // puzzle made here has exactly one answer and is graded by the hardest step a person needs to reach it: the solver below

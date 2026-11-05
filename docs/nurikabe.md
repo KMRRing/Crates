@@ -1,4 +1,6 @@
-# Atoll
+# Dujiang
+
+Name (5 November 2026, Korbi): renamed from Atoll to Dujiang, after Dujiangyan, the 2,200-year-old irrigation works on the Min River, with "a more Chinese logo" (celadon canal through rice-paper plots under a vermilion arch bridge). Id, files and saved keys unchanged; "atoll" and "nurikabe" stay search words.
 
 Shade the sea (31 October 2026, Korbi's list of genres to add). Each number is an island of exactly that many cells, joined edge to edge, with that one number in it; every other cell is sea, which is one connected piece and holds no 2×2 block. Two islands never touch edge to edge. Every puzzle has exactly one answer, reached by reasoning, never by a guess.
 

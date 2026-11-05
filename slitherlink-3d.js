@@ -38,7 +38,7 @@ export function createChart(host, opts = {}) {
   host.replaceChildren(canvas);
 
   const scene = new THREE.Scene();
-  // a perspective camera made from an orthographic one's parts (the bundle has none), as Atoll's is
+  // a perspective camera made from an orthographic one's parts (the bundle has none), as Dujiang's is
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   camera.isOrthographicCamera = false;
   camera.isPerspectiveCamera = true;

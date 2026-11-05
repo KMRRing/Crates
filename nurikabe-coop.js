@@ -1,6 +1,6 @@
-// Atoll played as a pair (docs/coop.md): how the game's saved run becomes a shared board and a shared board becomes a run
+// Dujiang played as a pair (docs/coop.md): how the game's saved run becomes a shared board and a shared board becomes a run
 // again. Pure, so tests can check it without a page, and loaded by the host's phone on any page when a partner is let in
-// (coop-games.js lists it), not only by Atoll's own.
+// (coop-games.js lists it), not only by Dujiang's own.
 //
 // The shared board: the puzzle (`fixed`: it never changes) and one layer, `marks`, a character a cell as in a run ("0" nothing,
 // "1" sea, "2" an island dot: a note, but one both of you see). Hints are a tally (`hints`), the solve a once-value (`done`:

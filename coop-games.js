@@ -6,7 +6,7 @@
 // the shared board (coop-page.js).
 export const COOP_GAMES = {
   slitherlink: { id: "slitherlink", name: "Portolan", page: "slitherlink.html", keys: ["slitherlink:run"], load: () => import("./slitherlink-coop.js") },
-  nurikabe: { id: "nurikabe", name: "Atoll", page: "nurikabe.html", keys: ["nurikabe:run"], load: () => import("./nurikabe-coop.js") },
+  nurikabe: { id: "nurikabe", name: "Dujiang", page: "nurikabe.html", keys: ["nurikabe:run"], load: () => import("./nurikabe-coop.js") },
   hitori: { id: "hitori", name: "Cull", page: "hitori.html", keys: ["hitori:run"], load: () => import("./hitori-coop.js") },
   sudoku: { id: "sudoku", name: "Nonet", page: "sudoku.html", keys: ["sudoku:run"], load: () => import("./sudoku-coop.js") },
   calcudoku: { id: "calcudoku", name: "Calcudoku", page: "calcudoku.html", keys: ["calcudoku:run"], load: () => import("./calcudoku-coop.js") },

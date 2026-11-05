@@ -1,4 +1,4 @@
-// Atoll in 3D, drawn with three.js (vendor/three.js, kept on the device, so it works offline), after a Song hydraulic landscape
+// Dujiang in 3D, drawn with three.js (vendor/three.js, kept on the device, so it works offline), after a Song hydraulic landscape
 // (Korbi, 4 November 2026): the board is a polder, a plot a cell. The sea the player shades is a canal cut into it, its water
 // flowing along the channels (a current and caustics, drawn by the water's own shader from a flow map), and an island is a raised
 // plot on its levee: bare soil while it is only a promise, a flooded paddy or a field of millet once its number is whole. A number

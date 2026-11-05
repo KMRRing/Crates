@@ -1,4 +1,4 @@
-// Atoll's two sounds, synthesised with Web Audio (no files): when the sea is the answer the lock gates knock as they lift and water
+// Dujiang's two sounds, synthesised with Web Audio (no files): when the sea is the answer the lock gates knock as they lift and water
 // runs in. The context is made on the solving tap (the browser allows it then); any failure is silent. Played only for the
 // player's own solve, never in a watching frame or a shared board (the page decides).
 let ctx = null;

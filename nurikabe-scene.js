@@ -1,4 +1,4 @@
-// The scenery round Atoll's 3D board, after a Song landscape painting: layers of ink-wash mountains in mist (painted once on a 2D canvas
+// The scenery round Dujiang's 3D board, after a Song landscape painting: layers of ink-wash mountains in mist (painted once on a 2D canvas
 // behind the board, since the camera looks down and never sees a real horizon), a ground that fades into the mist, willows on the
 // banks, a pavilion on a mound, lanterns along the levee for the night. Colours come from a skin (nurikabe-3d.js's SKINS).
 import * as THREE from "./vendor/three.js";

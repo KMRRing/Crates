@@ -1,4 +1,4 @@
-// Atoll's 3D view (nurikabe-3d.js), the parts that are plain arithmetic: which cell a ray meets, how far the camera stands for the
+// Dujiang's 3D view (nurikabe-3d.js), the parts that are plain arithmetic: which cell a ray meets, how far the camera stands for the
 // board to be in view at every turn and tilt, and that the page offers the view and keeps flat as its default.
 import fs from "node:fs";
 import { cellXZ, cellHit, fitDistance, basis, homeElevation, MIN_EL, MAX_EL, FOV, LAND_H, CLUE_H, BED_H, WATER_H, WATER_FULL } from "../nurikabe-3d.js";

@@ -71,7 +71,7 @@ check(!unreached.length, `every 3D scene is reached from a page that asks mode3d
 const tv = src("table3d-view.js"), gv = src("gambit-view.js");
 check(/wants3D\(kept\(\), "3d"\)/.test(tv) && /setItem\(key, v === "3d" \? "3d" : "flat"\)/.test(tv) && !/removeItem/.test(tv), "the card tables keep a choice (3d or flat) and read the default when there is none");
 check(/wants3D\(kept, "3d"\)/.test(gv) && !/removeItem/.test(gv), "Chess keeps a choice and reads the default when there is none");
-for (const [f, what] of [["bridges.js", "Bridges"], ["lanterns.js", "Lanterns"], ["moor.js", "Moor"], ["nurikabe.js", "Atoll"]]) {
+for (const [f, what] of [["bridges.js", "Bridges"], ["lanterns.js", "Lanterns"], ["moor.js", "Moor"], ["nurikabe.js", "Dujiang"]]) {
   const t = text.get(f);
   check(/delete prefs\.view/.test(t) && /if \(remember\) \{ prefs\.view = /.test(t) && !/view: "(chart|flat|board)"/.test(t), `${what}: the view is kept only when the player picks it (the automatic restore does not write it)`);
 }

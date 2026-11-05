@@ -1,4 +1,4 @@
-// Atoll as a pair (nurikabe-coop.js, on board-share.js; docs/coop.md): the host's run becomes a shared board and the board a run
+// Dujiang as a pair (nurikabe-coop.js, on board-share.js; docs/coop.md): the host's run becomes a shared board and the board a run
 // again, a board this version can't play is refused, and two phones on one board in the database in memory: cells shaded
 // apart both stand, the same cell marked two ways ends as one value, an undo leaves what the partner did since, a hint counts
 // once, the solve is the first writer's and nothing changes the sea after it.
@@ -14,7 +14,7 @@ const puzzle = generate(7, 6, "easy");
 const run = { v: 1, mode: "random", seed: 7, size: 6, level: "easy", came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: "0".repeat(puzzle.sol.length), ms: 4000, hints: 1, undo: [[1, "0", "1", 0]], redo: [], lit: { set: [1] } };
 
 // ---------- registered, and its board out of the host's saved keys ----------
-check(COOP_GAMES.nurikabe?.page === "nurikabe.html" && COOP_GAMES.nurikabe.keys.join() === KEY && (await coopAdapter("nurikabe")).share === coopOf.share, "Atoll is in coop-games.js, its key under nurikabe:, its adapter loads");
+check(COOP_GAMES.nurikabe?.page === "nurikabe.html" && COOP_GAMES.nurikabe.keys.join() === KEY && (await coopAdapter("nurikabe")).share === coopOf.share, "Dujiang is in coop-games.js, its key under nurikabe:, its adapter loads");
 const board = coopOf.share({ [KEY]: JSON.stringify(run) });
 check(board && board.layers.marks === run.marks && board.fixed.sol === run.sol && board.fixed.grid === run.grid && board.start.ms === 4000 && board.start.hints === 1, "a puzzle in play becomes a board: its puzzle fixed, its marks the one layer, the clock and hints where the host stood");
 check(!("undo" in board.fixed) && !("marks" in board.fixed) && !("ms" in board.fixed) && !("done" in board.fixed) && !("lit" in board.fixed), "what is the host's own (undo, the clock, marks, a hint's gilt) is not in the puzzle");

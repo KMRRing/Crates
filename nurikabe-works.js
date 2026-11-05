@@ -1,4 +1,4 @@
-// The waterworks of Atoll's 3D view, decided from the sea alone (plain arithmetic, no three.js, tested in Node): which channels join
+// The waterworks of Dujiang's 3D view, decided from the sea alone (plain arithmetic, no three.js, tested in Node): which channels join
 // the network, where the water comes in and goes out, how it flows, and where the few engineering details stand (the weir at the
 // intake, a sluice at the outlet, pound locks on long straight runs, sluices at junctions, arch bridges, norias, and the route of
 // the grain barges). Everything is read off the current sea, so a half-shaded board gets its works too, and it never puts one

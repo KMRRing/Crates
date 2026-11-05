@@ -1,4 +1,4 @@
-// Atoll: shade the sea. Each number is an island of that many cells (joined edge to edge, with that one number in it);
+// Dujiang: shade the sea. Each number is an island of that many cells (joined edge to edge, with that one number in it);
 // the rest of the board is sea, in one piece and with no 2×2 block of it. The rules, the puzzles and the reasoning are
 // nurikabe-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles are
 // made in nurikabe-worker.js. This file keeps the run, the clock and the taps, and draws the board.
@@ -380,7 +380,7 @@ async function setView(v, remember = true) {
   if (v === "model" && !model) {
     try {
       model = (await import("./nurikabe-3d.js")).createModel($("model"), { press, playable: () => !!S && !S.done && !IN_FRAME && !paused });
-    } catch (err) { console.warn("Atoll: no 3D here.", err); toast("This browser can't draw 3D."); v = "board"; }
+    } catch (err) { console.warn("Dujiang: no 3D here.", err); toast("This browser can't draw 3D."); v = "board"; }
   }
   viewShown = v;
   if (remember) { prefs.view = v === "model" ? "model" : "2d"; savePrefs(); }
@@ -511,7 +511,7 @@ function showRules() {
     <h4>Time</h4>
     <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each size and level. The clock stops while the menu, these rules or the games screen is open.</p>
     <h4>Today's puzzle</h4>
-    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the sea is right, and is Atoll's figure on the games screen.</p>`;
+    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the sea is right, and is Dujiang's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }

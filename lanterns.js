@@ -3,7 +3,7 @@
 // four cells touching it. The rules, the puzzles and the reasoning are lanterns-engine.js's (every puzzle has one answer,
 // and is graded by the hardest step a person needs); the puzzles are made in lanterns-worker.js. This file keeps the run,
 // the clock and the taps, and draws the flat board; lanterns-3d.js draws the same run as a sea of lighthouses, loaded when
-// first asked for. Played alone: Atoll's co-op and head-to-head are not done for it.
+// first asked for. Played alone: Dujiang's co-op and head-to-head are not done for it.
 import { SIZES, LEVELS, DAILY, NONE, LIGHT, DOT, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./lanterns-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";

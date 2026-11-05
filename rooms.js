@@ -60,7 +60,7 @@ export const GAMES = {
   hitori: { name: "Cull", page: "./hitori.html" },
   slitherlink: { name: "Portolan", page: "./slitherlink.html" },
   masyu: { name: "Pearl", page: "./masyu.html" },
-  nurikabe: { name: "Atoll", page: "./nurikabe.html" },
+  nurikabe: { name: "Dujiang", page: "./nurikabe.html" },
   asterism: { name: "Asterism", page: "./asterism.html" },
   lanterns: { name: "Lanterns", page: "./lanterns.html" },
   moor: { name: "Moor", page: "./moor.html" },
