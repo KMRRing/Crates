@@ -8,8 +8,9 @@
 // TUNING is what tools/carrack-arena.mjs tunes; a level given as an object overrides it.
 import { copy, resolveRound, checkOrders, held, factors } from "./carrack-rules.js";
 import { valueOf, potential, plan, openings, lcg } from "./carrack-bot.js";
+import { bookOrders } from "./carrack-book.js";
 
-export const TUNING = { budget: 450, scenarios: 6, pool: 3, noise: 0.5, noisy: 4, deep: 4, rivalMax: 0.6, rivalMean: 0.1, worst: 0.15, second: 0.65, hold: 0.55 };
+export const TUNING = { budget: 450, scenarios: 6, pool: 3, noise: 0.5, noisy: 4, deep: 4, rivalMax: 0.6, rivalMean: 0.1, worst: 0.15, second: 0.65, hold: 0.55, book: true };
 
 /** How good a position is for a seat, in standing points, as a planner reads it. */
 export function worth(w, seat) {
@@ -39,6 +40,8 @@ export function expertOrders(s, seat, { rng = Math.random, report = false, extra
   for (const f of openings(s, seat, "medium", pf)) add(plan(s, seat, "medium", rng, f, pf));
   for (let i = 0; i < T.noisy; i++) add(plan(s, seat, "medium", rng, null, pf, T.noise));
   add([{ t: "pass" }]);
+  const book = T.book ? bookOrders(s, seat) : [];
+  add(book);   // the opening book's year: one more candidate, always played a second year
   for (const os of extra) add(os);   // the coach weighs a player's own orders among these
   const options = mine.filter(os => os[0].t === "pass" || checkOrders(s, seat, os) === "");
   if (options.length <= 1) return finish(options[0] || [{ t: "pass" }], options, report);
@@ -71,7 +74,7 @@ export function expertOrders(s, seat, { rng = Math.random, report = false, extra
   if (s.round < s.opts.rounds) {
     const deep = new Set(ranked.slice(0, T.deep));
     judged.clear();
-    extra.forEach(os => deep.add(options.findIndex(o => keyOf(o) === keyOf(os))));
+    for (const os of [...extra, book]) if (os.length) deep.add(options.findIndex(o => keyOf(o) === keyOf(os)));
     for (const i of deep) {
       if (i < 0) continue;
       if (late()) break;

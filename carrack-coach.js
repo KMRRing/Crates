@@ -26,7 +26,15 @@ export function orderWord(s, o) {
     default: return "Pass";
   }
 }
-export const ordersWords = (s, os) => os.map(o => orderWord(s, o));
+/** Orders in words; two sails of one lane (the planner sends a single fleet twice) read as one of two fleets, not a repeat. */
+export function ordersWords(s, os) {
+  const merged = [];
+  for (const o of os) {
+    const m = o.t === "move" && merged.find(x => x.t === "move" && x.from === o.from && x.to === o.to && x.atk === o.atk);
+    if (m) m.n += o.n; else merged.push({ ...o });
+  }
+  return merged.map(o => orderWord(s, o));
+}
 
 const num = v => (Math.abs(v) < 10 ? +Math.abs(v).toFixed(1) : Math.round(Math.abs(v)));
 /** What the best orders do differently from yours, in words: the biggest two differences in the average year's end. */
