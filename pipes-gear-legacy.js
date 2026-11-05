@@ -37,7 +37,7 @@ export function legacySpec(spec) {
     return s;
   });
   return {
-    id: spec.id, name: spec.name, chapter: spec.chapter, cols, rows, rotate: false, map, hand, sols, pins, clicks,
+    id: spec.id, name: spec.name, chapter: spec.chapter, cols, rows, rotate: false, map, hand, sols, pins, clicks, sig: `${spec.map.join("/")}|${spec.hand}|${spec.out}${spec.inlet}${spec.spin}`,
     trains: [{ id: "A", barrel: { c: O.source.c, side: SIDE[O.source.d], m: 5, l: 1, n: 9 }, sink: { c: O.terminal.c, side: SIDE[O.terminal.d], m: 5, l: 1, n: 9, goal: { type: "dial", dir: O.spin ? "ccw" : "cw" } } }],
   };
 }
