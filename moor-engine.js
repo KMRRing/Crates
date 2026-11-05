@@ -352,7 +352,7 @@ function focusOf(why) {
 }
 
 /** Settles what the plain rules settle, over and over, until nothing is left to settle or a rule breaks: the breaking, or null. */
-function propagate(P, st) {
+function propagate(P, st, by = null) {
   for (;;) {
     let changed = false;
     for (const pass of EASY) {
@@ -362,6 +362,7 @@ function propagate(P, st) {
         if (st[d.x] === d.v) continue;
         if (st[d.x] !== 0) return { kind: "clash", cells: [d.x] };
         st[d.x] = d.v;
+        if (by) by[d.x] = 0;
         changed = true;
       }
     }
@@ -383,33 +384,35 @@ const EASY = [touch, full, fill, lone, served];
 const PASSES = [[touch, full, fill, lone, served], [pair], [test], [trial]];
 
 /** Puts a pass's findings on the state: whether any changed, or null if one clashes with what is there. */
-function apply(st, out) {
+function apply(st, out, by = null, lv = 0) {
   let changed = false;
   for (const d of out) {
     if (st[d.x] === d.v) continue;
     if (st[d.x] !== 0) return null;
     st[d.x] = d.v; changed = true;
+    if (by) by[d.x] = lv;
   }
   return changed;
 }
-/** Reasons as a person at `level` (0 Easy .. 3 Expert) would, simplest first. { st, solved, top (the hardest class used), why (a rule broke: only a bad puzzle) }. */
+/** Reasons as a person at `level` (0 Easy .. 3 Expert) would, simplest first. { st, solved, top (the hardest class used), by (the class that settled each cell, -1 for one open from the start), why (a rule broke: only a bad puzzle) }. */
 export function solveAs(P, level, st = startOf(P)) {
   let top = 0;
+  const by = new Int8Array(P.cells).fill(-1);
   for (;;) {
-    const why = propagate(P, st);
-    if (why) return { st, solved: false, top, why };
-    if (!unknownIn(st)) return { st, solved: true, top };
+    const why = propagate(P, st, by);
+    if (why) return { st, solved: false, top, by, why };
+    if (!unknownIn(st)) return { st, solved: true, top, by };
     let moved = false;
     outer: for (let lv = 1; lv <= level; lv++) {
       for (const pass of PASSES[lv]) {
         const out = [];
         pass(P, st, out);
-        const r = apply(st, out);
-        if (r === null) return { st, solved: false, top, why: { kind: "clash", cells: [] } };
+        const r = apply(st, out, by, lv);
+        if (r === null) return { st, solved: false, top, by, why: { kind: "clash", cells: [] } };
         if (r) { top = Math.max(top, lv); moved = true; break outer; }
       }
     }
-    if (!moved) return { st, solved: false, top };
+    if (!moved) return { st, solved: false, top, by };
   }
 }
 /** The easiest level (0..3) at which the reasoning finishes the puzzle, or -1 if even Expert cannot. */
@@ -831,4 +834,15 @@ export function hintFor(P, marks) {
 function reveal(P, marks) {
   for (let x = 0; x < P.cells; x++) if (P.sol[x] === BARGE && marks[x] !== BARGE) return { reveal: x, should: BARGE };
   return null;
+}
+
+// ---------- how long a person needs ----------
+/** Seconds a barge costs by the class of reasoning that finds it (Easy, Medium, Hard, trial): a guess, to be set by play. */
+export const BARGE_SECONDS = [2.5, 6, 12, 24];
+/** The reasoning a puzzle asks, barge by barge: how many barges each class of reasoning settles ([easy, medium, hard, trial]). */
+export function effortOf(P) {
+  const level = gradeOf(P);
+  const r = solveAs(P, Math.max(0, level)), tally = [0, 0, 0, 0];
+  for (let x = 0; x < P.cells; x++) if (r.st[x] === 1 && r.by[x] >= 0) tally[r.by[x]]++;
+  return tally;
 }

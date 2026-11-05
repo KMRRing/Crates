@@ -15,9 +15,11 @@ import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { sure } from "./sure.js";
+import { LEVELS as LADDER, CHAPTERS, COUNT, chapterOf, seedOf, kindOf, starsFor } from "./moor-levels.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "moor:run", TIMES = "moor:times", PREFS = "moor:prefs", SPARES = "moor:spares";
+const RUN = "moor:run", TIMES = "moor:times", PREFS = "moor:prefs", SPARES = "moor:spares", TRACK = "moor:track", CAMP = "moor:camp", LRUNS = "moor:lruns";
+const STAR = "\u2605", HOLLOW = "\u2606";
 const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const DRAG = 12;                     // px a finger moves before a press is a stroke, painting cell after cell
@@ -122,20 +124,48 @@ const puzzleFor = s => puzzleOf(s.size, s.grid, s.sol, { shape: shapeOf(s), wall
 /** The twists a puzzle holds, as a twist name: what is in it, not what was asked. */
 const twistsOf = s => twistOn([s.walls ? "walls" : "", /2/.test(s.grid) ? "doubles" : "", s.ranges ? "ranges" : ""].filter(Boolean).join("+"));
 
+const isLevel = s => s?.mode === "level" && Number.isInteger(s.lv);
 function save() {
   if (IN_FRAME || !S) return;
-  write(RUN, S);
+  if (isLevel(S)) write(LRUNS, { ...read(LRUNS, {}), [S.lv]: S }); else write(RUN, S);
   savedAt = performance.now();
 }
-const started = () => !!S && !S.done && (/[12]/.test(S.marks) || S.hints > 0);
+const startedRun = r => !!r && !r.done && (/[12]/.test(r.marks) || r.hints > 0);
+const started = () => startedRun(S);
+
+// ---------- the levels (moor-levels.js) ----------
+/** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
+function readCamp() {
+  const c = read(CAMP, null), stars = LADDER.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  const open = stars.findIndex(x => x < 1);                          // the first level not solved is the last one open
+  return { v: 1, at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? COUNT - 1 : open)) : 0, stars };
+}
+let camp = readCamp();
+/** Whether level n (0 on) is open: the first, and any whose one before is solved. */
+const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+// A player with a free puzzle in hand from before levels came carries on with it; anyone else begins on the ladder.
+let track = read(TRACK, null);
+if (track !== "levels" && track !== "free") track = valid(read(RUN, null)) ? "free" : "levels";
+/** The puzzle saved for the way being played (and the level), or null. */
+function savedGame() {
+  const g = track === "levels" ? read(LRUNS, {})[camp.at] : read(RUN, null);
+  return valid(g) && (track === "levels" ? isLevel(g) && g.lv === camp.at : !isLevel(g)) ? g : null;
+}
+/** What a level says when it is first met: its chapter's idea if it is the chapter's first, else nothing. */
+function introOf(n) {
+  const ch = CHAPTERS[chapterOf(n)];
+  return n === ch.from ? { text: `${ch.name}. ${ch.about}`, tone: "" } : null;
+}
 
 /** Puts a puzzle on the board. */
 function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
   P = puzzleFor(S);
   if (viewShown === "model" && !can3D()) setView("chart", false);
-  message = null; clockFrom = null;
-  if (!IN_FRAME) history.replaceState(null, "", hashOf(S));
+  message = isLevel(S) && !started() && !S.done ? introOf(S.lv) : null; clockFrom = null;
+  track = isLevel(S) ? "levels" : "free";
+  if (isLevel(S)) camp.at = S.lv;                                    // a link's level is the one in hand now
+  if (!IN_FRAME) { write(TRACK, track); if (isLevel(S)) write(CAMP, camp); history.replaceState(null, "", hashOf(S)); }
   drawBoard();
   save();
   clockRun();
@@ -154,6 +184,41 @@ async function start(mode, k = chosenKind()) {
   const { seed, puzzle } = await nextPuzzle(k);
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
+/** A puzzle of level n (0 on): the level's own the first time it is played, a new one after that or when asked. */
+async function levelBlock(n, again = false) {
+  if (IN_FRAME) return;
+  const k = kindOf(n);
+  let seed, puzzle;
+  if (!again && camp.stars[n] < 1) {
+    seed = seedOf(n);
+    const done = busy("Making the puzzle", { delay: 250 });
+    try { puzzle = await make(seed, k); } finally { done(); }
+  } else ({ seed, puzzle } = await nextPuzzle(k));
+  if (puzzle) begin({ ...fromPuzzle("level", seed, k, puzzle), lv: n });
+}
+/** Plays level n (0 on) as it was left, or new if it was not begun. */
+async function playLevel(n) {
+  if (!isOpen(n)) return;
+  clockPause();
+  camp.at = n;
+  write(CAMP, camp);
+  track = "levels";
+  write(TRACK, track);
+  await resume();
+}
+/** The puzzle of the way now chosen, as it was left (else a new one). */
+async function resume() {
+  const g = savedGame();
+  if (g) { begin(g); if (!IN_FRAME) refill(chosenKind()); return; }
+  if (track === "levels") await levelBlock(camp.at); else await start("random");
+}
+async function setTrack(next) {
+  if (next === track) return;
+  clockPause();
+  track = next;
+  write(TRACK, track);
+  await resume();
+}
 const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length),
   ...(shapeOf(k) === "hex" ? { shape: "hex" } : {}), ...(hasTwist(k.twist) ? { twist: twistOn(k.twist) } : {}), ...(puzzle.walls ? { walls: puzzle.walls } : {}), ...(puzzle.ranges ? { ranges: puzzle.ranges } : {}) });
 /** The kind a run was dealt as. */
@@ -161,6 +226,12 @@ const kindOfRun = s => ({ size: s.size, level: s.level, twist: s.twist || "none"
 async function confirmStart(mode, k) {
   if (started() && !(await sure("Start a new puzzle? This one isn't solved.", { yes: "New puzzle" }))) return false;
   start(mode, k);
+  return true;
+}
+/** Another puzzle of the level being played. */
+async function confirmLevelBlock() {
+  if (started() && !(await sure("Start a new puzzle of this level? This one isn't solved.", { yes: "New puzzle" }))) return false;
+  levelBlock(camp.at, true);
   return true;
 }
 
@@ -304,6 +375,8 @@ function finish() {
   S.done = { ms, score: scoreOf(ms) };
   S.lit = null;
   S.fresh = recordBest(S.done.score);
+  if (isLevel(S)) S.stars = starsFor({ grid: S.grid, sol: S.sol, size: S.size, shape: S.shape, walls: S.walls, ranges: S.ranges, level: S.came || S.level }, S.done.score);
+  if (isLevel(S) && S.stars > camp.stars[S.lv]) { camp.stars[S.lv] = S.stars; write(CAMP, camp); S.starsFresh = true; }
   if (S.mode === "random") { const k = chosenKind(); if (k.size === S.size && k.level === S.level && k.shape === shapeOf(S)) ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("moor", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
@@ -545,7 +618,7 @@ function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ ...kindOfRun(S), level: S.came || S.level, twist: twistsOf(S) }, true)}`);
+  put("kind", `${S.mode === "daily" ? "Today · " : isLevel(S) ? `Level ${S.lv + 1} · ` : ""}${kindText({ ...kindOfRun(S), level: S.came || S.level, twist: twistsOf(S) }, true)}`);
   $("kind").classList.toggle("long", $("kind").textContent.length > 26);
 }
 function drawLine() {
@@ -576,7 +649,9 @@ function drawResult() {
   const d = S.done, bits = [`${fmt(d.ms / 1000)} on the clock`], best = bestOf(S);
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${penalty()} s)`);
   const tail = S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
-  $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
+  const stars = isLevel(S) && S.stars ? ` ${STAR.repeat(S.stars)}${HOLLOW.repeat(3 - S.stars)}${S.starsFresh ? " A new best on this level." : ""}` : "";
+  $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${isLevel(S) ? stars : tail}`;
+  $("nextBtn").textContent = isLevel(S) && S.lv + 1 < COUNT && camp.stars[S.lv] >= 1 ? "Next level" : isLevel(S) ? "Another puzzle" : "Another puzzle";
 }
 function render() {
   const off = !S || !!S.done || IN_FRAME;
@@ -625,20 +700,58 @@ function showRules() {
 }
 
 // the menu: Play (a new puzzle, clearing the board, 3D, the rules), Content (random or today's, the size, the level), About
+/** The levels, three to a row under their chapter: each its number, name, board and the stars won. Those not open yet are dimmed; any open one can be played at any time, as it was left. */
+function levelList() {
+  const all = document.createElement("div");
+  all.className = "mr-levels";
+  CHAPTERS.forEach((ch, c) => {
+    const head = document.createElement("h3"), grid = document.createElement("div"), to = CHAPTERS[c + 1]?.from ?? COUNT;
+    head.className = "mr-chap";
+    head.textContent = ch.name;
+    grid.className = "mr-lgrid";
+    for (let n = ch.from; n < to; n++) {
+      const L = LADDER[n], won = camp.stars[n], b = document.createElement("button"), row = document.createElement("div"), num = document.createElement("b"),
+        stars = document.createElement("span"), name = document.createElement("div"), size = document.createElement("div");
+      b.type = "button";
+      b.disabled = !isOpen(n);
+      b.className = won ? "done" : "";
+      if (n === camp.at && track === "levels") b.setAttribute("aria-current", "true");
+      b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${b.disabled ? ", not open yet" : ""}`);
+      row.className = "mr-lrow";
+      num.textContent = n + 1;
+      stars.textContent = isOpen(n) ? STAR.repeat(won) + HOLLOW.repeat(3 - won) : "";
+      row.append(num, stars);
+      name.className = "mr-lname";
+      name.textContent = L.name;
+      size.className = "mr-lsize";
+      size.textContent = kindText({ ...L, twist: "none" }) .replace(" · ", " ") + (L.twist !== "none" ? ` · ${twistOn(L.twist).split("+").map(t => SHORT[t]).join(" + ")}` : "");
+      b.append(row, name, size);
+      b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
+      grid.append(b);
+    }
+    all.append(head, grid);
+  });
+  return all;
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const content = part(body, "content");
+  const levels = track === "levels", content = part(body, "content");
   const play = part(body, "play");
-  play.append(action("New puzzle", () => confirmStart("random"), "primary"));
-  content.append(choice("Board", [["square", "Square"], ["hex", "Hex"]], prefs.board, v => { prefs.board = v; savePrefs(); refill(chosenKind()); openMenu(); }));
-  content.append(ticks("Twists", Object.entries(TWISTS), twistOn(prefs.twists).split("+").filter(t => TWISTS[t]), v => { prefs.twists = twistOn(v.join("+")); savePrefs(); refill(chosenKind()); }));
+  play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart("random")), "primary"));
+  content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
+  if (levels) content.append(levelList());
+  else {
+    content.append(choice("Board", [["square", "Square"], ["hex", "Hex"]], prefs.board, v => { prefs.board = v; savePrefs(); refill(chosenKind()); openMenu(); }));
+    content.append(ticks("Twists", Object.entries(TWISTS), twistOn(prefs.twists).split("+").filter(t => TWISTS[t]), v => { prefs.twists = twistOn(v.join("+")); savePrefs(); refill(chosenKind()); }));
+  }
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
   todayPart(body, { app: "moor", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
-  const best = S ? bestOf(S) : null;
+  const best = S && !isLevel(S) ? bestOf(S) : null;
   const about = part(body, "about");
-  about.append(line(S ? `${kindText({ ...kindOfRun(S), level: S.came || S.level, twist: twistsOf(S) })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Moor a barge beside every dock."));
+  if (levels) about.append(line(`${camp.stars.filter(Boolean).length} of ${COUNT} levels solved, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}. Three stars within the par, two within twice it.`));
+  else about.append(line(S && !isLevel(S) ? `${kindText({ ...kindOfRun(S), level: S.came || S.level, twist: twistsOf(S) })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Moor a barge beside every dock."));
   about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -654,12 +767,14 @@ async function copyLink() {
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 
-// ---------- links: #s=SEED&n=8&l=medium (#d= for a day's) ----------
+// ---------- links: #s=SEED&n=8&l=medium (#d= for a day's), #lv=LEVEL&s=SEED for a level's ----------
 // (t= the twists asked for, b=hex for the hex board; a plain square puzzle's link is what it always was)
-const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${hasTwist(s.twist) ? `&t=${twistOn(s.twist)}` : ""}${shapeOf(s) === "hex" ? "&b=hex" : ""}`;
+const hashOf = s => (isLevel(s) ? `#lv=${s.lv}&s=${s.seed}` : `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${hasTwist(s.twist) ? `&t=${twistOn(s.twist)}` : ""}${shapeOf(s) === "hex" ? "&b=hex" : ""}`);
 function linked() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
+  const lv = h.has("lv") ? Number(h.get("lv")) : -1;
+  if (Number.isInteger(lv) && lv >= 0 && lv < COUNT) return { seed, mode: "level", lv, k: kindOf(lv) };
   const shape = h.get("b") === "hex" ? "hex" : "square", fallback = shape === "hex" ? 7 : 8;
   const size = sizeOn(shape, Number(h.get("n"))) ? Number(h.get("n")) : fallback, twist = twistOn(h.get("t"));
   return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium", shape), twist, shape } };
@@ -668,8 +783,10 @@ async function openLinked(l) {
   const done = busy("Making the puzzle", { delay: 250 });
   let puzzle;
   try { puzzle = await make(l.seed, l.k); } finally { done(); }
-  if (puzzle) begin(fromPuzzle(l.mode, l.seed, l.k, puzzle));
+  if (puzzle) begin(l.mode === "level" ? { ...fromPuzzle("level", l.seed, l.k, puzzle), lv: l.lv } : fromPuzzle(l.mode, l.seed, l.k, puzzle));
 }
+/** Whether the puzzle on the board is the one a link names. */
+const isLinked = l => !!S && S.seed === l.seed && S.mode === l.mode && S.size === l.k.size && shapeOf(S) === l.k.shape && twistOn(S.twist) === l.k.twist && (l.mode !== "level" || S.lv === l.lv);
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "moor");
@@ -678,14 +795,14 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-$("nextBtn").addEventListener("click", () => start("random"));
+$("nextBtn").addEventListener("click", () => (isLevel(S) ? (S.lv + 1 < COUNT && camp.stars[S.lv] >= 1 ? playLevel(S.lv + 1) : levelBlock(S.lv, true)) : start("random")));
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
 $("viewBtn").addEventListener("click", () => setView(viewShown === "model" ? "chart" : "model"));
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else clockRun(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode)) openLinked(l); });
+window.addEventListener("hashchange", () => { const l = linked(); if (l && !isLinked(l)) openLinked(l); });
 setInterval(() => {
   if (!S) return;
   drawStrip();
@@ -694,7 +811,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__moor = {
-  get state() { return S; }, get puzzle() { return P; }, get model() { return model; }, press, useHint, undo, redo, start, setView,
+  get state() { return S; }, get puzzle() { return P; }, get model() { return model; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, setView, playLevel, setTrack,
   /** Where a cell's middle is on the screen, for tests that tap or drag it as a finger would. */
   cellOf: x => { const m = svg.getScreenCTM(), [cx, cy] = xyOf(x); return { x: cx * m.a + m.e, y: cy * m.d + m.f }; },
 };
@@ -702,15 +819,13 @@ window.__moor = {
 const forToday = arrivedForToday();   // from the games screen's tile: today's puzzle, still to play
 /** Your own puzzle: a link's, today's from the tile, the saved one, or a first puzzle. */
 async function solo() {
-  const kept = read(RUN, null);
-  S = null;
-  if (valid(kept)) S = kept;
+  S = savedGame();
   const l = linked();
-  if (l && !(S && S.seed === l.seed && S.mode === l.mode && S.size === l.k.size && shapeOf(S) === l.k.shape && twistOn(S.twist) === l.k.twist)) { openLinked(l); return; }
+  if (l && !isLinked(l)) { openLinked(l); return; }
   const todays = forToday && !IN_FRAME && !(S?.mode === "daily" && S.seed === today());
   if (S) { const s = S; S = null; begin(s); if (!IN_FRAME) refill(chosenKind()); }       // yours is on the board while it asks about today's
   if (todays && (!S || !started() || await sure("Today's puzzle is waiting. Leave the one you've started?", { yes: "Today's puzzle", no: "Keep mine" }))) { start("daily"); return; }
-  if (!S) { if (IN_FRAME) render(); else start("random"); }
+  if (!S) { if (IN_FRAME) render(); else if (track === "levels") levelBlock(camp.at); else start("random"); }
 }
 solo().then(() => { if (viewShown === "model") setView("model", false); });
 onDefaultChange(is3D => { if (!prefs.view && S) setView(is3D ? "model" : "chart", false); });   // Settings' 2D mode, live
