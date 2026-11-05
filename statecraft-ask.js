@@ -20,7 +20,9 @@ export const Q = (q, right, wrong, why, o = {}) => ({ q, o: [right, ...wrong], w
 export const T = (q, target, decoys, why, o = {}) => ({ q, tap: { target, decoys }, why, ...o });
 export const O = (q, order, why, o = {}) => ({ q, order, why, ...o });
 export const M = (q, match, why, o = {}) => ({ q, match, why, ...o });
-export const L = (id, title, view, pts, steps, o = {}) => ({ id, title, view, pts, steps, ...o });
+/** A kit step (lesson-kit.js): pair, order, bins, tf, reveal, explore, slider, decide, toggle or build, with its fields; `fig` (lesson-figs.js) beside any step. */
+export const K = (kit, say, fields, why, o = {}) => ({ kit, say, why, ...fields, ...o });
+export const L =(id, title, view, pts, steps, o = {}) => ({ id, title, view, pts, steps, ...o });
 export const CH = (id, title, span, reading, lessons) => ({ id, title, span, reading, lessons });
 
 /** The eight questions asked of every case (outline, section 10), in the order a case card answers them. */

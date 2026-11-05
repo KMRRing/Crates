@@ -1,5 +1,5 @@
 // Statecraft: a course on the suite's course sheet (course.js) in ten chapters, from the tools of statecraft and diplomacy through the thinkers
-// of strategy, war, deterrence and the new domains to eight case studies of actors inside constraints. This page is the door to it: the plate,
+// of strategy, war, deterrence and the new domains to thirteen case studies of actors inside constraints. This page is the door to it: the plate,
 // where you have got to, and the way in. The words and questions are statecraft-c1.js to statecraft-c5.js (built into steps by
 // statecraft-lessons.js); the stage (maps and cards from History of trade's, a quotation, ordering, matching) is statecraft-stage.js; what you
 // miss comes back in the review (statecraft-pile.js).
@@ -21,7 +21,7 @@ const total = LESSON_IDS.length;
 bindSwitcher($("appsBtn"), "statecraft");
 document.querySelector(".sc-mark").innerHTML = APPS.find(a => a.id === "statecraft")?.logo || "";
 $("plate").innerHTML = plate();
-document.querySelector(".sc-intro").textContent = `How states get others to do what they want, and what stops them: ${total} short lessons on diplomacy, strategy, deterrence and eight actors inside their constraints.`;
+document.querySelector(".sc-intro").textContent = `How states get others to do what they want, and what stops them: ${total} short lessons on diplomacy, strategy, deterrence and thirteen actors inside their constraints.`;
 
 let pile = loadPile();
 const refill = () => fillReview(dueIds(pile));

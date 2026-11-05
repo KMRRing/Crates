@@ -1,6 +1,6 @@
-// Statecraft, chapter 9 (eight actors inside constraints) and chapter 10 (the capstone). The cases were picked from sixteen candidates because each
+// Statecraft, chapter 9 (actors inside constraints; the five added on 5 November are in statecraft-c6.js) and chapter 10 (the capstone). The cases were picked from sixteen candidates because each
 // answers the eight questions of the outline (statecraft-ask.js EIGHT) with a decision the actor could not take or a thing that luck did; no more
-// than two are Western (here one: Vienna, 1814 to 1815). None is presented as a hero. Casualty figures are left out; the Chinese famine is only
+// than two are Western (here Vienna, 1814 to 1815, and Bismarck). None is presented as a hero. Casualty figures are left out; the Chinese famine is only
 // given as a range and never asked as a number.
 import { S, Q, T, O, M, L, CH, E, EIGHT } from "./statecraft-ask.js";
 
