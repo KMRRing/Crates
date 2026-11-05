@@ -114,7 +114,7 @@ export function puzzleOf(size, grid, sol = null, spec = {}) {
   const g = boardOf(shape, size, shape === "hex" ? [] : tun), X = clueOf(g, grid);
   const locked = new Uint8Array(g.E);
   for (const e of g.forced) locked[e] = 1;
-  return { twisted: true, shape, size, g, grid, shaded: false, clue: X.code, X, tun: g.tun, locked, sol: sol && Uint8Array.from(sol, ch => (ch === LINE ? 1 : 0)), solMarks: sol };
+  return { twisted: true, shape, size, g, view: g, grid, shaded: false, clue: X.code, X, tun: g.tun, locked, sol: sol && Uint8Array.from(sol, ch => (ch === LINE ? 1 : 0)), solMarks: sol };
 }
 /** The marks a puzzle starts with: nothing, but a tunnel's four edges are lines. */
 export const startMarks = P => Array.from(P.locked, x => (x ? LINE : "0")).join("");

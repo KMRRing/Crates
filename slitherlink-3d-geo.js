@@ -182,6 +182,14 @@ export function groundPoint(o, d) {
 }
 /** The edge a point of the board means, or -1: the nearest grid line of either kind within REACH (the flat board's rule, used by both views). */
 export function edgeAtPoint(g, x, y) {
+  if (g.shape === "hex") {                                // a honeycomb: the nearest edge within REACH, by its distance from the point
+    let best = -1, bd = REACH * REACH;
+    for (let e = 0; e < g.E; e++) {
+      const [x1, y1, x2, y2] = g.epos[e], dx = x2 - x1, dy = y2 - y1, t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy))), d = (x - x1 - t * dx) ** 2 + (y - y1 - t * dy) ** 2;
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
   const { R, C, H } = g, gx = Math.min(C, Math.max(0, Math.round(x))), gy = Math.min(R, Math.max(0, Math.round(y)));
   const dv = Math.abs(x - gx), dh = Math.abs(y - gy);
   if (Math.min(dv, dh) > REACH) return -1;

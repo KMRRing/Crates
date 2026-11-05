@@ -5,18 +5,22 @@
 // The shared board: the puzzle (`fixed`: it never changes) and one layer, `marks`, a character an edge as in a run
 // ("0" nothing, "1" a line, "2" crossed). Hints are a tally (`hints`), the solve a once-value (`done`: { ms, score, by }).
 // Undo, redo and the hint's gilt are each player's own and stay on their page.
-import { SIZES } from "./slitherlink-engine.js";
+import { fitsBoard, twistOn } from "./slitherlink-engine.js";
 import { tallyOf, onceOf } from "./board-share.js";
 
 export const KEY = "slitherlink:run";
 export const HINT = 30;                              // seconds a hint adds, as in the solo game
 
 /** A saved run that is a puzzle in play (the page's own check, without the page). */
-export const playable = s => !!s && s.v === 1 && SIZES.includes(s.size) && typeof s.grid === "string" && typeof s.marks === "string"
-  && typeof s.sol === "string" && s.sol.length === s.marks.length && s.grid.length === s.size * s.size && Number.isFinite(s.ms);
+export const playable = s => !!s && s.v === 1 && fitsBoard(s) && typeof s.marks === "string"
+  && typeof s.sol === "string" && s.sol.length === s.marks.length && Number.isFinite(s.ms);
 
 /** The puzzle, the part of a run that does not change. */
-export const fixedOf = s => ({ mode: s.mode || "random", seed: s.seed, size: s.size, level: s.level, twist: s.twist === "shade" ? "shade" : "none", came: s.came || s.level, grid: s.grid, sol: s.sol });
+// 5 November 2026: the board (square or hex), its causeways (`tun`, dots) and its twist travel with the puzzle; the ranges are in the grid.
+export const fixedOf = s => {
+  const board = s.board === "hex" ? "hex" : "square";
+  return { mode: s.mode || "random", seed: s.seed, board, size: s.size, level: s.level, twist: s.twist === "shade" ? "shade" : twistOn(s.twist, board), tun: board === "hex" ? "" : s.tun || "", came: s.came || s.level, grid: s.grid, sol: s.sol };
+};
 
 export default {
   /** The shared board out of what the game has saved ({ key: the saved text }); null when there is no board in play to share (none, or solved). */
@@ -37,5 +41,5 @@ export default {
   rules: { frozen: board => !!board.once?.done },
 
   /** The board is worth keeping: a puzzle of a size this version knows, with its marks the length of its answer. */
-  valid: board => !!board?.fixed && SIZES.includes(board.fixed.size) && typeof board.fixed.sol === "string" && board.layers?.marks?.length === board.fixed.sol.length,
+  valid: board => !!board?.fixed && fitsBoard(board.fixed) && typeof board.fixed.sol === "string" && board.layers?.marks?.length === board.fixed.sol.length,
 };

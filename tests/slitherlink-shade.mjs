@@ -173,9 +173,9 @@ const made = [];
 {
   const page = fs.readFileSync(root + "slitherlink.js", "utf8"), worker = fs.readFileSync(root + "slitherlink-worker.js", "utf8");
   check(/shade: shadeOn\(k\.twist\)/.test(page) && /generate\(seed, size, level, !!shade[,)]/.test(worker), "the page asks the worker for a shaded puzzle, and the worker makes one");
-  check(/&t=shade/.test(page) && /h\.get\("t"\) === "shade"/.test(page) && /twist: puzzle\.shade/.test(page), "a link to a shaded puzzle says so, and a link's shading is read back");
-  check(/kindKey = k => .*:shade/.test(page) && /twist: S\.twist/.test(page), "bests and spares are kept apart for shaded puzzles");
-  check(/DAILY/.test(page) && !/DAILY[^\n]*twist/.test(page), "today's puzzle stays plain");
+  check(/&t=shade/.test(page) && /t === "shade"/.test(page) && /puzzle\.shade \? "shade"/.test(page), "a link to a shaded puzzle says so, and a link's shading is read back");
+  check(/kindKey = k => .*:shade/.test(page) && /twist: s\.twist/.test(page), "bests and spares are kept apart for shaded puzzles");
+  check(/DAILY_KIND = \{ \.\.\.DAILY, board: "square", twist: "none" \}/.test(page), "today's puzzle stays plain");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("slitherlink shading: the rule against every loop, shaded puzzles unique and true, hints, plain puzzles unchanged");

@@ -270,5 +270,17 @@ function ORDER_OF(l) { return ["easy", "medium", "hard"].indexOf(l); }
   }
 }
 
+// ---------- the page, the worker and the room are wired to it ----------
+{
+  const fs = await import("node:fs"), root = new URL("../", import.meta.url).pathname, page = fs.readFileSync(root + "slitherlink.js", "utf8"), coop = await import("../slitherlink-coop.js");
+  check(/P\.view/.test(page) && /specOf/.test(page) && /labelOf/.test(page), "the page draws the board from the puzzle's own view, and reads bounds");
+  const p = generate(9, "hex", 5, "easy", "ranges"), run = { v: 1, mode: "random", seed: 9, board: "hex", size: 5, level: "easy", twist: p.twist, tun: "", came: p.level, grid: p.grid, sol: p.sol, marks: "0".repeat(p.sol.length), ms: 0, hints: 0 };
+  const shared = coop.default.share({ [coop.KEY]: JSON.stringify(run) });
+  check(shared && shared.fixed.board === "hex" && shared.fixed.twist === "ranges" && coop.default.valid({ fixed: shared.fixed, layers: shared.layers }) && coop.default.run({ fixed: shared.fixed, layers: shared.layers, start: shared.start }).board === "hex", "a hex board with ranges travels in the room's state and comes back as the same run");
+  const q = generate(9, "square", 7, "easy", "tunnels"), r2 = { ...run, board: "square", size: 7, twist: "tunnels", tun: q.tun, grid: q.grid, sol: q.sol, marks: startMarks(puzzleOf(7, q.grid, q.sol, { tun: q.tun })) };
+  const s2 = coop.default.share({ [coop.KEY]: JSON.stringify(r2) });
+  check(s2 && s2.fixed.tun === q.tun && s2.layers.marks === r2.marks && coop.default.valid({ fixed: s2.fixed, layers: s2.layers }), "a board with causeways travels with its dots and its fixed lines");
+}
+
 console.log(bad ? `\n${bad} failed` : "\nall slitherlink twist checks passed");
 process.exit(bad ? 1 : 0);

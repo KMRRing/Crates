@@ -145,3 +145,37 @@ html[data-mode="night"] { --slk-ink: #1d1710; --slk-vellum: #9a8e70; --slk-land:
 .slk-model[hidden] { display: none; }
 .slk-card.is-model .slk-board { visibility: hidden; }
 .slk3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+
+/* ranges (Bridges' language: a bound sits on a warm brass plate): "2+" at least, "≤1" at most */
+.slk-bound { fill: color-mix(in srgb, var(--brass) 30%, var(--slk-vellum)); stroke: color-mix(in srgb, var(--brass) 70%, transparent); stroke-width: .025; pointer-events: none; }
+.slk-cell.over .slk-bound { fill: color-mix(in srgb, var(--slk-bad) 24%, var(--slk-vellum)); stroke: var(--slk-bad); }
+.slk-cell.met .slk-bound { opacity: .6; }
+.slk-svg.solved .slk-cell .slk-bound { opacity: 1; }
+.slk-num.bound { font-weight: 800; }
+
+/* the honeycomb: the same board on hexagons */
+.slk-svg.hex .slk-ring { stroke-width: .06; }
+
+/* a causeway: the across-strand is a deck laid over the up-down one, which runs under it */
+.slk-dot.tun { display: none; }
+.slk-causeway { pointer-events: none; }
+.slk-pad { fill: var(--slk-vellum); stroke: var(--brass); stroke-width: .035; }
+.slk-deck { stroke: var(--slk-ink); stroke-width: .16; stroke-linecap: butt; }
+.slk-rail { fill: none; stroke: var(--brass); stroke-width: .05; stroke-linecap: round; }
+.slk-svg.solved .slk-deck { animation: slk-deck .8s ease-out 0ms both; }
+@keyframes slk-deck { 0% { stroke: var(--slk-ink); } 40% { stroke: var(--slk-gilt); } 100% { stroke: var(--slk-gilt); } }
+@media (prefers-reduced-motion: reduce) { .slk-svg.solved .slk-deck { animation: none; stroke: var(--slk-gilt); } }
+
+/* the ladder in the menu: chapters, two levels to a row */
+#menuBody .slk-chap { margin: .9rem 0 .35rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+#menuBody .slk-chap:first-child { margin-top: .4rem; }
+.slk-lgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+.slk-lgrid button { display: grid; gap: .1rem; align-content: start; text-align: left; padding: .45rem .55rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.slk-lgrid button:disabled { opacity: .45; cursor: default; }
+.slk-lgrid button[aria-current="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.slk-lgrid button.done .slk-lrow span { color: var(--brass); }
+.slk-lrow { display: flex; justify-content: space-between; align-items: baseline; }
+.slk-lrow b { font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.slk-lrow span { font-size: .78rem; letter-spacing: .05em; color: var(--ink-soft); }
+.slk-lname { font-size: .86rem; font-weight: 750; }
+.slk-lkind { font-size: .7rem; color: var(--ink-soft); }
