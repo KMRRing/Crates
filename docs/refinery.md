@@ -26,3 +26,5 @@ A course in how a refinery works (October 2026, rebuilt on Calibre's pattern at 
 - Hiding keeps a node that is off spec or selected, and a culprit stream of an off-spec product stays named when hidden ("from the C4 (hidden)", with a link to show it). Fuel gas is one stream in the model, so "off-gas" and "fuel gas" are one class.
 - Two works in one plant (Brackwater's `cdu2`) cut the same crude the same way, so each cut is one stream whichever column made it.
 - Held sideways (README, Bigger screens), the flowsheet takes the left, all the height under the header, and the strip, the brief and the margin stand beside it.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** Flowing arrows is always on (the choice went); the Lines panel's three filters are the flowsheet's own tools and stay.

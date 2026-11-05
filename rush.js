@@ -19,7 +19,7 @@ import { MODES, STRIKES, modeOf, rng, clockText, spentOf, nextPuzzleAt, rated, t
 import { rushMenu, ratingText } from "./rush-menu.js";
 
 const $ = id => document.getElementById(id);
-const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating", RUN = "rush:run", GAMBIT_OPTS = "gambit:opts";
+const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating", RUN = "rush:run";
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const n0 = n => Number(n).toLocaleString("en-GB");
@@ -296,11 +296,9 @@ async function backToGame() {
   }
   location.href = "gambit.html";
 }
-// Chess's Coordinates on the board: one setting for its game and its rush
-const coordsOn = () => read(GAMBIT_OPTS, {})?.coords !== false;
-const applyCoords = () => $("board").classList.toggle("ch-plain", !coordsOn());
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The coordinates are always on the board, as in Chess.
+const applyCoords = () => $("board").classList.toggle("ch-plain", false);
 const viewSetting = () => viewChoice(v => board?.setView(v));
-const coordsToggle = () => toggle("Coordinates on the board", coordsOn(), on => { write(GAMBIT_OPTS, { ...read(GAMBIT_OPTS, {}), coords: on }); applyCoords(); });
 
 // ---------- a puzzle battle: the same puzzles for everyone at the table (duel.js) ----------
 // Everyone plays the match's clock on the same puzzles in the same order (pickPuzzle), with no warm-up: the countdown
@@ -401,7 +399,7 @@ function openMenu() {
       battleMode = v;
       if (!(await duel.newMatch())) battleMode = was;
     }));
-    part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]), coordsToggle());
+    part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]));
     part(body, "about").append(line(ratingText(rating)));
   } else {
     pick ??= { ...next };
@@ -410,7 +408,7 @@ function openMenu() {
       rating, resetRating: () => { rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud(); },
       bests: read(BEST, {}), daily: read(DAILY, {}), day: today(), inFrame: IN_FRAME, todayOn: !!S?.daily && !S.over,
     });
-    part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]), coordsToggle());
+    part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

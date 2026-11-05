@@ -22,7 +22,7 @@ import { sure } from "./sure.js";
 import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
-const PROGRESS = "refinery:progress", WORK = "refinery:work", AT = "refinery:at", FLOW = "refinery:flow";
+const PROGRESS = "refinery:progress", WORK = "refinery:work", AT = "refinery:at";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 try { localStorage.removeItem("refinery:save"); } catch { /* the old campaign's save, before the course */ }
@@ -309,7 +309,7 @@ function paintCount(lay) {
 }
 function drawPlant() {
   syncSheet();
-  const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches && !moving, fade = fadeOf();
+  const flow = !matchMedia("(prefers-reduced-motion: reduce)").matches && !moving, fade = fadeOf();
   const lay = sheetLay = drawSheet(svg, L, R, { select: picked, flow, fade, culprits: culpritLinks(), hide: hidden, arrange: arranged, lift: moving?.id });
   $("linesBtn").classList.toggle("on", !!fade || hidden.size > 0);
   paintCount(lay);
@@ -1136,7 +1136,6 @@ function openMenu() {
   part(body, "play").append(action("Start this level again", () => { $("menuDlg").close(); load(base.id, true); }, "primary"),
     action("Lesson", () => { $("menuDlg").close(); openLesson(); }), action("Glossary", () => { $("menuDlg").close(); openGlossary(); }));
   if (progress()[base.id]?.stars) part(body, "play").append(action("Exam", () => { $("menuDlg").close(); openTest(); }));
-  part(body, "settings").append(toggle("Flowing arrows", read(FLOW, true), on => { write(FLOW, on); drawPlant(); }));
   if (Object.keys(arranged).length) part(body, "settings").append(action("Reset the flowsheet's layout", resetArranged, "link"));
   part(body, "about").append(action("Show par's plan", () => { $("menuDlg").close(); showPar(); }, "link"),
     line(`${LEVELS.filter(l => progress()[l.id]?.stars).length} of ${LEVELS.length} levels done. Yields, properties and prices are textbook-typical, at a North-West Europe deck with Brent at $75.`));

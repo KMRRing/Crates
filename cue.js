@@ -20,6 +20,8 @@ const ALL = KINDS.map(k => k.id);
 const again = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
 
 let opts = { kinds: ALL, kind: true, clock: true, count: COUNT / 1000, ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The kind is always shown over the word.
+opts.kind = true;
 opts.count = seconds(opts.count);
 /** The cooldown in ms, as the host set it. */
 const cooldown = () => opts.count * 1000;
@@ -128,7 +130,6 @@ function openMenu() {
     say();
   }));
   part(body, "settings").append(
-    toggle("The kind over the word", opts.kind, on => { opts.kind = on; write(OPTS, opts); draw(); }),
     // turned on, it counts from the next word: the one up has been read
     choice("Countdown", [["off", "Off"], ...PRESETS.map(n => [String(n), `${n} s`]), ["custom", PRESETS.includes(opts.count) ? "Custom" : `${opts.count} s`]],
       !opts.clock ? "off" : PRESETS.includes(opts.count) ? String(opts.count) : "custom", async v => {

@@ -18,8 +18,9 @@ import { miniature } from "./bridges-mini.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
@@ -57,7 +58,17 @@ if (!TWISTS[prefs.twist]) prefs.twist = "none";
 if (prefs.view !== "model" && prefs.view !== "2d") delete prefs.view;
 let viewShown = wants3D(prefs.view, "model") ? "model" : "chart";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level), twist: prefs.twist });
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A free puzzle has no twist (the twists stay in the Levels
+// campaign); its size and level are one hidden ramp, its first rung the old saved choice; the ladder steps up after a puzzle
+// solved without a hint.
+const OLD = { size: prefs.size, level: prefs.level };
+prefs.twist = "none";
+const RUNGS = rungs(SIZES, Object.keys(LEVELS), (n, l) => levelOn(n, l) === l);
+const chosenKind = () => {
+  const { size, level } = split(ramp("bridges", RUNGS, { start: startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level) }));
+  prefs.size = Number(size); prefs.level = level;
+  return { size: prefs.size, level, twist: "none" };
+};
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
@@ -180,7 +191,6 @@ function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
   P = puzzleFor(S);
   message = isLevel(S) && !started() && !S.done ? introOf(S.lv) : null; clockFrom = null;
-  $("level").value = levelOn(S.size, S.level);
   if (!racing()) {                                             // a race leaves your way of playing, your level and the address alone
     track = isLevel(S) ? "levels" : "free";
     if (isLevel(S)) camp.at = S.lv;                            // a link's level is the one in hand now
@@ -390,6 +400,7 @@ function finish() {
     return;
   }
   S.fresh = isLevel(S) ? recordLevel(S.done.score) : recordBest(S.done.score);
+  if (S.mode === "random") { chosenKind(); ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("bridges", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
   roundOver("bridges");
@@ -786,8 +797,6 @@ function drawResult() {
 function chrome() {
   const level = isLevel(S);
   $("app").classList.toggle("lv", level);
-  $("level").hidden = level;
-  levelDropdown.sync();
   $("levelBtn").hidden = !level;
   if (level) $("levelBtn").textContent = `Level ${S.lv + 1}`;
 }
@@ -897,7 +906,6 @@ function openMenu() {
     play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
     duel.menu(part(body, "together"));
     const content = part(body, "content");
-    content.append(mirror("Level", $("level")));
     if (m) content.append(line(`This match: ${nameOf(m)}, ${m.size}×${m.size}${hasTwist(m.twist) ? ` · ${twistName(m.twist)}` : ""}.`));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -909,11 +917,6 @@ function openMenu() {
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
-  else {
-    content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(mirror("Level", $("level")));
-    content.append(choice("Twist", Object.entries(TWISTS), prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
-  }
   todayPart(body, { app: "bridges", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   const about = part(body, "about");
   if (levels) {
@@ -931,12 +934,6 @@ async function confirmLevelBlock() {
   if (started() && !(await sure("Start a new puzzle of this level? This one isn't solved.", { yes: "New puzzle" }))) return false;
   levelBlock(camp.at, true);
   return true;
-}
-/** The size changed in the menu: the header's level follows, and a spare is made ready. */
-function kindChanged() {
-  const k = chosenKind();
-  $("level").value = k.level;
-  refill(k);
 }
 async function clearBoard() {
   if (!S || S.done) return;
@@ -986,7 +983,7 @@ const duel = createDuel({
   deal: dealMatch,
   describe: m => `A race on ${nameOf(m)}${hasTwist(m.twist) ? ` (${twistName(m.twist)})` : ""}, ${LEVELS[m.came] || LEVELS[m.level]}: the same puzzle for everyone, the fastest solve wins`,
   play: (match, { begun, kept }) => { if (matchValid(match)) playRace(match, begun, kept); else toast("This match is from a newer Bridges: update the page."); },
-  onLobby: match => { S = null; P = null; svg = null; $("level").value = LEVELS[match.level] ? match.level : "easy"; render(); },
+  onLobby: match => { S = null; P = null; svg = null; render(); },
   onLeave: () => { clearTimeout(tellTimer); tellTimer = 0; solo(); },
 });
 /** The match the table plays next: a level of the ladder at the chosen difficulty, its puzzle made here. */
@@ -1079,7 +1076,6 @@ function showBoard(board, info) {
     S = { undo: [], redo: [], ms: 0, lit: null, ...run };
     P = puzzleFor(S);
     message = null; sentDone = false;
-    $("level").value = levelOn(S.size, S.level);
     mask = halves(S);
     setHidden(board);
     drawBoard();
@@ -1113,7 +1109,6 @@ async function joinPartner() {
 }
 
 // ---------- wiring ----------
-const levelDropdown = dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "bridges");
 document.querySelector(".brg-mark").innerHTML = APPS.find(a => a.id === "bridges")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
@@ -1127,18 +1122,6 @@ $("nextBtn").addEventListener("click", () => {
   else if (isLevel(S) && camp.stars[S.lv] < 1) levelBlock(S.lv, true);      // a level solved with a partner: a new puzzle of it, to play alone for its stars
   else if (isLevel(S)) { if (S.lv + 1 < COUNT && isOpen(S.lv + 1)) playLevel(S.lv + 1); else openMenu(); }
   else start("random");
-});
-$("level").addEventListener("change", async () => {
-  const v = $("level").value;
-  if (duel.on) {                                                 // a new match at that difficulty, for everyone at the table
-    prefs.level = v; savePrefs();
-    if (!(await duel.newMatch())) $("level").value = duel.match?.level || v;
-    return;
-  }
-  if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;
-  const before = prefs.level;
-  prefs.level = v; savePrefs();
-  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
 });
 $("viewBtn").addEventListener("click", () => setView(viewShown === "model" ? "chart" : "model"));
 $("undoBtn").addEventListener("click", undo);
@@ -1178,7 +1161,6 @@ async function solo() {
   if (IN_FRAME) { if (kept) begin(kept); else render(); return; }
   await resume();
 }
-$("level").value = chosenKind().level;
 // a match in the address: its table, with no solo puzzle made under it
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
 else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });

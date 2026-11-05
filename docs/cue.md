@@ -7,3 +7,5 @@ A party game (October 2026). On one phone: tap the card and a simple word pops u
 - **Cooldown**: a second to read, then the host's seconds (`cue:opts.count`, 1 to 600; solo takes a preset or a typed Custom, a party a preset in the lobby and the host's stepper between cards). The clock is `clockAt(ms, countMs)`; at a party it runs from `state.at`, the table's clock, so every phone agrees.
 - Library trap: `LIB` indices are what a party's deck keeps, so append, never reorder. `tests/cue-library.mjs` bans sexual, hateful, drinking, drug and cruel words from every card.
 - The one-phone Cue deals only the words, not the library: long prompts do not fit its one-word card.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The kind is always shown over the word (the choice went).

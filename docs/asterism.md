@@ -10,3 +10,5 @@ Star Battle (4 November 2026, named per the Nikoli rule in `classics.md`; "star 
 - Cube puzzles and the larger hexagons (5 to 7) are made ahead (`asterism-bank.js`, with one answer and a level each; grading them takes seconds to minutes) and dealt by seed in one of the shape's symmetries (48, 12). A cube has no Easy, nor does a hexagon of 5 or more; the line says so. A cube's regions are lopsided (one often holds half of it): that is what makes it unique.
 - Not shipped: the rhombicuboctahedron (a line needs straight rings through its cells: its 8 triangles lie on no belt and its 12 edge squares on one, so the "one star in every line" rule has nothing to grip) and the football (hexagon rows break at each of its 12 pentagons; regions alone give thousands of answers).
 - Not done: a pair or party mode, a computer rival.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Shape and View. A puzzle has one star a row, and size and level are the hidden ramp for each shape (`asterism:ramp:<shape>`, rungs from `ramp-steps.js`, up after a puzzle solved without a hint; first rung the saved size and level).

@@ -6,8 +6,9 @@ import { KINDS, STARS, LEVELS, DAILY, NONE, STAR, DOT, newAxisStroke, axisStroke
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
@@ -50,9 +51,17 @@ if (!STARS.includes(prefs.k)) prefs.k = 1;
 if (!KINDS[prefs.k].includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => (prefs.shape === "flat"
-  ? { size: prefs.size, k: prefs.k, level: levelOn(prefs.size, prefs.k, prefs.level) }
-  : { shape: prefs.shape, size: prefs.sizes[prefs.shape], k: 1, level: levelOn(0, 1, prefs.level) });
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. One star a row, and size and level are one hidden ramp for
+// each shape, its first rung the old saved choice; the ladder steps up after a puzzle solved without a hint.
+const OLD = { size: prefs.size, sizes: { ...prefs.sizes }, level: prefs.level };
+prefs.k = 1;
+const SIZES_OF = { flat: KINDS[1], ...SOLID_SIZES };
+const RUNGS = Object.fromEntries(Object.entries(SIZES_OF).map(([sh, sizes]) => [sh, rungs(sizes, Object.keys(LEVELS), (n, l) => levelOn(sh === "flat" ? n : 0, 1, l) === l)]));
+const chosenKind = () => {
+  const sh = prefs.shape, sizes = SIZES_OF[sh], old = sh === "flat" ? OLD.size : OLD.sizes[sh];
+  const { size, level } = split(ramp("asterism", RUNGS[sh], { id: sh, start: startFor(RUNGS[sh], sizes, Object.keys(LEVELS), old, OLD.level) }));
+  return sh === "flat" ? { size: Number(size), k: 1, level } : { shape: sh, size: Number(size), k: 1, level };
+};
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
@@ -129,7 +138,6 @@ function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
   P = shapeOf(S) !== "flat" ? solidPuzzle(S.shape, S.size, S.reg, S.sol) : puzzleOf(S.size, S.k, S.reg, S.sol);
   clockFrom = null;
-  $("level").value = levelOn(S.size, S.k, S.level);
   if (!IN_FRAME) history.replaceState(null, "", hashOf(S));
   drawBoard();
   save();
@@ -292,6 +300,7 @@ function finish() {
   S.done = { ms, score: scoreOf(ms) };
   S.lit = null;
   S.fresh = recordBest(S.done.score);
+  if (S.mode === "random") { const k = chosenKind(); if (k.size === S.size && k.level === S.level) ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("asterism", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
   roundOver("asterism");
@@ -627,11 +636,6 @@ function openMenu() {
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Shape", Object.entries(SHAPES), prefs.shape, v => { prefs.shape = v; savePrefs(); kindChanged(); openMenu(); }));
-  if (prefs.shape === "flat") {
-    content.append(choice("Stars a row", STARS.map(n => [n, String(n)]), prefs.k, v => { prefs.k = v; if (!KINDS[v].includes(prefs.size)) prefs.size = 8; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(choice("Size", KINDS[prefs.k].map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-  } else content.append(choice("Size", SOLID_SIZES[prefs.shape].map(n => [n, sizeName(prefs.shape, n)]), prefs.sizes[prefs.shape], v => { prefs.sizes[prefs.shape] = v; savePrefs(); kindChanged(); openMenu(); }));
-  content.append(mirror("Level", $("level")));
   todayPart(body, { app: "asterism", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   const look = part(body, "settings");
   if (shapeOf(S) === "flat") look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], lookNow(), v => { slowFlat = false; prefs.look = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
@@ -642,12 +646,8 @@ function openMenu() {
   about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-/** The size or the stars changed in the menu: the header's level follows, and a spare is made ready. */
-function kindChanged() {
-  const k = chosenKind();
-  $("level").value = k.level;
-  refill(k);
-}
+/** The shape changed in the menu: a spare is made ready. */
+function kindChanged() { refill(chosenKind()); }
 async function clearBoard() {
   if (!S || S.done) return;
   if (!(await sure("Clear every mark on the board?", { yes: "Clear" }))) return;
@@ -678,7 +678,6 @@ async function openLinked(l) {
 }
 
 // ---------- wiring ----------
-dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "asterism");
 document.querySelector(".ast-mark").innerHTML = APPS.find(a => a.id === "asterism")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
@@ -686,13 +685,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => start("random"));
-$("level").addEventListener("change", async () => {
-  const v = $("level").value;
-  if (S && S.mode !== "daily" && v === levelOn(S.size, S.k, S.level) && shapeOf(S) === prefs.shape && S.size === chosenKind().size && S.k === chosenKind().k) return;
-  const before = prefs.level;
-  prefs.level = v; savePrefs();
-  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.k, S.level) : before; }
-});
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
@@ -725,6 +717,5 @@ async function solo() {
   if (todays && (!S || !started() || await sure("Today's puzzle is waiting. Leave the one you've started?", { yes: "Today's puzzle", no: "Keep mine" }))) { start("daily"); return; }
   if (!S) { if (IN_FRAME) render(); else start("random"); }
 }
-$("level").value = chosenKind().level;
 solo();
 onDefaultChange(() => { if (!prefs.look && P) drawBoard(); });   // Settings' 2D mode, live

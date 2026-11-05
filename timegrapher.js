@@ -36,6 +36,8 @@ const PHONE = 1.7;            // s/d: a phone's own clock, ±20 ppm, under every
 const MIN_KEEP = 8;           // s of the watch heard before a stopped reading is kept
 
 let opts = { length: 40, settle: 15, ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A position is listened to for 40 seconds and settles for 15, whatever an older save chose.
+Object.assign(opts, { length: 40, settle: 15 });
 const saveOpts = () => write(OPTS, opts);
 
 // ---------- the watches ----------
@@ -849,9 +851,6 @@ function openMenu() {
     }
   }
   content.append(action("Your watches", openLibrary), action("This watch: photo, reference, health", () => openWatch(W.current)), action("Which watch is this? (listen)", whichWatch));
-  const settings = part(body, "settings");
-  settings.append(choice("Each position", [["20", "20 s"], ["40", "40 s"], ["60", "60 s"]], String(opts.length), v => { opts.length = Number(v); saveOpts(); }));
-  settings.append(choice("Settling", [["10", "10 s"], ["15", "15 s"], ["20", "20 s"]], String(opts.settle), v => { opts.settle = Number(v); saveOpts(); }));
   const about = part(body, "about");
   about.append(action("History of this watch", openHistory), action("Before you listen", showReady, "link"));
   const last = w.readings[0];

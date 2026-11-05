@@ -310,9 +310,6 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
       action(over() ? "Another game" : "A new game", async () => { if (over() || await sure("Start a new game? This one isn't over.")) again(); }, over() ? "primary" : ""),
       action("The table", () => { closedFor = null; openSheet(runOf(cur, mySlot())?.begun ? "result" : "lobby"); }),
       action("Back to solo", () => together.leave(), "link"));
-    const content = part(body, "content");
-    content.append(choice("Level", Object.entries(LEVELS).map(([k, L]) => [k, L.label]), prefs.level, v => { prefs.level = v; keepPrefs(); }));
-    if ((prefs.together || defaultMode(people())) === "race") content.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
   }
 
   // ---------- the strip: the others, as they go ----------

@@ -9,15 +9,14 @@ import { BOOK, THEMES, linkedFor } from "./ladder-pairs.js";
 import { lettersFor, RACE_LADDERS } from "./ladder-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, choice, toggle, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { createLadderRoom } from "./ladder-room.js";
 
-dropdown(document.getElementById("level"));
 
 const $ = id => document.getElementById(id);
 const RUN = "ladder:run", PREFS = "ladder:prefs", BESTS = "ladder:bests", BOOKED = "ladder:book", SEEN = "ladder:seen", PARS = "ladder:pars";
@@ -37,14 +36,17 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 // ---------- what you've chosen ----------
 const prefs = { level: "easy", lengths: [4, 5], themes: Object.keys(THEMES), rules: "classic", kind: "random", ...read(PREFS, {}) };
 if (!LEVELS[prefs.level]) prefs.level = "easy";
-if (!RULES[prefs.rules]) prefs.rules = "classic";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The ladders are Classic, of four or five letters, on every
+// theme, whatever an older save chose; the level is the hidden ramp (`ladder:ramp`, up after a ladder climbed at par without a
+// hint; first step the saved level) and the partner plays at its default.
+const OLD_LEVEL = prefs.level;
+Object.assign(prefs, { rules: "classic", lengths: [4, 5], themes: Object.keys(THEMES), cpu: "club" });
+const levelNow = () => (prefs.level = ramp("ladder", Object.keys(LEVELS), { start: OLD_LEVEL }));
+levelNow();
 // the computer: a partner holding half the letters (a rival that raced you was dropped: both old settings are off)
 delete prefs.rival;
 if (prefs.computer !== "partner") prefs.computer = "off";
-if (!PARTNERS[prefs.cpu]) prefs.cpu = "club";
 if (!KINDS[prefs.kind] || prefs.kind === "daily") prefs.kind = "random";
-prefs.lengths = (prefs.lengths || []).filter(n => LENGTHS.includes(n));
-if (!prefs.lengths.length) prefs.lengths = [4, 5];
 const keepPrefs = () => write(PREFS, prefs);
 
 // ---------- the ladder on screen ----------
@@ -134,7 +136,7 @@ const bookDone = () => read(BOOKED, {});
 const bookAt = () => { const d = bookDone(); const i = BOOK.findIndex((_, k) => !d[k]); return i < 0 ? 0 : i; };
 
 /** A new ladder of a kind (today's, random, linked, a chapter of the book), to play solo. */
-async function deal(kind = prefs.kind, { chapter = null, seed = null, level = prefs.level } = {}) {
+async function deal(kind = prefs.kind, { chapter = null, seed = null, level = levelNow() } = {}) {
   const slow = prefs.rules === "grow" && kind !== "daily" && kind !== "book";
   const done = busy(slow ? "Setting out the words" : "Making a ladder", { delay: slow ? 0 : 150 });
   await paint();
@@ -157,7 +159,6 @@ function begin({ kind, P }, run = newRun(P), extra = {}) {
     G.by = [-1];
   }
   cursor = null; typed = ""; message = null; wrong = null;
-  $("level").value = P.level || levelOf(P);
   history.replaceState(null, "", hashFor(G));
   save();
   clockRun();
@@ -339,6 +340,7 @@ function finish() {
   const bests = read(BESTS, {}), k = bestKey(G);
   G.fresh = bests[k] == null || sc < bests[k];
   if (G.fresh) { bests[k] = sc; write(BESTS, bests); }
+  if ((G.kind === "random" || G.kind === "linked") && !G.partner) { levelNow(); ramp.won(over === 0 && !r.hints); levelNow(); }
   if (G.kind === "daily") noteDayTime("ladder", sc, G.P.day);     // the day's first finish counts, the moment it's final
   if (G.kind === "book") { const d = bookDone(); if (!d[G.P.chapter] || sc < d[G.P.chapter].score) { d[G.P.chapter] = { steps: steps(r), par: G.P.par, score: sc }; write(BOOKED, d); } }
   const pars = read(PARS, { now: 0, best: 0 });
@@ -615,17 +617,10 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Ladders", Object.entries(KINDS).filter(([k]) => k !== "daily"), pick, v => { pick = v; openMenu(); }));   // Today's is a button (todayPart)
   todayPart(body, { app: "ladder", play: () => deal("daily"), playing: G?.kind === "daily" && G.P.day === today() && !G.run.done, busy: started() });
-  if (pick === "random" || pick === "linked") content.append(mirror("Level", $("level")));
-  if (pick === "random") content.append(ticks("Letters", LENGTHS.map(n => [n, String(n)]), prefs.lengths, xs => { prefs.lengths = xs.length ? xs : [4, 5]; keepPrefs(); }));
-  if (pick === "linked") content.append(ticks("Themes", Object.entries(THEMES), prefs.themes, xs => { prefs.themes = xs.length ? xs : Object.keys(THEMES); keepPrefs(); }));
   if (pick === "book") content.append(bookList());
   const settings = part(body, "settings");
-  if (pick !== "book") settings.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
-  settings.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
-  if (prefs.computer !== "off") {
-    settings.append(choice("Its level", Object.entries(PARTNERS).map(([k, r]) => [k, r.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
-    if (prefs.computer === "partner") settings.append(line("It holds every other letter of a random or linked Classic ladder, from the next one."));
-  }
+  settings.append(toggle("Computer partner", prefs.computer === "partner", on => { prefs.computer = on ? "partner" : "off"; keepPrefs(); openMenu(); }));
+  if (prefs.computer === "partner") settings.append(line("It holds every other letter of a random or linked Classic ladder, from the next one."));
   const pars = read(PARS, { now: 0, best: 0 }), best = G ? read(BESTS, {})[bestKey(G)] : null;
   part(body, "about").append(
     line(`${G ? `${G.kind === "daily" ? "Today's" : LEVELS[G.P.level || levelOf(G.P)].label}: ${best != null ? `best ${fmt(best)}` : "not climbed yet"}. ` : ""}Clean pars in a row ${pars.now}, most ${pars.best}. A step over par adds ${OVER} s, a hint ${HINT} s.`),
@@ -721,14 +716,6 @@ $("nextBtn").addEventListener("click", () => {
   if (G?.mode !== "solo") { room.again(G); return; }
   if (G.kind === "book" && G.P.chapter < BOOK.length - 1) deal("book", { chapter: G.P.chapter + 1 });
   else deal(G.kind === "daily" ? "random" : G.kind);
-});
-$("level").addEventListener("change", async () => {
-  const level = $("level").value;
-  if (room.on) { room.setLevel(level); return; }
-  prefs.level = level; keepPrefs();
-  if (!G || (G.kind !== "daily" && G.kind !== "book" && level === (G.P.level || levelOf(G.P)))) return;
-  if (await confirmLeave()) deal(G.kind === "linked" ? "linked" : "random", { level });
-  else $("level").value = G.P.level || levelOf(G.P);
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); clearTimeout(partnerTimer); } else { clockRun(); partnerSoon(); room.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) room.resync(); });

@@ -11,6 +11,7 @@ import { PLAYS, KINDS, freshTable, isTable, tidy, teamGuess, teamTry, begin, set
 import { bindSwitcher, APPS } from "./apps.js";
 import { sure } from "./sure.js";
 import "./pwa.js";
+import { ramp } from "./ramp.js";
 import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame writes nothing
 import { roundOver } from "./random.js";
@@ -44,7 +45,7 @@ const list = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")}
 const DEFAULTS = { play: "break", variant: "classic", maker: "fair", cpu: "medium", lock: "medium", aid: "off", pieces: "planets", table: { kind: "break", play: "team", variant: "classic", level: "medium" } };
 let prefs = (() => {
   const p = { ...DEFAULTS, ...read(PREFS, {}) }, t = { ...DEFAULTS.table, ...(p.table || {}) };
-  if (!["break", "duel", "lock"].includes(p.play)) p.play = "break";
+  if (!["break", "cows", "duel", "lock"].includes(p.play)) p.play = "break";
   if (!VARIANTS[p.variant]) p.variant = "classic";
   if (!MAKERS[p.maker]) p.maker = "fair";
   if (!LEVELS[p.cpu]) p.cpu = "medium";
@@ -57,6 +58,15 @@ let prefs = (() => {
   if (!LOCK_LEVELS[t.level]) t.level = "medium";
   return { ...p, table: t };
 })();
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Play is one choice, Break, Bulls and Cows, Duel or Lock. The board is
+// Classic (four pegs; Bulls and Cows its own play), the codemaker is fair, there is no help, the pieces are planets; the duel
+// computer and the lock are the hidden ramp (`bulls:ramp:duel`, `bulls:ramp:lock`; up after a duel won or a lock opened with
+// no hint and no strike, down after a duel lost; first step the saved level).
+if (prefs.play === "break" && prefs.variant === "digits") prefs.play = "cows";
+Object.assign(prefs, { variant: "classic", maker: "fair", aid: "off", pieces: "planets" });
+const OLD = { cpu: prefs.cpu, lock: prefs.lock };
+const cpuNow = () => ramp("bulls", Object.keys(LEVELS), { id: "duel", start: OLD.cpu });
+const lockNow = () => ramp("bulls", Object.keys(LOCK_LEVELS), { id: "lock", start: OLD.lock });
 const keepPrefs = () => write(PREFS, prefs);
 document.body.insertAdjacentHTML("afterbegin", bodySheet());   // the bodies, drawn once; every peg re-uses them
 $("board").insertAdjacentHTML("afterbegin", skyMarkup(matchMedia("(prefers-reduced-motion: reduce)").matches));
@@ -76,13 +86,13 @@ const pegsOf = r => (r.kind === "lock" ? lockFor(r.level, r.seed).p : VARIANTS[r
 function withWork(r) { return { ...r, input: empty(pegsOf(r)), sel: 0, notes: {}, view: "mine" }; }
 /** Whether a game is under way that a new one would leave unfinished. */
 const started = () => !!run && !run.done && (run.kind === "lock" ? run.tries.length > 0 || run.hints > 0 || run.ms > 30000 : run.rows.length > 0);
-function startBreak({ daily = false, variant = prefs.variant, maker = prefs.maker, seed } = {}) {
+function startBreak({ daily = false, variant = prefs.play === "cows" ? "digits" : "classic", maker = prefs.maker, seed } = {}) {
   const day = daily ? today() : null;
   run = withWork({ ...newBreak({ variant: daily ? DAILY_VARIANT : variant, maker, daily, seed: seed ?? (daily ? daySeed(day) : randomSeed()) }), day });
   begun();
 }
-function startDuel({ variant = prefs.variant, level = prefs.cpu, seed = randomSeed() } = {}) { run = withWork(newDuel({ variant, level, seed })); begun(); }
-function startLock({ level = prefs.lock, seed = randomSeed() } = {}) {
+function startDuel({ variant = prefs.variant, level = cpuNow(), seed = randomSeed() } = {}) { run = withWork(newDuel({ variant, level, seed })); begun(); }
+function startLock({ level = lockNow(), seed = randomSeed() } = {}) {
   const deal = () => { run = withWork({ kind: "lock", level, seed, tries: [], strikes: 0, hints: 0, ms: 0, done: false }); begun(); };
   if (LOCK_CACHE.has(`${level}/${seed}`) || !SLOW_LOCKS.has(level)) { deal(); return; }
   // an Expert is one lock in twenty tried, a fraction of a second here and more on a phone: the mark turns meanwhile,
@@ -105,7 +115,7 @@ async function startPicked(how = prefs.play, opts = {}) {
   if (how === "daily") startBreak({ daily: true });
   else if (how === "duel") startDuel(opts);
   else if (how === "lock") startLock(opts);
-  else startBreak(opts);
+  else startBreak(opts);   // Break, or Bulls and Cows
   return true;
 }
 const dayDone = () => read(TODAY, null)?.key === today();
@@ -599,6 +609,7 @@ function tryLock(input) {
     run.score = lockScore(run);
     const all = read(LOCKS, {}), r = all[run.level] || { opened: 0, total: 0, best: null };
     r.opened++; r.total += run.score;
+    if (run.level === lockNow()) ramp.won(!run.hints && !run.strikes);
     if (r.best == null || run.score < r.best) r.best = run.score;
     all[run.level] = r;
     write(LOCKS, all);
@@ -643,6 +654,7 @@ function finishBreak() {
 function finishDuel() {
   const all = read(DUELS, {}), key = `${run.variant}/${run.level}`, r = all[key] || { won: 0, lost: 0, drawn: 0 };
   r[run.done === "won" ? "won" : run.done === "lost" ? "lost" : "drawn"]++;
+  if (run.level === cpuNow()) { if (run.done === "won") ramp.won(true); else if (run.done === "lost") ramp.lost(); }
   all[key] = r;
   write(DUELS, all);
   roundOver("bulls");
@@ -949,21 +961,11 @@ function openMenu() {
   part(body, "play").append(action(run && !run.done ? "New game" : "Play again", () => startPicked(prefs.play), "primary"),
     action("The rules", showRules, "link"));
   const content = part(body, "content");
-  content.append(choice("Play", [["break", "Break"], ["duel", "Duel"], ["lock", "Lock"]], prefs.play, v => { prefs.play = v; keepPrefs(); openMenu(); }));
-  if (prefs.play === "break") {
-    content.append(boardChoice(), choice("Codemaker", Object.entries(MAKERS), prefs.maker, v => { prefs.maker = v; keepPrefs(); }));
-  } else if (prefs.play === "duel") {
-    content.append(boardChoice(), choice("Computer", Object.entries(LEVELS).map(([k, x]) => [k, x.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
-  } else {
-    content.append(choice("Level", Object.entries(LOCK_LEVELS).map(([k, x]) => [k, x.label]), prefs.lock, v => { prefs.lock = v; keepPrefs(); openMenu(); }), line(LOCK_LEVELS[prefs.lock].about));
-  }
-  part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }), piecesChoice());
+  content.append(choice("Play", [["break", "Break"], ["cows", "Bulls and Cows"], ["duel", "Duel"], ["lock", "Lock"]], prefs.play, v => { prefs.play = v; keepPrefs(); }));
   todayPart(body, { done: dayDone(), result: todayWords().replace(/^you /, ""), play: () => startPicked("daily"), playing: run?.kind === "break" && !!run.daily && !run.done });   // startPicked asks before it leaves a game
   part(body, "about").append(line(aboutLine()), action("Copy a link to this game", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-const piecesChoice = () => choice("Pieces", [["planets", "Planets"], ["classic", "Classic"]], prefs.pieces, v => { prefs.pieces = v; keepPrefs(); shieldWas = null; render(); });
-const boardChoice = () => choice("Board", Object.entries(VARIANTS).map(([k, v]) => [k, v.label]), prefs.variant, v => { prefs.variant = v; keepPrefs(); });
 function todayWords() { const t = read(TODAY, null); return t?.key === today() ? (t.v ? `you broke it in ${t.v}` : "you didn't break it") : ""; }
 function aboutLine() {
   if (run?.kind === "lock") { const r = read(LOCKS, {})[run.level]; return r?.opened ? `${LOCK_LEVELS[run.level].label} locks: ${r.opened} opened, best ${fmt(r.best)}, ${fmt(r.total / r.opened)} on average.` : `${LOCK_LEVELS[run.level].label} locks: none opened yet.`; }
@@ -983,7 +985,6 @@ function tableMenu(body) {
       : choice("Level", Object.entries(LOCK_LEVELS).map(([k, x]) => [k, x.label]), t.level, v => set("level", v)));
   const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
   table.append(line(`At the table: ${list(all)}. The choices are for the next game.`), action("Back to solo", backToSolo, "link"));
-  part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }), piecesChoice());
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
