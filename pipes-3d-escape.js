@@ -2,7 +2,11 @@
 // sink wheel's place, turned so that local +x points out of the plate (away from the board). They are driven by the named engine wheel: the escape wheel turns
 // with the sink's (stepped) angle, and the fork and balance follow the same beat counter `b = barrel turns / beat`, one beat being half a swing of the balance
 // and one step of the escape wheel (design section 5, rule 6). An unsolved train rests: the balance stands at its centre and the fork on a banking.
+import { METALS } from "./pipes-3d-model.js";
+
 const TAU = Math.PI * 2;
+/** The metal of the train a sink ends: its wheels' colour by module (rose, gilt, blued), so the instrument reads as part of the train that drives it. */
+const metalOf = r => (METALS[r.m] || METALS[5]).color;
 
 /** The escape wheel's club teeth: n teeth, a long ramp and a short drop, between radii r0 and r1, clockwise on the screen. */
 function escapeOutline(n, r0, r1) {
@@ -17,21 +21,21 @@ const smooth = u => u * u * (3 - 2 * u);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /** The escapement's parts in a group at the origin facing +x: escape wheel at 0, fork pivot at 0.58, balance at 1.15. Returns { group, pose(b, awake, wheelAngleRad) }. */
-function escapementSet(c, scale = 1) {
+function escapementSet(c, scale = 1, metal = 0xd9a949) {
   const { THREE, G, M, mk } = c, g = new THREE.Group();
   const tint = G.tint, slab = G.slab, S = G.shapeOf, C = G.circle;
   const RE = 0.3, PX = 0.58, BX = 1.15, RB = 0.4;
   // escape wheel: 15 club teeth, five windows, a pinion; rotates with the sink
   const wheelG = new THREE.Group(); g.add(wheelG);
   const holes = [C(0.025, 8), ...Array.from({ length: 5 }, (_, i) => { const a0 = i * TAU / 5 + 0.2, a1 = a0 + TAU / 5 - 0.5, w = []; for (let s = 0; s <= 4; s++) { const a = a0 + (a1 - a0) * s / 4; w.push([Math.cos(a) * RE * 0.68, Math.sin(a) * RE * 0.68]); } for (let s = 4; s >= 0; s--) { const a = a0 + (a1 - a0) * s / 4; w.push([Math.cos(a) * RE * 0.36, Math.sin(a) * RE * 0.36]); } return w; })];
-  const ew = slab(S(escapeOutline(15, RE * 0.82, RE), holes), 0.03, 0.005, 1); G.polish(ew, 3); tint(ew, 0xd9a949);
+  const ew = slab(S(escapeOutline(15, RE * 0.82, RE), holes), 0.03, 0.005, 1); G.polish(ew, 3); tint(ew, metal);
   mk(ew, M.parts, wheelG);
   // pallet fork: two arms to ruby pallets either side of the wheel, a tail with a horn towards the balance, a pivot
   const fork = new THREE.Group(); fork.position.x = PX; g.add(fork);
   const arm = sgn => [[0.02, sgn * 0.012], [-0.37 + 0.02, sgn * 0.215], [-0.37 - 0.03, sgn * 0.23], [-0.37 - 0.035, sgn * 0.205], [-0.05, sgn * 0.0]];
   const pallet = sgn => S([[-0.34, sgn * 0.205], [-0.41, sgn * 0.22], [-0.41, sgn * 0.26], [-0.34, sgn * 0.25]]);
   const body = G.merge([slab(S(arm(1)), 0.026, 0.004, 1), slab(S(arm(-1)), 0.026, 0.004, 1), slab(S([[-0.02, -0.02], [0.3, -0.012], [0.32, -0.03], [0.36, -0.03], [0.36, 0.03], [0.32, 0.03], [0.3, 0.012], [-0.02, 0.02]]), 0.026, 0.004, 1), slab(S(C(0.04, 14), [C(0.015, 8)]), 0.04, 0.005, 1)]);
-  G.polish(body, 2); tint(body, 0xc9ced6);
+  G.polish(body, 2); tint(body, metal);
   mk(body, M.parts, fork);
   const stones = G.merge([slab(pallet(1), 0.03, 0.004, 1), slab(pallet(-1), 0.03, 0.004, 1)]); tint(stones, 0xd02a3a); G.polish(stones, 2);
   mk(stones, M.parts, fork, { cast: false });
@@ -40,7 +44,7 @@ function escapementSet(c, scale = 1) {
   const rim = slab(S(C(RB, 40), [C(RB - 0.035, 40)]), 0.034, 0.006, 1);
   const arms = [0, 1, 2].map(i => { const a = i * TAU / 3 + 0.5, cx = Math.cos(a), cz = Math.sin(a), w = 0.022; return slab(S([[-cz * w, cx * w], [cx * (RB - 0.03) - cz * w * 0.6, cz * (RB - 0.03) + cx * w * 0.6], [cx * (RB - 0.03) + cz * w * 0.6, cz * (RB - 0.03) - cx * w * 0.6], [cz * w, -cx * w]]), 0.026, 0.004, 1); });
   const roller = slab(S(C(0.085, 20), [C(0.02, 8)]), 0.05, 0.006, 1);
-  const balAll = G.merge([rim, ...arms, roller]); G.polish(balAll, 2); tint(balAll, 0xd9a949);
+  const balAll = G.merge([rim, ...arms, roller]); G.polish(balAll, 2); tint(balAll, metal);
   const screws = G.merge([0.5, 1.5, 2.5, 3.5].map(q => { const a = q * Math.PI / 2 + 0.3, s = slab(S(C(0.03, 12)), 0.048, 0.008, 1); s.translate(Math.cos(a) * (RB - 0.02), 0, Math.sin(a) * (RB - 0.02)); return s; })); tint(screws, 0xf0c860); G.polish(screws, 2);
   const pin = slab(S(C(0.014, 8)), 0.06, 0.003, 1); pin.translate(-0.07, 0, 0); tint(pin, 0xd02a3a);
   mk(G.merge([balAll, screws, pin]), M.parts, bal);
@@ -67,12 +71,31 @@ function escapementSet(c, scale = 1) {
   };
 }
 
+/** The wheel that drives a sink, drawn on the side the power comes in by (opposite the way the instrument reaches out): larger than the sink's own, of the train's
+ *  metal, meshed with it and turning the other way, so a player can see which side to bring the train to. It lies at the plate (under the layer-1 wheels): a wheel
+ *  laid on that side hides it, and it is only a picture (the engine's sink has one port, on this side). */
+function driverGear(c, group, r, out) {
+  const { THREE, G, P, mk, gearMat } = c, ns = r.n, m = r.m;
+  const nd = Math.max(ns + 4, Math.min(Math.round(ns * 2), Math.floor(120 / m)));
+  const geo = G.wheelGeometry({ n: nd, m, pinion: false }), a = Math.atan2(out[1], out[0]), cAng = a + Math.PI;     // the contact direction, from the sink to this wheel
+  const g = new THREE.Group(); g.position.set(r.wx, 0, r.wz); g.rotation.y = -a; group.add(g);
+  const turn = new THREE.Group(); turn.position.x = -(P.pitchR(ns, m) + P.pitchR(nd, m)); g.add(turn);
+  const body = mk(geo, gearMat[m] || gearMat[5], turn, { cast: false }); body.position.y = 0.005;
+  return {
+    update(cx) {
+      const s = cx.angle(r.id) * P.DEG, d = cAng + Math.PI + Math.PI / nd - (ns / nd) * (s - cAng);          // a tooth of the sink at the contact meets a gap here
+      turn.rotation.y = -d + a;
+      g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
+    },
+  };
+}
+
 /** Escapement on a sink: the escape wheel stands on the sink's arbor, the fork and balance beyond it, out into the margin. */
 export function buildEscapement(c, group, r, out, k) {
   const { THREE, P } = c, g = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g);
-  const set = escapementSet(c, 1);
+  const metal = metalOf(r), set = escapementSet(c, 1, metal), drive = driverGear(c, group, r, out);
   g.add(set.group);
   const base = P.LAYER_Y[r.layer] + P.THICK + 0.03;
   set.group.position.y = base;
@@ -83,6 +106,7 @@ export function buildEscapement(c, group, r, out, k) {
       const awake = cx.awake(k), beat = cx.beat(k), b = awake && beat ? cx.g / beat : 0;
       const kk = set.pose(b, awake, cx.angle(r.id) * P.DEG);
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
+      drive.update(cx);
       if (awake && kk !== lastK) { c.onEvent?.({ type: "tick", train: k, tock: kk % 2 === 1 }); }
       lastK = awake ? kk : -1;
     },
@@ -94,13 +118,13 @@ export function buildTourbillon(c, group, r, out, k) {
   const { THREE, G, M, P, mk } = c, g = new THREE.Group(), cage = new THREE.Group();
   g.position.set(r.wx, 0, r.wz);
   group.add(g); g.add(cage);
-  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, R = 0.56;
-  const low = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), 0xd8dade), up = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), 0xe6e8ec);
+  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, R = 0.56, metal = metalOf(r), drive = driverGear(c, group, r, out);
+  const low = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), metal), up = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), metal);
   G.polish(low, 2); G.polish(up, 2); up.translate(0, 0.3, 0);
-  const posts = G.merge([0, 1, 2].map(i => { const a = i * TAU / 3 + 0.4, p = new THREE.CylinderGeometry(0.034, 0.034, 0.3, 10); p.translate(Math.cos(a) * (R - 0.035), 0.15, Math.sin(a) * (R - 0.035)); G.tint(p, 0xe3b84e); return p.toNonIndexed(); }));
-  const arm = G.tint(G.slab(G.shapeOf([[-R, -0.03], [R, -0.03], [R, 0.03], [-R, 0.03]]), 0.026, 0.004, 1), 0xd8dade); G.polish(arm, 2); arm.translate(0, 0.002, 0);
+  const posts = G.merge([0, 1, 2].map(i => { const a = i * TAU / 3 + 0.4, p = new THREE.CylinderGeometry(0.034, 0.034, 0.3, 10); p.translate(Math.cos(a) * (R - 0.035), 0.15, Math.sin(a) * (R - 0.035)); G.tint(p, metal); return p.toNonIndexed(); }));
+  const arm = G.tint(G.slab(G.shapeOf([[-R, -0.03], [R, -0.03], [R, 0.03], [-R, 0.03]]), 0.026, 0.004, 1), metal); G.polish(arm, 2); arm.translate(0, 0.002, 0);
   mk(G.merge([low, up, posts, arm]), M.parts, cage).position.y = y0;
-  const inner = escapementSet(c, 0.42);
+  const inner = escapementSet(c, 0.42, metal);
   inner.group.position.set(-0.18, y0 + 0.05, 0);
   cage.add(inner.group);
   const stone = mk(G.cabochonGeometry(0.1, 0.075, 0.024), M.rubyLit, g, { cast: false }); stone.position.y = y0 + 0.33;
@@ -112,6 +136,7 @@ export function buildTourbillon(c, group, r, out, k) {
       const awake = cx.awake(k), a = cx.angle(r.id) * P.DEG;
       cage.rotation.y = -a;
       inner.pose(awake ? cx.tMs / 190 : 0, awake, a * 17);
+      drive.update(cx);
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
     },
   };
@@ -123,9 +148,9 @@ export function buildChime(c, group, r, out, goal, k) {
   const { THREE, G, M, P, mk } = c, g = new THREE.Group(), turn = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g); g.add(turn);
-  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, RD = 0.56, NT = 7, step = 0.062;
+  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, RD = 0.56, NT = 7, step = 0.062, metal = metalOf(r), drive = driverGear(c, group, r, out);
   const tipX = i => 0.12 + 0.065 * i + 0.08, tz = i => (i - (NT - 1) / 2) * step;     // tine i's tip over the disc (graded: longer tines are lower notes)
-  const disc = G.tint(G.slab(G.shapeOf(G.circle(RD, 64), [G.circle(0.04, 10)]), 0.04, 0.008, 2), 0xb9bec6); G.polish(disc, 2);
+  const disc = G.tint(G.slab(G.shapeOf(G.circle(RD, 64), [G.circle(0.04, 10)]), 0.04, 0.008, 2), metal); G.polish(disc, 2);
   const tune = Array.isArray(goal?.tune) ? goal.tune : [0, 2, 4, 2, 5, 4, 2, 0, 3, 1, 4, 6, 4, 2, 1, 3];
   const pins = [];
   const alpha = i => Math.atan2(tz(i), tipX(i)), rad = i => Math.hypot(tipX(i), tz(i));
@@ -139,7 +164,7 @@ export function buildChime(c, group, r, out, goal, k) {
   const tines = new THREE.InstancedMesh(G.tint(new THREE.BoxGeometry(1, 0.012, 0.03).toNonIndexed(), 0xffffff), M.parts, NT);
   tines.castShadow = true; tines.frustumCulled = false; g.add(tines);
   for (let i = 0; i < NT; i++) tines.setColorAt(i, new THREE.Color(0.78 - i * 0.02, 0.8 - i * 0.02, 0.84));
-  const base = G.tint(G.slab(G.shapeOf([[-0.12, -0.25], [0.12, -0.25], [0.12, 0.25], [-0.12, 0.25]]), 0.06, 0.008, 1), 0xd8dade); G.polish(base, 2);
+  const base = G.tint(G.slab(G.shapeOf([[-0.12, -0.25], [0.12, -0.25], [0.12, 0.25], [-0.12, 0.25]]), 0.06, 0.008, 1), metal); G.polish(base, 2);
   const bm = mk(base, M.parts, g); bm.position.set(tipX(NT - 1) + 0.28, y0 + 0.02, 0);
   const sc = mk(G.screwGeometry(0.04), M.steel, g, { cast: false }); sc.position.set(tipX(NT - 1) + 0.28, y0 + 0.085, 0.1);
   const sc2 = mk(G.screwGeometry(0.04), M.steel, g, { cast: false }); sc2.position.set(tipX(NT - 1) + 0.28, y0 + 0.085, -0.1);
@@ -153,6 +178,7 @@ export function buildChime(c, group, r, out, goal, k) {
       const a = cx.angle(r.id) * P.DEG, awake = cx.awake(k) || true;
       turn.rotation.y = -cx.angle(r.id) * P.DEG;
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
+      drive.update(cx);
       const dt = Math.max(0, (cx.tMs - tPrev) / 1000); tPrev = cx.tMs;
       for (let i = 0; i < NT; i++) amp[i] *= Math.exp(-dt * 5.5);
       if (awake) tune.forEach((n, s) => {

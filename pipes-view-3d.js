@@ -84,6 +84,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   let w = 1, h = 1, aspect = 1, motion = !reduced(), shown = true, held = false;
   let azH = 0, az = 0, el = P.homeEl(1), zoom = 1, azT = 0, elT = el, zoomT = 1, lookOn = false, ex = 0, exT = 0, focus = null;
   let tx = 0, tz = 0, vx = 0, vz = 0, tgt = [0, 0], dragging = false;
+  // The camera's slide across the plate (two fingers, or the middle button), in world units along the screen's right and up; it eases like the rest of the camera.
+  let panX = 0, panY = 0, panXT = 0, panYT = 0;
   let orbitMemo = { az: 22 * P.DEG, el: P.LOOK_EL, zoom: 1 };
   let turns = [], tMs = 0, runStart = -1, runEnd = Infinity, wake0 = 0, driveOn = false;
   let G_ = [], byId = new Map(), phases = new Map(), sets = new Map(), ghostSets = new Map(), arbors = [], staffs = null, chatB = null, rubyD = null, rubyL = null;
@@ -384,11 +386,21 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     shadowMesh.position.set(-tz * 2.2, -1.1, 0.4 + tx * 2.2);
     if (glassMat?.map) glassMat.map.offset.set(-tz * 1.4, tx * 1.4);
   }
+  /** How far the view may slide: the part of the plate that is out of the frame when zoomed in, and a little over the edge so a corner can be centred. */
+  const panLimit = fH => fH * ((1 - 1 / zoom) + 0.3);
+  const panBy = (dxPx, dyPx) => {
+    const k = 1 / pxPer(), lim = panLimit(P.cameraFor(cols, rows, azT, elT, aspect, exT * 1.3).H);
+    panXT = clamp(panXT - dxPx * k, -lim * aspect, lim * aspect); panYT = clamp(panYT + dyPx * k, -lim, lim);
+    if (!motion) { panX = panXT; panY = panYT; setCamera(); layout(); renderer.render(scene, camera); }
+    wakeLoop();
+  };
   function setCamera() {
     aspect = w / h;
     const f = P.cameraFor(cols, rows, az, el, aspect, ex * 1.3), b = P.basis(az, el), R = 40, H = f.H / zoom;
+    const lim = panLimit(f.H), px = clamp(panX, -lim * aspect, lim * aspect), py = clamp(panY, -lim, lim);
+    const lk = [0, 1, 2].map(i => f.look[i] + b.r[i] * px + b.u[i] * py);
     camera.left = -H * aspect; camera.right = H * aspect; camera.top = H; camera.bottom = -H;
-    camera.position.set(f.look[0] + b.c[0] * R, f.look[1] + b.c[1] * R, f.look[2] + b.c[2] * R);
+    camera.position.set(lk[0] + b.c[0] * R, lk[1] + b.c[1] * R, lk[2] + b.c[2] * R);
     _m.makeBasis(_p.set(...b.r), _s.set(...b.u), _e.set(...b.c));
     camera.quaternion.setFromRotationMatrix(_m);
     _e.set(0, 1, 0); _s.set(1, 1, 1);
@@ -407,7 +419,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   ro.observe(host);
 
   let raf = 0, last = 0, ftimes = [];
-  const camBusy = () => Math.abs(az - azT) > 1e-3 || Math.abs(el - elT) > 1e-3 || Math.abs(zoom - zoomT) > 1e-3 || Math.abs(ex - exT) > 1e-3;
+  const camBusy = () => Math.abs(az - azT) > 1e-3 || Math.abs(el - elT) > 1e-3 || Math.abs(zoom - zoomT) > 1e-3 || Math.abs(ex - exT) > 1e-3 || Math.abs(panX - panXT) > 1e-3 || Math.abs(panY - panYT) > 1e-3;
   const running = () => motion && driveOn && tMs < runEnd + 700;
   const moving = () => running() || camBusy() || tilting() || (frame && G_.some(r => r.jam) && motion) || (parts?.busy?.() && motion);
   function frameFn(ts) {
@@ -426,7 +438,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     }
     stepTilt(dt);
     const k = 1 - Math.pow(0.0004, dt);
-    if (camBusy()) { az += (azT - az) * k; el += (elT - el) * k; zoom += (zoomT - zoom) * k; ex += (exT - ex) * k; if (!camBusy()) { az = azT; el = elT; zoom = zoomT; ex = exT; } setCamera(); glassFade(); }
+    if (camBusy()) { az += (azT - az) * k; el += (elT - el) * k; zoom += (zoomT - zoom) * k; ex += (exT - ex) * k; panX += (panXT - panX) * k; panY += (panYT - panY) * k; if (!camBusy()) { az = azT; el = elT; zoom = zoomT; ex = exT; panX = panXT; panY = panYT; } setCamera(); glassFade(); }
     layout();
     renderer.render(scene, camera);
     // the detail steps down once if the frames are slow, and never back up
@@ -453,8 +465,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     if (on === lookOn) return;
     lookOn = on;
     if (on) { azT = azH + orbitMemo.az; elT = orbitMemo.el; zoomT = orbitMemo.zoom; exT = 1; }
-    else { orbitMemo = { az: azT - azH, el: elT, zoom: zoomT }; azT = azH; elT = P.homeEl(aspect); zoomT = 1; exT = 0; }
-    if (!motion) { az = azT; el = elT; zoom = zoomT; ex = exT; setCamera(); layout(); }
+    else { orbitMemo = { az: azT - azH, el: elT, zoom: zoomT }; azT = azH; elT = P.homeEl(aspect); zoomT = 1; exT = 0; panXT = panYT = 0; }
+    if (!motion) { az = azT; el = elT; zoom = zoomT; ex = exT; panX = panXT; panY = panYT; setCamera(); layout(); }
     shiftBands(on);
     wakeLoop();
   }
@@ -481,12 +493,14 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     return { o: [o3.x, o3.y, o3.z], d: [d3.x, d3.y, d3.z] };
   }
   const pointers = new Map();
-  let drag = null, pinch = null, lastTap = { t: 0, x: 0, y: 0 };
+  let drag = null, pinch = null, mid = null, lastTap = { t: 0, x: 0, y: 0 };      // mid: a pan by the mouse's middle button
   const mine = e => e.target === canvas || e.target === host;
+  host.addEventListener("mousedown", e => { if (e.button === 1 && mine(e)) e.preventDefault(); });         // no autoscroll circle
   host.addEventListener("pointerdown", e => {
+    if (mine(e) && e.pointerType === "mouse" && e.button === 1) { e.preventDefault(); mid = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { host.setPointerCapture(e.pointerId); } catch { /* none */ } view.wake(); return; }
     if (!mine(e) || (e.pointerType === "mouse" && e.button !== 0)) return;
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
-    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoomT }; drag = null; return; }
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoomT, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 }; drag = null; return; }
     const hh = view.hit(e.clientX, e.clientY);
     skipFinish();
     view.wake();
@@ -495,9 +509,13 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ok: lookOn || !hh || hh.kind === "off", on: false, base: [...tgt], az0: azT, el0: elT };
   });
   host.addEventListener("pointermove", e => {
+    if (mid && e.pointerId === mid.id) { panBy(e.clientX - mid.x, e.clientY - mid.y); mid.x = e.clientX; mid.y = e.clientY; return; }
     if (pointers.has(e.pointerId)) pointers.set(e.pointerId, [e.clientX, e.clientY]);
     if (pinch && pointers.size === 2) {
-      const [a, b] = [...pointers.values()]; zoomT = clamp(pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d, 1, P.ORBIT.zoom); if (!motion) { zoom = zoomT; setCamera(); layout(); renderer.render(scene, camera); } wakeLoop(); return;
+      const [a, b] = [...pointers.values()], cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2;
+      zoomT = clamp(pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d, 1, P.ORBIT.zoom); if (!motion) { zoom = zoomT; setCamera(); layout(); renderer.render(scene, camera); }
+      panBy(cx - pinch.cx, cy - pinch.cy); pinch.cx = cx; pinch.cy = cy;      // two fingers moving together carry the view; apart or together they zoom
+      wakeLoop(); return;
     }
     if (!drag || e.pointerId !== drag.id || !drag.ok) return;
     const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
@@ -512,12 +530,13 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     wakeLoop();
   });
   const lift = e => {
+    if (mid && e.pointerId === mid.id) { mid = null; return; }
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
     if (!drag || e.pointerId !== drag.id) return;
     if (!drag.on && lookOn) {                                   // a double tap in Look zooms
       const now = performance.now();
-      if (now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 24) { zoomT = zoomT > 1.2 ? 1 : 1.8; orbitMemo.zoom = zoomT; wakeLoop(); lastTap.t = 0; } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+      if (now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 24) { zoomT = zoomT > 1.2 ? 1 : 1.8; orbitMemo.zoom = zoomT; if (zoomT === 1) panXT = panYT = 0; wakeLoop(); lastTap.t = 0; } else lastTap = { t: now, x: e.clientX, y: e.clientY };
     }
     dragging = false; drag = null;
     wakeLoop();
@@ -601,6 +620,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     get canDeviceTilt() { return typeof DeviceOrientationEvent !== "undefined"; },
     caps: { explode: true, tilt: true },
     setLevel(p) {
+      panX = panXT = panY = panYT = 0;
       plan = { ...p, map: p.map || mapOf(p) }; cols = p.cols; rows = p.rows; P.useMargins(P.marginsFor(p));
       applySkinFirst();
       buildStatics();
@@ -644,10 +664,10 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     get stats() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, detail }; },
     /** For tests: what is drawn, by mesh: [name, instances, triangles each]. */
     census() { const out = []; scene.traverse(o => { if (!o.isMesh || !o.visible) return; const n = o.isInstancedMesh ? o.count : 1; if (!n) return; const g = o.geometry, t = (g.index ? g.index.count : g.attributes.position.count) / 3; out.push([o.geometry.type + (o.material.length ? "[" + o.material.length + "]" : ""), n, Math.round(t)]); }); return out; },
-    get pose() { return { az, el, zoom, tilt: [tx, tz], explode: ex, look: lookOn }; },
+    get pose() { return { az, el, zoom, tilt: [tx, tz], explode: ex, look: lookOn, pan: [panX, panY] }; },
     /** For tests and pictures: set the pose at once (radians; tilt about x and z), with no easing. */
     setPose(o = {}) {
-      if (o.az != null) az = azT = o.az; if (o.el != null) el = elT = o.el; if (o.zoom != null) zoom = zoomT = o.zoom;
+      if (o.az != null) az = azT = o.az; if (o.el != null) el = elT = o.el; if (o.zoom != null) zoom = zoomT = o.zoom; if (o.pan) { panX = panXT = o.pan[0]; panY = panYT = o.pan[1]; }
       if (o.explode != null) ex = exT = o.explode; if (o.tilt) { tx = tgt[0] = o.tilt[0]; tz = tgt[1] = o.tilt[1]; vx = vz = 0; applyTilt(); }
       if (o.look != null) { lookOn = o.look; shiftBands(o.look); }
       setCamera(); glassFade();
