@@ -10,6 +10,7 @@ import { LEVELS, CHAPTERS, BOOKS, sigOf } from "./pipes-gear-book.js";
 import { readRuns, readStars } from "./pipes-gear-keep.js";
 import { createView, drawShape } from "./pipes-view-2d.js";
 import * as F from "./pipes-gear-frac.js";
+import { dailySpec, randomSpec } from "./pipes-gear-daily.js";
 import { sure } from "./sure.js";
 import { tick as tickSound } from "./pipes-sound.js";
 
@@ -20,10 +21,10 @@ const LONG_PRESS = 380, DRAG_PX = 9, LIFT_SQUARES = 1.25;
 /** deps: { $, read, write, toast, frame (a partner's watching frame), openMenu, onSolved, reduced (), sound () } */
 export function createPuzzle(deps) {
   const { $, read, write, toast, frame, openMenu, onSolved, reduced } = deps;
-  const KEY = { run: "pipes:train", stars: "pipes:trainstars" };
+  const KEY = { run: "pipes:train", stars: "pipes:trainstars", daily: "pipes:daily" };
   const indexOf = id => LEVELS.findIndex(l => l.id === id);
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
-  let L = null, laid = [], run = null, index = 0, view = null;
+  let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
   let undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
   let running = false, jamKey = "";
 
@@ -40,12 +41,14 @@ export function createPuzzle(deps) {
   const store = () => { run.laid = E.packLaid(laid); persist(); };
 
   // ---------- the level in hand ----------
-  function open(id, { fresh = false } = {}) {
+  function open(id, { fresh = false, plate = null } = {}) {
     clearTimeout(press?.timer); press = null; drag = null; running = false;
-    index = Math.max(0, indexOf(id));
-    const spec = LEVELS[index];
+    extra = plate;
+    for (const k of Object.keys(saved.runs)) if (/^[rd]\d/.test(k) && !(plate && plate.id === k)) delete saved.runs[k];     // yesterday's and other random plates are not kept
+    index = plate ? -1 : Math.max(0, indexOf(id));
+    spec = plate || LEVELS[index];
     L = E.parseLevel(spec);
-    saved.id = spec.id;
+    if (!plate) saved.id = spec.id;
     let r = saved.runs[spec.id];
     if (!r || r.sig !== sigOf(spec) || fresh) r = saved.runs[spec.id] = { sig: sigOf(spec), laid: {}, sel: null, selRot: null, lifts: 0, hints: 0, solved: 0 };
     run = r;
@@ -57,7 +60,7 @@ export function createPuzzle(deps) {
   const sel = () => (run.sel && (handNow()[run.sel] || 0) > 0 ? run.sel : null);
   const turnable = kind => L.rotate && orientations(kind).length > 1;
   const kindOfKey = key => (key.includes("@") ? E.pieceOf(key).kind : key);
-  const layered = () => LEVELS[index].v && (L.trains.some(t => t.barrel.l !== 1 || t.sink.l !== 1) || Object.keys(L.hand).some(k => shapeOf(kindOfKey(k), 0).layers[1] > 1) || L.cap.some(x => x > 0 && x < 3));
+  const layered = () => spec.v && (L.trains.some(t => t.barrel.l !== 1 || t.sink.l !== 1) || Object.keys(L.hand).some(k => shapeOf(kindOfKey(k), 0).layers[1] > 1) || L.cap.some(x => x > 0 && x < 3));
 
   // ---------- drawing ----------
   function ensureView() {
@@ -125,7 +128,7 @@ export function createPuzzle(deps) {
 
   /** The workings strip: for each train its barrel, the steps that change the speed, the stations and the sink with what it has and wants. */
   function drawWorkings(res) {
-    const box = $("workings"), spec = LEVELS[index];
+    const box = $("workings");
     box.hidden = !spec.v;
     if (!spec.v) return box.replaceChildren();
     const rows = E.workings(L, res).map(t => {
@@ -155,7 +158,7 @@ export function createPuzzle(deps) {
     box.replaceChildren(...rows);
   }
   function drawLayers() {
-    const box = $("layers"), on = !!LEVELS[index].v;
+    const box = $("layers"), on = !!spec.v;
     box.hidden = !on;
     if (!on) return;
     const chips = [];
@@ -182,14 +185,14 @@ export function createPuzzle(deps) {
 
   const WORD = ["clockwise", "counter-clockwise"];
   function textOf(res) {
-    const spec = LEVELS[index], left = res.left;
+    const left = res.left;
     if (run.solved) return `${spec.name} runs · ${STAR.repeat(run.solved)}${HOLLOW.repeat(3 - run.solved)}`;
     if (hint?.wrong?.length) return "The red squares aren't in an answer: lift those pieces";
     if (hint) return hint.done ? "Hint: nothing is left to lay" : "Hint: this piece goes in the dashed square, as drawn";
     if (res.messages.length && res.placed) return res.messages[0];
     if (!res.placed) {
       const ch = CHAPTERS.find(c => c.key === spec.chapter);
-      return LEVELS.findIndex(l => l.chapter === spec.chapter) === index ? `${ch.name}: ${ch.rule}` : `${spec.name}: lay all ${plural(L.total, "piece")}`;
+      return !extra && LEVELS.findIndex(l => l.chapter === spec.chapter) === index ? `${ch.name}: ${ch.rule}` : `${spec.name}: lay all ${plural(L.total, "piece")}`;
     }
     const cur = sel();
     if (left) return `${cur ? `Tap a square for the ${kindName(kindOfKey(cur)).split(",")[0]}${turnable(kindOfKey(cur)) ? " (tap the tile to turn it)" : ""}` : "Pick a piece from the hand"} · ${plural(left, "piece")} to lay`;
@@ -197,7 +200,7 @@ export function createPuzzle(deps) {
   }
   function drawText(res) {
     $("status").textContent = textOf(res);
-    $("stat1Label").textContent = "Level"; $("stat1").textContent = String(index + 1);
+    $("stat1Label").textContent = extra ? (extra.daily ? "Today" : "Random") : "Level"; $("stat1").textContent = extra ? extra.chapter[0].toUpperCase() + extra.chapter.slice(1) : String(index + 1);
     $("stat3Label").textContent = "To lay"; $("stat3").textContent = run.solved ? "✓" : String(res.left);
     $("stat3").className = run.solved ? "met" : "";
     $("scoreLabel").textContent = "Stars";
@@ -211,7 +214,7 @@ export function createPuzzle(deps) {
     $("pzLift").classList.toggle("on", liftMode);
     $("pzUndo").disabled = !undoStack.length;
     $("pzClear").disabled = !res.placed;
-    $("pzNext").textContent = index + 1 < LEVELS.length ? "Next level" : "The levels";
+    $("pzNext").textContent = extra?.random ? "Another plate" : extra ? "The levels" : index + 1 < LEVELS.length ? "Next level" : "The levels";
   }
 
   // ---------- playing ----------
@@ -309,7 +312,8 @@ export function createPuzzle(deps) {
   }
   function solved(res) {
     run.solved = E.starsFor(L, run);
-    if (run.solved > starsOf(L.id)) { stars[L.id] = run.solved; if (!frame) write(KEY.stars, stars); }
+    if (extra?.daily) { const days = read(KEY.daily, {}) || {}; if (!(days[extra.daily] >= run.solved) && !frame) write(KEY.daily, { ...days, [extra.daily]: run.solved }); }
+    else if (!extra && run.solved > starsOf(L.id)) { stars[L.id] = run.solved; if (!frame) write(KEY.stars, stars); }
     store();
     onSolved?.(run.solved);
     if (reduced()) { view.setMotion(false); render(); view.setMotion(true); return; }
@@ -327,9 +331,11 @@ export function createPuzzle(deps) {
     persist();
     render();
   }
-  function again() { if (frame) return; open(L.id, { fresh: true }); render(); }
+  function again() { if (frame) return; open(L.id, { fresh: true, plate: extra }); ensureView(); render(); }
   function next() {
     if (frame) return;
+    if (extra?.random) return void goRandom();
+    if (extra) return go(saved.id);
     if (index + 1 >= LEVELS.length) return openMenu();
     go(LEVELS[index + 1].id);
   }
@@ -338,6 +344,16 @@ export function createPuzzle(deps) {
     ensureView();
     const res = render();
     if (run.solved && res.solved) { view.runNow?.(); }
+  }
+  /** Today's plate (the same for everyone), or a random one. Not kept as the level in hand: the levels come back with the menu. */
+  async function goDaily(day) {
+    const plate = await dailySpec(day);
+    open(plate.id, { plate }); ensureView(); render();
+    if (run.solved) view.runNow?.();
+  }
+  async function goRandom() {
+    const plate = await randomSpec((Math.random() * 1e9) >>> 0, Object.keys(stars).length);
+    open(plate.id, { plate, fresh: true }); ensureView(); render();
   }
   function look() { looking = !looking; hint = null; render(); }
   function toggleLift() { liftMode = !liftMode; render(); }
@@ -481,9 +497,12 @@ export function createPuzzle(deps) {
     pause() { view?.stop?.(); running = false; },
     resume() { if (run?.solved && last?.solved) view?.runNow?.(); },
     resize() { if (last) view?.draw(last); },
-    look, toggleLift, levelList, go, again, next, undo, clear: clearAll, hint: giveHint, tap,
+    look, toggleLift, levelList, go, goDaily, goRandom, again, next, undo, clear: clearAll, hint: giveHint, tap,
     get id() { return saved.id; },
-    get level() { return LEVELS[index]; },
+    get level() { return spec; },
+    get isDaily() { return !!extra?.daily; },
+    get isPlate() { return !!extra; },
+    dailyStars: day => (read(KEY.daily, {}) || {})[day] || 0,
     get index() { return index; },
     get run() { return run; },
     get stars() { return stars; },

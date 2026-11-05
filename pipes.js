@@ -7,8 +7,8 @@ import { createPuzzle } from "./pipes-gear-run.js";
 import { STAR_LIFTS } from "./pipes-gear-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, toggle, action, line, onPause } from "./menu.js";
-import { IN_FRAME } from "./suite.js";           // a partner watching's frame: it writes nothing
+import { part, choice, toggle, action, line, onPause, todayPart } from "./menu.js";
+import { IN_FRAME, today, arrivedForToday } from "./suite.js";           // a partner watching's frame: it writes nothing
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
@@ -70,9 +70,12 @@ function openMenu() {
   body.replaceChildren();
   $("menuDlg").querySelector("h2").textContent = "Menu";
   const game = MODES.length > 1 ? choice("Board", MODES, mode, v => { $("menuDlg").close(); setMode(v); }) : "";
-  const solved = b.run?.solved;
-  part(body, "play").append(action(solved ? "Next level" : "Level again", () => (solved ? b.next() : b.again()), "primary"), action("The rules", showRules, "link"));
-  part(body, "content").append(game, b.levelList(id => { $("menuDlg").close(); b.go(id); }));
+  const solved = b.run?.solved, plate = b.isPlate;
+  part(body, "play").append(action(solved ? (plate ? (b.isDaily ? "The levels" : "Another plate") : "Next level") : plate ? "Plate again" : "Level again", () => (solved ? b.next() : b.again()), "primary"), action("The rules", showRules, "link"));
+  // today's plate is a button, not a mode (Korbi, 4 November 2026): the same plate for everyone, a pool plate turned by the day
+  const day = today(), got = b.dailyStars?.(day) || 0;
+  todayPart(body, { done: got > 0, result: "★".repeat(got), play: () => b.goDaily(day), playing: b.isDaily, back: b.isDaily ? { text: "Back to the levels", fn: () => b.go(b.id) } : null });
+  part(body, "content").append(game, action("A random plate", () => b.goRandom(), "link"), b.levelList(id => { $("menuDlg").close(); b.go(id); }));
   part(body, "settings").append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; if (!IN_FRAME) write(KEY.prefs, prefs); }));
   part(body, "about").append(line(`${b.solvedCount()} of ${b.count} levels solved, ${b.totalStars()} of ${b.count * 3} stars. Three stars: no hint, and hardly a piece taken back up.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -110,3 +113,5 @@ if (!IN_FRAME) for (const k of ["pipes:plan", "pipes:flat", "pipes:deep", "pipes
   if (!IN_FRAME && best && typeof best.score !== "number") try { localStorage.removeItem(KEY.best); } catch { /* private mode */ }
 }
 setMode(prefs.mode);
+// the games screen's tile opens today's plate while it is still to play
+if (arrivedForToday() && !IN_FRAME && cur().goDaily) cur().goDaily(today());

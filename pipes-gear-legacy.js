@@ -5,7 +5,7 @@
 import * as Old from "./pipes-train.js";
 import { LEVELS as OLD_LEVELS, CHAPTERS as OLD_CHAPTERS } from "./pipes-train-levels.js";
 import { pieceStr, SIDE } from "./pipes-gear-engine.js";
-import { mirrorPiece, canonRot } from "./pipes-gear-shapes.js";
+import { mirrorPiece, canonRot, shapeOf, quarter, CELL } from "./pipes-gear-shapes.js";
 
 /** The old kind -> the new kind and its turn. */
 export const OLD_KIND = {
@@ -75,7 +75,23 @@ export function transformLevel(spec, k) {
   return {
     ...spec, cols: w, rows: h, map: grid.map(r => r.join("")),
     trains: spec.trains.map(t => ({ ...t, barrel: { ...t.barrel, c: at(t.barrel.c), side: side(t.barrel.side) }, sink: { ...t.sink, c: at(t.sink.c), side: side(t.sink.side) } })),
-    pins: (spec.pins || []).map(p => { const [kind, rot] = piece(p.kind, p.rot || 0); return { ...p, c: at(p.c), kind, rot }; }),
+    // a pin's goal reads one of its wheels: the same wheel in the turned piece (which may list its wheels the other way round)
+    pins: (spec.pins || []).map(p => {
+      const [kind, rot] = piece(p.kind, p.rot || 0), out = { ...p, c: at(p.c), kind, rot };
+      if (p.goal && p.goal.w) {
+        const was = shapeOf(p.kind, p.rot || 0).wheels[p.goal.w];
+        let [x, y] = [mir ? CELL - was.x : was.x, was.y];
+        [x, y] = quarter([x, y], q);
+        const at2 = shapeOf(kind, rot).wheels.map((w, i) => ({ i, d: w.n === was.n && w.m === was.m && w.l === was.l ? Math.hypot(w.x - x, w.y - y) : 1e9 })).sort((a, b) => a.d - b.d)[0];
+        out.goal = { ...p.goal, w: at2.i };
+      } else if (p.goal && mir) {
+        const was = shapeOf(p.kind, p.rot || 0).wheels[0];
+        let [x, y] = quarter([CELL - was.x, was.y], q);
+        const at2 = shapeOf(kind, rot).wheels.map((w, i) => ({ i, d: w.n === was.n && w.m === was.m && w.l === was.l ? Math.hypot(w.x - x, w.y - y) : 1e9 })).sort((a, b) => a.d - b.d)[0];
+        out.goal = { ...p.goal, w: at2.i };
+      }
+      return out;
+    }),
     clicks: (spec.clicks || []).map(c => ({ ...c, c: at(c.c) })),
     sols: (spec.sols || []).map(s => Object.fromEntries(Object.entries(s).map(([c, p]) => {
       const i = p.lastIndexOf("@"), [kind, rot] = piece(p.slice(0, i), Number(p.slice(i + 1)));

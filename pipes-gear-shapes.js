@@ -183,12 +183,15 @@ export function canonRot(kind, rot) {
  *  kinds that differ only in the order of their wheels. */
 export function mirrorPiece(kind, rot) {
   const p = parseKind(kind), sh = shapeOf(kind, rot);
-  const sig = s => JSON.stringify([s.wheels.map(w => [Math.round(w.x), Math.round(w.y), w.n, w.m, w.l]).sort(), s.ports.map(q => [q.s, s.wheels[q.w].n, s.wheels[q.w].l]).sort()]);
-  const want = sig({ wheels: sh.wheels.map(w => ({ ...w, x: CELL - w.x })), ports: sh.ports.map(q => ({ s: q.s % 2 ? 4 - q.s : q.s, w: q.w })) });
+  // the same wheels (teeth, module, layer) within 3.3 units (an elbow's port wheel sits up to 3 off its edge, which moves a facing pair's distance by under 0.15), and a wheel at each mirrored port
+  const wheels = sh.wheels.map(w => ({ ...w, x: CELL - w.x })), ports = sh.ports.map(q => ({ s: q.s % 2 ? 4 - q.s : q.s, w: wheels[q.w] }));
+  const alike = (v, w) => v.n === w.n && v.m === w.m && v.l === w.l && Math.hypot(v.x - w.x, v.y - w.y) < 3.3;
+  const same = c => c.wheels.length === wheels.length && wheels.every(w => c.wheels.some(v => alike(v, w))) && c.ports.length === ports.length
+    && ports.every(q => c.ports.some(r => r.s === q.s && alike(c.wheels[r.w], q.w)));
   const flipped = p.f === "D" ? [kindId.D(p.m, p.l, p.b, p.a, p.elbow)] : p.f === "T" ? [kindId.T(p.m, p.l, p.c, p.b, p.a, p.elbow)] : [];
   for (const k of [kind, ...flipped]) for (let r = 0; r < 4; r++) {
     const c = shapeOf(k, r);
-    if (c && sig(c) === want) return [k, r];
+    if (c && same(c)) return [k, r];
   }
   throw new Error(`no mirror image of ${kind}@${rot}`);
 }
