@@ -4,7 +4,7 @@
 // and hairspring, pipes-3d-escape.js) and the tourbillon. Every part that turns is driven from a named engine wheel's angle (the view's one clock), never its
 // own: `update(ctx)` is given ctx.angle(gearId) in degrees clockwise, ctx.awake(train), the clock ctx.tMs and the explode ctx.ex.
 // createParts(env) -> { set(plan, frame, byId), update(ctx), tint(skin), busy(), dispose() }.
-import { buildEscapement, buildTourbillon, buildChime } from "./pipes-3d-escape.js";
+import { buildEscapement, buildTourbillon, buildChime, buildDock } from "./pipes-3d-escape.js";
 
 const TAU = Math.PI * 2;
 /** The width of a compact instrument (the fraction of its full size) so that it stays within about its sink's square. */
@@ -195,16 +195,17 @@ export function createParts(env) {
       for (const [k, [r, type, goal]] of sinkOf) {
         // an instrument whose sink is not on the board's edge is built compact, on the sink's own square (its parts drawn narrower, its heights kept)
         const compact = !P.fullSize(p, p.trains[k]) && type !== "date" && !r.ring, before = group.children.length, o = compact ? [0, 0] : outOfTrain(k, r);
-        if (type === "hands" || type === "dial" || type === "seconds") dial(r, di++, o, compact);
-        else if (type === "date" || r.ring) dateRing(r);
-        else if (type === "moon") moon(r, o);
+        const top = P.LAYER_Y[r.layer] + P.THICK;
+        if (type === "hands" || type === "dial" || type === "seconds") { dial(r, di++, o, compact); items.push(buildDock(ctxB, group, r, outOfTrain(k, r), compact ? { twin: top + 0.075, flat: 0.22 } : { reach: 0.45 })); }
+        else if (type === "date" || r.ring) { dateRing(r); { const R = P.pitchR(r.n, r.m), outer = R + (R - P.rootR(r.n, r.m)) + 0.2; items.push(buildDock(ctxB, group, r, outOfTrain(k, r), { drive: false, tab: [outer - 0.25, outer + 0.3] })); } }
+        else if (type === "moon") { moon(r, o); items.push(buildDock(ctxB, group, r, outOfTrain(k, r), compact ? { twin: top + 0.15 } : { reach: 0.38 })); }
         else if (type === "chime") items.push(buildChime(ctxB, group, r, outOfTrain(k, r), goal, k));
         else if (type === "escape") items.push(buildEscapement(ctxB, group, r, outOfTrain(k, r), k));
         else if (type === "tourbillon") items.push(buildTourbillon(ctxB, group, r, outOfTrain(k, r), k));
         if (!compact) continue;
         const sub = new THREE.Group(), S = COMPACT[type] || 0.7;
         sub.position.set(r.wx, type === "hands" || type === "dial" || type === "seconds" ? P.LAYER_Y[r.layer] + P.THICK + 0.04 : 0, r.wz); sub.scale.set(S, 1, S);
-        for (const ch of group.children.slice(before)) { ch.position.x -= r.wx; ch.position.z -= r.wz; sub.add(ch); }
+        for (const ch of group.children.slice(before)) { if (ch.userData.dock) continue; ch.position.x -= r.wx; ch.position.z -= r.wz; sub.add(ch); }
         group.add(sub);
       }
       if (skin) this.tint(skin);

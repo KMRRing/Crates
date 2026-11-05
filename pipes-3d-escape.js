@@ -78,7 +78,7 @@ function driverGear(c, group, r, out) {
   const { THREE, G, P, mk, gearMat } = c, ns = r.n, m = r.m;
   const nd = Math.max(ns + 4, Math.min(Math.round(ns * 2), Math.floor(120 / m)));
   const geo = G.wheelGeometry({ n: nd, m, pinion: false }), a = Math.atan2(out[1], out[0]), cAng = a + Math.PI;     // the contact direction, from the sink to this wheel
-  const g = new THREE.Group(); g.position.set(r.wx, 0, r.wz); g.rotation.y = -a; group.add(g);
+  const g = new THREE.Group(); g.position.set(r.wx, 0, r.wz); g.rotation.y = -a; g.userData.dock = true; group.add(g);     // `dock`: a compact instrument's scaling leaves it alone
   const turn = new THREE.Group(); turn.position.x = -(P.pitchR(ns, m) + P.pitchR(nd, m)); g.add(turn);
   const body = mk(geo, gearMat[m] || gearMat[5], turn, { cast: false }); body.position.y = 0.005;
   return {
@@ -192,6 +192,46 @@ export function buildChime(c, group, r, out, goal, k) {
         q.identity(); tines.setMatrixAt(i, m4.compose(p3, q, s3));
       }
       tines.instanceMatrix.needsUpdate = true;
+    },
+  };
+}
+
+/** What docks a dial, a moon or a date ring to its train, in the train's metal (the sink's module): the same driving wheel as the escapement's on the port side; a flat twin
+ *  of the sink's own wheel over the face when the instrument is compact (its face hides the sink wheel, and the driver would mesh with nothing); a bridge arm from the
+ *  sink's hub, in a collar on its arbor, to the face's rim when the face stands out in the margin. `o`: { twin: height of the twin above the plate, reach: how far the arm runs along `out`, tab: [from, to] radii of a tab
+ *  the other way, drive: false for no driving wheel } Always a picture: the face's own motion works are driven from the sink as before. */
+export function buildDock(c, group, r, out, o = {}) {
+  const { THREE, G, M, P, mk } = c, metal = metalOf(r), drive = o.drive === false ? { update() {} } : driverGear(c, group, r, out);
+  const g = new THREE.Group(), turn = new THREE.Group(), a = Math.atan2(out[1], out[0]);
+  g.position.set(r.wx, 0, r.wz); g.rotation.y = -a; g.userData.dock = true; group.add(g); g.add(turn);
+  const top = P.LAYER_Y[r.layer] + P.THICK;
+  if (o.twin != null) {
+    // an open-work twin: the sink wheel's toothed rim, four spokes and a collar, so the face stays readable through it
+    const root = P.rootR(r.n, r.m), hole = Math.max(0.1, root - 0.07), t = 0.03;
+    const rim = G.slab(G.shapeOf(P.toothOutline(r.n, r.m, 2), [G.circle(hole, 40)]), t, 0.006, 1);
+    const spokes = [0, 1, 2, 3].map(i => { const q = i * Math.PI / 2 + 0.4, cx = Math.cos(q), cz = Math.sin(q), w = 0.03; return G.slab(G.shapeOf([[cx * 0.08 - cz * w, cz * 0.08 + cx * w], [cx * (hole + 0.02) - cz * w, cz * (hole + 0.02) + cx * w], [cx * (hole + 0.02) + cz * w, cz * (hole + 0.02) - cx * w], [cx * 0.08 + cz * w, cz * 0.08 - cx * w]]), t, 0.004, 1); });
+    const hub = G.slab(G.shapeOf(G.circle(0.11, 24), [G.circle(0.045, 12)]), t + 0.012, 0.006, 1);
+    const twin = G.tint(G.merge([rim, ...spokes, hub]), metal); G.polish(twin, 2);
+    mk(twin, M.parts, turn, { cast: false }).position.y = o.twin;
+  }
+  if (o.tab) {                                                  // a tab out of a ring's rim on the side the train comes in by (opposite `out`), tipped with a screw
+    const [r0, r1] = o.tab, w = 0.1, tab = G.tint(G.slab(G.shapeOf([[-r0, -w], [-r1 + w, -w], [-r1 - w, 0], [-r1 + w, w], [-r0, w]]), 0.026, 0.006, 1), metal); G.polish(tab, 2);
+    mk(tab, M.parts, g).position.y = top + 0.075;
+    const sc = mk(G.screwGeometry(0.045), M.steel, g, { cast: false }); sc.position.set(-r1 + 0.02, top + 0.1, 0);
+  }
+  if (o.reach) {
+    const L = o.reach, w = 0.055, arm = G.tint(G.slab(G.shapeOf([[0, -w], [L - w, -w], [L + w, 0], [L - w, w], [0, w]]), 0.026, 0.006, 1), metal); G.polish(arm, 2);
+    const collar = G.tint(G.slab(G.shapeOf(G.circle(0.21, 28), [G.circle(0.165, 24)]), 0.04, 0.008, 1), metal); G.polish(collar, 2);
+    const y = top + 0.012;
+    mk(arm, M.parts, g).position.y = y; mk(collar, M.parts, g).position.y = y - 0.004;
+    const sc = mk(G.screwGeometry(0.045), M.steel, g, { cast: false }); sc.position.set(L - 0.02, y + 0.026, 0);
+  }
+  return {
+    busy: () => true,
+    update(cx) {
+      g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
+      if (o.twin != null) turn.rotation.y = a - cx.angle(r.id) * P.DEG;
+      drive.update(cx);
     },
   };
 }
