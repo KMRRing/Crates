@@ -284,6 +284,8 @@ Open each **CONTESTED** and `(check)` item against the work named. For chapters 
 
 ## 8. Revision: one course or two (recommendation: two)
 
+**Ruling (5 November 2026, Korbi): "split these as you said"** — two courses, "Constitutions and institutions" first, then "Statecraft and strategy". Section 8's option A text stays only as the reason for the choice. Tile names remain open (question 13). With Odds folded into Maths the same day, the live count is 107 now, 106 after the merge and 108 once both new tiles land.
+
 Brief as widened by Korbi (5 November 2026, via the outside review): constitutions, institutions, diplomacy, statecraft and strategy, with significant actors used as case studies in constraint, not as heroes; Clausewitz as a thinker of politics, friction, chance and the link between war and policy, balanced by other traditions.
 
 - **Option A, one course of 60 lessons:** keeps one tile and the Music swap one for one. Against it: 60 lessons is more than twice Art history's 27; the two halves need different questions (institutions have right answers, strategy has defensible readings); a learner who wants the EU's directive clock does not want the culminating point.
