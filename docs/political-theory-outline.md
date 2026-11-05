@@ -1,6 +1,7 @@
 # Structures of power: course outline (stage 1, for Korbi's review)
 
-Status: outline only. No course UI, no code, no changes to `apps.js` or any shared file. Nothing here is a ruling of Korbi's yet. Working name "Political theory" (his word); the content is structures of power, globally and through history, so the tile name is open (question 1).
+Status: outline only. No course UI, no code, no changes to `apps.js` or any shared file. Nothing here is a ruling of Korbi's yet.
+**Second pass (5 November 2026, after an outside review): sections 8 to 14 below supersede the chapter list in section 3 where they differ.** The review's verdict, which I accept: section 3 is a good comparative-government outline but not yet a constitutional-law course, has no statecraft or strategy strand, leaves chapters 3 to 8 thin, and lets the US and EU crowd the rest. Section 8 recommends splitting into two courses; sections 9 and 10 give each course's chapters; 11 lists the additions; 12 the fact checks; 13 the questions; 14 attacks the revision. Working name "Political theory" (his word); the content is structures of power, globally and through history, so the tile name is open (question 1).
 Brief (Korbi, 5 November 2026): replace the Music course (now in the Appendix) with "global and historical political theory"; "structures of power globally currently and historically. A lot of detail on certain structures such as US EU (what is a directive, decision, how are they made; how long does it typically take etc) and significant other regions or structures now and through history."
 Framing rule (as for History of trade): facts about how power is organised and who can do what to whom, not advocacy. Present-day politics: describe the rules and what each side's defenders and critics say, never a verdict. Perishable facts carry a date stamp.
 
@@ -15,7 +16,7 @@ Framing rule (as for History of trade): facts about how power is organised and w
 
 - Chapters 14 and 15 are the declared exception: Korbi asked for depth there.
 - Outside them, no more than a quarter of key facts may have a European or US state as the subject; chapters 3 to 8 contain no European actor except as the other party in a relation (the Ottomans and Venice; the Mongols and Hungary).
-- Every chapter names at least one voice from the place itself (Kautilya, Ibn Khaldun, Confucius, Han Feizi, the Kouroukan Fouga oral charter, Montesquieu's Persian foil is *not* one: use Zhu Xi, al-Mawardi, Nizam al-Mulk, Haudenosaunee speakers recorded at treaty councils).
+- Every chapter names at least one voice from the place itself (Kautilya, Ibn Khaldun, Confucius, Han Feizi, the Kouroukan Fouga oral charter, use Zhu Xi, al-Mawardi, Nizam al-Mulk, Haudenosaunee speakers recorded at treaty councils).
 - Tally per fact by region when the data file is built; the test prints it (as `tests/arthistory.mjs` does for dates).
 
 ## 2. Question styles (one palette)
@@ -89,7 +90,7 @@ Facts:
 1. The caliphate after 632: the first four caliphs chosen by consultation and acclamation; the Umayyads (661) made it dynastic; the Abbasids (750) built a vizierate and a bureaucracy of secretaries.
 2. Shura (consultation) is in the Qur'an (42:38 and 3:159) and has been read as everything from advice to binding assembly. **CONTESTED**, for centuries.
 3. Al-Mawardi (d. 1058) wrote the *Ordinances of Government* defining the caliph's duties; Nizam al-Mulk (d. 1092), the Seljuk vizier, wrote the *Siyasatnama*, a mirror for princes.
-4. Ibn Khaldun (1332 to 1406): the *Muqaddima* explains the rise and fall of dynasties by *asabiyya* (group solidarity), strongest in the desert, which fades in settled luxury over about three generations (he writes four, in a "120-year" life of a dynasty). The most-cited premodern general theory of states.
+4. Ibn Khaldun (1332 to 1406): the *Muqaddima* explains the rise and fall of dynasties by *asabiyya* (group solidarity), strongest in the desert, which fades in settled luxury over about three generations of some 40 years each, a dynasty's life being about 120 years (`check` against Rosenthal). The most-cited premodern general theory of states.
 5. The Mamluk Sultanate (1250 to 1517): rule by a military caste of purchased soldiers; succession by the strongest amir.
 6. The Ottomans (c. 1299 to 1922): the timar system granted revenue to cavalrymen for service; the devshirme levy took Christian boys for the Janissaries and the palace service (**CONTESTED:** numbers and how coercive it was); the millet system gave non-Muslim communities (Orthodox, Armenian, Jewish) their own courts and leaders under the state. The classical view of the millet as a long-standing institution has been revised: it took its familiar form in the 19th-century Tanzimat (Braude).
 7. Qanun: the sultan's own law beside the sharia; Suleiman was "Kanuni" for it.
@@ -198,7 +199,7 @@ Styles: D (constitution extracts), E (index classification), F, I. Reading: Svol
 
 ### 14. The United States in detail
 Goals: the learner can say, for any federal action, who can start it, who can stop it, and how long it typically takes. Six lessons.
-Lesson 14.1, The structure. Constitution (signed 17 September 1787, in force 1789), Articles I to III (Congress, President, courts), the Bill of Rights, 27 amendments (the 27th ratified in 1992 after 202 years). Enumerated powers, the Supremacy Clause, the Tenth Amendment. Congress: House 435 voting members (fixed by statute since 1929), Senate 100. President elected through the Electoral College (538 votes, 270 to win; the national popular-vote loser has won five times: 1824, 1876, 1888, 2000, 2016).
+Lesson 14.1, The structure. Constitution (signed 17 September 1787, in force 1789), Articles I to III (Congress, President, courts), the Bill of Rights, 27 amendments (the 27th ratified in 1992 after 202 years). Enumerated powers, the Supremacy Clause, the Tenth Amendment. Congress: House 435 voting members (fixed by statute since 1929), Senate 100. President elected through the Electoral College (538 votes, 270 to win; the national popular-vote loser has won the presidency in 1876, 1888, 2000 and 2016; 1824 is often added but is **CONTESTED**, as not every state held a popular vote and the House decided it).
 Lesson 14.2, A bill becomes a law (put in order). Introduced by a member; referred to a committee (the real filter: most bills die there); committee hearing and markup; reported to the floor; House Rules Committee sets terms of debate; House passage by simple majority; Senate: no general limit on debate, so ending debate needs cloture, 60 of 100 votes since 1975 (it was two thirds before); the two chambers must pass identical text (by passing one bill, amending, or a conference committee); the President signs, vetoes, or lets ten days (Sundays excepted) pass, and if Congress has adjourned a bill not signed is a pocket veto; a veto is overridden by two thirds in each chamber, which is rare. Exceptions: reconciliation (budget bills with 51 votes in the Senate and limits on content, the Byrd rule), treaties (two thirds of senators present), nominations (simple majority since 2013/2017 for the executive and judiciary).
 Facts, how often: each Congress sees roughly 10,000 or more bills introduced (**data to pull**: the 118th had about 19,000 bills and resolutions, `check`) and a small share becomes law. *Checked:* Pew (15 October 2026): the 119th Congress had enacted 121 public laws by 14 October 2026 (109 substantive, 12 ceremonial), the second-fewest at that point of any Congress in 40 years (the 118th had 106 and 84); Congresses in the 1980s to 2000s averaged about 440 before Election Day.
 Lesson 14.3, The budget clock. Appropriations: 12 bills before 1 October each year, in practice often replaced by continuing resolutions; shutdowns (the longest, 35 days Dec 2018 to Jan 2019; a longer one in autumn 2025 `check`); the debt limit (a statutory ceiling).
@@ -223,13 +224,13 @@ Reading: the TEU and TFEU (consolidated); EUR-Lex "Legal acts" and "Ordinary leg
 Goals: the many other structures, with the same three questions (who starts, who can stop, how long).
 Facts:
 1. The African Union (2002, successor to the OAU): the Assembly of heads of state, the Commission in Addis Ababa, the Peace and Security Council, Agenda 2063; the Constitutive Act's Article 4(h) allows intervention in cases of genocide and war crimes. Regional blocs: ECOWAS (1975), the EAC, SADC, and the AfCFTA (2018/2021), a free trade area covering 54 of 55 AU members (`check`).
-2. ASEAN (1967; 10 members, with Timor-Leste admitted in October 2025 as 11th, `check`): the "ASEAN way" of consensus and non-interference; the charter (2008) gave it legal personality; decisions by consensus, with the "ASEAN minus X" formula in economic matters.
+2. ASEAN (1967; 11 members since Timor-Leste was admitted at the October 2025 summit, confirmed in several news reports of 30 October 2025): the "ASEAN way" of consensus and non-interference; the charter (2008) gave it legal personality; decisions by consensus, with the "ASEAN minus X" formula in economic matters.
 3. Mercosur (1991) and the Andean Community, CELAC, the OAS (1948); USMCA (2020) as a trade treaty with dispute panels but no legislature.
 4. The Arab League (1945), the GCC (1981), the OIC (1969), the Eurasian Economic Union (2015), the Commonwealth (a voluntary association of 56, with no common law).
 5. The United Nations: the Security Council has five permanent members (the US, UK, France, Russia, China) with a veto, and ten elected members for two years; resolutions need 9 votes of 15 and no veto; the General Assembly (193 members) decides by majority (two thirds on important questions) and its resolutions are recommendations. The ICJ, the Secretariat.
 6. The WTO (1995; consensus; the Appellate Body has been unable to hear cases since December 2019 because new members were not appointed, a US position; `check`). The IMF and the World Bank: weighted votes by quota, the US holding about 16.5 percent of the IMF's votes, enough to block an 85 percent decision (`check` current).
 7. Informal clubs: the G7, G20 (since 1999; leaders' level since 2008), BRICS (enlarged in 2024), OPEC and OPEC+ (consensus; a producer cartel, with a meeting cycle every six months). OPEC is relevant to a fuels trader and is treated as a case of a body whose decisions are announced but not enforced.
-8. International courts and law: the ICC (Rome Statute 2002; 125 parties `check`; the US, Russia, China and India are not parties), the International Court of Justice, the Permanent Court of Arbitration; the principle that treaties bind only those who ratify them.
+8. International courts and law: the ICC (Rome Statute in force 2002; the US, Russia, China and India are not parties). **The party count moves**: Burkina Faso, Mali and Niger announced withdrawal in September 2025 and began the formal process in 2026, and Hungary's withdrawal has been reported reversed (search headlines of 2026, not yet read); take the number from the ICC's list on the build date, the International Court of Justice, the Permanent Court of Arbitration; the principle that treaties bind only those who ratify them.
 Styles: A, C, G (the veto: which actors can block), H, I. Reading: Acharya, Archer (International Organizations), Weiss (What's Wrong with the UN), Bradford, Mansfield and Milner, Slaughter, Hurd, Cooper (Getting past the Stalemate).
 
 ### 17. Comparing: how long, who can stop it, what survives
@@ -279,3 +280,155 @@ Open each **CONTESTED** and `(check)` item against the work named. For chapters 
 7. **Universal or personal?** As for History of trade: a public course (universal subject) or in the Include setting.
 8. **Fuels field:** chapter 15's worked case is the Renewable Energy Directive, and chapter 16 treats OPEC. Keep, or keep the course clear of your own desk's field?
 9. **Pictures:** open-access museum images, maps and diagrams of procedures (the diagrams of the two legislative paths are the course's own drawings).
+
+
+## 8. Revision: one course or two (recommendation: two)
+
+Brief as widened by Korbi (5 November 2026, via the outside review): constitutions, institutions, diplomacy, statecraft and strategy, with significant actors used as case studies in constraint, not as heroes; Clausewitz as a thinker of politics, friction, chance and the link between war and policy, balanced by other traditions.
+
+- **Option A, one course of 60 lessons:** keeps one tile and the Music swap one for one. Against it: 60 lessons is more than twice Art history's 27; the two halves need different questions (institutions have right answers, strategy has defensible readings); a learner who wants the EU's directive clock does not want the culminating point.
+- **Option B, two courses of about 45 lessons each:** **Constitutions and institutions** and **Statecraft and strategy**. Each fits the suite's course size, each has one question palette, each can ship alone. Cost: a second tile (the live count goes 107, then 108, then 109) and Korbi's choice to give up a slot.
+- **Recommendation: B**, built in order: Constitutions first (it is the original brief and its US and EU parts are already researched), Statecraft second. If Korbi wants one tile, merge by cutting section 9's chapters 6 and 8 to half and section 10's chapters 6 and 7 to half; the list of cuts is in section 14.
+- **Music:** already in the Appendix. Musical literacy survives where the suite already carries it: composers and movements as Almanac stars and Order period decks, instrument lots in Crates, audio in Punt topics. A small ear-training mode is a separate idea and not part of this course.
+- **Tiles:** "Constitutions" (door `constitutions.html`) and "Statecraft". Names are open (question 1).
+
+## 9. Course 1: Constitutions and institutions (about 45 lessons)
+
+Principle: a constitutional-law spine first, then a world tour of cases that uses it. Lesson counts in brackets.
+
+1. **What a constitution does (4).** Constituent power (who may make a constitution) versus constituted power; codified, uncodified (UK, New Zealand, Israel's Basic Laws) and mixed; amendment and entrenchment (US Article V, Germany's eternity clause Article 79(3), India's basic structure doctrine, France's 1958 text, Switzerland's mandatory referendum); convention versus law (the UK's Salisbury convention; the US two-term custom before 1951); constitutional identity (a court's claim that some core cannot be amended).
+2. **Separating, fusing and checking (3).** Separation (US) versus fusion (UK, most parliaments); parliamentary sovereignty and its limits; judicial review in four models (US, Kelsen's constitutional court, Commonwealth dialogue models, no review); basic structure (Kesavananda Bharati 1973); who guards the guardians (appointment, term, jurisdiction-stripping).
+3. **Rights and emergencies (3).** Rights catalogues (negative, positive, social); limits and proportionality (Germany, Canada, South Africa, the European Convention); emergency powers (Weimar Article 48, France's Article 16, India's Articles 352 and 356, Turkey 2016, the US National Emergencies Act of 1976), sunset clauses; impeachment and removal (US, Brazil 2016, South Korea 2017 and 2025), dissolution (the UK's Fixed-term Parliaments Act 2011 and its repeal in 2022), succession (monarchy, vice-presidency, interim rules).
+4. **Where power is divided (3).** Federal (US, Germany, India, Nigeria, Brazil, Canada, Australia), unitary (France, Japan, Turkey), devolved (UK), consociational power-sharing (Lebanon, Belgium, Northern Ireland, Bosnia); local government and subnational constitutions (US states, German Länder, Swiss cantons).
+5. **The regime typology (3).** Parliamentary, presidential, semi-presidential, directorial (Switzerland's Federal Council), assembly government, constitutional monarchy; military rule, one-party, dominant-party, competitive-authoritarian, hybrid, theocratic, transitional; where the indices disagree (V-Dem, Freedom House, Polity). Name-the-form questions live here.
+6. **Old republics and city-states (3).** Athens, Sparta, the Roman Republic; Venice, the Dutch Republic, the Swiss Confederacy, the Polish-Lithuanian Commonwealth (a "republic" of nobles with an elected king and the *liberum veto*). Material from section 3 chapters 2 and 9, cut to constitutional questions: who could propose, who could veto, how was a decision enforced.
+7. **Imperial bureaucracies (3).** China (Mandate, Legalist and Confucian rule, the examinations), the Roman principate, the Mughal and Ottoman systems (mansabdari, timar, millet). Question: how did the centre control its agents.
+8. **Law and administration beyond Europe (3).** Islamic legal and administrative traditions (the caliphate, shura, qadi and mufti, Ibn Khaldun); Persia before and after Islam (Achaemenid satraps, the Sasanian and the Abbasid inheritance); South Asia beyond the Arthashastra (Ashoka, village assemblies, Mughal revenue).
+9. **Japan, Korea and Southeast Asia (3, new).** Japan before 1603 (the Yamato court, the shogunate from 1185, the Sengoku warring states) and the Tokugawa bakuhan system; Korea's Joseon (a bureaucratic state with examinations and a censorate, the 1392 to 1910 period); the mandala states of Southeast Asia (Srivijaya, Angkor, Majapahit: authority as circles of tribute, not borders).
+10. **Africa, the Americas, the steppe (3).** Kouroukan Fouga and Mali, Asante, Igbo systems, Ethiopia; the Haudenosaunee, Aztec and Inca systems, the Mississippian world (Cahokia), post-independence Latin American constitutions; the Mongol quriltai and decimal system, Central Asian khanates.
+11. **The United States (3).** Structure and the bill-to-law path with cloture; the executive, the budget and rulemaking (figures in section 3 chapter 14); courts, federalism and the end of Chevron deference. Cut from six lessons to three; the ordering and "how long" questions stay.
+12. **The European Union (4).** Institutions and competences; the five instruments of Article 288; the ordinary legislative procedure and its clock; delegated and implementing acts, enforcement and the Renewable Energy Directive III worked case. Kept at four because Korbi asked for the detail.
+13. **Westminster and its relatives (2).** The UK (uncodified, parliamentary sovereignty, devolution), Canada and Australia (Westminster with federalism), India (parliamentary federalism with a basic structure), with the Commonwealth.
+14. **Germany, France, Japan (2).** Germany's Basic Law, militant democracy and the constructive vote of no confidence; France's semi-presidential Fifth Republic and cohabitation; Japan's constitution of 1947 and its Article 9 (peace clause) with the reinterpretation debate.
+15. **China, Russia, Singapore (2).** The Party-state and democratic centralism; Russian super-presidentialism (1993 constitution, the 2020 amendments); Singapore's dominant-party constitutionalism. Facts and structure, not verdicts.
+16. **Iran, Turkey, Egypt, Pakistan (2).** Iran's theocratic republic and its elected and unelected layers; Turkey's presidential shift (2017 referendum); Egypt's military-backed constitutions; Pakistan's judiciary and the army.
+17. **Brazil, South Africa, Nigeria, Indonesia, Malaysia (2).** Coalition presidentialism; South Africa's 1996 constitution and the Constitutional Court; Nigeria's federalism and its military legacy; Indonesia's post-1998 amendments; Malaysia's monarchy rotating among nine rulers and its federal structure.
+18. **Beyond the state (2).** The UN, the AU, ASEAN, the WTO, the ICC as constitutional orders without a single people; the EU as a constitutional order without one demos (Maastricht judgments, Costa v ENEL).
+19. **Comparison and capstone (3).** The same rule traced through five systems; the veto-player count; what outlasts a regime.
+
+Total: 4+3+3+3+3+3+3+3+3+3+3+4+2+2+2+2+2+2+3 = 51. To land at 45, cut lessons 6 to 10 to two each (history gets 10 instead of 15) and merge 13 and 14. Section 14 lists the choice.
+
+## 10. Course 2: Statecraft and strategy (about 45 lessons)
+
+Principle: organised around problems of power, not around famous people. Every thinker is a tool, every actor a case of constraint. The eight questions asked of every case: what was the problem; what constrained the actor; what options existed; what did they choose; which institutions mattered; what was luck; what was the outcome; what do historians dispute.
+
+1. **The tools of statecraft (4).** Coercion, inducement and persuasion; hard, soft and "smart" power (Nye; the labels are contested as analysis); sanctions, aid, investment, export controls; intelligence, deception and propaganda; legitimacy, prestige, honour and ideology.
+2. **Diplomacy in practice (5).** Envoys and immunity (Greek proxenoi, Roman fetial priests, Islamic embassies, the Mongol envoy protected by the yam, the Italian resident ambassador from the 15th century); Westphalian congresses, the Concert of Europe, summits, backchannels and Track II; recognition, treaties and ratification (domestic veto players: the US Senate's two-thirds, referendums); mediation, arbitration and adjudication (the Alabama claims 1872, the ICJ); the UN Security Council, General Assembly and Secretary-General.
+3. **Tribute, vassalage and neutrality (3).** The Chinese tributary system (kowtow, gifts, investiture); Ottoman capitulations and vassal states; Swiss and other neutrality; alliance formation and the commitment problem (NATO Article 5 as an obligation to "such action as it deems necessary").
+4. **Thinkers of strategy (5).** Thucydides (fear, honour and interest; the Melian dialogue; the claim that he teaches realism is a reading, **CONTESTED**); Sun Tzu (winning without fighting; text and date contested, Warring States composition by a school); Kautilya (the mandala and six policies); Machiavelli (virtù and fortuna, the prince as constrained by the people and the nobles); Clausewitz in two lessons, below.
+5. **Clausewitz (2, inside 4).** Lesson one: war as "continuation of politics by other means" (the formulation is a summary of a longer argument; he also calls war a chameleon); the "remarkable trinity" of passion, chance and reason, mapped to people, army and government, and not three social groups as popular summaries say; friction and fog; the culminating point of the attack and of victory; centre of gravity (a hotly debated term). Lesson two: what he did not say (a formula; a claim that all war is total; that policy must always dominate); the 1832 posthumous *On War* is unfinished and Book 8 is a late revision; critics (Keegan on culture, Van Creveld on non-state war) and defenders (Echevarria, Strachan); his Prussian context (Jena 1806).
+6. **War and its ways (5).** Ends, ways and means; attrition versus manoeuvre (Delbrück's two strategies); theory of victory; sea power (Mahan's concentration and Corbett's sea control and limited war, with the contrast); blockade, commerce raiding and amphibious war; air power and its claims (Douhet, Pape's critique); guerrilla war and counterinsurgency (Mao's three stages, the Algerian war, Galula); proxy war.
+7. **Deterrence and the nuclear age (4).** Deterrence and compellence (Schelling's *Arms and Influence*); escalation ladders; the Kennan containment telegram of 1946 and its later regrets; mutually assured destruction, second-strike, the Cuban Missile Crisis of 1962 as a bargaining case; alliance management and extended deterrence.
+8. **Economy, information and new domains (3).** Economic statecraft and its limits; information warfare; cyber and space as domains with no settled doctrine (facts dated).
+9. **Empire, state-building and revolution (4).** Imperial administration and co-optation; repression and emergency rule; nation-building and civil-military relations; revolutionary strategy (Lenin's vanguard, Mao's protracted war, Gandhi's non-cooperation, Algeria) and decolonisation.
+10. **Actors inside constraints (8 case lessons, listed below).**
+11. **Capstone (2).** Compare two cases on the eight questions; the mixed gauntlet.
+
+Count: 4+5+3+5+0 (inside 4)+5+4+3+4+8+2 = 43.
+
+**Case studies (pick 8 of 16; each is one lesson, each answers the eight questions).**
+- Pericles and Alcibiades: a democracy's empire and its overreach (Sicily 415 to 413 BCE).
+- Augustus: dismantling a republic while keeping its offices.
+- Cao Cao and Zhuge Liang: legitimacy and a failing coalition after the Han.
+- Saladin: coalition-building, reputation and diplomacy among Muslim and Frankish rulers.
+- Ögedei and Kublai: succession and administration after Chinggis.
+- Talleyrand, Metternich and Castlereagh at Vienna 1814 to 1815: how a defeated state returned to the table.
+- Bismarck: alliance management and the limits of a system that depended on one man.
+- Lenin to Gorbachev as a sequence on the party-state, terror, reform and collapse.
+- Mao, Zhou Enlai and Deng: revolution, chaos, reform.
+- Nehru, Nasser, Sukarno and Tito: non-alignment and prestige.
+- Lee Kuan Yew, Park Chung-hee, Suharto: developmental authoritarianism (one lesson, with the economic record as contested).
+- Mandela and de Klerk: the 1990 to 1996 transition and the constitutional settlement.
+- Menelik II, Samori Touré, Cetshwayo, Shivaji, Nzinga: resistance, modernisation and statecraft outside Europe.
+- Churchill, Roosevelt, Truman, Attlee: total war and the postwar order.
+- Frederick II, Maria Theresa, Joseph II: reform and survival under attack.
+- Ivan III, Peter I, Catherine II: centralisation and westernisation in a continental state.
+Rule: no more than two Western cases among the eight; none presented as a hero. Every case shows a decision the actor could not take or a thing luck did.
+
+## 11. Lesson-level additions (what to add, beyond sections 9 and 10)
+
+Core unless marked. Format: lesson, bullets, question style, verification note.
+
+- **Constituent power and amendment (core).** Sieyès and the idea that a nation makes a constitution; the US convention exceeded its mandate in 1787; Germany's 1949 Basic Law as a provisional text; India's 105 amendments in the 75 years to 2025 (`check`); the amendment-rule spectrum from Britain's ordinary law to Article V's three-fourths of states. Styles: B (Article V steps), E, G. Verify: the Article V text; the count of amendments at the build date.
+- **Emergency powers (core).** Weimar Article 48 and its use from 1930; the Roman dictator, bounded to six months; India's 1975 to 1977 Emergency; sunset and review rules. Styles: D, F, G. Verify: dates in the Weimar record and India's 1975 proclamation (25 June 1975).
+- **Basic structure (core).** *Kesavananda Bharati v. State of Kerala* (1973), decided 7 to 6; Germany's Article 79(3); a court's claim over amendments is itself contested. Style: E. Verify: the 7 to 6 vote.
+- **Consociationalism (enrichment).** Lijphart's four features (grand coalition, mutual veto, proportionality, segmental autonomy); Lebanon's confessional quotas, Belgium, Northern Ireland's 1998 Agreement; critics argue it freezes divisions. Styles: C, I.
+- **Persia (core).** Achaemenid satraps and the royal road; Sasanian state religion and its administrators; the Abbasid takeover of Persian bureaucratic models; Safavid Shi'ism. Style: D, A. Verify: dates in Frye or Daryaee.
+- **Japan before 1603 (core).** The Taika reforms 645 to 649 (Chinese-style law), the Heian regency, the Kamakura shogunate (1185 or 1192, **CONTESTED**), the Sengoku wars, Hideyoshi's sword hunt of 1588. Style: B, E.
+- **Southeast Asian mandalas (enrichment).** Wolters's mandala concept; authority measured by tribute from circles of rulers; the model fits poorly where a state kept borders (Vietnam). Style: E.
+- **Cahokia and North America (enrichment).** Population contested (about 10,000 to 20,000); a city without clear evidence of writing; decline by about 1350 contested. Style: E.
+- **Thucydides and Melos (core).** The Melian dialogue as text; why it is read as realism and why others read it as a warning about Athenian hubris; the plague. Style: D, E.
+- **Sun Tzu and Kautilya compared (core).** "The supreme art is to subdue the enemy without fighting" versus the six measures of foreign policy; both are books for a ruler with advisers. Style: C, E.
+- **Mahan and Corbett (core).** Command of the sea through decisive battle versus control of communications and limited war; their influence on the Kaiser's fleet versus Britain's blockade. Style: C, F.
+- **Mao (core).** *On Protracted War* (1938): defence, stalemate, counter-offensive; the claim is about political mobilisation as much as arms. Style: B.
+- **Schelling and Kennan (core).** The credibility of threats, commitment, "the threat that leaves something to chance"; Kennan's containment and his later objection to the militarised version. Styles: C, E.
+- **Treaty ratification (core).** US Senate two-thirds; the Treaty of Versailles vote of 1919 and 1920; the EU's mixed agreements needing all national parliaments (the Wallonia veto on CETA, 2016). Style: G.
+
+## 12. Fact checks done and still owed (second pass)
+
+Checked on 5 November 2026 by opening the source or reading a search result's title only (marked "title only" where I did not read the text):
+
+| Claim | Status | Action |
+|---|---|---|
+| Second reading limits: three months per institution, plus one | Checked: Council's OLP page | none |
+| QMV: 55% of states and 65% of population | Checked: Council's comitology page (in the committee context); the treaty rule for Council votes is the same, **verify in TEU Article 16(4)** | confirm wording from the treaty |
+| Over 85% of laws agreed at first or early second reading | Checked: Council | none |
+| EU proposal to publication: 24 months (2014 to 19), 25 (2019 to 24) | Checked: Clifford Chance | date-stamp |
+| Delegated acts: two months to object, extendable | Checked: Council | none |
+| Article 288 instruments | **Not verified:** EUR-Lex returned no text | read the Treaty |
+| Typical transposition period 18 to 24 months | **Not verified** | take the range from a Commission note on transposition; do not ask as an exact number |
+| Renewable Energy Directive III: proposal 14 July 2021, directive of 18 October 2023, transposition 21 May 2025 | Directive number and date seen in a search result; proposal date and transposition deadline recalled | check on EUR-Lex |
+| Conciliation unused since the mid 2010s | Council page: none in 2014 to 2016; later terms **not verified** | check Parliament's activity reports |
+| US rulemaking: 30-day comment (at least), 30-day delay, OIRA review, CRA | Checked: CRS IF10003 | none |
+| Rulemaking median about 12, mean about 18 months | Checked: a summary of the Yackees' study (older data, 1990s to 2000s) | stamp as dated; **may not fit major rules** |
+| 119th Congress: 121 laws by 14 October 2026 | Checked: Pew | pull again on the build date |
+| Chevron overruled by *Loper Bright* (2024) | Recalled, high confidence | verify the decision date (28 June 2024) |
+| Electoral College: 538 votes, 270 to win | Recalled, certain | none |
+| Popular-vote loser winning: four clear cases, 1824 contested | Corrected above | none |
+| Autumn 2025 shutdown length | Recalled (about 43 days); outline says "longer than 35 days `check`" | confirm |
+| Politburo 24 members, Standing Committee 7 (20th, from October 2022) | Search results (title only) agree; the 21st Congress is due in 2027 | stamp |
+| ASEAN: 11 members from October 2025 | Checked: several news reports | stamp |
+| ICC parties | Count unstable: three Sahel withdrawals (2025 to 2026) and a reported Hungarian reversal (title only) | pull the list on the build date; no number in the outline |
+| WTO Appellate Body paralysed since December 2019; MPIA as workaround | Search results (title only) agree the Body is still paralysed in 2026 | verify at build |
+| IMF: US about 16.5% of votes | Recalled | check the IMF's table at build |
+| Kouroukan Fouga date, Yassa, Westphalia, Iroquois influence | Marked CONTESTED already | keep as style E |
+
+## 13. Ten sample questions
+
+1. **Ordering (EU/US procedure).** Put in order: Commission proposal; Parliament first-reading position; Council adopts the same text; signature and publication in the Official Journal. (Then a second version for the US: committee markup, House passage, cloture vote, signature.)
+2. **Matching (instruments).** Match each to its effect: regulation, directive, decision addressed to a firm, recommendation. Answers: binding and directly applicable; binding as to result and needs transposition; binding on its addressee only; not binding.
+3. **Veto players.** A treaty needs ratification. In which system can a referendum in a single constituent country block it for all? (EU mixed agreements, with Wallonia's 2016 veto as the case.) Options are as long and specific as the right one.
+4. **Defensible reading.** Which is the best-supported statement about the Westphalian settlement of 1648? One saying it created the sovereign state system; one saying it settled a war in the Empire and the sovereignty story came later; one saying it was a purely religious treaty; one saying it created the first international organisation. Answer text names who argues each.
+5. **Map tap.** Tap Hamburg, Lübeck and Bruges as the three posts named by a Hanseatic letter. (Or: tap the city of the Congress of Vienna.)
+6. **How long.** From the Commission's proposal to publication of an average EU act in 2019 to 2024: under 6, 6 to 12, 12 to 24, over 24 months? Answer: about 25 months on average (Clifford Chance), with a range of 2 to 51.
+7. **Clausewitz.** "War is the continuation of politics by other means" is best read as: (a) war should always be total; (b) war is a tool whose purpose and limits come from political aims and whose course is shaped by friction and chance; (c) generals should never obey governments; (d) war is a mere technical matter. Answer (b); the text names the trinity and friction.
+8. **Non-European statecraft.** Which description fits the Chinese tributary system best? (Rulers sent envoys, performed the ritual and received gifts and investiture, and trade followed on the court's terms; this is a description that historians also qualify as an idealised picture, Fairbank versus Perdue.)
+9. **Constitutional law.** *Kesavananda Bharati* (1973) held that Parliament may amend the constitution but not: (a) change any article; (b) alter its basic structure; (c) amend fundamental rights at all; (d) amend the preamble only. Answer (b); the note records the 7 to 6 vote and that the doctrine is argued.
+10. **Regime type.** The head of government is chosen by the legislature and can be dismissed by it; the head of state is a hereditary monarch with symbolic duties. Name it. Answer: constitutional monarchy within a parliamentary system. (A second version: a directly elected president and a prime minister who needs the parliament's confidence is semi-presidential.)
+
+## 14. Attack on the revision
+
+- **Still Eurocentric?** Course 1 chapters 11 to 14 (US, EU, Westminster, Germany, France) are 11 lessons of 45, about a quarter, which fits the rule; but the first six "foundation" lessons draw their examples mostly from Europe and the US. Fix: each foundation lesson carries one non-Western case (India's basic structure and Japan's Article 9 are already in).
+- **Too elite and too male?** Constitutions and states are written by elites; ordinary people appear mostly as electorates. Add social moments: the Athenian assembly's makeup, a Roman plebeian secession, the Chinese Taiping revolt, Indian village assemblies, women's suffrage dates, the Swiss Landsgemeinde, indigenous claims under constitutions (Waitangi, Canada's section 35). Case studies in Course 2 are overwhelmingly male; add Nzinga and Maria Theresa (already), Empress Dowager Cixi, Elizabeth I, Indira Gandhi, Golda Meir, Angela Merkel as a constrained decision-maker (one pair of lessons).
+- **Too state-centric and war-centric?** Course 2 is mostly states and armies. Add one lesson on non-state actors: merchant companies (EIC, the Hanse), churches, NGOs, rebel governance, and one on civil resistance (Chenoweth and Stephan's study; its sample and conclusions are argued).
+- **Great-actor causation.** The eight-question template guards against it; test: a case lesson fails review if its questions can be answered without naming a constraint.
+- **Hard to assess with multiple choice.** Defensible-reading and constraint questions are weak where the options are all arguable. Use ordering, matching and "which of these is not a constraint they faced". Mark every such item with a source line and let the learner see the dispute afterwards. Cut any question that cannot be answered from the lesson's text.
+- **What to cut to land at 45:** Course 1: merge Westminster with Germany and France (one lesson each country group), cut the history block (lessons 6 to 10) from 15 to 10, and keep US at three. Course 2: cut cases from eight to six if time is short, and fold "new domains" into deterrence.
+- **What goes to the knowledge base instead of a lesson:** entities for institutions, constitutions, rulers and treaties (with dates and places), the instruments and their effects, the country-by-regime table, the thinkers and their works. Lessons read them by id; Chart and Punt's learning modes reuse them. `kb/` is a shared file, so the move waits until Korbi has ruled on this outline.
+
+## 15. Open questions added by the second pass
+
+12. One course or two? (Section 8 recommends two, built Constitutions first.)
+13. Is "Constitutions" the right tile name, with "Statecraft" for the second, or do you prefer one name that covers both?
+14. Is a lesson on living political leaders acceptable (Merkel, Xi), or only historical actors (the outline's cases stop at 1996)? Neutral wording would be required either way.
+15. Source depth: for Clausewitz and the war lessons, should the questions use primary text extracts (from *On War*, Howard and Paret's translation is in copyright; the older Graham translation of 1873 is public domain) or paraphrase?
