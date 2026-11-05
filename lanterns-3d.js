@@ -20,6 +20,7 @@ const DEG = Math.PI / 180;
 const FOV = 58 * DEG, MIN_EL = 20 * DEG, MAX_EL = 82 * DEG, HOME_AZ = 0;
 const MAX_ZOOM = 3.2;
 const HOLD = 430, SLIP = 9;                      // ms a press takes to dot a cell (as on the flat board), and the pixels a finger may stray and still tap
+const SPILL = 2.6;                               // cells a beam that runs off the board goes on over the water, thinning out
 const SIDE = 0.9;                                // cells of water kept in the frame beside the board, so the strait is seen
 const SLAB = 0.12, TOWER = 0.95;                 // the shoal's thickness, and a tower's height
 const LANE0 = 1.0, LANE_GAP = 0.9;   // ships keep to lanes beside the board, this far from its edge
@@ -71,6 +72,19 @@ export function createModel(host, opts = {}) {
     lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }), beam: glass(0xffe9a0, 0.3), comet: glass(0xfff6d0, 0.55),
     cliff: solid({ color: 0xffffff, vertexColors: true, roughness: 0.95 }), hull: solid({ color: 0x5b3e2d }), sail: solid({ color: 0xffffff, side: 2 }),
   };
+  // a beam that runs off the board goes on over the water and thins out: its opacity falls with the distance past the board's edge
+  // (a few strips of falling opacity would band). The edge is the board's half-width, set with each puzzle.
+  const FADE = { uEdge: { value: 6 }, uSpan: { value: SPILL } };
+  for (const m of [M.beam, M.comet]) {
+    m.customProgramCacheKey = () => "lanterns-spill";
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uEdge = FADE.uEdge; sh.uniforms.uSpan = FADE.uSpan;
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vPast;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\nvec4 wp = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nwp = instanceMatrix * wp;\n#endif\nvPast = (modelMatrix * wp).xz;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vPast;\nuniform float uEdge;\nuniform float uSpan;")
+        .replace("#include <dithering_fragment>", "#include <dithering_fragment>\ngl_FragColor.a *= 1.0 - smoothstep(uEdge, uEdge + uSpan, max(abs(vPast.x), abs(vPast.y)));");
+    };
+  }
   // the sky: a dome that follows the camera, haze at the rim fading up to the sky's colour; the sea's fog is the haze's colour, so the water melts into it
   const SKY_R = 100, skyGeo = new THREE.SphereGeometry(SKY_R, 16, 10);
   skyGeo.setAttribute("color", new THREE.Float32BufferAttribute(skyGeo.attributes.position.count * 3, 3));
@@ -92,7 +106,7 @@ export function createModel(host, opts = {}) {
   let N = 0, black = null, size = 0, world = null, sea = null, seaTop = [], slabs = null, rocks = null, chips = [];
   let towers = null, bands = null, lamps = null, caps = null, buoys = null, beams = null, comets = null;
   let cliffs = [], ships = [], shipParts = null, shipPose = null, HALF = 60, ZMIN = -59, ZMAX = 18;   // the strait runs ±HALF; ships sail from ZMIN (in the haze) to ZMAX (below the frame)
-  let marks = "", br = null, hint = null, fitPts = [], lightList = [], runs = [];   // what is on show
+  let marks = "", br = null, hint = null, fitPts = [], tightPts = [], lightList = [], runs = [];   // what is on show
   const disposeWorld = () => {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
     world = sea = slabs = rocks = towers = bands = lamps = caps = buoys = beams = comets = shipParts = null;
@@ -159,8 +173,9 @@ export function createModel(host, opts = {}) {
     comets = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.03, 1), M.comet, cap * 4);
     for (const m of [beams, comets]) { m.count = 0; m.frustumCulled = false; world.add(m); }
     const h = N / 2 + 0.12;
-    fitPts = [];
-    for (const y of [-0.1, 1.15]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) fitPts.push(sx * (h + SIDE), y, sz * h);
+    fitPts = []; tightPts = [];
+    for (const y of [-0.1, 1.15]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) { fitPts.push(sx * (h + SIDE), y, sz * h); tightPts.push(sx * h, y, sz * h); }
+    FADE.uEdge.value = N / 2;
     marks = ""; br = null; hint = null;
     applySkin();
     resize();
@@ -308,7 +323,8 @@ export function createModel(host, opts = {}) {
       [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dx, dz], d) => {
         const len = r[d];
         if (!len) return;
-        MA.compose(VA.set(cx + (dx * (len + 0.5)) / 2, 0.09, cz + (dz * (len + 0.5)) / 2), QA.identity(), VB.set(dx ? len + 0.5 : 0.32, 1, dz ? len + 0.5 : 0.32));
+        const reach = len + 0.5 + spill(cx, cz, dx, dz, len);
+        MA.compose(VA.set(cx + (dx * reach) / 2, 0.09, cz + (dz * reach) / 2), QA.identity(), VB.set(dx ? reach : 0.32, 1, dz ? reach : 0.32));
         beams.setMatrixAt(b++, MA);
       });
     });
@@ -317,6 +333,8 @@ export function createModel(host, opts = {}) {
     placeChips(true);
     wake();
   }
+  /** How far past the board a run of `len` cells from (cx, cz) towards (dx, dz) goes on: it does if nothing stops it before the edge. */
+  const spill = (cx, cz, dx, dz, len) => (Math.abs(dx ? cx + dx * (len + 0.5) : cz + dz * (len + 0.5)) >= N / 2 - 0.01 ? SPILL : 0);
   function paintChips() {
     const over = new Set(br?.over || []), short = new Set(br?.short || []), done = new Set(br?.done || []), why = new Set(hint?.focus || []);
     for (const c of chips) {
@@ -342,15 +360,20 @@ export function createModel(host, opts = {}) {
   function fit() {
     if (!size) return;
     const aspect = width / height, ty = Math.tan(FOV / 2), tx = ty * aspect, near = 0.5, top = near * ty, right = top * aspect, pad = 0.4 * rem;
-    fitDist = Math.max(4, fitDistance(fitPts, az, el, [0, 0.2, 0], tx, ty, (2 * pad) / width, (2 * pad) / height));
+    // pulled down to look straight at it, the camera comes in on the board itself (the strait beside it is no longer the point)
+    const down = Math.max(0, Math.min(1, (el - 52 * DEG) / (26 * DEG))), t = down * down * (3 - 2 * down);
+    const wide = fitDistance(fitPts, az, el, [0, 0.2, 0], tx, ty, (2 * pad) / width, (2 * pad) / height);
+    fitDist = Math.max(4, wide + (fitDistance(tightPts, az, el, [0, 0.2, 0], tx, ty, (2 * pad) / width, (2 * pad) / height) - wide) * t);
     const far = Math.max(180, fitDist + size * 2 + 130);
     dist = fitDist / zoom;
     pose();
     // the board fills the width, and a tall card has room above and below it: slide the frame up (the view stays the same, only the frame moves) until
     // the board's near edge is at the bottom, so the far strait and its haze fill the top
-    let lowest = 0;
-    for (let i = 0; i < fitPts.length; i += 3) { VA.set(fitPts[i], fitPts[i + 1], fitPts[i + 2]).applyMatrix4(camera.matrixWorldInverse); lowest = Math.min(lowest, VA.y / -VA.z); }
-    const lift = Math.max(0, Math.min(1.1 * ty, lowest + ty - 0.12));
+    // (measured as if the camera stood over the middle: a pan moves the board in the frame and must not be lifted back). Pulled down, the board
+    // is centred in the frame instead
+    let lowest = 0, lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < fitPts.length; i += 3) { VA.set(fitPts[i] + pan.x, fitPts[i + 1], fitPts[i + 2] + pan.z).applyMatrix4(camera.matrixWorldInverse); const v = VA.y / -VA.z; lowest = Math.min(lowest, v); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    const toBottom = Math.max(0, Math.min(1.1 * ty, lowest + ty - 0.12)), lift = toBottom + ((lo + hi) / 2 - toBottom) * t;
     camera.projectionMatrix.makePerspective(-right, right, top + near * lift, -top + near * lift, near, far);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     camDirty = true;
@@ -419,7 +442,7 @@ export function createModel(host, opts = {}) {
       [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dx, dz], d) => {
         const len = r[d];
         if (!len) return;
-        const reach = len + 0.5, at = still ? 0.5 * reach + 0.45 : (t * 1.8 + i * 0.37 + d * 0.21) % (reach + 0.9);
+        const reach = len + 0.5 + spill(cx, cz, dx, dz, len), at = still ? 0.5 * reach + 0.45 : (t * 1.8 + i * 0.37 + d * 0.21) % (reach + 0.9);
         const end = Math.min(at, reach), start = Math.max(0, at - 0.9), seg = Math.max(0.05, end - start), mid = (start + end) / 2;
         MA.compose(VA.set(cx + dx * mid, 0.11, cz + dz * mid), QA.identity(), VB.set(dx ? seg : 0.2, 1, dz ? seg : 0.2));
         comets.setMatrixAt(c++, MA);
@@ -466,13 +489,13 @@ export function createModel(host, opts = {}) {
     return -1;
   }
   const shoalAt = cellUnder;
-  function clampPan() { const lim = (size / 2) * (1 - 1 / zoom) + 0.5; pan.x = Math.max(-lim, Math.min(lim, pan.x)); pan.z = Math.max(-lim, Math.min(lim, pan.z)); }
+  function clampPan() { const lim = Math.max((size / 2) * (1 - 1 / zoom) + 0.5, size * 0.4); pan.x = Math.max(-lim, Math.min(lim, pan.x)); pan.z = Math.max(-lim, Math.min(lim, pan.z)); }
   function zoomAt(z, cx, cy) {
     if (!world) return;
     const [sx, sy] = cx == null ? [width / 2, height / 2] : canvasPoint(cx, cy), before = groundAt(sx, sy, 0.2);
     zoom = Math.max(1, Math.min(MAX_ZOOM, z));
     fit();
-    if (zoom === 1) { pan.x = pan.z = 0; } else { const after = groundAt(sx, sy, 0.2); pan.x += before.x - after.x; pan.z += before.z - after.z; clampPan(); }
+    const after = groundAt(sx, sy, 0.2); pan.x += before.x - after.x; pan.z += before.z - after.z; clampPan();
     fit(); wake();
   }
   function reset() { zoom = 1; pan.x = pan.z = 0; orbited = false; orbit(HOME_AZ, homeElevation(width / height)); }
@@ -483,9 +506,15 @@ export function createModel(host, opts = {}) {
     zoomAt(zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * (e.ctrlKey ? 0.01 : 0.0016)), e.clientX, e.clientY);
   }, { passive: false });
   const fingers = new Map();
-  let pinch = null, g = null, lastTap = null;
+  let pinch = null, g = null, lastTap = null, mid = null;   // mid: the middle button's drag, which carries the camera across the water
   const pinchNow = () => { const [a, b] = [...fingers.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
   canvas.addEventListener("pointerdown", e => {
+    if (e.button === 1) {
+      e.preventDefault();
+      mid = { id: e.pointerId, anchor: groundAt(...canvasPoint(e.clientX, e.clientY), 0.2) };
+      try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+      return;
+    }
     if (e.button === 2) { const x = playable() ? cellUnder(e.clientX, e.clientY) : -1; if (x >= 0) opts.press?.(x, "hold"); return; }
     if (e.button > 0) return;
     fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -508,12 +537,18 @@ export function createModel(host, opts = {}) {
     }, HOLD);
   });
   canvas.addEventListener("pointermove", e => {
+    if (mid && e.pointerId === mid.id) {
+      const now = groundAt(...canvasPoint(e.clientX, e.clientY), 0.2);
+      pan.x += mid.anchor.x - now.x; pan.z += mid.anchor.z - now.z; clampPan();
+      fit(); wake();
+      return;
+    }
     if (fingers.has(e.pointerId)) fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && fingers.size === 2) {
       const { d, mx, my } = pinchNow();
       zoom = Math.max(1, Math.min(MAX_ZOOM, pinch.zoom0 * (d / pinch.d0)));
       fit();
-      if (zoom === 1) pan.x = pan.z = 0; else { const now = groundAt(...canvasPoint(mx, my), 0.2); pan.x += pinch.anchor.x - now.x; pan.z += pinch.anchor.z - now.z; clampPan(); }
+      const now = groundAt(...canvasPoint(mx, my), 0.2); pan.x += pinch.anchor.x - now.x; pan.z += pinch.anchor.z - now.z; clampPan();
       fit(); wake();
       return;
     }
@@ -532,6 +567,7 @@ export function createModel(host, opts = {}) {
     g.x = e.clientX; g.y = e.clientY;
   });
   const letGo = e => {
+    if (mid && e.pointerId === mid.id) { mid = null; return; }
     fingers.delete(e.pointerId);
     if (pinch && fingers.size < 2) { pinch = null; const p = g && fingers.get(g.id); if (p) { g.x = p.x; g.y = p.y; } }
     if (!g || e.pointerId !== g.id) return;
@@ -545,6 +581,7 @@ export function createModel(host, opts = {}) {
   canvas.addEventListener("pointerup", letGo);
   canvas.addEventListener("pointercancel", letGo);
   canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });   // no autoscroll cross
   canvas.style.touchAction = "none";
   const zoomBox = document.createElement("div");
   zoomBox.className = "lan3-zoom";
