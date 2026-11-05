@@ -28,7 +28,7 @@ const forget = k => { if (!IN_FRAME) try { localStorage.removeItem(k); } catch {
 const pct = x => `${Math.round(x * 100)}%`;
 const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 
-let opts = { sound: true, ghost: true, preview: true, ...read(OPTS, {}) };
+let opts = { sound: true, ...read(OPTS, {}) };   // the ghost and the preview are always on (the menu has no switch for them)
 const saveOpts = () => write(OPTS, opts);
 setSound(opts.sound);
 
@@ -169,7 +169,6 @@ const say = (text, bad) => { const a = $("aim"); a.textContent = text || ""; a.h
 const gone = g => g.reduce((n, v) => n + v, 0) / 255;
 /** Shows the ghost of a use (a function on a copy of the block) and what it comes to; returns the trial. */
 function ghost(fn, verb) {
-  if (!opts.preview) return null;
   const t = trial(B, fn), ok = t.r.ok, n = gone(t.gone);
   bench.cutGhost(ok || n > 0.5 ? t.gone : null, ok ? "ok" : "bad");
   say(ok ? `${verb}: takes ${n < 1 ? "a little" : `${Math.round(n)} cells`}` : (WHY[t.r.reason] || "Not there.").split(". ")[0], !ok);
@@ -203,7 +202,7 @@ function showGuide(a, b) {
     return;
   }
   bench.guide(outline(B, plan.u, plan.s), plan.ok ? "ok" : plan.reason === "into" ? "into" : "nothing");
-  if (plan.ok) { const t = trial(B, c => doSaw(c, plan)); if (opts.preview) bench.cutGhost(t.gone, "ok"); say(`Saw: takes ${Math.round(gone(t.gone))} cells`); }
+  if (plan.ok) { const t = trial(B, c => doSaw(c, plan)); bench.cutGhost(t.gone, "ok"); say(`Saw: takes ${Math.round(gone(t.gone))} cells`); }
   else { noGhost(); say(WHY[plan.reason] ? WHY[plan.reason].split(". ")[0] : "", true); }
 }
 const REACH = { plane: 3.5, shave: 3.5, adze: 4.5, drill: 1.5, chisel: 3.6, gouge: 2 };   // the cursor's radius, in cells, as the tool works
@@ -561,9 +560,7 @@ function openMenu() {
     part(body, "content").append(wrap);
   }
   part(body, "settings").append(
-    toggle("Show what a tool would take", opts.preview, on => { opts.preview = on; saveOpts(); }),
     choice("View", [["3d", "3D"], ["flat", "Flat"]], benchIs3D ? "3d" : "flat", v => { setLook(v); }),
-    toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }),
     toggle("Sound", opts.sound, on => { opts.sound = on; setSound(on); saveOpts(); }));
   part(body, "about").append(line(`${totalStars()} of ${LEVELS.length * 3} stars. Three for the par, two for one tool over, one for freeing it at all.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -584,7 +581,7 @@ async function makeBench(three) {
     try { bench = createFlatBench($("bench")); benchIs3D = false; }
     catch (err) { console.warn("Slipway: no canvas here.", err); $("nogl").hidden = false; return; }
   }
-  bench.ghost = opts.ghost;
+  bench.ghost = true;
   const c = bench.canvas;
   c.addEventListener("pointerdown", onDown);
   c.addEventListener("pointermove", onMove);

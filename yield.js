@@ -7,8 +7,8 @@ import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, MARKS, 
   outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, choice, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -19,7 +19,6 @@ import { sideways } from "./wide.js";
 import * as sfx from "./yield-sound.js";
 import { W as CHART_W, H as CHART_H, LAND_PATH, COAST_LINE, BANDS, SOUNDINGS, LIGHT } from "./yield-chart.js";
 
-dropdown(document.getElementById("pick"));   // the header dropdown in the suite's style (dropdown.js)
 
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -38,13 +37,17 @@ const up = w => w.toUpperCase();
 // yield:daily today's points by the day, for the games screen; yield:duel a match's run on this device (duel.js's).
 const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily", LAST = "yield:last";
 const SAVE_EVERY = 5000;                          // ms between saves of the clock while it runs
-const CLOCKS = [[0, "Untimed"], [180, "3 min"], [300, "5 min"]];
-const prefs = { level: "medium", board: "hive", secs: 0, together: null, raceSecs: 180, sound: true, ...read(PREFS, {}) };
+const prefs = { level: "medium", board: "hive", together: null, sound: true, ...read(PREFS, {}) };
 sfx.setSound(prefs.sound !== false);
 // what a match you deal will be, until you choose: a pair plays as a team (a key each, each needing the other); a
 // party, a table of friends, races
 const togetherMode = () => prefs.together || (new URLSearchParams(location.search).has("party") ? "race" : "team");
 if (!LEVELS[prefs.level]) prefs.level = "medium";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The level is a hidden ramp (its first rung the old saved
+// level): up when a random puzzle reaches the rank to aim for, down when its words are shown. No clock choice: puzzles are untimed
+// and a race is 3 minutes; a sprint already under way (and its bests) stay.
+const levelNow = () => ramp("yield", Object.keys(LEVELS), { start: prefs.level });
+const RACE_SECS = 180;
 if (!BOARDS[prefs.board]) prefs.board = "hive";
 const keepPrefs = () => write(PREFS, prefs);
 
@@ -265,7 +268,7 @@ function found() {
   if (S.kind === "team") { tell(); if (all) endTeam(); return; }
   if (S.kind === "race") { if (all) S.over = true; tell(all); return; }     // a race's result sheet is duel.js's
   if (all) finish("full");
-  else if (master) roundOver("yield");                             // a puzzle with no end of its own: Deep sea is one
+  else if (master) { if (S.kind === "run" && S.p.level === levelNow()) ramp.won(true); roundOver("yield"); }                             // a puzzle with no end of its own: Deep sea is one
 }
 /** Today's points so far, for the games screen (and your partner's): every word counts the moment it's found. */
 function noteDaily(pts) {
@@ -477,7 +480,6 @@ function drawFound() {
 }
 function render() {
   const p = boardP();
-  if (S && P) $("pick").value = S.kind === "day" ? "today" : LEVELS[S.p.level] ? S.p.level : "medium";
   drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawLead(); drawFound(); drawClock();
   const off = !canType();
   setBoardOff(off);
@@ -539,21 +541,21 @@ function dayName(day) {
   return t.getTime() === yesterday.getTime() ? "Yesterday's words" : `The words of ${t.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}`;
 }
 /** A new random puzzle, as the menu has it. */
-function newRandom(level = prefs.level) {
-  const p = deal({ seed: randomSeed(), level, board: prefs.board });
+function newRandom() {
+  const p = deal({ seed: randomSeed(), level: levelNow(), board: prefs.board });
   const st = read(STATS, {}) || {};
   write(STATS, { ...st, puzzles: (st.puzzles || 0) + 1 });
-  show({ kind: "run", p, found: [], secs: prefs.secs });
+  show({ kind: "run", p, found: [], secs: 0 });
 }
 function showRandom() {
   const kept = read(RUN, null);
   if (validRun(kept) && !kept.over) show(kept); else newRandom();
 }
 /** Asks before leaving a random puzzle under way for a new one. */
-async function confirmNew(level) {
+async function confirmNew() {
   const kept = S?.kind === "run" ? S : read(RUN, null);
   if (started(kept) && !(await sure("Start a new puzzle? This one isn't finished."))) return false;
-  newRandom(level);
+  newRandom();
   return true;
 }
 
@@ -563,7 +565,7 @@ function finish(how) {
   if (!S || (S.over && how !== "full")) return;
   clockPause();
   S.over = true;
-  if (how === "shown") S.shown = true;
+  if (how === "shown") { S.shown = true; if (S.kind === "run" && S.p.level === levelNow()) ramp.lost(); }
   if (how === "time" && S.kind === "run") {
     const key = `${S.secs}:${S.p.board}:${S.p.level}`, st = read(STATS, {}) || {}, best = st.sprints?.[key];
     S.fresh = best == null || pointsNow() > best;
@@ -723,7 +725,7 @@ const matchText = m => (m.mode === "team"
   : `Race: ${BOARDS[m.board]} at ${LEVELS[m.level]}, ${m.secs / 60} minutes. The same letters for everyone: the most points wins`);
 const duel = createDuel({
   game: "yield", name: "Fathom", accent: "--yd-in", line: $("duelLine"), toast,
-  deal: () => ({ seed: randomSeed(), mode: togetherMode(), board: prefs.board, level: prefs.level, secs: prefs.raceSecs || 180 }),
+  deal: () => ({ seed: randomSeed(), mode: togetherMode(), board: prefs.board, level: levelNow(), secs: RACE_SECS }),
   describe: matchText,
   play: (m, { begun, kept, done, run, n }) => playMatch(m, { begun, kept, done, run, n }),
   onLobby: () => { clockPause(); S = null; P = null; team = null; raceTable = null; closeSheet(); render(); },
@@ -810,8 +812,7 @@ function teamKey() {
 }
 
 // ---------- the menu ----------
-// Play: a new puzzle, the words shown. Content: which puzzle (the header's choice: today's or a level) and the board.
-// Settings: a sprint's clock (for the next puzzle: a clock on a puzzle already under way would be no sprint). Together: only at a table.
+// Play: a new puzzle, the words shown. Content: the board. Together: only at a table.
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -820,19 +821,17 @@ function openMenu() {
     duel.menu(t);
     if (S?.kind === "team" && !isOver()) t.append(action("Call it a day", async () => { if (await sure("End this puzzle for the whole team?")) endTeam(); }, "link"));
     t.append(choice("Next match", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); openMenu(); }));
-    if (togetherMode() === "race") t.append(choice("Race clock", [[180, "3 min"], [300, "5 min"]], prefs.raceSecs, v => { prefs.raceSecs = v; keepPrefs(); }));
-    part(body, "content").append(mirror("Level", $("pick")), choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); }));
+    part(body, "content").append(choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); }));
     showMenu(body);
     return;
   }
   const play = part(body, "play");
-  play.append(action(prefs.secs ? `New ${prefs.secs / 60}-minute sprint` : "New puzzle", () => confirmNew(), "primary"));
+  play.append(action("New puzzle", () => confirmNew(), "primary"));
   const left = S?.kind === "day" ? read(RUN, null) : null;                  // the random puzzle you left for today's
   todayPart(body, { app: "yield", play: showToday, playing: S?.kind === "day", back: validRun(left) && !left.over ? () => show(left) : null });
   if (S && !S.over && (S.kind === "day" || S.kind === "run")) play.append(action("Show the words", async () => { if (await sure("Show every word? This puzzle ends here.")) finish("shown"); }, "link"));
-  part(body, "content").append(mirror("Puzzle", $("pick")),
+  part(body, "content").append(
     choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); $("menuDlg").close(); confirmNew(); }));
-  part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }));
   part(body, "settings").append(toggle("Sound", prefs.sound !== false, v => { prefs.sound = v; sfx.setSound(v); keepPrefs(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
@@ -851,7 +850,6 @@ function showMenu(body) {
 // can't drift from the game. A sprint's clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
   const ranks = RANKS.map(([share, name], i) => (i === 0 ? name : i === TOP ? `${name} (every word)` : `${name} (${Math.round(share * 100)}%)`));
-  const sprints = CLOCKS.filter(([secs]) => secs).map(([secs]) => inWords(secs / 60)).join(" or ");
   $("rulesBody").innerHTML = `
     <p>Make as many words as you can from the seven letters on the tray. Every word has ${inWords(MIN_LEN)} letters or more and uses the key letter, the one on the keyed plate; a letter may be used as often as you like. Every puzzle has at least one full set, a word that uses all seven.</p>
     <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a full set ${FULL_BONUS} more: a six-letter word scores 6, a full set of seven letters ${7 + FULL_BONUS}.</p>
@@ -860,10 +858,9 @@ function showRules() {
     <p><b>The words.</b> Ordinary English, the same on both sides of the Atlantic: the letters never include an S, or every plural would count, and a spelling only one side uses (colour or color) never counts. A word that doesn't count is told apart: a word, but rarer than Fathom counts; one side of the Atlantic's spelling only; or not in Fathom's list.</p>
     <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle moves the outer letters about. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. Hints is the grid of what's left, by first letter and length, and by the first two letters.</p>
     <p><b>The Plate.</b> The menu's Board: nine tiles from one nine-letter word in place of the tray. Every word uses the key tile in the middle and each tile once at most (a letter on two tiles may be used twice), and the nine-letter word scores as a full set.</p>
-    <p><b>Levels.</b> Light, Medium and Heavy, the menu's Puzzle: how far down the vocabulary ${RANKS[MASTER][1]} takes you. Light gets there on everyday words; Heavy needs words people rarely use.</p>
-    <p><b>Clock.</b> In Settings: untimed, or a sprint of ${sprints} minutes on the next random puzzle, the most points before time is up. It stands still while the menu or these rules are open.</p>
+    <p><b>Levels.</b> Light, Medium and Heavy, which come by themselves (up as you reach ${RANKS[MASTER][1]}, down when you show the words): how far down the vocabulary ${RANKS[MASTER][1]} takes you. Light gets there on everyday words; Heavy needs words people rarely use.</p>
     <p><b>Today's puzzle.</b> A ${LEVELS[DAILY.level]} ${BOARDS[DAILY.board].toLowerCase()}, the same seven letters for everyone, and a new one at midnight UTC. Your points count for the day as each word is found, so you can leave and come back, and today's and a random puzzle are kept apart, so switching loses neither. Show the words, in the menu, ends a puzzle and lists them all; the daily before today's keeps its words in the menu too.</p>
-    <p><b>Together.</b> A race: the same letters for everyone and a clock of ${sprints} minutes, the most points winning. Or a team: the same letters but a key letter each, so each of you has words only you can enter; the chart on your phone is your partner's, what's left that they can enter, for you to tell them.</p>`;
+    <p><b>Together.</b> A race: the same letters for everyone and a clock of ${inWords(RACE_SECS / 60)} minutes, the most points winning. Or a team: the same letters but a key letter each, so each of you has words only you can enter; the chart on your phone is your partner's, what's left that they can enter, for you to tell them.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
@@ -926,21 +923,6 @@ document.addEventListener("keydown", e => {
   else if (e.key === "Enter") { enter(); e.preventDefault(); }
   else if (e.key === " ") { shuffle(); e.preventDefault(); }
   else if (e.key === "Escape") clearWord();
-});
-$("pick").addEventListener("change", async () => {
-  const v = $("pick").value;
-  if (duel.on) {                                  // at a table: a new match at that level (today's isn't a match)
-    const was = prefs.level;
-    if (v !== "today") { prefs.level = v; keepPrefs(); }
-    if (v === "today" || !(await duel.newMatch())) { prefs.level = was; keepPrefs(); $("pick").value = S?.p.level || was; }
-    return;
-  }
-  if (v === "today") { showToday(); return; }
-  prefs.level = v;
-  keepPrefs();
-  const kept = S?.kind === "run" ? S : read(RUN, null);
-  if (validRun(kept) && kept.p.level === v && !kept.over) { show(kept); return; }
-  if (!(await confirmNew(v))) $("pick").value = S?.kind === "day" ? "today" : S?.p.level || prefs.level;
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });

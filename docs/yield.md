@@ -17,3 +17,5 @@ Traps.
 3 November 2026 (Korbi: "'against the computer' makes little sense"; "probably drop from all"): no rival.
 
 Not done: meanings for the rarer words; bonus points for the rarer words typed; a wheel daily. For Korbi to decide: the ranks' shares and the levels' bands, and whether today's figure on the games screen should be the rank rather than the points.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** No Puzzle level, Clock or Race clock: the level is the hidden ramp (`yield:ramp`, up when a random puzzle reaches Deep sea, down when its words are shown; first rung the saved level), puzzles are untimed and a race is 3 minutes. Sprint bests already kept still show; a sprint in progress finishes. Board stays.

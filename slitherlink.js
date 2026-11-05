@@ -10,8 +10,9 @@ import { sound } from "./slitherlink-sound.js";
 import { edgeAtPoint } from "./slitherlink-3d-geo.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -55,7 +56,11 @@ if (prefs.view !== "3d" && prefs.view !== "flat") delete prefs.view;
 let viewShown = wants3D(prefs.view, "3d") ? "3d" : "flat";
 sound.on = read(SOUND, true);
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level), twist: prefs.twist });
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp, its first rung the old
+// saved choice; the ladder steps up after a puzzle solved without a hint.
+const RUNGS = rungs(SIZES, Object.keys(LEVELS));
+const OLD = { size: prefs.size, level: prefs.level };
+const chosenKind = () => { const { size, level } = split(ramp("slitherlink", RUNGS, { start: startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level) })); return { size: Number(size), level: levelOn(Number(size), level), twist: "none" }; };
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
@@ -131,7 +136,6 @@ function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
   P = puzzleOf(S.size, S.grid, S.sol);
   message = null; clockFrom = null;
-  $("level").value = levelOn(S.size, S.level);
   if (!IN_FRAME) history.replaceState(null, "", hashOf(S));
   drawBoard();
   save();
@@ -312,6 +316,7 @@ function finish() {
   S.lit = null;
   S.fresh = recordBest(S.done.score);
   if (viewShown === "3d") sound.play("bell", 0.5);
+  if (S.mode === "random") { const k = chosenKind(); if (k.size === S.size && k.level === S.level) ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("slitherlink", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
   roundOver("slitherlink");
@@ -500,7 +505,7 @@ function showRules() {
     <p>Tap an edge to draw it, again to cross it (a small mark for "not part of the loop", a note for yourself), again to clear it; hold an edge, or right-click it, to cross it at once. Only the lines count: the puzzle is solved the moment exactly its answer is drawn. Undo and Redo step through your marks, and the menu clears the board.</p>
     <p>A broken rule shows at once, the line under the board saying which: a number with too many lines in oxblood, three lines at a corner, a dead end, or a loop closed round the wrong cells. That comes from the rules, never the answer. A number turns pale once it has all its lines. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the edges it settled in gilt.</p>
     <h4>Shaded puzzles</h4>
-    <p>The menu's Clues choice, With shading, marks some cells as being on one side of the loop: a <b>tinted</b> cell is inside the loop, a <b>dotted</b> one outside it (a cell with one of these has no number). The loop is the line between inside and outside, so a line runs between a tinted cell and a dotted one, never between two tinted or two dotted; and the sides carry on through the lines you have drawn and crossed, so a tinted cell with a crossed edge to its neighbour makes that neighbour tinted too. A cell that clashes with what you have drawn turns oxblood. The outside of the board counts as outside.</p>
+    <p>A puzzle shared as a link may come with shading: it marks some cells as being on one side of the loop: a <b>tinted</b> cell is inside the loop, a <b>dotted</b> one outside it (a cell with one of these has no number). The loop is the line between inside and outside, so a line runs between a tinted cell and a dotted one, never between two tinted or two dotted; and the sides carry on through the lines you have drawn and crossed, so a tinted cell with a crossed edge to its neighbour makes that neighbour tinted too. A cell that clashes with what you have drawn turns oxblood. The outside of the board counts as outside.</p>
     <h4>Levels</h4>
     <p>A puzzle's level is the hardest step it needs, never how many numbers it shows. <b>Easy</b>: the numbers and the corners alone (a number with all its lines crosses its other sides; a corner with two lines is done; a line with one way on takes it; a line may not close the loop early). <b>Medium</b>: a short trial as well, an edge supposed one way and followed for a couple of rounds until a rule breaks. <b>Hard</b>: a trial followed as far as it goes, with few numbers to help. When no puzzle of the level comes of a size, the nearest is dealt and the line says so.</p>
     <h4>Time</h4>
@@ -521,9 +526,6 @@ function openMenu() {
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action("The rules", showRules, "link"));
   if (!COOP) todayPart(body, { app: "slitherlink", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
-  content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-  content.append(mirror("Level", $("level")));
-  content.append(choice("Clues", [["none", "Numbers"], ["shade", "With shading"]], prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
   const look = part(body, "settings");
   look.append(choice("View", [["flat", "Flat"], ["3d", "3D"]], viewShown, v => { setView(v); openMenu(); }), toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("quill"); }));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
@@ -532,12 +534,6 @@ function openMenu() {
   about.append(line(S ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${COOP ? (S.done ? "solved" : "not solved yet") : best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Draw the loop."));
   if (!COOP) about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
-}
-/** The size changed in the menu: the header's level follows, and a spare is made ready. */
-function kindChanged() {
-  const k = chosenKind();
-  $("level").value = k.level;
-  refill(k);
 }
 async function clearBoard() {
   if (!S || S.done) return;
@@ -575,7 +571,6 @@ async function openLinked(l) {
 }
 
 // ---------- wiring ----------
-dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "slitherlink");
 document.querySelector(".slk-mark").innerHTML = APPS.find(a => a.id === "slitherlink")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
@@ -583,13 +578,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => start("random"));
-$("level").addEventListener("change", async () => {
-  const v = $("level").value;
-  if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;
-  const before = prefs.level;
-  prefs.level = v; savePrefs();
-  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
-});
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
@@ -645,8 +633,7 @@ function showBoard(board, info) {
     S = { undo: [], redo: [], ms: 0, lit: null, ...run };
     P = puzzleOf(S.size, S.grid, S.sol);
     message = null; sentDone = false;
-    $("level").value = levelOn(S.size, S.level);
-    drawBoard();
+      drawBoard();
   } else {
     S.marks = run.marks; S.hints = run.hints; S.done = run.done;
   }
@@ -666,7 +653,6 @@ async function joinPartner() {
   });
   if (!coop && !IN_FRAME) solo();
 }
-$("level").value = chosenKind().level;
 if (viewShown === "3d") setView("3d", false);
 onDefaultChange(is3D => { if (!prefs.view) setView(is3D ? "3d" : "flat", false); });      // Settings' 2D mode, live
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); }); else solo();

@@ -35,7 +35,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -48,9 +48,8 @@ let ff = 0;                                      // game minutes still to run fa
 const freshUi = () => ({ tier: 4, lamp: false, d: 0, course: 0, credited: false, bell: null });
 
 const seed = () => (Math.random() * 4294967296) >>> 0;
-const helpShift = () => clamp(Number(read(KEY.help, 0)) || 0, -1, 1);
-/** The help a level starts a watch with, moved by the Help setting (tier 0 names Polaris, 4 says only "find the pole star"). */
-const tierFor = L => clamp(L.hint + helpShift(), 0, 4);
+/** The help a level starts a watch with (tier 0 names Polaris, 4 says only "find the pole star"). */
+const tierFor = L => clamp(L.hint, 0, 4);
 
 function persist() {
   if (IN_FRAME || !S) return;
@@ -912,7 +911,6 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
-  set.append(choice("Help", [["-1", "Fuller"], ["0", "As set"], ["1", "Thinner"]], String(helpShift()), v => { write(KEY.help, Number(v)); renderAll(); }));
   const about = part(body, "about");
   about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));

@@ -26,7 +26,7 @@ import * as sound from "./reckoning-sound.js";
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
 const COINS = "courier:coins", AMBER = "courier:amber";      // coins and amber banked over all runs (a run's own are in the run, and are banked when it ends)
-const SOUND = "reckoning:sound", HAPTICS = "reckoning:haptics";   // the menu's switches (on unless turned off)
+const SOUND = "reckoning:sound";   // the menu's switch (on unless turned off)
 const LOOK = "reckoning:look";                                  // "3d" or "flat", kept only when the player picks one (mode3d.js)
 const LOG = "reckoning:log";                                    // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -52,7 +52,7 @@ let lab = null, labEnd = null, labGo = null, labUi = null;   // the Feel lab: th
 let zoneSeen = "";      // the biome whose name was last said over the quay
 let log = null, lastLog = null;   // this run's swipe log, and the run before's (reckoning-log.js)
 sound.setOn(!IN_FRAME && read(SOUND, true) !== false);     // a watching partner's frame makes no sound; audio starts at the first touch (unlock)
-sound.setHaptics(!IN_FRAME && read(HAPTICS, true) !== false);
+sound.setHaptics(!IN_FRAME && read(SOUND, true) !== false);   // one switch: sound and the buzz go together
 if (!IN_FRAME) sound.unlock();
 const cache = {};        // what the page last wrote, so a frame writes only what changed
 const put = (key, fn) => { const v = fn(); if (cache[key] !== v) { cache[key] = v; return true; } return false; };
@@ -341,18 +341,27 @@ function openMenu() {
   const sec = S.sec ? byId(S.sec) : null;
   part(body, "play").append(action(sec ? `Restart ${sec.name}` : "Start", () => newRun(sec ? sec.id : 0, sec ? {} : S.only ? {} : {}), "primary"));
   if (sec || S.only) part(body, "play").append(action("Start the endless run", () => newRun(0), ""));
-  part(body, "content").append(action("Playtest", openPlaytest, "link"));
-  if (!IN_FRAME) part(body, "content").append(action("Feel lab", () => labUi.home(), "link"));
   if (!IN_FRAME) {
     part(body, "settings").append(
       choice("View", [["3d", "3D"], ["flat", "Flat"]], viewIs3D ? "3d" : "flat", v => { setLook(v); }),
-      toggle("Sound", read(SOUND, true) !== false, on => { write(SOUND, on); sound.setOn(on); if (on) sound.sample(); }),
-      toggle("Haptics", read(HAPTICS, true) !== false, on => { write(HAPTICS, on); sound.setHaptics(on); }));
+      toggle("Sound and haptics", read(SOUND, true) !== false, on => { write(SOUND, on); sound.setOn(on); sound.setHaptics(on); if (on) sound.sample(); }));
   }
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
-  part(body, "about").append(action("Swipe log", openLog, "link"),
+  part(body, "about").append(action("Workshop", openWorkshop, "link"),
     line(`Best ${fmt(best)} m · ${fmt(read(COINS, 0))} coins${read(AMBER, 0) ? ` · ${read(AMBER, 0)} amber` : ""}`),
     line(`${WORLDS.quay.name}: ${pool.length.toLocaleString("en-GB")} questions; ${st.runs} runs, ${st.right} right and ${st.wrong} not`));
+  if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+/** The developer tools, out of the player's menu. */
+function openWorkshop() {
+  const body = $("menuBody");
+  body.replaceChildren();
+  part(body, "play").append(action("Back", openMenu, "link"));
+  const tools = part(body, "content");
+  tools.append(action("Playtest", openPlaytest, "link"));
+  if (!IN_FRAME) tools.append(action("Feel lab", () => labUi.home(), "link"));
+  tools.append(action("Swipe log", openLog, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

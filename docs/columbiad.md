@@ -27,3 +27,5 @@ An idle-section aim-and-launch game: a drag back like a slingshot sets the angle
 ## Open
 
 Later ideas (Korbi): other ways of making the physics matter, perhaps with no Earth at all (a level can already have none: `from` another body).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu has Sound and nothing else to choose.

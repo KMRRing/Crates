@@ -106,3 +106,5 @@ The daily and the duel (the engine already runs from a seed), the pile, a second
 
 ## The flat quay
 5 November 2026: 2D mode (battery saver) and no WebGL draw the quay from above (`reckoning-2d.js`, from the rules' own state; Menu, View chooses, kept in `reckoning:look` only when picked). A metre along the quay is drawn shorter than one across (`AHEAD` 30 m would be a second at one scale), so positions are mapped but bodies are drawn as signs, not to scale; height is a shadow and a lift. Any new kind of foe or thing draws as a lettered disc until it has a sign there, so a view that lags the 3D one still plays.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** One "Sound and haptics" switch (`reckoning:sound`; `reckoning:haptics` is no longer read). Playtest, Feel lab and Swipe log sit behind one Workshop link at the foot of the menu.

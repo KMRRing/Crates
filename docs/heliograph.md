@@ -24,3 +24,5 @@ A glass tube with a port in its frame and a chandelier of crystals hanging from 
 - The help scenes are shots of the real engine and the numbers in their texts come from it; they show colours and never name one, since the enamels are the theme's. A feature's help opens once, when a level first has it, never in a watching frame.
 - Dropped: one move a shot ("few hands": turning is free, so it changed little) and a lowered line ("tight": the engine still reads `x.line`, no level sets it).
 - The flat tube (`heliograph-flat.js`) is the same scene through the same camera (`heliograph-view.js`), not a separate diagram, so input, picking and drags are identical. Menu, View chooses it; the choice is kept in `heliograph:prefs.look` only when picked, else Settings' 2D mode decides (and no WebGL falls back to flat).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** Mode (Classic or Levels) and the View are the only choices.

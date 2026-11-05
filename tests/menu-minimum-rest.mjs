@@ -21,6 +21,7 @@ const RAMPED = {
   isomer: ["Level", "Answers"], acrostic: ["Level", "Twist"], lode: ["Level", "Board", "Clues"], lots: ["Level"], shunt: ["Difficulty", "Coach lines (levels 1 to 8)"],
   holdem: ["Computer players", "A game is", "House commission", "Seats at the table", "Odds line"], rack: ["Computer players"], banquet: ["The computer", "Lives each", "The narrator's voice"],
   quest: ["Roles", "The computer", "The computer players talk"], speedmaths: ["Sprint range"],
+  nurikabe: ["Size", "Level"], slitherlink: ["Size", "Level", "Clues"], yield: ["Puzzle", "Level", "Clock", "Race clock"],
 };
 for (const [g, gone] of Object.entries(RAMPED)) {
   const s = src(g === "speedmaths" ? "speedmaths-ui" : g);
@@ -32,7 +33,8 @@ for (const [g, gone] of Object.entries(RAMPED)) {
 // rows that went with no ramp behind them
 const PLAIN = { baccarat: ["Table", "Side bets", "Squeeze my cards"], blackjack: ["Quick dealing"], sicbo: ["Quick rolls"], roulette: ["Quick spins"], craps: ["Quick rolls"],
   nexus: ["Candidates"], punt: ["Difficulty", "Name it"], avalanche: ["Slope", "Danger shading"], guilloche: ["Show the target faint on the plate"],
-  timegrapher: ["Each position", "Settling"], cue: ["The kind over the word"], refinery: ["Flowing arrows"], rush: ["Coordinates on the board"] };
+  timegrapher: ["Each position", "Settling"], cue: ["The kind over the word"], refinery: ["Flowing arrows"], rush: ["Coordinates on the board"],
+  slipway: ["The part's ghost", "Show what a tool would take"], landfall: ["Help"], reckoning: ["Haptics"], drift: ["Quay"], stow: ["Cargo"] };
 for (const [g, gone] of Object.entries(PLAIN)) {
   const left = gone.filter(l => rowOf(src(g), l));
   check(!left.length, `${g}: none of the cut rows is built${left.length ? ` (still: ${left.join(", ")})` : ""}`);

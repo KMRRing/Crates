@@ -12,3 +12,5 @@ The ninth idle game (October 2026; README, Idle): `drift.html`, `drift.js`, `dri
 - A saved v1 game (the square field of seven) is made into an Open sail game on the open quay by `upgrade`; its best (`drift:best` was a number) is the open quay's, and the key is now bests by quay. `drift:seen` was the old first-turns hint, a boolean; the section events seen are `drift:events`.
 - The bots never use a sealed crate or a wave to their advantage, so the planner's win rate understates a person's on the levels with them (8-1 most); the levels are tuned so random wins at most about a third and the planner about half to nine tenths.
 - A class `.crate` is Crates' in `style.css`: every class here is `dr-` or inside an `svg`.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** Game (Voyage or Open sail), View and Sound; the open sail's quay is dealt at random.

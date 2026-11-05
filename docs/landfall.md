@@ -74,3 +74,5 @@ After M5: the long passage (design doc, section 6).
 ## Not yet
 
 Rain; a moon; weather that moves; a live view of the sextant drum for a watcher (the rest of the state is mirrored by the `landfall:` keys); a running fix (a first line carried forward by the run before the second is taken: every line of a watch is taken with the ship still). Spray, wind and creaks are in; so are the bell, the quiet bed, twinkle, the horizon dimming and the lamp.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** No Help row (Fuller, As set, Thinner): a level's hint tier is its own (`landfall:help` is no longer read).

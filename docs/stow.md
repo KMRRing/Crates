@@ -31,3 +31,5 @@ The campaign only grows at the end. Progress is kept by a manifest's id, its pla
 Held sideways (README, Bigger screens), the hold takes the left with all the height, the line, the orders and the tray beside it.
 
 **3D** (Korbi, 4 November 2026: "the screen always resizes itself when the perspective changes in 3D mode ... a proper 3D mode with the hanseatic items instead of just boring boxes"): `stow-gl.js` (three.js, goods from `stow-goods.js`) stands in for `stow-3d.js`, which stays as Flat and shares its camera, so picking is unchanged; the frame never depends on the view (`frameOf`). View choice is `stow:look`, else Settings' 2D mode.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** No Cargo row: Loose cargo is its own tile (`?mode=loose`). The menu has the campaign, Today's and the View.

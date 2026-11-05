@@ -19,3 +19,5 @@ A puzzle in 3D (`slipway.html`, `.js`, `.css`). A part of a ship's cog lies as a
 - A knot must be on the timber's surface for the shader to paint it, and the sphere it paints is the one the plane, spokeshave and drill stop on.
 - `vendor/three.js` is a cut-down bundle: no `LineLoop`, `Points`, `PlaneGeometry` or orthographic camera (the saw's guide is `LineSegments`, chips are small boxes).
 - Saved: `slipway:carve` (the part in hand, version 3: `run` is `{ kind: level|random|daily, at | seed, reach }`, the block run-length coded, its kerfs; a version 2 save is read as its part among the first seven), `slipway:parts` (`{ id: { s: stars, u: tools used } }`, kept by part id from the first puzzle), `slipway:best` (the stars together), `slipway:rand`, `slipway:daily` (`{ day: stars }`), `slipway:mode`, `slipway:opts`. Saves of the earlier carving game are ignored, never read as stars.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** No ghost or tool-preview switch: both are always on. The menu has Mode, View and Sound.
