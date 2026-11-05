@@ -91,8 +91,9 @@ export function cellHit(N, heights, o, d) {
   return best;
 }
 
-// The water's own shader, added to a standard material: caustics and drifting streaks along each cell's current (read from the flow
-// map: red and green the direction, blue how much the cell belongs to the flowing network), and the moon's (or sun's) glitter.
+// The water's own shader, added to a standard material: caustics and drifting streaks along the current (read, smoothed, from the flow
+// map: red and green the direction, blue how much the place belongs to the flowing network), and the moon's (or sun's) glitter. The
+// surface is one flat sheet, and everything is drawn from the world's x and z alone, so it looks the same from any side.
 const WATER_FRAG_FUNCS = `
 varying vec3 vW;
 uniform sampler2D uFlow; uniform float uN, uTime, uLight; uniform vec3 uMoon; uniform float uMoonI;
@@ -119,7 +120,7 @@ function waterShader(mat, U) {
     shader.fragmentShader = shader.fragmentShader.replace("void main() {", WATER_FRAG_FUNCS)
       .replace("#include <color_fragment>", `#include <color_fragment>
       vec2 bc = vW.xz + uN * 0.5;
-      vec4 fl = texture2D(uFlow, (floor(clamp(bc, vec2(0.0), vec2(uN - 0.001))) + 0.5) / uN);
+      vec4 fl = texture2D(uFlow, clamp(bc, vec2(0.0), vec2(uN)) / uN);       // bilinear: the current bends smoothly over the cell borders, so no seam shows
       vec2 dir = fl.rg * 2.0 - 1.0; float wet = fl.b; float spd = length(dir);
       vec2 dn = spd > 0.05 ? dir / spd : vec2(0.0, 1.0);
       float ca = caus(vW.xz * 2.4 - dir * uTime * 0.55 * wet, uTime * 0.3 * (0.3 + wet));
@@ -175,7 +176,7 @@ export function createModel(host, opts = {}) {
   const U = { uFlow: { value: null }, uN: { value: 8 }, uTime: { value: 0 }, uLight: { value: 1 }, uMoon: { value: new THREE.Vector3() }, uMoonI: { value: 0 } };
   const M = {
     earth: solid(), turf: solid(), base: solid(),
-    water: solid({ roughness: 0.3, metalness: 0.05, transparent: true, opacity: 0.88, depthWrite: false }),
+    water: solid({ roughness: 0.3, metalness: 0.05, transparent: true, opacity: 0.88, depthWrite: false, vertexColors: true }),
     stone: solid({ roughness: 0.6 }),
     rows: solid(), sheen: solid({ roughness: 0.08, metalness: 0.15, transparent: true, opacity: 0.6, depthWrite: false }),
     halo: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }),
@@ -185,7 +186,7 @@ export function createModel(host, opts = {}) {
   let scenic = null;                         // built for each board size in set()
 
   // ---------- the world: instanced meshes a cell each (earth below, turf over it, water over the bed, a stone for a dot, crop rows, a paddy's sheen) and a halo for a hint ----------
-  let N = 0, clue = [], plates = [], earth, turf, water, dots, halos, rows, sheen, baseMesh, flowTex = null, flowCtx = null;
+  let N = 0, clue = [], plates = [], earth, turf, water, dots, halos, rows, sheen, baseMesh, rim, flowTex = null, flowCtx = null;
   let cur = [], tgt = [], wcur = [], wtgt = [], jitter = [], look = null, waveAt = 0, spinUntil = 0, plan = null, planKey = "", owner = null, fillAt = 0, lift = 0;
   const MA = new THREE.Matrix4(), Q = new THREE.Quaternion(), PV = new THREE.Vector3(), SV = new THREE.Vector3(), C = new THREE.Color(), C2 = new THREE.Color(), C3 = new THREE.Color();
   const mesh = (geo, mat, n, shadow) => {
@@ -200,19 +201,50 @@ export function createModel(host, opts = {}) {
   scene.add(props);
   let gates = [], wheels = [], barges = [], bargeLen = 0, bargePts = [];
   function disposeWorld() {
-    for (const m of [earth, turf, water, dots, halos, rows, sheen, baseMesh]) if (m) { scene.remove(m); m.dispose?.(); }
-    earth = turf = water = dots = halos = rows = sheen = baseMesh = null;
+    for (const m of [earth, turf, water, dots, halos, rows, sheen, baseMesh, rim]) if (m) { scene.remove(m); m.geometry === box || m.geometry === stone ? m.dispose?.() : (m.geometry.dispose(), m.dispose?.()); }
+    earth = turf = water = dots = halos = rows = sheen = baseMesh = rim = null;
     props.clear(); gates = []; wheels = []; barges = []; planKey = "";
   }
   /** A fixed spread of a cell's green, from its place only: the same board looks the same on every phone. */
   const spread = x => { const s = Math.sin(x * 12.9898 + 4.1414) * 43758.5453; return (s - Math.floor(s)) - 0.5; };
+  /** The water: one sheet over the whole board (two triangles a cell, so a cell can have its own colour, but the corners are shared heights: no step between cells). */
+  function sheet(n) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(n * 18), 3));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(Float32Array.from({ length: n * 18 }, (_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 18).fill(1), 3));
+    const m = new THREE.Mesh(g, M.water);
+    m.frustumCulled = false; m.castShadow = false; m.receiveShadow = true; m.renderOrder = 1;
+    scene.add(m);
+    return m;
+  }
+  /** The sheet's height at a board corner (i, j): the mean of the water levels of the cells that meet there. */
+  function cornerH(i, j) {
+    let sum = 0, k = 0;
+    for (let a = i - 1; a <= i; a++) for (let b = j - 1; b <= j; b++) if (a >= 0 && b >= 0 && a < N && b < N) { sum += wcur[b * N + a]; k++; }
+    return sum / k;
+  }
+  function shapeSheet() {
+    const P = water.geometry.attributes.position.array, o = -N / 2;
+    let q = 0;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const h00 = cornerH(c, r), h10 = cornerH(c + 1, r), h11 = cornerH(c + 1, r + 1), h01 = cornerH(c, r + 1);
+      for (const [dx, dz, h] of [[0, 0, h00], [0, 1, h01], [1, 1, h11], [0, 0, h00], [1, 1, h11], [1, 0, h10]]) { P[q++] = o + c + dx; P[q++] = h; P[q++] = o + r + dz; }
+    }
+    water.geometry.attributes.position.needsUpdate = true;
+  }
+  /** The surface's height over a point of the board (for what floats on it). */
+  const levelAt = (x, z) => wcur[Math.max(0, Math.min(N - 1, Math.floor(z + N / 2))) * N + Math.max(0, Math.min(N - 1, Math.floor(x + N / 2)))] ?? WATER_H;
+  /** What a ray or a finger meets in a cell: the block, or the water over it where the cell is sea. */
+  const topOf = x => (look && look.marks[x] === SEA ? Math.max(cur[x], wcur[x]) : cur[x]);
   const isPaddy = number => number % 2 === 0;               // a plot is a flooded paddy or a millet field by its number's place, fixed
   function set(puzzle) {
     disposeWorld();
     if (puzzle.N !== N || !scenic) { scenic?.dispose(); scenic = createScenery(scene, puzzle.N); }
     N = puzzle.N; clue = puzzle.clue;
     const n = N * N;
-    earth = mesh(box, M.earth, n, "cast"); turf = mesh(box, M.turf, n, "cast"); water = mesh(box, M.water, n, "receive");
+    earth = mesh(box, M.earth, n, "cast"); turf = mesh(box, M.turf, n, "cast"); water = sheet(n);
+    rim = mesh(box, M.earth, 4 * N + 4, "cast");
     dots = mesh(stone, M.stone, n, "cast"); halos = mesh(box, M.halo, n, "none");
     rows = mesh(box, M.rows, n * 3, "cast"); sheen = mesh(box, M.sheen, n, "receive");
     baseMesh = mesh(box, M.base, 1, "cast");
@@ -267,9 +299,9 @@ export function createModel(host, opts = {}) {
   }
   /** Where the water leaves or enters over a weir: the sill, a snout dividing the stream, and the white water falling outside the edge. */
   function weir(g, snout) {
-    put(g, box, M.pstone, [0.43, 0.24, 0], [0.14, 0.48, 0.88]);
-    put(g, box, M.pstone, [0.62, 0.05, 0], [0.34, 0.08, 0.8]);
-    const f = put(g, box, M.foam, [0.7, 0.2, 0], [0.12, 0.36, 0.6]);
+    put(g, box, M.pstone, [0.43, 0.24, 0], [0.14, 0.48, 1]);
+    put(g, box, M.pstone, [0.62, -0.1, 0], [0.34, 0.08, 0.9]);
+    const f = put(g, box, M.foam, [0.6, 0.15, 0], [0.1, 0.62, 0.7]);
     f.castShadow = false;
     if (snout) put(g, cone4, M.pstone, [0.24, 0.3, 0], [0.32, 0.3, 0.32], [0, Math.PI / 4, Math.PI / 2]);
   }
@@ -285,8 +317,8 @@ export function createModel(host, opts = {}) {
     }
     for (const lock of w.locks) for (const c of lock.gates) { const [cx, cz] = at(c); gate(stand(cx, cz, lock.axis === "x" ? 0 : Math.PI / 2)); }
     for (const s of w.sluices) {
-      const [cx, cz] = at(s.cell), d = [[0, -1], [1, 0], [0, 1], [-1, 0]][s.arm], g = stand(cx + d[0] * 0.3, cz + d[1] * 0.3, d[0] ? 0 : Math.PI / 2);
-      gate(g);
+      const [cx, cz] = at(s.cell);
+      gate(stand(cx, cz, s.axis === "x" ? 0 : Math.PI / 2));
     }
     for (const b of w.bridges) {
       const [cx, cz] = at(b.cell), g = stand(cx, cz, b.axis === "x" ? 0 : Math.PI / 2);
@@ -313,10 +345,9 @@ export function createModel(host, opts = {}) {
       bargePts.cum = cum;
       for (let i = 0; i < w.barges; i++) {
         const g = new THREE.Group();
-        put(g, box, M.wood, [0, 0.04, 0], [0.34, 0.08, 0.15]);
-        put(g, box, M.wood, [0.2, 0.04, 0], [0.1, 0.08, 0.1], [0, Math.PI / 4, 0]);
-        put(g, cyl, M.straw, [-0.02, 0.12, 0], [0.11, 0.2, 0.11], [0, 0, Math.PI / 2]);
-        put(g, box, M.wood, [-0.2, 0.1, 0], [0.01, 0.2, 0.01], [0, 0, 0.5]);
+        put(g, box, M.wood, [0, 0.0, 0], [0.34, 0.08, 0.15]);       // the hull rides half under the surface
+        put(g, box, M.wood, [0.2, 0.0, 0], [0.1, 0.08, 0.1], [0, Math.PI / 4, 0]);
+        put(g, cyl, M.straw, [-0.02, 0.1, 0], [0.1, 0.16, 0.1], [0, 0, Math.PI / 2]);
         g.visible = false; g.userData = { i, yaw: 0 };
         props.add(g); barges.push(g);
       }
@@ -366,13 +397,11 @@ export function createModel(host, opts = {}) {
     const k = skinNow(), solved = !!l?.solved;
     if (colours) replan();
     for (let x = 0; x < N * N; x++) {
-      const [cx, cz] = cellXZ(N, x), h = cur[x], w = 1 - GAP;
+      const [cx, cz] = cellXZ(N, x), h = cur[x], w = 1 - GAP;      // the earth fills its cell (no slit between blocks for the water to show in), the turf lies a hair inside it
       const capH = Math.max(0.001, CAP * Math.min(1, (h - BED_H) / (LAND_H - BED_H)));     // the turf thins away as the block sinks
-      earth.setMatrixAt(x, MA.compose(PV.set(cx, (h - capH) / 2, cz), Q.identity(), SV.set(w, h - capH, w)));     // the earth stops under the turf, so their tops never share a plane
+      earth.setMatrixAt(x, MA.compose(PV.set(cx, (h - capH) / 2, cz), Q.identity(), SV.set(1, h - capH, 1)));     // the earth stops under the turf, so their tops never share a plane
       turf.setMatrixAt(x, MA.compose(PV.set(cx, h - capH / 2, cz), Q.identity(), SV.set(w + 0.002, capH, w + 0.002)));
-      const depth = Math.max(0, wcur[x] - h);
-      water.setMatrixAt(x, MA.compose(PV.set(cx, h + depth / 2, cz), Q.identity(), depth > 0.002 ? SV.set(1, depth, 1) : SV.set(0, 0, 0)));
-      const top = Math.max(h, depth > 0 ? wcur[x] : 0);
+      const top = seaAt(x) ? Math.max(h, wcur[x]) : h;
       const dotted = landAt(x) ? 1 : 0;
       dots.setMatrixAt(x, MA.compose(PV.set(cx, h + 0.03, cz), Q.identity(), SV.set(0.2 * dotted, 0.06 * dotted + 0.0001, 0.2 * dotted)));
       const lit = l?.lit?.has(x), why = l?.why?.has(x), on = lit || why;
@@ -398,11 +427,28 @@ export function createModel(host, opts = {}) {
         sheen.setColorAt(x, C.set(k.sheen));
       }
     }
-    for (const m of [earth, turf, water, dots, halos, rows, sheen]) m.instanceMatrix.needsUpdate = true;
-    if (colours) for (const m of [earth, turf, dots, halos, rows, sheen]) if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    for (const m of [earth, turf, dots, halos, rows, sheen, rim]) m.instanceMatrix.needsUpdate = true;
+    shapeSheet();
+    shapeRim();
+    if (colours) for (const m of [earth, turf, dots, halos, rows, sheen, rim]) if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    if (colours) for (let i = 0; i < rim.count; i++) rim.setColorAt(i, C.set(k.levee).offsetHSL(0, 0, 0.03));
     seaColours();
     if (colours) baseMesh.setColorAt(0, C.set(k.base));
     if (baseMesh.instanceColor) baseMesh.instanceColor.needsUpdate = true;
+  }
+  /** The levee round the polder, so the water at the board's edge has a bank too (open only where the weir and the outlet pass through it). */
+  function shapeRim() {
+    const t = 0.15, h = LAND_H, half = N / 2;
+    let i = 0;
+    const open = (x, dx, dz) => { const o = plan && (x === plan.source || x === plan.outlet) ? outward(N, x) : null; return !!o && o[0] === dx && o[1] === dz; };
+    for (let k = 0; k < N; k++) {
+      const [cx] = cellXZ(N, k);
+      const [, rz] = cellXZ(N, k * N);
+      for (const [x, px, pz, dx, dz] of [[k, cx, -half - t / 2, 0, -1], [k * N + N - 1, half + t / 2, rz, 1, 0], [(N - 1) * N + k, cx, half + t / 2, 0, 1], [k * N, -half - t / 2, rz, -1, 0]]) {
+        rim.setMatrixAt(i++, MA.compose(PV.set(px, h / 2, pz), Q.identity(), open(x, dx, dz) ? SV.set(0, 0.0001, 0) : dx ? SV.set(t, h, 1) : SV.set(1, h, t)));
+      }
+    }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) rim.setMatrixAt(i++, MA.compose(PV.set(sx * (half + t / 2), h / 2, sz * (half + t / 2)), Q.identity(), SV.set(t, h, t)));
   }
   /** The canal's colour a cell at a time: celadon, oxblood where a rule is broken. */
   function seaColours() {
@@ -411,9 +457,10 @@ export function createModel(host, opts = {}) {
     for (let x = 0; x < N * N; x++) {
       C.set(k.water);
       if (l && (l.pool?.has(x) || l.cut?.has(x))) C.lerp(C2.set(k.bad), 0.62);
-      water.setColorAt(x, C);
+      const col = water.geometry.attributes.color.array;
+      for (let v = 0; v < 6; v++) { col[x * 18 + v * 3] = C.r; col[x * 18 + v * 3 + 1] = C.g; col[x * 18 + v * 3 + 2] = C.b; }
     }
-    if (water.instanceColor) water.instanceColor.needsUpdate = true;
+    water.geometry.attributes.color.needsUpdate = true;
   }
   function update(next) {
     if (!earth) return;
@@ -563,7 +610,7 @@ export function createModel(host, opts = {}) {
       let dy = s.yaw - b.userData.yaw;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       b.userData.yaw += dy * Math.min(1, dt * 6);
-      b.position.set(s.x, wcur[0] > 0 ? WATER_FULL + 0.005 + Math.sin(clock * 2 + b.userData.i) * 0.006 : 0, s.z);
+      b.position.set(s.x, levelAt(s.x, s.z) + Math.sin(clock * 2 + b.userData.i) * 0.004, s.z);
       b.rotation.y = b.userData.yaw;
       b.scale.setScalar(grow);
     }
@@ -600,7 +647,7 @@ export function createModel(host, opts = {}) {
   function pickAt(cx, cy) {
     if (!earth) return -1;
     const { o, d } = rayAt(...canvasPoint(cx, cy));
-    return cellHit(N, cur, o, d);
+    return cellHit(N, cur.map((_, x) => topOf(x)), o, d);
   }
   function groundAt(sx, sy) {
     const { o, d } = rayAt(sx, sy), t = (LOOK_Y - o[1]) / d[1];
@@ -722,7 +769,7 @@ export function createModel(host, opts = {}) {
     /** For tests: the page's (clientX, clientY) of a cell's top, as a finger would tap it. */
     where(x) {
       const [cx, cz] = cellXZ(N, x), r = canvas.getBoundingClientRect();
-      V.set(cx, tgt[x], cz).project(camera);
+      V.set(cx, look && look.marks[x] === SEA ? wcur[x] : tgt[x], cz).project(camera);
       return { x: r.left + ((V.x + 1) / 2) * r.width, y: r.top + ((1 - V.y) / 2) * r.height };
     },
     pick: pickAt,

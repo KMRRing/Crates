@@ -22,6 +22,10 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   const [fx, fz] = cellXZ(N, 14 + N);        // the cell in front of it (nearer the camera)
   check(cellHit(N, heights, [fx, LAND_H + 0.2, fz + 2.5], aim([0, -0.2, -2.5])) === 14 + N, "a shallow ray meets the land in front before the carved cell behind it");
   check(cellHit(N, heights, [cx, 5, cz], [0, -1, 0]) === 14, "from straight above, a carved cell is met at its bed");
+  // a finger or a ray meets the water's top over a carved cell, not its bed
+  const tops = heights.slice();
+  tops[14] = WATER_H;
+  check(cellHit(N, tops, [cx, 5, cz], [0, -1, 0]) === 14, "a ray meets the water's surface over a sea cell");
   check(WATER_H > BED_H && WATER_H < LAND_H && CLUE_H > LAND_H, "the river's water lies above its bed and below the land; a number's block stands highest");
 }
 

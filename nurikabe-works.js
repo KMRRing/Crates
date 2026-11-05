@@ -145,15 +145,16 @@ export function works(N, clue, marks) {
     out.locks.push({ axis: run.axis, cells: run.cells, gates });
   }
 
-  // sluices where three or more channels meet: a gate on the arm that leads away from the intake
+  // sluices where three or more channels meet: a gate across the straight cell of the arm that leads away from the intake (a gate
+  // stands in a channel with banks on both sides, centred, never in the junction itself where one side is open water)
   for (let x = 0; x < n && out.sluices.length < wide; x++) {
     if (!sea[x] || comp[x] !== main || !free(x, 3)) continue;
     const s = seaNb(x);
     if (s.filter(y => y >= 0).length < 3) continue;
-    let arm = -1;
-    for (let a = 0; a < 4; a++) if (s[a] >= 0 && dist[s[a]] > dist[x] && (arm < 0 || dist[s[a]] > dist[s[arm]])) arm = a;
-    if (arm < 0) continue;
-    out.sluices.push({ cell: take(x), arm });
+    const arms = [0, 1, 2, 3].filter(a => s[a] >= 0 && dist[s[a]] > dist[x]).sort((a, b) => dist[s[b]] - dist[s[a]]);
+    const arm = arms.find(a => straight(s[a]) === (a % 2 ? "x" : "z") && !nearNumber(s[a]) && free(s[a], 2));
+    if (arm === undefined) continue;
+    out.sluices.push({ cell: take(s[arm]), junction: x, axis: straight(s[arm]), arm });
   }
 
   // arch bridges over a straight channel with a field on each bank
