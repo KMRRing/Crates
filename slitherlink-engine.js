@@ -13,7 +13,14 @@
 // the shaded puzzles only: a plain puzzle never runs it, so plain puzzles are the puzzles they always were.
 
 import { NONE, LINE, CROSS, TRIAL_ROUNDS, geometry, vertexRule, note, loopSolver, rngOf, shuffle, randomLoop, outlineMarks } from "./loop-engine.js";
+import * as T from "./slitherlink-twist.js";
 export { NONE, LINE, CROSS, geometry };
+// Ranges, tunnels and the hex board are slitherlink-twist.js's (5 November 2026); this file hands a puzzle that has any of them over
+// to it, and keeps the plain square game (and the shaded one) exactly as it was, so an old seed makes the puzzle it always did.
+export { HEX_SIZES, TWIST_NAMES, flagsOf, twistOn, labelOf, boardOf } from "./slitherlink-twist.js";
+export const SHAPES = { square: "Square", hex: "Hex" };
+const twistSpec = spec => spec?.shape === "hex" || !!spec?.tun;
+const withRanges = grid => /[a-e]|[p-t]/.test(grid);
 
 export const SIZES = [5, 7, 10];
 export const LEVELS = { easy: "Easy", medium: "Medium", hard: "Hard" };
@@ -27,9 +34,10 @@ const TRIES = 8;                   // puzzles made towards a level before the ne
 // ---------- the board ----------
 // (the board itself, its edges and corners, is loop-engine.js's)
 /** A puzzle from its clues (one character a cell: a digit, "i" inside, "o" outside, or "-" for none) and, if known, its answer (marks). */
-export function puzzleOf(size, grid, sol = null) {
+export function puzzleOf(size, grid, sol = null, spec = null) {
+  if (twistSpec(spec) || withRanges(grid)) return T.puzzleOf(size, grid, sol, spec || {});
   const g = geometry(size, size);
-  return { size, g, grid, shaded: /[io]/.test(grid), clue: Int8Array.from(grid, ch => (ch === "-" ? -1 : ch === "i" ? INSIDE : ch === "o" ? OUTSIDE : +ch)), sol: sol && Uint8Array.from(sol, ch => (ch === LINE ? 1 : 0)), solMarks: sol };
+  return { size, g, view: T.boardOf("square", size), shape: "square", locked: null, grid, shaded: /[io]/.test(grid), clue: Int8Array.from(grid, ch => (ch === "-" ? -1 : ch === "i" ? INSIDE : ch === "o" ? OUTSIDE : +ch)), sol: sol && Uint8Array.from(sol, ch => (ch === LINE ? 1 : 0)), solMarks: sol };
 }
 
 // ---------- which side of the loop a cell is on ----------
@@ -151,7 +159,8 @@ export { solveAs, gradeOf, count };
 
 // ---------- the answer of a puzzle ----------
 /** The answer of a puzzle that has one, as marks. */
-export function answerOf(size, grid) {
+export function answerOf(size, grid, spec = null) {
+  if (twistSpec(spec) || withRanges(grid)) return T.answerOf(size, grid, spec || {});
   const P = puzzleOf(size, grid), st = firstAnswer(P.g, P.clue);
   return st ? Array.from(st, x => String(x)).join("") : null;
 }
@@ -198,7 +207,8 @@ const gridOf = clue => Array.from(clue, n => (n < 0 ? "-" : n === INSIDE ? "i" :
  * A puzzle of a size and level, the same for the same seed: { size, grid, sol, level } with level what it came to (the
  * nearest when the asked-for one wouldn't come in the tries allowed). `shade` makes a shaded one (and says `shade: true`).
  */
-export function generate(seed, size, level, shade = false) {
+export function generate(seed, size, level, shade = false, spec = null) {
+  if (!shade && (spec?.shape === "hex" || T.twistOn(spec?.twist) !== "none")) return T.generate(seed, spec.shape === "hex" ? "hex" : "square", size, level, spec.twist);
   const want = Math.max(0, ORDER.indexOf(level)), g = geometry(size, size), rng = rngOf(seed);
   let best = null;
   for (let t = 0; t < TRIES; t++) {
@@ -217,6 +227,10 @@ export function generate(seed, size, level, shade = false) {
 export const levelOn = (size, level) => (LEVELS[level] ? level : "medium");
 
 // ---------- marks ----------
+/** The marks a puzzle starts with: nothing, except that a tunnel's four edges are lines from the start (they can't be changed). */
+export const startMarks = P => (P.twisted ? T.startMarks(P) : NONE.repeat(P.g.E));
+/** Whether a saved puzzle's size and grid fit a board this version knows. */
+export const fitsBoard = s => (s.board === "hex" ? T.fits("hex", s.size, s.grid) : SIZES.includes(s.size) && typeof s.grid === "string" && s.grid.length === s.size * s.size);
 export const nextMark = m => (m === NONE ? LINE : m === LINE ? CROSS : NONE);
 export const withMark = (marks, i, m) => marks.slice(0, i) + m + marks.slice(i + 1);
 const stateOf = marks => Int8Array.from(marks, ch => +ch);
@@ -232,6 +246,7 @@ export function solvedBy(P, marks) {
  * already met, and in a shaded puzzle the cells where the shading and the lines say two things of one cell's side.
  */
 export function breaks(P, marks) {
+  if (P.twisted) return T.breaks(P, marks);
   const { g, clue } = P, st = stateOf(marks), over = [], met = [], bad = [], loop = [];
   for (let k = 0; k < g.cells; k++) {
     if (clue[k] < 0 || clue[k] > 4) continue;
@@ -266,6 +281,7 @@ export function breaks(P, marks) {
  * would take, simplest first ({ step: { set, tech, … } }); else one edge of the answer ({ reveal, should }).
  */
 export function hintFor(P, marks) {
+  if (P.twisted) return T.hintFor(P, marks);
   const { g, clue } = P;
   for (let e = 0; e < g.E; e++) {
     const should = P.sol[e] ? LINE : CROSS;
