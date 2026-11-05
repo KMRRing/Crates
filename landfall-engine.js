@@ -13,7 +13,8 @@
 // Shown: the estimate E and its fog P (model.js). Every sight is a noisy measurement of one direction, folded in by a Kalman filter.
 import { STARS } from "./landfall-stars.js";
 import { levelById } from "./landfall-levels.js";
-import { draw, gaussAt, rng, vec, dist, fogOf, copyP, addP, legNoise, fold, firstEvent, enters, nearest, norm180 } from "./landfall-model.js";
+import { FIND } from "./landfall-finds.js";
+import { draw, gaussAt, rng, vec, rad, bearing, dist, fogOf, copyP, addP, legNoise, fold, firstEvent, enters, nearest, norm180 } from "./landfall-model.js";
 import {
   julianDate, starAltAz, sunAltAz, dip, refraction, sextantReading, toLatLon, fromLatLon, polarisAlmanac, sunPlace, sunReading, sunObservedAltitude,
   sunSemidiameter, sunParallax, sunAtHourAngle, noonJd, sunHourAngle, equalAltitudeLongitude, latitudeFromMeridian,
@@ -101,9 +102,12 @@ export function newVoyage(levelId, seed) {
   S.cur = [0.8 * e.current * r.g(), 0.8 * e.current * r.g()];
   S.kinds = L.kinds.split(",");
   S.weathers = S.kinds.map(() => pickWeighted(L.weather, r.u()));
+  for (const g of L.gale?.legs ?? []) if (g < S.weathers.length) S.weathers[g] = "storm";      // the watch a blow ends in is stormy (no draws: old voyages are unchanged)
+  // the chronometer: it is wrong by a hidden number of seconds the reckoning only half knows (P's third row); `epsE` is what has been learned of it
+  if (L.clock) { const c = L.clock; S.clock = { err: sign() * (c.err[0] + r.u() * (c.err[1] - c.err[0])) }; S.epsE = 0; }
   S.T = [0, 0];
   S.E = [e.start * r.g() * 0.6, e.start * r.g() * 0.6];
-  S.P = fogOf(Math.max(0.3, e.start));
+  S.P = fogOf(Math.max(0.3, e.start), L.clock ? L.clock.sd : 0);
   S.w = 0; S.watches = L.watches;
   S.trail = [{ k: "start", p: [...S.E], w: 0 }];
   S.truth = [[0, 0]];
@@ -133,6 +137,8 @@ function runLeg(S, course, speedFactor) {
     if (c === null) { t1 = jd0 + 0.5; T1 = tAt(12); break; }
     t1 = c; T1 = tAt((t1 - jd0) * 24);
   }
+  if (L.gale?.legs.includes(S.w)) { const g = L.gale.push; T1 = [T1[0] + g * r.g(), T1[1] + g * r.g()]; }          // a blow sets the ship by what the log cannot show
+  if (S.clock) S.clock.err += L.clock.rate * r.g() * (t1 - jd0);                                                  // and the clock drifts a little each day
   const hours = (t1 - jd0) * 24, ev = firstEvent(L, T0, T1);
   const through = dist(T0, T1) < 1e-9 ? null : lineMiss(T0, T1, L.harbour);
   S.leg = { from: jd0, to: t1, hours, course, speed: L.speed * speedFactor, run: hours * L.speed * speedFactor };
@@ -151,16 +157,21 @@ function runLeg(S, course, speedFactor) {
   const day = kind === "noon";
   S.watch = {
     min: 0, picked: day ? SUN : null, marks: [], retakes: 0, bearing: null, book: null, plot: null, ritual: null, weather: wx, kind,
-    hUnit: r.g(), swell: [r.u() * 6.28, r.u() * 6.28], clouds: wx === "cloud" ? (day ? makeSunClouds(r) : makeClouds(r)) : [],
+    hUnit: r.g(), swell: [r.u() * 6.28, r.u() * 6.28], clouds: wx === "cloud" || wx === "storm" ? (day ? makeSunClouds(r) : makeClouds(r)) : [],
     ...(day ? { sun: { m1: null, noon: null, aft: null }, stage: null } : {}),
+    ...(L.lop && !day ? { lops: [], lines: [], targets: [] } : {}),
   };
+  if (L.lop && !day) S.watch.targets = chooseTargets(S);
+  if (L.light && !day) S.watch.light = { seen: dist(S.T, [L.light.x, L.light.y]) <= L.light.range * (wx === "haze" ? 0.7 : wx === "storm" ? 0.6 : 1), done: false };
   S.phase = "ritual";
   return { ok: true };
 }
 /** What a leg of `run` nm in `hours` on `course` does to the fog: the log, the compass (as far as it is known) and the current. */
 function processNoise(S, course, hours, run) {
-  const e = levelOf(S).errors;
-  return legNoise({ logSigma: e.log, compassSigma: S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5), current: [e.current * hours, e.current * hours * 0.7] }, course, run);
+  const L = levelOf(S), e = L.errors, gale = L.gale?.legs.includes(S.w) ? L.gale.push : 0;
+  const N = legNoise({ logSigma: e.log, compassSigma: S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5), current: [Math.hypot(e.current * hours, gale), Math.hypot(e.current * hours * 0.7, gale)] }, course, run);
+  if (L.clock) N[2][2] = (L.clock.rate * hours / 24) ** 2;                    // the clock's drift while the leg is sailed
+  return N;
 }
 /**
  * What steering `course` from here would promise, by the reckoning alone (not the truth): the hours to the next twilight, where the DR
@@ -209,10 +220,10 @@ function makeSunClouds(r) {
 /** The sun, the horizon and the stars at this moment of the watch, and the noise they give a sight. */
 export function conditions(S) {
   const jd = sceneJd(S), p = truePlace(S), sun = sunAltAz(jd, p.lat, p.lon).alt, wx = S.watch.weather, day = S.watch.kind === "noon";
-  const haze = wx === "haze" ? 1 : 0;
+  const haze = wx === "haze" ? 1 : wx === "storm" ? 0.8 : 0;
   const hf = sun >= -9 ? 1 : sun >= -12 ? 1 + (-9 - sun) / 3 : sun >= -16 ? 2 + (-12 - sun) : 6;
   const limMag = day ? -2 : Math.max(-2, Math.min(6.2, 2.0 + (-5.5 - sun) * 0.45)) - 0.7 * haze;
-  return { jd, sun, limMag, horizon: sun >= -16 && (day || sun <= 6), horizonFactor: hf * (1 + 0.8 * haze), swell: levelOf(S).swell * (wx === "swell" ? 2 : 1) * (1 + 0.25 * haze), weather: wx };
+  return { jd, sun, limMag, horizon: sun >= -16 && (day || sun <= 6), horizonFactor: hf * (1 + 0.8 * haze), swell: levelOf(S).swell * (wx === "swell" ? 2 : wx === "storm" ? 2.4 : 1) * (1 + 0.25 * haze), weather: wx };
 }
 /** The clouds now, as discs on the sky: [{ az, alt, r }] (degrees), placed about where Polaris stands, or by day about the sun. */
 export function cloudsNow(S) {
@@ -272,8 +283,8 @@ export function swellAt(S, sec) {
   return A * (0.58 * Math.sin(sec * 2 * Math.PI / 5.3 + f1) + 0.42 * Math.sin(sec * 2 * Math.PI / 3.1 + f2));
 }
 /** The sd the filter is told for a sight of n marks (arcminutes = nautical miles of latitude). */
-export function filterSigma(S, n) {
-  const k = sightNoise(S, POLARIS), A = k.swell;
+export function filterSigma(S, n, star = POLARIS) {
+  const k = sightNoise(S, star), A = k.swell;
   return Math.sqrt(k.horizon ** 2 + (SIGMA_PLAYER ** 2 + (A / 2) ** 2) / Math.max(1, n) + 0.1 ** 2);
 }
 /** The almanac's reduction of a set of marks into the pole star's latitude: every line the sight book shows. */
@@ -382,6 +393,78 @@ function plotSun(S) {
   return { ok: true, accepted: true, z: res.z };
 }
 
+// ---------- any star: the intercept ----------
+// A sight of a star at a known place gives a LINE of position: the almanac says what the star's altitude should be for the reckoned place
+// (Hc) and the sextant what it is (Ho); a minute of altitude is a nautical mile toward the star (the intercept, Ho - Hc) when Ho is larger.
+// The line runs at right angles to the star's bearing. The chronometer's error moves Hc by the star's rate of climb, so an east or west
+// star (which climbs fastest) is moved by a wrong clock and a star on the meridian is not: that is how two lines read the clock.
+/** The stars worth taking this watch, brightest first and standing well apart: the first, then the one that crosses it best. */
+export function chooseTargets(S) {
+  const L = levelOf(S), W = S.watch, p = truePlace(S), jd = S.t0 + (W.kind === "dusk" ? 18 : 3) / 1440;
+  const sun = sunAltAz(jd, p.lat, p.lon).alt, lim = Math.max(-2, Math.min(6.2, 2.0 + (-5.5 - sun) * 0.45)) - 0.7 * (W.weather === "haze" ? 1 : 0);
+  const pool = L.pool ? new Set(L.pool) : null, c = [];
+  for (const s of STARS) {
+    if (!s[8] || s[5] > 1.8 || s[5] > lim - 0.2 || (pool && !pool.has(s[0]))) continue;
+    const a = starAltAz(s, jd, p.lat, p.lon);
+    if (a.alt < 22 || a.alt > 66) continue;
+    c.push({ hr: s[0], az: a.az, mag: s[5], cost: s[5] + (a.alt < 28 || a.alt > 60 ? 0.6 : 0) });
+  }
+  c.sort((x, y) => x.cost - y.cost);
+  if (!c.length) return [];
+  const out = [c[0]];
+  while (out.length < (L.lop || 1) && out.length < c.length) {
+    const rest = c.filter(x => !out.includes(x)), sep = x => Math.abs(norm180(x.az - out[0].az));
+    const score = x => x.cost + (sep(x) < 45 ? 3 : sep(x) < 60 ? 1 : sep(x) > 135 ? 0.6 : 0);
+    rest.sort((x, y) => score(x) - score(y));
+    out.push(rest[0]);
+  }
+  return out.map(x => x.hr);
+}
+/** How fast the star climbs (arcminutes of altitude a second, which is nautical miles a second of clock error) at a place and time. */
+const climb = (star, jd, lat, lon) => starAltAz(star, jd + 30 / 86400, lat, lon).alt - starAltAz(star, jd - 30 / 86400, lat, lon).alt;
+/** The almanac's reduction of the picked star's marks into an intercept: every line the sight book shows. */
+export function reduceLop(S, marks) {
+  const W = S.watch, star = BY_HR.get(W.picked), est = estPlace(S), jd = sceneJd(S);
+  const hs = marks.reduce((t, x) => t + x, 0) / marks.length, dp = dip(EYE), app = hs - dp, appDeg = app / 60, rf = refraction(appDeg), ho = appDeg - rf / 60;
+  const eps = S.clock ? S.clock.err - S.epsE : 0, jdc = jd + eps / 86400;               // the time the chronometer gives, corrected by what is known of its error
+  const hc = starAltAz(star, jdc, est.lat, est.lon), z = (ho - hc.alt) * 60;
+  const rate = S.clock ? climb(star, jd, est.lat, est.lon) : 0;
+  return { kind: "lop", hr: star[0], hs, dip: dp, app, refr: rf, ho: ho * 60, hc: hc.alt * 60, az: hc.az, z, a: vec(hc.az), k: -rate, sigma: filterSigma(S, marks.length, star), n: marks.length, clockOff: S.clock ? S.epsE : null };
+}
+function plotLop(S) {
+  const W = S.watch, B = W.book, L = levelOf(S), before = { E: [...S.E], P: copyP(S.P) };
+  const f = fold(S.E, S.epsE ?? 0, S.P, B.a, B.k, B.sigma, B.z), gate = 3.5 * Math.sqrt(f.S) + 1.5;
+  if (Math.abs(B.z) > gate) { W.plot = { accepted: false, lop: true, z: B.z, gate, off: true, hr: B.hr, az: B.az }; return { ok: true, accepted: false, z: B.z, gate }; }
+  S.E = f.E; S.P = f.P; if (S.clock) S.epsE = f.epsE;
+  const line = { p: [before.E[0] + B.a[0] * B.z, before.E[1] + B.a[1] * B.z], dir: [B.a[1], -B.a[0]], kind: "star", hr: B.hr };
+  W.lops.push(B.hr); W.lines.push(line);
+  W.plot = { accepted: true, lop: true, z: B.z, gate, before, after: { E: [...S.E], P: copyP(S.P) }, line, hr: B.hr, az: B.az, errorNm: dist(S.E, S.T), more: W.lops.length < L.lop };
+  S.fixes.push({ w: S.w, E: [...S.E], lat: null, z: 0, zLon: 0, hours: S.leg.hours, lop: true });
+  if (S.trail.at(-1)?.k === "fix" && S.trail.at(-1).w === S.w) S.trail.pop();         // a second line of the same watch moves the fix, it is not another
+  S.trail.push({ k: "fix", p: [...S.E], w: S.w });
+  W.book = null; W.marks = []; W.bearing = null;
+  if (W.plot.more) { W.picked = null; W.retakes = 0; S.phase = "find"; } else S.phase = "steer";
+  return { ok: true, accepted: true, z: B.z, more: W.plot.more };
+}
+/** A bearing of the lighthouse, corrected by what is known of the compass: a line through the light that the ship is on. */
+function plotLight(S) {
+  const L = levelOf(S), W = S.watch, Lg = L.light, r = rng(S), before = { E: [...S.E], P: copyP(S.P) };
+  const trueB = bearing([Lg.x - S.T[0], Lg.y - S.T[1]]), sdB = 1.2, observed = (trueB + S.compass.err + sdB * r.g() + 360) % 360, b = observed - (S.compass.known ?? 0);
+  const n = [Math.cos(rad(b)), -Math.sin(rad(b))], z = n[0] * (Lg.x - S.E[0]) + n[1] * (Lg.y - S.E[1]);
+  const d = Math.max(2, dist(S.E, [Lg.x, Lg.y])), sigB = Math.hypot(sdB, S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5)), sigma = Math.max(0.3, d * rad(sigB));
+  const f = fold(S.E, S.epsE ?? 0, S.P, n, 0, sigma, z), gate = 3.5 * Math.sqrt(f.S) + 1.5;
+  W.light.done = true; W.light.bearing = observed;
+  if (Math.abs(z) > gate) { W.light.off = true; W.plot = { accepted: false, light: true, z, gate, off: true }; return { ok: true, accepted: false, z, gate, observed }; }
+  S.E = f.E; S.P = f.P; if (S.clock) S.epsE = f.epsE;
+  const line = { p: [Lg.x, Lg.y], dir: vec(b), kind: "light" };
+  W.lines = W.lines || []; W.lines.push(line);
+  W.plot = { accepted: true, light: true, z, gate, before, after: { E: [...S.E], P: copyP(S.P) }, line, errorNm: dist(S.E, S.T), observed, more: true };
+  S.fixes.push({ w: S.w, E: [...S.E], lat: null, z: 0, zLon: 0, hours: S.leg.hours, lop: true });
+  if (S.trail.at(-1)?.k === "fix" && S.trail.at(-1).w === S.w) S.trail.pop();
+  S.trail.push({ k: "fix", p: [...S.E], w: S.w });
+  return { ok: true, accepted: true, z, observed };
+}
+
 // ---------- the moves ----------
 
 /** What a phase allows. */
@@ -391,7 +474,7 @@ export function moves(S) {
     case "ritual": return ["step", "skip"];
     case "find":
       if (day) return ["wait", "raise", "skipstage", "skipsight"];
-      return ["wait", "pick", ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), "skipsight"];
+      return ["wait", "pick", ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), ...(S.watch.light?.seen && !S.watch.light.done ? ["light"] : []), "skipsight"];
     case "sight": return ["read", "lower", ...(day ? ["wait"] : [])];       // the sun moves while it is watched: the clock runs in the eyepiece
     case "book": return ["plot", "retake", "discard"];
     case "steer": return ["sail", "heave"];
@@ -427,12 +510,16 @@ export function apply(S, m) {
       if (sunStage(S) === "done") finishSun(S);
       return { ok: true, stage: st };
     }
-    case "pick": if (!BY_HR.has(m.hr)) return no("no such star"); W.picked = m.hr; return { ok: true };
+    case "pick":
+      if (!BY_HR.has(m.hr)) return no("no such star");
+      if (W.lops?.includes(m.hr)) return no("that star is already in the book");
+      W.picked = m.hr; return { ok: true };
+    case "light": return plotLight(S);
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);
       if (!l.visible) return no("the star cannot be seen");
       // what the navigator compares the compass bearing with is where POLARIS should stand, whatever star was picked
-      const r = rng(S), ep = estPlace(S), ez = starAltAz(POLARIS, sceneJd(S), ep.lat, ep.lon).az;
+      const r = rng(S), ep = estPlace(S), ez = starAltAz(L.lop ? star : POLARIS, sceneJd(S), ep.lat, ep.lon).az;
       const observed = (l.az + S.compass.err + 0.35 * r.g() + 360) % 360, diff = norm180(observed - ez);
       const wrong = Math.abs(diff) > 12;
       W.bearing = { observed, expected: ez, diff, wrong };
@@ -454,12 +541,13 @@ export function apply(S, m) {
       S.phase = "sight"; W.marks = []; return { ok: true };
     }
     case "lower": S.phase = "find"; return { ok: true };
-    case "skipsight": S.phase = "steer"; W.plot = null; return { ok: true };
+    case "skipsight": S.phase = "steer"; if (!(L.lop && W.lops?.length)) W.plot = null; return { ok: true };
     case "read": {
       const marks = (m.marks || []).filter(Number.isFinite).slice(0, MARKS);
       if (W.kind === "noon") return readSun(S, marks);
       if (!marks.length) return no("no marks");
-      W.marks = marks; W.book = reduce(S, marks); W.book.sigma = filterSigma(S, marks.length);
+      W.marks = marks;
+      if (L.lop) W.book = reduceLop(S, marks); else { W.book = reduce(S, marks); W.book.sigma = filterSigma(S, marks.length); }
       S.phase = "book"; return { ok: true, book: W.book };
     }
     case "retake":
@@ -468,9 +556,12 @@ export function apply(S, m) {
         W.sun.noon = null; W.book = null; W.marks = []; W.plot = null; W.retakes += 1; S.phase = "find"; return { ok: true };
       }
       W.min += 4; W.retakes += 1; W.book = null; W.marks = []; W.plot = null; S.phase = "find"; return { ok: true };
-    case "discard": W.plot = { accepted: false, discarded: true }; S.phase = "steer"; return { ok: true };
+    case "discard":
+      if (L.lop) { W.book = null; W.marks = []; W.picked = null; W.retakes = 0; S.phase = "find"; return { ok: true }; }      // another star may still be taken; skipping the sight ends the watch's sights
+      W.plot = { accepted: false, discarded: true }; S.phase = "steer"; return { ok: true };
     case "plot": {
       if (W.book.kind === "sun") return plotSun(S);
+      if (W.book.kind === "lop") return plotLop(S);
       const B = W.book, z = (B.lat - estPlace(S).lat) * 60, gate = 3.5 * Math.sqrt(S.P[1][1] + B.sigma ** 2) + 1.5;
       if (Math.abs(z) > gate) { W.plot = { accepted: false, z, gate, off: true }; return { ok: true, accepted: false, z, gate }; }
       const before = { E: [...S.E], P: copyP(S.P) }, f = fold(S.E, 0, S.P, [0, 1], 0, B.sigma, z);
@@ -508,6 +599,7 @@ export function routeOf(S) {
  * and `figure` the constellation to draw. Tier 3 gives only the bearing and the height from the DR.
  */
 export function hintFor(S, tier) {
+  if (levelOf(S).lop) return lopHint(S, tier);
   const route = routeOf(S), fig = route === "plough" ? "UMa" : "Cas", p = estPlace(S), jd = sceneJd(S);
   const pol = starAltAz(POLARIS, jd, p.lat, p.lon);
   const rule = route === "plough" ? "The two stars at the end of the Plough's bowl point to Polaris, five times the gap between them." : "Cassiopeia's W points to Polaris, which lies across the pole from the Plough.";
@@ -518,6 +610,15 @@ export function hintFor(S, tier) {
   if (t === 2) return { tier: 2, text: `Find ${route === "plough" ? "the Plough (Ursa Major)" : "Cassiopeia"}, ${regionWords(where.az, where.alt)}; it leads to the pole star.`, ring: null, figure: null, route };
   if (t === 3) return { tier: 3, text: `The pole star: ${Math.abs(norm180(pol.az)) < 4 ? "due north" : "north"}, about ${Math.round(pol.alt)}° up.`, ring: null, figure: null, route };
   return { tier: 4, text: "Find the pole star.", ring: null, figure: null, route };
+}
+/** The help for a level of any-star sights: the star to take next, from the almanac's own table, by tier. */
+function lopHint(S, tier) {
+  const W = S.watch, hr = (W.targets || []).find(h => !W.lops.includes(h)), t = Math.max(0, Math.min(4, tier));
+  if (hr === undefined || t === 4) return { tier: t, text: "Take any bright star that shows: tap it.", ring: null, figure: null, route: "any" };
+  const star = BY_HR.get(hr), est = estPlace(S), a = starAltAz(star, sceneJd(S), est.lat, est.lon), name = star[1] || star[2];
+  if (t <= 1) return { tier: t, text: `${name}: ${FIND[hr] || "a bright star"}.`, ring: t === 0 ? hr : null, figure: null, route: "any" };
+  if (t === 2) return { tier: 2, text: `Look for ${name}, ${regionWords(a.az, a.alt)}.`, ring: null, figure: null, route: "any" };
+  return { tier: 3, text: `${name}: bearing ${String(Math.round(a.az)).padStart(3, "0")}°, about ${Math.round(a.alt)}° up.`, ring: null, figure: null, route: "any" };
 }
 /** What mastery a find earns: 0 unseen, 1 seen, 2 named with a hint, 3 found without one. Never goes down. */
 export const masteryAfter = (was, tier, correct) => Math.max(was || 0, correct ? (tier <= 1 ? 2 : 3) : 1);

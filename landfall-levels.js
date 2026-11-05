@@ -17,7 +17,7 @@ const shore = (pts, top = 400) => [...pts, [pts[pts.length - 1][0], top], [pts[0
 const east = (far, pts) => [...pts.map(([y, x]) => [x, y]), [far, pts[pts.length - 1][0]], [far, pts[0][0]]];
 const west = (far, pts) => [...pts.map(([y, x]) => [x, y]), [far, pts[pts.length - 1][0]], [far, pts[0][0]]];
 
-export const LEVELS = [
+const FIRST = [
   {
     id: "first-watch", section: 1, n: 1, name: "First Watch", place: "the Grey Sea",
     blurb: "Three nights to Skerrholm. The pole star will tell you how far north you are; the log tells you the rest.",
@@ -143,4 +143,7 @@ export const LEVELS = [
   },
 ];
 
+import { VOYAGES, SECTIONS } from "./landfall-voyages.js";
+export { SECTIONS };
+export const LEVELS = [...FIRST, ...VOYAGES];
 export const levelById = id => LEVELS.find(l => l.id === id) || null;

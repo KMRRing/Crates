@@ -3,6 +3,8 @@
 import { newVoyage, apply, sextantTruth, look, POLARIS, POLARIS_HR, estPlace } from "../landfall-engine.js";
 import { fmtLat, fmtLon, fmtCourse, fmtHours, fmtNm, fmtSigned, fmtDM, starLabel, dateWords, watchWords, slate, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords, fogNS } from "../landfall-words.js";
 import { play } from "../landfall-bots.js";
+import { lopFindWords, steerHead, starTable } from "../landfall-words.js";
+import { conditions, BY_HR } from "../landfall-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -84,6 +86,26 @@ check(endWords(newVoyage("first-watch", 1)) === null, "a voyage under way has no
   apply(N, { t: "plot" });
   const rv = revealWords(N);
   check(!/NaN|undefined/.test(JSON.stringify(rv)) && JSON.stringify(rv).length < 700, "the reveal of a sun fix is short and whole");
+}
+
+{
+  // an any-star watch: the sight book, the words before and after, the star table
+  const T = newVoyage("two-lines-cross", 5);
+  apply(T, { t: "skip" });
+  check(/^Sight 1 of 2: tap a bright star \(try <b>\w+<\/b> or <b>\w+<\/b>\)\.$/.test(lopFindWords(T, 1)) && !lopFindWords(T, 4).includes("try"), "before a star the words count the sights and, with help, suggest two");
+  const hr = T.watch.targets[0];
+  apply(T, { t: "pick", hr });
+  for (let i = 0; i < 60 && !(look(T, BY_HR.get(hr)).visible && conditions(T).sun < -6); i++) apply(T, { t: "wait", min: 2 });
+  apply(T, { t: "raise" }); apply(T, { t: "read", marks: [sextantTruth(T)] });
+  const rows = bookLines(T), key = rows.find(r => r.key);
+  check(rows.length === 8 && /Intercept/.test(key.label) && /toward|away from/.test(key.value) && rows.every(r => !/NaN|undefined/.test(r.label + r.value)), "the sight book of a star ends in the intercept, toward or away from it");
+  apply(T, { t: "plot" });
+  check(/^Sight 2 of 2: one more, standing apart/.test(lopFindWords(T, 4)) && !/NaN|undefined/.test(revealWords(T)) && /fix/i.test(revealWords(T)), "after the first line the words ask for another, and the reveal says what the line did");
+  check(!/NaN|undefined/.test(steerHead(T)) && starTable(T).length >= 8 && starTable(T).every(r => r.mag <= 1.9 && r.alt >= 8) && starTable(T).some(r => r.done), "the star table lists the bright stars up, and marks the one taken");
+  const U = newVoyage("two-lines-cross", 5); apply(U, { t: "skip" }); apply(U, { t: "pick", hr: U.watch.targets[0] });
+  for (let i = 0; i < 60 && !(look(U, BY_HR.get(U.watch.targets[0])).visible && conditions(U).sun < -6); i++) apply(U, { t: "wait", min: 2 });
+  apply(U, { t: "raise" }); apply(U, { t: "read", marks: [sextantTruth(U) + 40] }); apply(U, { t: "plot" });
+  check(/not plotted/.test(refusedWords(U)) && /toward|away from/.test(refusedWords(U)), "a line far from the reckoning is refused in words that name the star");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

@@ -136,6 +136,7 @@
 .lf-alm th, .lf-alm td { padding: .3rem .4rem; border-bottom: 1px solid var(--rule); text-align: right; font-size: .9rem; }
 .lf-alm th:first-child, .lf-alm td:first-child { text-align: left; }
 .lf-alm tr.now { background: var(--lf-soft); font-weight: 800; }
+.lf-alm tr.done { opacity: .5; }
 .lf-note-p { margin: .5rem 0 0; color: var(--ink-soft); font-size: .88rem; line-height: 1.35; }
 .lf-logrows { margin: .6rem 0 0; padding: 0; list-style: none; display: grid; }
 .lf-logrows li { padding: .3rem .1rem; border-bottom: 1px solid var(--rule); font: .84rem var(--lf-mono); }

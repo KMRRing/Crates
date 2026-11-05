@@ -10,7 +10,7 @@
 // pressing for the moment the falling sun comes back to the drum with a delay of its own (`late`, `lateSd` game minutes) and a share of the
 // swell it fails to average away (`swing`). The sloppy bot is late, loose and takes one mark.
 import {
-  newVoyage, apply, conditions, look, sextantTruth, levelOf, sunStage, reckonedNoonJd, expectedCatchJd, sceneJd, swellAt, sightNoise, lookSun,
+  newVoyage, apply, conditions, look, sextantTruth, BY_HR, levelOf, sunStage, reckonedNoonJd, expectedCatchJd, sceneJd, swellAt, sightNoise, lookSun,
   POLARIS, POLARIS_HR, MAX_WAIT, CLOCK,
 } from "./landfall-engine.js";
 import { draw, gaussAt, bearing, dist } from "./landfall-model.js";
@@ -31,7 +31,9 @@ const LOOKALIKES = STARS.filter(s => s[4] > 60 && s[5] < 3.2 && s[0] !== POLARIS
  * somewhere along its latitude inside the fog, and once the estimate says it is nearly there a navigator runs for a point beyond it, on the coast's side.
  */
 export function aim(L, E, drift = [0, 0]) {
-  const H = L.harbour, s = H.x >= 0 ? 1 : -1, togo = s * (H.x - E[0]);
+  const H = L.harbour;
+  if (L.lop) return bearing([H.x - E[0], H.y - E[1]]);                // a fix says where the ship is both ways: steer for the harbour
+  const s = H.x >= 0 ? 1 : -1, togo = s * (H.x - E[0]);
   const hours = Math.hypot(H.x - E[0], H.y - E[1]) / L.speed;           // a drift to the north is allowed for by aiming south of the harbour
   const beyond = L.section === 2 ? 0 : Math.max(0, 30 - togo);          // on a north-south coast run down the latitude; in the second section the harbour is in a long shore and the sun says where
   return bearing([H.x + s * beyond - drift[0] * hours - E[0], H.y - drift[1] * hours - E[1]]);
@@ -89,9 +91,38 @@ function sunWatch(S, bot, g, take, cur) {
   if (S.phase === "find") take({ t: "skipsight" }, 0);
 }
 
+/**
+ * One step of a night watch on an any-star level: the lighthouse if it shows, else the next star the sky suggests that can be seen (or the
+ * brightest that can), the compass, and the sextant. When nothing can be taken before the light is gone, the watch's sights are over.
+ */
+function lopFind(S, bot, take, wait, out, gaveUp) {
+  const W = S.watch;
+  if (W.light?.seen && !W.light.done && !bot.noLight) { take({ t: "light" }, SECONDS.bearing); return; }
+  if (gaveUp || W.lops.length >= levelOf(S).lop) { take({ t: "skipsight" }, 0); return; }
+  let sweet = bot.sweet;                                          // wait for the dark and a steady horizon, but not for ever
+  const ok = hr => look(S, BY_HR.get(hr)).visible && (!sweet || (conditions(S).sun < -5.8 && conditions(S).horizonFactor <= 1.3)) && !W.lops.includes(hr);
+  const seen = () => {
+    const t = W.targets.find(ok);
+    if (t !== undefined) return t;
+    const any = [...BY_HR.values()].filter(s => s[5] < 1.8 && s[8] && ok(s[0]) && look(S, s).alt > 18).sort((a, b) => a[5] - b[5])[0];
+    return any ? any[0] : undefined;
+  };
+  let hr = seen();
+  while (hr === undefined && W.min < MAX_WAIT - 10) { wait(); hr = seen(); }
+  if (hr === undefined && sweet) { sweet = false; hr = seen(); }
+  if (hr === undefined) { take({ t: "skipsight" }, 0); return; }
+  take({ t: "pick", hr }, SECONDS.pick);
+  if (bot.bearing && !W.bearing && (S.compass.known === null || S.compass.checks.length < 2)) {
+    const r = take({ t: "bearing" }, SECONDS.bearing);
+    if (r.ok) out.bearings++;
+  }
+  if (!take({ t: "raise" }, SECONDS.raise).ok) { if (W.min < MAX_WAIT + 20) wait(); else take({ t: "skipsight" }, 0); }
+}
+
 /** Plays a whole voyage. Returns { S, watches: [{ seconds, fixError }], wrongTaken, wrongAccepted, rejected }. */
 export function play(levelId, seed, botName) {
   const bot = BOTS[botName], S = newVoyage(levelId, seed), L = levelOf(S), salt = seed * 7919 + botName.length;
+  let gaveUp = false;                                           // the watch's sights are over (a line was thrown away)
   let i = 0;
   const g = () => gaussAt(salt, (i += 2) - 2), u = () => draw(salt ^ 0x2545f491, i++);
   const out = { watches: [], wrongTaken: 0, wrongAccepted: 0, rejected: 0, bearings: 0 };
@@ -108,6 +139,7 @@ export function play(levelId, seed, botName) {
       case "find": {
         if (bot.blind) { take({ t: "skipsight" }, 0); break; }
         if (S.watch.kind === "noon") { if (bot.noSun) take({ t: "skipsight" }, 0); else sunWatch(S, bot, g, take, cur); break; }
+        if (L.lop) { lopFind(S, bot, take, wait, out, gaveUp); break; }
         const ready = () => look(S, POLARIS).visible && (!bot.sweet || (conditions(S).sun < -5.8 && conditions(S).horizonFactor <= 1.3));
         while (!ready() && S.watch.min < MAX_WAIT - 10) wait();
         const wrong = u() < bot.wrong;
@@ -129,9 +161,9 @@ export function play(levelId, seed, botName) {
       }
       case "book": {
         const r = take({ t: "plot" }, SECONDS.plot);
-        if (r.accepted) { if (S.watch.kind !== "noon" && S.watch.picked !== POLARIS_HR) out.wrongAccepted++; break; }
+        if (r.accepted) { if (S.watch.kind !== "noon" && !L.lop && S.watch.picked !== POLARIS_HR) out.wrongAccepted++; break; }
         out.rejected++;
-        if (S.watch.kind !== "noon" && S.watch.retakes < bot.retakes) apply(S, { t: "retake" }); else apply(S, { t: "discard" });
+        if (S.watch.kind !== "noon" && S.watch.retakes < bot.retakes) apply(S, { t: "retake" }); else { apply(S, { t: "discard" }); gaveUp = true; }
         break;
       }
       case "steer": {
@@ -141,7 +173,7 @@ export function play(levelId, seed, botName) {
         cur.latError = Math.abs(S.E[1] - S.T[1]);            // ...and how far north or south of it, which is what Polaris fixes
         cur.lonError = Math.abs(S.E[0] - S.T[0]);            // ...and east or west, which only the sun and the clock fix
         cur.kind = S.watch.kind;
-        out.watches.push(cur); cur = null;
+        out.watches.push(cur); cur = null; gaveUp = false;
         apply(S, { t: "sail", course });
         break;
       }

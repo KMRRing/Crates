@@ -1,8 +1,9 @@
 // What Landfall says: numbers set as a navigator writes them, the lines of the sight book, the log slate and the almanac's page, the
 // ending in words. Pure functions of the voyage (tests/landfall-words.mjs); the page only puts them on the screen.
-import { levelOf, estPlace, sceneJd, shipClock, reckonedNoonJd, expectedCatchJd, sunStage, POLARIS, EYE } from "./landfall-engine.js";
+import { levelOf, estPlace, sceneJd, shipClock, reckonedNoonJd, expectedCatchJd, sunStage, POLARIS, EYE, BY_HR } from "./landfall-engine.js";
+import { STARS } from "./landfall-stars.js";
 import { ellipse, dist } from "./landfall-model.js";
-import { polarisAlmanac, polarisLatitude, toLatLon, placeOfDate, norm360, sunPlace, sunSemidiameter, calendar } from "./landfall-sky.js";
+import { starAltAz, polarisAlmanac, polarisLatitude, toLatLon, placeOfDate, norm360, sunPlace, sunSemidiameter, calendar } from "./landfall-sky.js";
 
 const pad = (n, w = 2) => String(n).padStart(w, "0");
 
@@ -73,6 +74,7 @@ export function bookLines(S) {
   if (!B) return [];
   const est = estPlace(S);
   if (B.kind === "sun") return sunBookLines(B, est);
+  if (B.kind === "lop") return lopBookLines(B);
   return [
     { label: B.n > 1 ? `Sextant, mean of ${B.n}` : "Sextant", value: fmtDM(B.hs) },
     { label: `Dip, eye ${EYE} m up`, value: `−${B.dip.toFixed(1)}′` },
@@ -83,6 +85,21 @@ export function bookLines(S) {
     { label: "Latitude", value: fmtLat(B.lat), key: true },
     { label: "Dead reckoning", value: fmtLat(est.lat) },
     { label: "Difference", value: `${fmtSigned((B.lat - est.lat) * 60)} = ${fmtNm((B.lat - est.lat) * 60)} ${B.lat >= est.lat ? "north" : "south"}` },
+  ];
+}
+
+/** The sight book of a star taken by the intercept: the reading to a true altitude, the almanac's altitude for the reckoning, and the difference. */
+function lopBookLines(B) {
+  const star = BY_HR.get(B.hr), name = starLabel(star), toward = B.z >= 0;
+  return [
+    { label: B.n > 1 ? `Sextant, ${name}, mean of ${B.n}` : `Sextant, ${name}`, value: fmtDM(B.hs) },
+    { label: `Dip, eye ${EYE} m up`, value: `−${B.dip.toFixed(1)}′` },
+    { label: "Apparent altitude", value: fmtDM(B.app) },
+    { label: "Refraction", value: `−${B.refr.toFixed(1)}′` },
+    { label: "True altitude", value: fmtDM(B.ho) },
+    { label: B.clockOff === null ? "Almanac: altitude from the reckoning" : `Almanac: altitude from the reckoning, clock put right by ${fmtSecs(-B.clockOff)}`, value: `${fmtDM(B.hc)}, bearing ${fmtCourse(B.az)}` },
+    { label: "Intercept = true − almanac", value: `${fmtSigned(B.z)} = ${fmtNm(B.z)} ${toward ? "toward" : "away from"} ${name}`, key: true },
+    { label: "The line runs", value: `${fmtCourse(B.az + 90)} and ${fmtCourse(B.az - 90)}` },
   ];
 }
 
@@ -124,6 +141,9 @@ export const fogEW = P => 2.45 * Math.sqrt(Math.max(0, P[0][0]));
 export function revealWords(S) {
   const p = S.watch.plot;
   if (!p || !p.accepted) return "";
+  const fog = () => `Now north-south ±${fmtNm(fogNS(p.after.P))} (was ${fmtNm(fogNS(p.before.P))}), east-west ±${fmtNm(fogEW(p.after.P))} (was ${fmtNm(fogEW(p.before.P))}).`;
+  if (p.light) return `The light bears ${fmtCourse(p.observed)} by the compass. ${fog()}`;
+  if (p.lop) return `${starLabel(BY_HR.get(p.hr))}: the ship is ${fmtNm(p.z)} ${p.z >= 0 ? "toward it" : "away from it"} of where you reckoned. ${fog()}${p.more ? " Take a second star standing well apart from it, and the two lines make a fix." : ""}`;
   if (p.sun) {
     const got = [p.latOk && `latitude ${fmtLat(p.lat)}`, p.lonOk && `longitude ${fmtLon(p.lon)}`].filter(Boolean).join(", ");
     const lost = [p.latOk === false && p.zLat !== undefined && "The latitude was refused.", p.lonOk === false && p.zLon !== undefined && "The longitude was refused."].filter(Boolean).join(" ");
@@ -135,12 +155,42 @@ export function revealWords(S) {
 /** Why a sight was refused, in words. */
 export function refusedWords(S) {
   const p = S.watch.plot;
+  if (p.light) return `The light's line is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: is the compass right? Is it the light you think?`;
+  if (p.lop) return `This line is ${fmtNm(Math.abs(p.z))} ${p.z >= 0 ? "toward" : "away from"} ${starLabel(BY_HR.get(p.hr))} of the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: was it that star, was the horizon right, was the reading? Take it again, or throw it away.`;
   if (p.sun) {
     const bits = [p.zLat !== undefined && `The latitude is ${fmtNm(Math.abs(p.zLat))} ${p.zLat >= 0 ? "north" : "south"} of the reckoning (the fog allows ${fmtNm(p.gateLat)})`,
       p.zLon !== undefined && `the longitude is ${fmtNm(Math.abs(p.zLon))} ${p.zLon >= 0 ? "east" : "west"} of it (the fog allows ${fmtNm(p.gateLon)})`].filter(Boolean).join("; ");
     return `${bits[0].toUpperCase()}${bits.slice(1)}. Neither is plotted: was the sun at its peak, was the catch made on the moment, was the horizon clear? Take the noon altitude again, or throw the sights away.`;
   }
   return `This latitude is ${fmtNm(Math.abs(p.z))} ${p.z >= 0 ? "north" : "south"} of the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: was it Polaris, was the horizon right, was the reading? Take it again, or throw it away.`;
+}
+
+/** The first words of the steering line: what the watch's sights made. */
+export function steerHead(S) {
+  const W = S.watch, p = W.plot, names = (W.lops || []).map(h => starLabel(BY_HR.get(h))).join(" and ");
+  if (W.lops?.length || W.lines?.length) {
+    const lines = (W.lops?.length || 0) + (W.lines || []).filter(l => l.kind === "light").length;
+    return `<b>${lines > 1 ? "A fix" : "One line"}${names ? ` from ${names}` : ""}${W.lines?.some(l => l.kind === "light") ? `${names ? " and" : " from"} the light` : ""}.</b> `;
+  }
+  return p?.accepted ? `<b>Latitude ${fmtLat(p.lat)}.</b> ` : p?.discarded ? "The sight is thrown away. " : "No sight this watch. ";
+}
+/** What to do in the sky on a level of any-star sights: how many lines are in, and (with help) which stars the almanac would suggest. */
+export function lopFindWords(S, tier) {
+  const W = S.watch, L = levelOf(S), n = L.lop - W.lops.length, names = W.targets.filter(h => !W.lops.includes(h)).map(h => starLabel(BY_HR.get(h)));
+  const light = W.light?.seen && !W.light.done ? " The light is in sight: take its bearing." : W.light && !W.light.seen && L.light ? " No light is in sight yet." : "";
+  const lead = `Sight ${W.lops.length + 1} of ${L.lop}: ${n === 1 && W.lops.length ? "one more, standing apart" : "tap a bright star"}`;
+  return `${lead}${tier < 4 && names.length ? ` (try ${names.map(x => `<b>${x}</b>`).join(" or ")})` : ""}.${light}`;
+}
+/** The almanac's page for the any-star levels: the bright stars of the night as the reckoning has them, by brightness. */
+export function starTable(S) {
+  const est = estPlace(S), jd = sceneJd(S), W = S.watch, rows = [];
+  for (const s of STARS) {
+    if (!s[8] || s[5] > 1.9) continue;
+    const a = starAltAz(s, jd, est.lat, est.lon);
+    if (a.alt < 8) continue;
+    rows.push({ hr: s[0], name: starLabel(s), az: a.az, alt: a.alt, mag: s[5], target: (W.targets || []).includes(s[0]), done: (W.lops || []).includes(s[0]) });
+  }
+  return rows.sort((x, y) => x.mag - y.mag).slice(0, 16);
 }
 
 /** The log: what was written at each watch. [{ watch, kind, text }]. */

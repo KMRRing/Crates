@@ -37,6 +37,12 @@ export const HOW = [
 ];
 
 /** How the sun is taken, for the first noon watch and the menu. */
+export const HOW_STAR = [
+  ["Any bright star", "The pole star is not the only one. The almanac names the stars worth taking tonight; tap one, bring it to the horizon and read it as before. Take two that stand well apart."],
+  ["The intercept", "The almanac works out how high the star should stand from where you reckon you are. The difference from what the sextant says is the intercept: a minute is a mile, toward the star if it stands higher than reckoned, away if lower."],
+  ["A line, and then a fix", "The intercept is drawn across the chart at right angles to the star's bearing: you are somewhere along that line. A second star in another quarter makes a second line, and you are where they cross."],
+  ["The clock and the light", "A star in the east or west climbs fastest, so a wrong chronometer moves its line: two stars show which way the clock errs. A light, when it is in sight, is a line too: take its compass bearing."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

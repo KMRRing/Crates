@@ -4,9 +4,9 @@
 import {
   newVoyage, apply, moves, validate, save, restore, nextCrossing, bellsAt, bellsBetween, shipClock, conditions, look, sextantTruth, swellAt,
   sightNoise, filterSigma, reduce, forecast, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf, masteryAfter, regionWords, cloudsNow, sunStage, expectedCatchJd, reckonedNoonJd,
-  POLARIS, POLARIS_HR, BY_HR, DUSK_ALT, DAWN_ALT, MAX_WAIT, EYE,
+  POLARIS, POLARIS_HR, BY_HR, DUSK_ALT, DAWN_ALT, MAX_WAIT, EYE, chooseTargets, reduceLop,
 } from "../landfall-engine.js";
-import { LEVELS } from "../landfall-levels.js";
+import { LEVELS, SECTIONS } from "../landfall-levels.js";
 import { sunAltAz, julianDate, calendar } from "../landfall-sky.js";
 import { dist, bearing } from "../landfall-model.js";
 
@@ -64,7 +64,7 @@ const waitFor = (S, ok) => { for (let i = 0; i < 60 && !ok(S); i++) apply(S, { t
 const toSky = (S, hr = POLARIS_HR) => { apply(S, { t: "skip" }); apply(S, { t: "pick", hr }); return waitFor(S, s => look(s, BY_HR.get(hr)).visible && conditions(s).sun < -6); };
 {
   let worst = 0, worstNoisy = 0, n = 0;
-  for (const L of LEVELS) for (let seed = 1; seed <= 6; seed++) {
+  for (const L of LEVELS.filter(l => !l.lop)) for (let seed = 1; seed <= 6; seed++) {
     const S = newVoyage(L.id, seed);
     if (!toSky(S)) continue;
     apply(S, { t: "raise" });
@@ -77,7 +77,7 @@ const toSky = (S, hr = POLARIS_HR) => { apply(S, { t: "skip" }); apply(S, { t: "
     n++;
   }
   check(n >= 30 && worst < 0.15, `a perfect sight of Polaris gives the true latitude to ${worst.toFixed(2)}′ over ${n} sights`);
-  for (const L of LEVELS) for (let seed = 1; seed <= 6; seed++) {
+  for (const L of LEVELS.filter(l => !l.lop)) for (let seed = 1; seed <= 6; seed++) {
     const S = newVoyage(L.id, seed);
     if (!toSky(S)) continue;
     apply(S, { t: "raise" });
@@ -284,6 +284,104 @@ const toSky = (S, hr = POLARIS_HR) => { apply(S, { t: "skip" }); apply(S, { t: "
   check(apply(T, { t: "retake" }).ok && T.phase === "find" && T.watch.sun.noon === null, "the noon altitude (and only it) can be retaken");
   const r = apply(S, { t: "plot" });
   check(r.accepted && S.watch.plot.latOk && !S.watch.plot.lonOk, "...and without a catch the plot fixes the latitude and leaves the longitude foggy");
+}
+
+// ---------- any star: the intercept, the clock, the light and the gale ----------
+const lopSky = (S, hr) => { apply(S, { t: "skip" }); apply(S, { t: "pick", hr }); return waitFor(S, s => look(s, BY_HR.get(hr)).visible && conditions(s).sun < -6); };
+{
+  const LOP = LEVELS.filter(l => l.lop);
+  check(LEVELS.length >= 30 && LOP.length >= 24 && new Set(LEVELS.map(l => l.id)).size === LEVELS.length && LEVELS.every((l, i) => l.n === i + 1), `${LEVELS.length} levels, numbered in order, ${LOP.length} of them by any star`);
+  check([...new Set(LEVELS.map(l => l.section))].every(k => SECTIONS[k]) && Object.keys(SECTIONS).length === 9, "nine chapters, each named");
+  let worst = 0, n = 0, none = 0;
+  for (const L of LOP.filter(l => !l.clock)) for (let seed = 1; seed <= 4; seed++) {
+    const S = newVoyage(L.id, seed), hr = S.watch.targets[0];
+    if (hr === undefined) { none++; continue; }
+    if (!lopSky(S, hr)) continue;
+    apply(S, { t: "raise" }); S.watch.hUnit = 0; S.E = [...S.T];                 // no horizon error, and the reckoning is right
+    apply(S, { t: "read", marks: [sextantTruth(S)] });
+    worst = Math.max(worst, Math.abs(S.watch.book.z)); n++;
+  }
+  check(n >= 40 && worst < 0.4 && none === 0, `a perfect sight of any star from the right place has no intercept: ${worst.toFixed(2)} nm over ${n} sights, every watch had a star to suggest`);
+}
+{
+  // a wrong chronometer moves the line of a star by the star's rate of climb, and only that
+  let ok = 0, n = 0, worst = 0, east = 0;
+  for (const id of ["a-clock-gone-slow", "east-and-west", "the-rate-of-the-clock"]) for (let seed = 1; seed <= 6; seed++) {
+    const S = newVoyage(id, seed), hr = S.watch.targets[0];
+    if (!lopSky(S, hr)) continue;
+    apply(S, { t: "raise" }); S.watch.hUnit = 0; S.E = [...S.T];
+    apply(S, { t: "read", marks: [sextantTruth(S)] });
+    const B = S.watch.book, want = B.k * S.clock.err;
+    worst = Math.max(worst, Math.abs(B.z - want)); n++; if (Math.abs(B.z) > 3) ok++;
+    if (Math.abs(B.a[0]) > 0.7) east++;
+  }
+  check(n >= 12 && worst < 0.4, `the clock's error shifts the line by exactly the star's rate of climb times it (off by ${worst.toFixed(2)} nm at most over ${n} sights)`);
+  check(ok >= n / 3, `a clock thirty seconds out is plain to see in the line (${ok} of ${n} sights moved more than 3 nm)`);
+  // two stars standing apart read the clock: the unknown goes into the filter and comes out smaller
+  const resid = [], errs = [];
+  for (let seed = 1; seed <= 14; seed++) {
+    const S = newVoyage("east-and-west", seed);
+    apply(S, { t: "skip" });
+    for (const hr of S.watch.targets) {
+      apply(S, { t: "pick", hr });
+      if (!waitFor(S, s => look(s, BY_HR.get(hr)).visible && conditions(s).sun < -6)) break;
+      apply(S, { t: "raise" }); S.watch.hUnit = 0;
+      apply(S, { t: "read", marks: [sextantTruth(S)] }); apply(S, { t: "plot" });
+    }
+    if (S.watch.lops.length < 2) continue;
+    resid.push(Math.abs(S.clock.err - S.epsE)); errs.push(Math.abs(S.clock.err));
+  }
+  const mean = a => a.reduce((t, x) => t + x, 0) / a.length;
+  check(resid.length >= 8 && mean(resid) < 0.75 * mean(errs), `two stars read the clock: its error falls from ${mean(errs).toFixed(0)} s to ${mean(resid).toFixed(0)} s after one watch (${resid.length} watches)`);
+}
+{
+  const S = newVoyage("two-lines-cross", 5), hr0 = S.watch.targets[0], hr1 = S.watch.targets[1];
+  lopSky(S, hr0); apply(S, { t: "raise" }); apply(S, { t: "read", marks: [sextantTruth(S)] });
+  const first = apply(S, { t: "plot" });
+  check(first.accepted && first.more && S.phase === "find" && S.watch.picked === null && S.watch.lops.length === 1, "the first of two lines goes back to the sky for the second");
+  check(!apply(S, { t: "pick", hr: hr0 }).ok, "...and the star already taken cannot be taken twice");
+  const before = S.P[0][0] * S.P[1][1] - S.P[0][1] ** 2;
+  apply(S, { t: "pick", hr: hr1 }); waitFor(S, s => look(s, BY_HR.get(hr1)).visible);
+  apply(S, { t: "raise" }); apply(S, { t: "read", marks: [sextantTruth(S)] });
+  const second = apply(S, { t: "plot" });
+  const after = S.P[0][0] * S.P[1][1] - S.P[0][1] ** 2;
+  check(second.accepted && !second.more && S.phase === "steer" && S.watch.lines.length === 2 && after < before * 0.6, "two lines end the sights and the second shrinks the fog the other way too");
+  check(S.trail.filter(t => t.k === "fix" && t.w === S.w).length === 1, "...and the two lines are one fix on the chart");
+  const T = newVoyage("two-lines-cross", 5); lopSky(T, hr0); apply(T, { t: "raise" }); apply(T, { t: "read", marks: [sextantTruth(T) + 50] });
+  const bad1 = apply(T, { t: "plot" });
+  check(bad1.ok && !bad1.accepted && apply(T, { t: "discard" }).ok && T.phase === "find" && T.watch.lops.length === 0 && apply(T, { t: "skipsight" }).ok && T.phase === "steer", "a line fifty miles out is refused; discarding it leaves the sky open, and the sights can be given up");
+}
+{
+  // the light: seen only within its range, a bearing gives a line through it that the ship is on
+  let seen = 0, near = 0, n = 0, worst = 0;
+  for (const id of ["the-light-on-the-skerry", "loom-of-the-land", "a-dark-coast"]) for (let seed = 1; seed <= 8; seed++) {
+    const S = newVoyage(id, seed), L = levelOf(S);
+    apply(S, { t: "skip" });
+    S.T = [L.light.x - 8, L.light.y - 3]; S.watch.light = { seen: true, done: false }; S.E = [S.T[0] + 3, S.T[1] - 2]; S.P = [[9, 0, 0], [0, 9, 0], [0, 0, 0]];
+    const farE = dist(S.E, S.T);
+    const r = apply(S, { t: "light" });
+    n++; if (r.accepted) { seen++; const ln = S.watch.lines.at(-1), d = Math.abs((S.T[0] - ln.p[0]) * ln.dir[1] - (S.T[1] - ln.p[1]) * ln.dir[0]); worst = Math.max(worst, d); if (dist(S.E, S.T) < farE) near++; }
+    if (!(r.ok && !apply(S, { t: "light" }).ok)) bad++;
+  }
+  check(seen >= 7 * n / 8 && worst < 4 && near >= seen / 2, `a bearing of the light is a line the ship is on (${worst.toFixed(1)} nm at worst), once a watch, and it pulls the reckoning toward her (${near} of ${seen})`);
+  let far = 0, close = 0, count = 0;
+  for (let seed = 1; seed <= 20; seed++) for (const id of ["the-light-on-the-skerry", "a-dark-coast"]) { const S = newVoyage(id, seed); count++; if (S.watch.light?.seen) close++; else far++; }
+  check(close === 0 && far === count, "far from the coast no light is seen at the first watch");
+}
+{
+  // a gale sets the ship off by what the log cannot show, on the legs the level names and not on the others
+  const off = (id, leg) => { const out = []; for (let seed = 1; seed <= 24; seed++) {
+    const S = newVoyage(id, seed);
+    let T0 = [0, 0], E0 = [0, 0];
+    for (let k = 0; k < leg; k++) { apply(S, { t: "skip" }); apply(S, { t: "skipsight" }); T0 = S.T; E0 = S.E; apply(S, { t: "sail", course: levelOf(S).course0 }); if (S.phase === "end") break; }
+    if (S.phase === "end") continue;
+    out.push(Math.hypot((S.T[0] - T0[0]) - (S.pre.E[0] - E0[0]), (S.T[1] - T0[1]) - (S.pre.E[1] - E0[1])));
+  } return out; };
+  const rms = a => Math.sqrt(a.reduce((t, x) => t + x * x, 0) / a.length), calm = off("gale-off-the-skaw", 0), blow = off("gale-off-the-skaw", 2);
+  check(blow.length >= 10 && rms(blow) > 1.6 * rms(calm), `a gale sets the ship ${rms(blow).toFixed(1)} nm off her reckoning in a leg, ${rms(calm).toFixed(1)} in a calm one`);
+  const S = newVoyage("gale-off-the-skaw", 1);
+  check(S.weathers[1] === "storm" && S.weathers[2] === "storm" && S.weathers[0] !== "storm", "the watches a gale ends in are stormy");
+  check(forecast(S, 280).P[0][0] >= 0, "the forecast's fog is a covariance with a clock row");
 }
 check(LEVELS.filter(l => l.section === 2).length === 4 && LEVELS.filter(l => l.section === 2).every(l => l.kinds.includes("noon")), "section 2's four levels all take the sun");
 

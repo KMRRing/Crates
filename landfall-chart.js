@@ -113,6 +113,17 @@ export function drawChart(ctx, w, h, sc) {
     ctx.beginPath(); ctx.arc(0, -u * 1.25, u * 0.28, 0, 6.283); ctx.stroke(); ctx.restore();
     label(ctx, H.name, x, y - Math.max(r, 16 * k) - 8 * k, 12.5 * k, pal, { italic: true });
   }
+  // a lighthouse: a tower with its flash, and the range it is charted to show at
+  if (L.light) {
+    const G = L.light, [x, y] = S([G.x, G.y]), u = 6 * k;
+    ctx.save(); ctx.strokeStyle = pal.brass; ctx.lineWidth = 1; ctx.setLineDash([2 * k, 5 * k]); ctx.globalAlpha = 0.55;
+    ctx.beginPath(); ctx.arc(x, y, G.range * cam.s, 0, 6.283); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = pal.ink; ctx.fillStyle = pal.paper; ctx.lineWidth = 1.5 * k; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-u * 0.45, u); ctx.lineTo(-u * 0.25, -u * 0.6); ctx.lineTo(u * 0.25, -u * 0.6); ctx.lineTo(u * 0.45, u); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = pal.blood; for (const a of [-2.6, -1.57, -0.54]) { ctx.beginPath(); ctx.moveTo(Math.cos(a) * u * 0.9, -u * 0.9 + Math.sin(a) * u * 0.9); ctx.lineTo(Math.cos(a) * u * 1.7, -u * 0.9 + Math.sin(a) * u * 1.7); ctx.stroke(); }
+    ctx.restore();
+    label(ctx, `${G.name}, ${G.range} nm`, x, y + 17 * k, 10.5 * k, pal, { italic: true });
+  }
   // the scales, on the edges: minutes of latitude down the side, minutes of longitude along the foot
   ctx.save(); ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink; ctx.lineWidth = 1; ctx.font = `${9.5 * k}px ${pal.mono}`;
   ctx.fillStyle = pal.paper; ctx.globalAlpha = 0.85; ctx.fillRect(0, 0, 38 * k, h); ctx.fillRect(0, h - 15 * k, w, 15 * k); ctx.globalAlpha = 1; ctx.fillStyle = pal.ink;
@@ -161,6 +172,13 @@ export function drawChart(ctx, w, h, sc) {
     ctx.beginPath();
     for (let i = 0; i <= upTo; i++) { const lat = o.lat + (wb[1] + (wt[1] - wb[1]) * i / n) / 60, p = S(fromLatLon(o, lat, sc.lopLon.lon)); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
     ctx.stroke(); ctx.restore();
+  }
+  // the lines of this watch's star sights and the light's bearing, ruled across the chart; the newest draws itself in from its point
+  for (const [i, ln] of (sc.lines || []).entries()) {
+    const a = S(ln.p), d = [ln.dir[0], -ln.dir[1]], far = Math.hypot(w, h) * 1.6, t = i === sc.lines.length - 1 ? clamp(sc.lineT ?? 1, 0, 1) : 1;
+    ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k; ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
+    if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]);
+    ctx.beginPath(); ctx.moveTo(a[0] - d[0] * far * t, a[1] - d[1] * far * t); ctx.lineTo(a[0] + d[0] * far * t, a[1] + d[1] * far * t); ctx.stroke(); ctx.restore();
   }
   // the pencilled track and its marks
   if (sc.trail?.length) {

@@ -126,6 +126,32 @@ export const NOTES = [
   { id: "fix", g: "time", term: "A fix", on: "fix",
     cap: "A fix: latitude from the sun, longitude from the clock.",
     text: "That is a fix: a latitude from the sun and a longitude from the clock. The East India Company (chartered 1600) and the Dutch VOC (1602) ran their fleets on the first and a guess at the second." },
+
+  // ---------- any star, the clock, the coast and the sea (sections 3 to 9) ----------
+  { id: "intercept", g: "sight", term: "The intercept", on: "plot:lop",
+    cap: "The almanac says where a star should stand from your reckoning; the sextant says where it does. A minute's difference is a mile.",
+    text: "Work out, from the almanac, how high a star ought to stand if you were where you reckon. The sextant says how high it does stand. Each minute of difference is one nautical mile: toward the star if it stands higher than reckoned, away from it if lower. Mark that distance from your reckoning along the star's bearing and draw the line of position across it, at right angles. You are somewhere on that line." },
+  { id: "twolines", g: "sight", term: "Two lines", on: "fix:lop",
+    cap: "One line says how far along; two lines that cross say where.",
+    text: "One star gives a line, and you are somewhere on it. A second star in another quarter of the sky gives a second line, and you are where they cross. The nearer the two stars stand to a right angle apart, the cleaner the cross; two stars side by side give lines that lie almost on top of each other and tell you little." },
+  { id: "clockstar", g: "time", term: "A star and the clock", on: "plot:clock",
+    cap: "A star on the meridian hardly climbs; one in the east or west climbs fastest, and a wrong clock moves its line.",
+    text: "A star climbs or falls by about 15′ for every minute of time at its fastest, when it stands due east or west, and hardly at all when it stands due south or north. The almanac needs the time to say where the star should be, so a clock a minute wrong moves an east or west star's line by up to 15 miles and a meridian star's by almost none. Two stars in different quarters show which way the clock errs." },
+  { id: "lightline", g: "chart", term: "The bearing of a light", on: "light",
+    cap: "A light's bearing is a line through the light, as a star's is a line across the sea.",
+    text: "A lighthouse stands on the chart where it stands on the coast. Take its compass bearing, put right the compass's known error, and you are on a line through the light running the opposite way. How far off you can see it depends on the height of the light and of your eye: about 1.17 times the square root of each height in feet, in miles, added together, and less in haze." },
+  { id: "gale", g: "chart", term: "The sea's own hand", on: "gale",
+    cap: "In a gale the log cannot show what the sea does: the ship is set and drifts to leeward.",
+    text: "A ship in a gale makes leeway, a sideways slip the log does not count, and the whole sea may be on the move. Hove to, a ship makes little headway and drifts downwind. The dead reckoning gets none of this, and the fog around it should grow accordingly: after a blow a sight is worth more than the log." },
+  { id: "southpole", g: "sky", term: "No pole star", on: "south",
+    cap: "South of the equator the north pole star is below the horizon, and no bright star marks the south pole.",
+    text: "Polaris sinks below the horizon as you cross the equator, and the south celestial pole has no bright star near it (Sigma Octantis is of the fifth magnitude). Navigators in the south take any two bright stars and work the intercept, or find the pole from the Southern Cross." },
+  { id: "crux", g: "sky", term: "The Southern Cross", on: ["pick:Acrux", "pick:Gacrux", "pick:Mimosa"],
+    cap: "The Cross: carry its long axis four and a half times its length on, and you are at the south celestial pole.",
+    text: "The Southern Cross is four bright stars in a kite, Acrux at its foot and Gacrux at its head. Carry the line from Gacrux through Acrux on for four and a half times its own length and you arrive at the south celestial pole, whose height above the horizon is your latitude south." },
+  { id: "pointers", g: "sky", term: "The Pointers", on: ["pick:Hadar", "pick:Rigil Kentaurus"],
+    cap: "Rigil Kentaurus and Hadar are the Pointers: they lead the eye to the Cross.",
+    text: "Two bright stars close together, Rigil Kentaurus and Hadar, in the legs of the Centaur, point at the Southern Cross. Rigil Kentaurus is the nearest bright star to us, a little over four light years away." },
 ];
 
 const BY_ID = new Map(NOTES.map(n => [n.id, n]));

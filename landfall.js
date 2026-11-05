@@ -6,7 +6,7 @@ import {
   newVoyage, apply, moves, restore, save, forecast, conditions, sextantTruth, swellAt, sightNoise, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf,
   masteryAfter, cloudsNow, bellsBetween, shipClock, lookSun, sunStage, reckonedNoonJd, expectedCatchJd, bodyOf, maxWait, CLOCK, MAX_WAIT, POLARIS_HR, SUN, BY_HR, EYE,
 } from "./landfall-engine.js";
-import { LEVELS } from "./landfall-levels.js";
+import { LEVELS, SECTIONS } from "./landfall-levels.js";
 import { STARS } from "./landfall-stars.js";
 import { FIGURES } from "./landfall-figures.js";
 import { starAltAz, sunAltAz, sextantReading, sunReading, sunSemidiameter } from "./landfall-sky.js";
@@ -16,10 +16,10 @@ import * as sx from "./landfall-sextant.js";
 import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart } from "./landfall-chart.js";
 import { sound } from "./landfall-sound.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
-import { MASTERY, LORE, HOW, HOW_SUN, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
-  sunTaskWords, sunAlmanac, fmtGmt, fmtSecs,
+  sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable,
 } from "./landfall-words.js";
 import { scale, sideways } from "./wide.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
@@ -35,7 +35,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen", seenSun: "landfall:seen-noon", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -232,7 +232,7 @@ function choose(hr) {
   sound.tick();
   learn(`pick:${starLabel(BY_HR.get(hr))}`);
   // finding Polaris earns the constellations that led to it, by how little help it took
-  if (hr === POLARIS_HR && !S.ui.credited) {
+  if (hr === POLARIS_HR && !S.ui.credited && !levelOf(S).lop) {
     S.ui.credited = true;
     const M = read(KEY.mastery, {}), fig = routeOf(S) === "plough" ? "UMa" : "Cas";
     for (const k of ["UMi", fig]) M[k] = masteryAfter(M[k], S.ui.tier, true);
@@ -307,11 +307,13 @@ function drawChartNow(now) {
     if (p?.accepted && p.lat !== undefined) sc.lop = { y: (p.lat - L.origin.lat) * 60, t: 1 };
     if (p?.accepted && p.lon !== undefined) sc.lopLon = { lon: p.lon, t: 1 };
   }
+  if (S.watch.lines?.length && S.phase !== "ritual" && S.phase !== "end") { sc.lines = S.watch.lines; sc.lineT = 1; }
   if (S.phase === "steer" && !reveal) sc.steer = { course: S.ui.course, forecast: forecast(S, S.ui.course) };
   if (S.phase === "end") sc.end = { truth: S.truth, T: S.T };
   if (reveal) {
     const u = reveal.hold ?? (now - reveal.t0) / 1000, s = smooth((u - 0.55) / 1.3);
     sc.lop = reveal.lat === undefined ? null : { y: (reveal.lat - L.origin.lat) * 60, t: smooth(u / 0.8) };
+    if (sc.lines) sc.lineT = smooth(u / 0.8);
     sc.lopLon = reveal.lon === undefined ? null : { lon: reveal.lon, t: smooth(u / 0.8) };
     sc.E = [reveal.before.E[0] + (reveal.after.E[0] - reveal.before.E[0]) * s, reveal.before.E[1] + (reveal.after.E[1] - reveal.before.E[1]) * s];
     sc.P = mixP(reveal.before.P, reveal.after.P, s);
@@ -391,8 +393,11 @@ function after(m, prev, r) {
         startReveal();
         const p = S.watch.plot;
         // a longitude is the rarer thing: its notes come before the common ones (two captions at most)
-        learn(...(p.lonOk ? ["lon", ...(p.latOk ? ["fix"] : [])] : []), "plot", p.sun ? "plot:sun" : "plot:star");
+        learn(...(p.lonOk ? ["lon", ...(p.latOk ? ["fix"] : [])] : []), ...(p.lop ? [...(S.clock ? ["plot:clock"] : []), ...(p.more ? [] : ["fix:lop"])] : []), "plot", p.sun ? "plot:sun" : p.lop ? "plot:lop" : "plot:star");
       }
+      break;
+    case "light":
+      if (r.accepted) { startReveal(); learn("light"); } else note = refusedWords(S);
       break;
     case "read":
       if (isDay() && r.stage) {
@@ -415,6 +420,8 @@ function arrive(prev) {
   $("app").classList.toggle("lf-day", day && S.phase !== "end");
   if (S.phase === "ritual" && day) { const sun = skyData().sun; view.az = free.az = Math.round(sun.az); free.alt = 35; }       // look where the sun is
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
+  if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
+  if (S.phase === "ritual" && prev !== "ritual") { if (L.origin.lat < 0) learn("south"); if (S.watch.weather === "storm") learn("gale"); }
   sound.day(day && S.phase !== "end");
   switch (S.phase) {
     case "ritual": ui.d = 0; ui.lamp = true; ui.credited = false; ui.tier = 4; break;
@@ -423,7 +430,7 @@ function arrive(prev) {
       if (prev === "ritual" && !day) {
         ui.tier = tierFor(L); ui.credited = false;
         const M = read(KEY.mastery, {}), fig = routeOf(S) === "plough" ? "UMa" : "Cas";
-        if (ui.tier <= 1) { for (const k of ["UMi", fig]) M[k] = Math.max(M[k] || 0, 1); write(KEY.mastery, M); }
+        if (ui.tier <= 1 && !L.lop) { for (const k of ["UMi", fig]) M[k] = Math.max(M[k] || 0, 1); write(KEY.mastery, M); }
       }
       break;
     case "sight": ui.lamp = false; openScope(); break;
@@ -444,7 +451,7 @@ function lookFor(prev) {
 }
 function startReveal() {
   const p = S.watch.plot;
-  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
+  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
   retarget();
 }
 
@@ -583,7 +590,7 @@ function drawScopeNow(now) {
 
 // ---------- the sight book and the reveal ----------
 /** The lines of the sight book that name a thing the notebook explains: tap one for its note. */
-const TIPS = [["Dip", "dip"], ["Refraction", "refraction"], ["True altitude", "ho"], ["Almanac: declination", "declination"], ["Latitude =", "noonlat"], ["Longitude =", "lontime"]];
+const TIPS = [["Dip", "dip"], ["Refraction", "refraction"], ["True altitude", "ho"], ["Almanac: declination", "declination"], ["Latitude =", "noonlat"], ["Longitude =", "lontime"], ["Intercept", "intercept"]];
 function openBook() {
   const dl = $("bookLines"), rows = bookLines(S);
   dl.replaceChildren(...rows.map(r => {
@@ -598,7 +605,7 @@ function openBook() {
   $("retakeBtn").disabled = isDay() && !S.watch.sun.noon;
   const gap = Math.min(230, 2200 / Math.max(1, rows.length));
   [...dl.children].forEach((d, i) => setTimeout(() => d.classList.add("on"), 120 + i * gap));
-  setTimeout(() => { if ($("bookDlg").open && !S.watch.plot) if (!$("bookMsg").textContent) $("bookMsg").textContent = isDay() ? "The almanac has turned the sights into a latitude and a longitude. Plot them to see what they do to the fog. Tap an underlined line to see what it is." : "The almanac has turned the reading into a latitude. Plot it to see what it does to the fog. Tap an underlined line to see what it is."; }, 120 + rows.length * gap);
+  setTimeout(() => { if ($("bookDlg").open && !S.watch.plot) if (!$("bookMsg").textContent) $("bookMsg").textContent = isDay() ? "The almanac has turned the sights into a latitude and a longitude. Plot them to see what they do to the fog. Tap an underlined line to see what it is." : S.watch.book?.kind === "lop" ? "The almanac has turned the reading into a line of position. Plot it to see what it does to the fog. Tap an underlined line to see what it is." : "The almanac has turned the reading into a latitude. Plot it to see what it does to the fog. Tap an underlined line to see what it is."; }, 120 + rows.length * gap);
   if (!$("bookDlg").open) $("bookDlg").showModal();
 }
 $("bookClose").addEventListener("click", () => $("bookDlg").close());
@@ -703,8 +710,11 @@ function renderTools() {
     default: break;
   }
   function auxFixed() {
+    const L = levelOf(S), lit = !isDay() && L.light && S.phase === "find";
     aux.append(
-      button("Almanac", openAlmanac, "lf-mini"), button("Log", openLog, "lf-mini"), button("Codex", openCodex, "lf-mini"),
+      button("Almanac", openAlmanac, "lf-mini"), button("Log", openLog, "lf-mini"),
+      // on a coast with a light the Codex gives way to the light's bearing, once it is in sight
+      lit ? button(W.light?.done ? "Light ✓" : "Light", () => go({ t: "light" }), "lf-mini", { disabled: !can("light"), label: "Take the bearing of the lighthouse" }) : button("Codex", openCodex, "lf-mini"),
     );
     // by day there is no lamp to put out: the fourth button gives up the sight that is next
     const lamp = isDay() ? button("Skip", () => go({ t: "skipstage" }), "lf-mini", { disabled: S.phase !== "find" || !can("skipstage"), label: "Give up this sight of the sun" })
@@ -723,6 +733,7 @@ function renderText() {
       const c = conditions(S);
       if (isDay()) lines.push(W.min >= maxWait(S) ? "The day is spent. Sail on by the reckoning." : sunTaskWords(S, lookSun(S).cloud));
       else if (W.min >= MAX_WAIT && !c.horizon) lines.push("The horizon has gone with the light. No sight is possible: sail on by the reckoning.");
+      else if (W.picked === null && L.lop) lines.push(lopFindWords(S, S.ui.tier));
       else if (W.picked === null) lines.push("Look north for the pole star, and tap a star to choose it.");
       else {
         const s = BY_HR.get(W.picked), p = skyData().stars.find(t => t.hr === s[0]);
@@ -734,7 +745,7 @@ function renderText() {
     case "book": lines.push("The reading is in the sight book."); break;
     case "steer": {
       const f = forecast(S, S.ui.course);
-      const head = S.watch.plot?.accepted ? `<b>Latitude ${fmtLat(S.watch.plot.lat)}.</b> ` : S.watch.plot?.discarded ? "The sight is thrown away. " : "No sight this watch. ";
+      const head = steerHead(S);
       lines.push(`${head}Steer <b>${fmtCourse(S.ui.course)}</b>: ${fmtHours(f.hours)} to the next twilight, ${fmtNm(f.run)} on.`);
       break;
     }
@@ -778,8 +789,26 @@ function openSunAlmanac() {
   );
   $("almanacDlg").showModal();
 }
+/** The almanac's page for the any-star levels: the bright stars up now as the reckoning has them. */
+function openStarTable() {
+  learn("starfinder");
+  const rows = starTable(S), t = el("table", "lf-alm"), tb = el("tbody");
+  t.innerHTML = "<thead><tr><th>Star</th><th>Bearing</th><th>Height</th></tr></thead>";
+  for (const r of rows) {
+    const tr = el("tr", r.done ? "done" : r.target ? "now" : ""); tr.append(el("td", null, `${r.name}${r.done ? " ✓" : ""}`), el("td", null, fmtCourse(r.az)), el("td", null, `${Math.round(r.alt)}°`));
+    tb.append(tr);
+  }
+  t.append(tb);
+  $("almanacBody").replaceChildren(
+    el("p", "lf-note-p", `The brightest stars up now, by the reckoned place (${dateWords(S)}, ship's time ${shipClock(sceneJd(S), estPlace(S).lon)}). The marked ones stand well apart and are the best to take. Take any two, a quarter of the sky from each other; a star below fifteen degrees or above seventy is hard to take.`),
+    t,
+    el("p", "lf-note-p", "The almanac also gives each star's altitude for the reckoned place; the game works that out for you in the sight book. The difference from your sextant is the intercept."),
+  );
+  $("almanacDlg").showModal();
+}
 function openAlmanac() {
   if (isDay()) return openSunAlmanac();
+  if (levelOf(S).lop) return openStarTable();
   const A = almanacPage(S), body = $("almanacBody");
   const head = el("p", "lf-note-p", `Polaris, ${A.date}. It stands ${A.pd.toFixed(2)}° (${Math.round(A.pd * 60)}′) from the pole and circles it once a day. The correction below is added to the true altitude to give the latitude. The pole star stands as high as you are far north, less or more by that much.`);
   const t = el("table", "lf-alm");
@@ -858,10 +887,10 @@ function openNotes() {
 }
 /** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
 function openHelp(sun = false) {
-  const rows = sun === true ? HOW_SUN : HOW;
-  $("helpTitle").textContent = sun === true ? "How the sun is taken" : "How a sight works";
+  const rows = sun === true ? HOW_SUN : sun === "star" ? HOW_STAR : HOW;
+  $("helpTitle").textContent = sun === true ? "How the sun is taken" : sun === "star" ? "Any star, and the intercept" : "How a sight works";
   $("helpBody").replaceChildren(...rows.map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
-  write(sun === true ? KEY.seenSun : KEY.seen, 1);
+  write(sun === true ? KEY.seenSun : sun === "star" ? KEY.seenStar : KEY.seen, 1);
   $("helpDlg").showModal();
 }
 for (const [btn, dlg] of [["notesClose", "notesDlg"], ["almanacClose", "almanacDlg"], ["logClose", "logDlg"], ["codexClose", "codexDlg"], ["helpClose", "helpDlg"], ["helpOk", "helpDlg"]]) $(btn).addEventListener("click", () => $(dlg).close());
@@ -872,22 +901,25 @@ async function startLevel(id) {
   if (inProgress() && !(await sure("Leave this voyage and start another?", { yes: "New voyage" }))) return;
   begin(id); renderAll();
 }
+let menuSec = 0;                                 // the chapter the menu is showing (0: the one being sailed)
 function openMenu() {
-  const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {});
+  const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {}), sec = menuSec || L.section;
   body.replaceChildren();
   part(body, "play").append(action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
-  part(body, "content").append(choice("Voyage", LEVELS.map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), S.level, v => { $("menuDlg").close(); startLevel(v); }));
+  const content = part(body, "content");
+  content.append(choice("Chapter", Object.entries(SECTIONS).map(([k, t]) => [k, `${k} ${t}`]), String(sec), v => { menuSec = Number(v); openMenu(); }));
+  content.append(choice("Voyage", LEVELS.filter(l => l.section === sec).map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), sec === L.section ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
   const set = part(body, "settings");
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   set.append(choice("Help", [["-1", "Fuller"], ["0", "As set"], ["1", "Thinner"]], String(helpShift()), v => { write(KEY.help, Number(v)); renderAll(); }));
   const about = part(body, "about");
-  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"));
+  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-$("menuBtn").addEventListener("click", openMenu);
+$("menuBtn").addEventListener("click", () => { menuSec = 0; openMenu(); });
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 
 // ---------- the deck in 3D ----------
