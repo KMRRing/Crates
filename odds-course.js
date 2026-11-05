@@ -1,4 +1,4 @@
-// The Odds course (odds.html): probability, expected value, base rates, Bayes, prices, Kelly sizing, calibration and
+// The Odds course, the last part of Maths (maths.html): probability, expected value, base rates, Bayes, prices, Kelly sizing, calibration and
 // judgement, taught on dice, coins, cards, urns, markets and estimates. It runs on the shared course sheet (course.js)
 // with the stage in odds-stage.js. Every number a lesson states is worked out here from odds-math.js, never typed, and
 // tests/odds.mjs recomputes each step that carries a `value` by another route (a count, a search, a simulation).

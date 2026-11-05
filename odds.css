@@ -1,32 +1,11 @@
-/* Odds: a course on probability and judgement. Plum is the house colour; the lessons are course.css's sheet with this stage
+/* Odds and judgement, the last part of Maths: a course on probability and judgement. Plum is the house colour; the lessons are course.css's sheet with this stage
    (odds-stage.js) on it. Figures are SVG whose strokes and fills are classes here, so the three themes, day and night,
    restyle them. */
 :root { --od-in: #5B4B8A; --od-in-soft: color-mix(in srgb, var(--od-in) 14%, var(--sheet)); }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --od-in: #B3A4E3; } }
 html[data-mode="night"] { --od-in: #B3A4E3; }
 
-.od-mark { display: inline-block; }
-.od-mark svg { width: 100%; height: 100%; display: block; }
 dialog.ln-sheet.od { --ln-in: var(--od-in); }
-
-/* ---------- the landing behind the sheet ---------- */
-.od-intro { margin: .4rem 0 .7rem; color: var(--ink-soft); line-height: 1.45; }
-.od-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin-bottom: .7rem; }
-.od-stats div { padding: .5rem .3rem; border-radius: 5px; background: var(--sheet); text-align: center; }
-.od-stats b { display: block; font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.od-stats span { font-size: .72rem; color: var(--ink-soft); }
-.od-go { width: 100%; min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; padding: 0 .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.od-h { margin: 1rem 0 .3rem; font-size: .76rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--od-in); }
-.od-record { display: flex; flex-direction: column; min-height: 0; }
-.od-recfig { min-height: 7rem; display: grid; }
-.od-recfig .od-svg { width: 100%; height: 100%; }
-.od-recnote { margin: .3rem 0 0; font-size: .82rem; color: var(--ink-soft); line-height: 1.4; }
-@media (orientation: landscape) and (min-width: 700px) {
-  .od-home { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); column-gap: 2rem; align-content: start; }
-  .od-about, .od-record { display: block; }
-  .od-record { display: flex; }
-  .od-recfig { min-height: 12rem; }
-}
 
 /* a step with nothing on the stage (a question by itself): the words take its room, at the bottom as ever */
 dialog.ln-sheet.od .ln-stage:empty { display: none; }

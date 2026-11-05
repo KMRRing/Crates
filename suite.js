@@ -154,7 +154,7 @@ export async function pull() {
 // ---------- starting a game over (Settings) ----------
 /** A game's keys, for starting it over: its own prefix, and the other names a game keeps (Slate's glyph:, Blend's
  *  blend2:, Gambit's puzzle rush's rush:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
-const RESET_PREFIXES = { nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
+const RESET_PREFIXES = { maths: ["maths:", "odds:"], nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
   // Stow's page holds two tiles: Loose cargo's saves are two of stow:'s keys (and its figure, loose:stars), so each tile resets its own
   stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"],
   jass: ["trumps:jass:"], belote: ["trumps:belote:"], coinche: ["trumps:coinche:"], schafkopf: ["trumps:schafkopf:", "trumps:course", "trumps:rush"] };   // the four tiles of trumps.html
@@ -247,7 +247,7 @@ export function bestOf(app) {
 // code took (Bulls, kept as a count), stars collected (the level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
-  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", loose: "stars", deck: "count", parley: "count", wine: "lessons", firmament: "lessons", arthistory: "lessons", trade: "lessons", music: "lessons", maths: "lessons", odds: "stars",
+  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", loose: "stars", deck: "count", parley: "count", wine: "lessons", firmament: "lessons", arthistory: "lessons", trade: "lessons", music: "lessons", maths: "lessons",
   river: "best", gambit: "best", yacht: "daily", boast: "streak", bigtwo: "streak", hearts: "streak", carrack: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", morris: "streak", silo: "streak", carrom: "streak", crown: "streak", go: "streak", tarot: "streak", jass: "streak", belote: "streak", schafkopf: "streak", quest: "streak", bones: "streak", solitaire: "wins",
   contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", slitherlink: "time", bridges: "time", masyu: "time", nurikabe: "time", lanterns: "time", moor: "time", asterism: "time", bulls: "guesses", assay: "daily", yield: "daily", nexus: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily", codeword: "time", crossword: "time", acrostic: "time", calcudoku: "time", kakuro: "time", manifest: "daily", shunt: "daily", ingot: "daily", speedmaths: "daily", speedfuels: "daily", pipes: "daily" };
 const keyOf = app => (app === "glyph" ? "slate" : TRUMPS_TILES[app] ? `trumps:${app}` : app);   // Slate keeps its things under slate:; Jass, Belote and Schafkopf each theirs on the one trumps page
@@ -264,7 +264,6 @@ export function noteDayTime(app, secs, day = today()) { if (json(`${app}:today`,
 export function noteDayCount(app, day = today()) { const r = json(`${app}:count`, null); keep(`${app}:count`, { key: day, v: r?.key === day ? r.v + 1 : 1 }); }
 /** Stars collected, in all. */
 export function noteStars(app, n) { if (json(`${app}:stars`, null) !== n) keep(`${app}:stars`, n); }   // only a change goes up
-const oddsLessons = () => Object.keys(json("odds:course", {})?.done || {}).length;      // lessons done in the Odds course
 const calibreStars = () => Object.values(json("calibre:progress", {}) || {}).reduce((n, p) => n + (p?.stars || 0), 0);
 // a daily game's best and today's: Quote, Chart and Punt keep them as comparable results; Origin keeps each day's total
 // by the day (YYYYMMDD), Order each day's by the day and the mode (YYYYMMDD/dates: it has a daily for each), its tile
@@ -300,7 +299,7 @@ export function markOf(app) {
   if (kind === "time" || kind === "count" || kind === "guesses") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
   if (kind === "lessons") { const r = json(`${k}:lessons`, null); return r?.done ? { kind, v: `${r.done}/${r.of}` } : null; }     // a course: lessons done of all
   if (kind === "wins") { const v = json(`${k}:wins`, null); return v ? { kind, v } : null; }
-  if (kind === "stars") { const v = app === "calibre" ? calibreStars() : app === "odds" ? oddsLessons() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
+  if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
   if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }
   const v = bestOf(app);
   return v == null ? null : { kind, v };
@@ -531,7 +530,7 @@ let mirrorTimer = null, watched = null;           // watched: inside a frame, th
 /** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
  *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
  *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
-const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"], jass: ["trumps:"], belote: ["trumps:"], coinche: ["trumps:"], schafkopf: ["trumps:"] };
+const PREFIXES = { maths: ["maths:", "odds:"], nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"], jass: ["trumps:"], belote: ["trumps:"], coinche: ["trumps:"], schafkopf: ["trumps:"] };
 const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;

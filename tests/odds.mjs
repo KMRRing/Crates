@@ -144,6 +144,11 @@ check(all.done === all.of && all.next === null, "every lesson of both parts done
 globalThis.localStorage = mem();
 check(progressAll().done === 0 && progressAll().next.part === "maths", "a new learner starts in Maths");
 
+// the old address still arrives: a bookmark or an installed copy of odds.html lands on the part (maths.js opens #odds)
+const old = readFileSync(new URL("../odds.html", import.meta.url), "utf8");
+check(/location\.replace\("maths\.html#odds"\)/.test(old) && /http-equiv="refresh"[^>]*maths\.html#odds/.test(old) && !/<script[^>]*src=/.test(old), "odds.html is a redirect to maths.html#odds");
+check(/location\.hash === "#odds"/.test(readFileSync(new URL("../maths.js", import.meta.url), "utf8")), "maths.js opens the Odds part on #odds");
+
 // ---------- no casino ----------
 const WORDS = /black\s?jack|hold.?em|craps|roulette|baccarat|casino|poker|dealer|slot machine|bookmaker|gambl/i;
 const files = readdirSync(new URL("..", import.meta.url)).filter(f => /^odds.*\.(js|css|html)$/.test(f)).concat([]);
