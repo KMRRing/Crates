@@ -473,7 +473,10 @@ let model = null, modelFor = null;
 /** The model follows the run: a new puzzle is built into it, every change of the marks, the rules broken or a hint's cells is shown. */
 function feedModel(sets) {
   if (!model || viewShown !== "model" || !S || !P) return;
-  if (modelFor !== P) { model.set({ N: P.N, clue: P.clue }); modelFor = P; }
+  if (modelFor !== P) {
+    model.set({ N: P.N, clue: P.clue, stone: P.stone, labels: Array.from(P.stone, (s, x) => (s ? labelOf(P, x) : "")), bridge: P.bridge, rules: P });
+    modelFor = P;
+  }
   model.update({ marks: S.marks, ...sets, solved: !!S.done });
 }
 /** Flat (the default and the simple mode) or model (`prefs.view` keeps "board" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the flat board stays. */

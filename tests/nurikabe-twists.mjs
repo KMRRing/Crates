@@ -182,4 +182,16 @@ const made = [];
   check(!solveAs(u.P, 0).broken && u.p.land === [...u.p.sol].filter(c => c === "2").length, "the land count given is the answer's");
 }
 
+// ---------- the 3D scene reads the same rules ----------
+{
+  const { plotsOf, works } = await import("../nurikabe-works.js");
+  const r = made.find(q => q.tw === "ranges"), b = made.find(q => q.tw === "bridges"), u = made.find(q => q.tw === "unknown");
+  const whole = q => plotsOf(q.P.N, q.P.clue, q.p.sol.replace(/2/g, "0"), q.P).filter(v => v >= 0).length;
+  check([r, b, u].every(q => whole(q) === [...q.p.sol].filter(c => c === "2").length), "a solved board's islands are all whole plots in 3D, bounds and unknown islands included");
+  const x = [...b.P.bridge].findIndex(v => v > 0), marks = b.p.sol.replace(/2/g, "0"), wet = [...marks].map((m, i) => (b.P.bridge[i] ? "1" : m)).join("");
+  const plan = works(b.P.N, b.P.stone, wet, b.P.bridge);
+  const cells = [plan.source, plan.outlet, ...plan.sluices.map(s => s.cell), ...plan.norias.map(n => n.cell), ...plan.locks.flatMap(l => l.gates)];
+  check(plan.sea[x] === 1 && !cells.includes(x), "the water runs under a rule's bridge (its cell is sea to the works) and no decoration stands on it");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("nurikabe twists: the rules, the generator and the hints hold");

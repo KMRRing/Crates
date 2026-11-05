@@ -186,7 +186,7 @@ export function createModel(host, opts = {}) {
   let scenic = null;                         // built for each board size in set()
 
   // ---------- the world: instanced meshes a cell each (earth below, turf over it, water over the bed, a stone for a dot, crop rows, a paddy's sheen) and a halo for a hint ----------
-  let N = 0, clue = [], plates = [], earth, turf, water, dots, halos, rows, sheen, baseMesh, rim, flowTex = null, flowCtx = null;
+  let N = 0, clue = [], bridge = [], rules = null, plates = [], earth, turf, water, dots, halos, rows, sheen, baseMesh, rim, flowTex = null, flowCtx = null;
   let cur = [], tgt = [], wcur = [], wtgt = [], jitter = [], look = null, waveAt = 0, spinUntil = 0, plan = null, planKey = "", owner = null, fillAt = 0, lift = 0;
   const MA = new THREE.Matrix4(), Q = new THREE.Quaternion(), PV = new THREE.Vector3(), SV = new THREE.Vector3(), C = new THREE.Color(), C2 = new THREE.Color(), C3 = new THREE.Color();
   const mesh = (geo, mat, n, shadow) => {
@@ -236,13 +236,14 @@ export function createModel(host, opts = {}) {
   /** The surface's height over a point of the board (for what floats on it). */
   const levelAt = (x, z) => wcur[Math.max(0, Math.min(N - 1, Math.floor(z + N / 2))) * N + Math.max(0, Math.min(N - 1, Math.floor(x + N / 2)))] ?? WATER_H;
   /** What a ray or a finger meets in a cell: the block, or the water over it where the cell is sea. */
-  const topOf = x => (look && look.marks[x] === SEA ? Math.max(cur[x], wcur[x]) : cur[x]);
+  const topOf = x => (look && (look.marks[x] === SEA || bridge[x]) ? Math.max(cur[x], wcur[x]) : cur[x]);
   const isPaddy = number => number % 2 === 0;               // a plot is a flooded paddy or a millet field by its number's place, fixed
   function set(puzzle) {
     disposeWorld();
     if (puzzle.N !== N || !scenic) { scenic?.dispose(); scenic = createScenery(scene, puzzle.N); }
-    N = puzzle.N; clue = puzzle.clue;
+    N = puzzle.N; clue = puzzle.stone || puzzle.clue;
     const n = N * N;
+    bridge = puzzle.bridge || new Uint8Array(n); rules = puzzle.rules || null;       // (the rule's arch bridges: a deck over the canal, the cell island that the water runs under)
     earth = mesh(box, M.earth, n, "cast"); turf = mesh(box, M.turf, n, "cast"); water = sheet(n);
     rim = mesh(box, M.earth, 4 * N + 4, "cast");
     dots = mesh(stone, M.stone, n, "cast"); halos = mesh(box, M.halo, n, "none");
@@ -250,7 +251,7 @@ export function createModel(host, opts = {}) {
     baseMesh = mesh(box, M.base, 1, "cast");
     baseMesh.setMatrixAt(0, MA.compose(PV.set(0, -0.07, 0), Q.identity(), SV.set(N + 0.3, 0.14, N + 0.3)));
     baseMesh.setColorAt(0, C.set(skinNow().base));
-    tgt = Array.from({ length: n }, (_, x) => (clue[x] ? CLUE_H : LAND_H));
+    tgt = Array.from({ length: n }, (_, x) => (clue[x] ? CLUE_H : bridge[x] ? BED_H : LAND_H));
     cur = tgt.slice();
     wtgt = Array(n).fill(WATER_H); wcur = wtgt.slice();
     jitter = Array.from({ length: n }, (_, x) => spread(x));
@@ -268,7 +269,7 @@ export function createModel(host, opts = {}) {
       if (!clue[x]) continue;
       const node = document.createElement("div");
       node.className = "nk3-n";
-      node.textContent = clue[x];
+      node.textContent = puzzle.labels?.[x] ?? clue[x];
       labels.appendChild(node);
       const [cx, cz] = cellXZ(N, x);
       plates.push({ x, el: node, p: new THREE.Vector3(cx, CLUE_H + 0.02, cz), w: 0, h: 0 });
@@ -324,6 +325,18 @@ export function createModel(host, opts = {}) {
       const [cx, cz] = at(b.cell), g = stand(cx, cz, b.axis === "x" ? 0 : Math.PI / 2);
       [-0.4, -0.2, 0, 0.2, 0.4].forEach((z, i) => put(g, box, M.pstone, [0, [0.73, 0.84, 0.9, 0.84, 0.73][i], z], [0.36, 0.07, 0.22]));
       for (const s of [-1, 1]) put(g, box, M.vermil, [s * 0.16, 0.96, 0], [0.025, 0.05, 0.5], [0, 0, 0]).visible = false;
+    }
+    // the rule's arch bridges: a timber deck humped over the canal between vermilion rails, level with the banks at its ends
+    // (the decoration over plain water is a bare stone arch: never mistaken for these)
+    for (let x = 0; x < N * N; x++) {
+      if (!bridge[x]) continue;
+      const [cx, cz] = at(x), g = stand(cx, cz, bridge[x] === 1 ? 0 : Math.PI / 2);
+      [-0.4, -0.2, 0, 0.2, 0.4].forEach((p, i) => {
+        const y = [0.74, 0.82, 0.88, 0.82, 0.74][i];
+        put(g, box, M.wood, [p, y, 0], [0.2, 0.09, 0.62]);
+        for (const s of [-1, 1]) put(g, box, M.vermil, [p, y + 0.1, s * 0.3], [0.2, 0.1, 0.04]);
+      });
+      for (const s of [-1, 1]) { put(g, box, M.vermil, [s * 0.47, 0.88, 0.3], [0.06, 0.3, 0.06]); put(g, box, M.vermil, [s * 0.47, 0.88, -0.3], [0.06, 0.3, 0.06]); }
     }
     for (const nr of w.norias) {
       const [cx, cz] = at(nr.cell), g = stand(cx, cz, nr.axis === "x" ? 0 : Math.PI / 2), z = (nr.axis === "x" ? nr.side : -nr.side) * 0.3;
@@ -384,8 +397,11 @@ export function createModel(host, opts = {}) {
     const key = look.marks;
     if (key === planKey) return;
     planKey = key;
-    plan = works(N, clue, look.marks);
-    owner = plotsOf(N, clue, look.marks);
+    // the water runs under a rule bridge, so for the works its cell is sea (and no decoration stands there)
+    const wet = bridge.some(Boolean) ? Array.from(look.marks, (m, x) => (bridge[x] ? SEA : m)).join("") : look.marks;
+    plan = works(N, clue, wet, bridge);
+    if (bridge.some(Boolean)) plan.bridges = [];                  // decorative arches would pass for the rule's: a puzzle with bridges has only those
+    owner = plotsOf(N, clue, look.marks, rules);
     paintFlow(plan);
     buildProps(plan);
   }
@@ -393,7 +409,7 @@ export function createModel(host, opts = {}) {
   /** Puts every instance where its block is now (heights `cur`) and colours the turf, water and halos from the page's look. */
   function place(colours) {
     if (!earth) return;
-    const l = look, seaAt = x => l && l.marks[x] === SEA, landAt = x => l && l.marks[x] === LAND;
+    const l = look, seaAt = x => l && (l.marks[x] === SEA || bridge[x] > 0), landAt = x => l && l.marks[x] === LAND;
     const k = skinNow(), solved = !!l?.solved;
     if (colours) replan();
     for (let x = 0; x < N * N; x++) {
@@ -465,7 +481,7 @@ export function createModel(host, opts = {}) {
   function update(next) {
     if (!earth) return;
     look = next;
-    for (let x = 0; x < N * N; x++) tgt[x] = clue[x] ? CLUE_H : next.marks[x] === SEA ? BED_H : LAND_H;
+    for (let x = 0; x < N * N; x++) tgt[x] = clue[x] ? CLUE_H : next.marks[x] === SEA || bridge[x] ? BED_H : LAND_H;
     if (still) cur = tgt.slice();
     if (!next.solved) { waveAt = 0; fillAt = 0; for (let x = 0; x < N * N; x++) wtgt[x] = WATER_H; }
     else if (!waveAt) { waveAt = 1; fillAt = 1; }                      // a solved board loaded: its water already stands full (celebrate() plays the filling)

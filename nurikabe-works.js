@@ -45,10 +45,11 @@ export function outward(N, x) {
 }
 
 /**
- * The works for a board: `marks` is the run's text, `clue` each cell's number (0 for none).
+ * The works for a board: `marks` is the run's text, `clue` each cell's number (0 for none; any non-zero marks a stone), `avoid` cells no
+ * detail may stand on (the rule's arch bridges, which are not decoration).
  * Returns { sea, comp, source, outlet, dist, flow, wet, path, locks, sluices, bridges, norias, barges }.
  */
-export function works(N, clue, marks) {
+export function works(N, clue, marks, avoid = null) {
   const n = N * N, sea = new Uint8Array(n);
   for (let x = 0; x < n; x++) if (marks[x] === SEA) sea[x] = 1;
   const nb = Array.from({ length: n }, (_, x) => around(N, x));
@@ -112,7 +113,7 @@ export function works(N, clue, marks) {
 
   // details stand on cells at least `gap` apart (Manhattan), none beside a number
   const placed = [];
-  const free = (x, gap) => !nearNumber(x) && placed.every(p => Math.abs(Math.floor(p / N) - Math.floor(x / N)) + Math.abs((p % N) - (x % N)) >= gap);
+  const free = (x, gap) => !nearNumber(x) && !avoid?.[x] && placed.every(p => Math.abs(Math.floor(p / N) - Math.floor(x / N)) + Math.abs((p % N) - (x % N)) >= gap);
   const take = x => { placed.push(x); return x; };
   const wide = N >= 10 ? 2 : 1;
   // a straight channel cell: water on two opposite sides only, land (or the board's edge) on the others; its axis is the way the water runs
