@@ -40,18 +40,78 @@ export function board(N) {
   BOARDS.set(N, b);
   return b;
 }
-/** A puzzle from its numbers (one character a cell: "-" none, else the island's size in base 36) and, if known, its
- *  answer (1 sea, 2 island, a character a cell). */
-export function puzzleOf(size, grid, sol = null) {
-  const { ns, blocks } = board(size), clue = Int8Array.from(grid, ch => (ch === "-" ? 0 : parseInt(ch, 36)));
-  const clues = Int16Array.from(Array.from(clue, (n, x) => (n ? x : -1)).filter(x => x >= 0));
-  return { size, N: size, cells: size * size, ns, blocks, grid, clue, clues, total: clue.reduce((s, n) => s + n, 0),
-    sol: sol && Int8Array.from(sol, Number), solMarks: sol };
+/** The twists a puzzle can carry, by the name a level and a link give them. */
+export const TWISTS = { ranges: "Bounds", unknown: "Unknown", bridges: "Arch bridges" };
+export const TWIST_ORDER = ["ranges", "unknown", "bridges"];
+/** The twists a name holds ("ranges+bridges"), as { ranges, unknown, bridges } booleans, or null for the plain game. */
+export function twistsOf(name) {
+  const t = {};
+  for (const w of String(name || "").split("+")) if (TWISTS[w]) t[w] = true;
+  return Object.keys(t).length ? t : null;
 }
-/** The state a puzzle starts from: its numbered cells are islands. */
+/** A twist name made canonical (in TWIST_ORDER's order, only the twists there are), "none" for the plain game. */
+export const twistOn = name => { const t = twistsOf(name); return t ? TWIST_ORDER.filter(w => t[w]).join("+") : "none"; };
+
+/**
+ * A puzzle from its numbers (one character a cell: "-" none, else the island's size in base 36) and, if known, its answer
+ * (1 sea, 2 island, a character a cell). The twists ride along in `tw` and are all optional: `bd` (a character a cell: "-" a
+ * number is exact or absent, "+" at least that many cells, "<" at most that many, "?" a stone with no number, any size from
+ * one cell), `br` (a character a cell: "-", "h" an arch bridge whose deck runs east-west, "v" one whose deck runs
+ * north-south) and `land` (the number of island cells in all, which a puzzle of bounds or unknown islands gives).
+ */
+export function puzzleOf(size, grid, sol = null, tw = {}) {
+  const { ns, blocks } = board(size), cells = size * size, clue = Int8Array.from(grid, ch => (ch === "-" ? 0 : parseInt(ch, 36)));
+  const bound = Int8Array.from({ length: cells }, (_, x) => ({ "+": 1, "<": 2, "?": 3 })[tw.bd?.[x]] || 0);
+  const bridge = Int8Array.from({ length: cells }, (_, x) => ({ h: 1, v: 2 })[tw.br?.[x]] || 0);
+  const P = { size, N: size, cells, ns, blocks, grid, clue, bound, bridge, land: tw.land ?? null, sol: sol && Int8Array.from(sol, Number), solMarks: sol };
+  P.total = P.land ?? (bound.some(Boolean) ? -1 : clue.reduce((s, n) => s + n, 0));      // (-1: not known)
+  P.fancy = bound.some(Boolean) || bridge.some(Boolean);
+  return seat(P);
+}
+/**
+ * Works out from a puzzle's numbers, bounds and bridges what the solver reads: which cells are stones (a number or a "?"), the
+ * fewest and most cells each island may have (`lo0`, `hi0`: what is printed; `lo`, `hi`: narrowed by the land count, since
+ * the others need at least so many cells, so this one has at most what is left), and the bridge cells.
+ */
+export function seat(P) {
+  const { cells, clue, bound } = P;
+  P.stone = new Uint8Array(cells); P.lo0 = new Int16Array(cells); P.hi0 = new Int16Array(cells);
+  const stones = [];
+  for (let x = 0; x < cells; x++) {
+    if (!clue[x] && bound[x] !== 3) continue;
+    P.stone[x] = 1; stones.push(x);
+    const n = clue[x], b = bound[x];
+    P.lo0[x] = b === 3 || b === 2 ? 1 : n;
+    P.hi0[x] = b === 1 || b === 3 ? cells : n;
+  }
+  P.clues = Int16Array.from(stones);
+  P.lo = P.lo0; P.hi = P.hi0;
+  if (P.fancy && P.total >= 0) {
+    let sumLo = 0, sumHi = 0;
+    for (const x of stones) { sumLo += P.lo0[x]; sumHi += P.hi0[x]; }
+    P.lo = P.lo0.slice(); P.hi = P.hi0.slice();
+    for (const x of stones) {
+      P.hi[x] = Math.min(P.hi0[x], P.total - (sumLo - P.lo0[x]));
+      P.lo[x] = Math.max(P.lo0[x], P.total - (sumHi - P.hi0[x]));
+    }
+  }
+  return P;
+}
+/** The bridge's four neighbours: its two ends (island) and its two sides (sea, the water running under it), or null. */
+export function bridgeArms(N, x, axis) {
+  const r = Math.floor(x / N), c = x % N;
+  if (r < 1 || c < 1 || r > N - 2 || c > N - 2) return null;
+  return axis === 1 ? { ends: [x - 1, x + 1], sides: [x - N, x + N] } : { ends: [x - N, x + N], sides: [x - 1, x + 1] };
+}
+/** What a number cell reads: "5", "5+", "≤4" or "?" (a bound is in Bridges' notation). */
+export const labelOf = (P, x) => (P.bound[x] === 3 ? "?" : P.bound[x] === 1 ? `${P.clue[x]}+` : P.bound[x] === 2 ? `≤${P.clue[x]}` : String(P.clue[x]));
+/** A cell that is given and can't be marked: a stone or a bridge. */
+export const fixedAt = (P, x) => P.stone[x] === 1 || P.bridge[x] > 0;
+/** The state a puzzle starts from: its numbered cells and its bridges are island. */
 export function startOf(P) {
   const st = new Int8Array(P.cells);
   for (const x of P.clues) st[x] = 2;
+  if (P.fancy) for (let x = 0; x < P.cells; x++) if (P.bridge[x]) st[x] = 2;
   return st;
 }
 
@@ -62,16 +122,16 @@ const note = (rec, x, v) => { (rec.set ??= []).push([x, v]); };
 /** The islands as they stand: each piece of connected island cells, with its numbers, its size and the unknown cells
  *  beside it (its liberties); `cid` says which piece a cell is in. */
 function analyse(P, st) {
-  const { cells, ns, clue } = P, cid = new Int16Array(cells).fill(-1), lib = new Int16Array(cells), comps = [];
+  const { cells, ns, stone } = P, cid = new Int16Array(cells).fill(-1), lib = new Int16Array(cells), comps = [];
   for (let x = 0; x < cells; x++) {
     if (st[x] !== 2 || cid[x] >= 0) continue;
-    const k = comps.length, c = { cells: [], clues: 0, clue: 0, libs: [] };
+    const k = comps.length, c = { cells: [], clues: 0, lo: 0, hi: 0, lo0: 0, hi0: 0, libs: [] };
     cid[x] = k;
     const todo = [x];
     while (todo.length) {
       const y = todo.pop();
       c.cells.push(y);
-      if (clue[y]) { c.clues++; c.clue = clue[y]; }
+      if (stone[y]) { c.clues++; c.lo = P.lo[y]; c.hi = P.hi[y]; c.lo0 = P.lo0[y]; c.hi0 = P.hi0[y]; }
       for (const z of ns[y]) {
         if (st[z] === 2 && cid[z] < 0) { cid[z] = k; todo.push(z); }
         else if (st[z] === 0 && lib[z] !== k + 1) { lib[z] = k + 1; c.libs.push(z); }
@@ -86,7 +146,7 @@ function analyse(P, st) {
  *  keeps the sea in one piece. With `rec`, it stops at the first thing it settles and says what it was (rec.set, rec.tech,
  *  rec.focus: the cells it was reading). */
 function sweep(P, st, cutting, rec) {
-  const { cells, ns, blocks, clue } = P;
+  const { cells, ns, blocks, bridge } = P;
   let changed = 0, broke = false, grew = false, A = analyse(P, st);
   const put = (x, v) => {
     if (st[x] === v) return;
@@ -98,12 +158,23 @@ function sweep(P, st, cutting, rec) {
   const done = (tech, focus) => { if (rec && rec.set?.length) { rec.tech = tech; rec.focus = focus; return true; } return false; };
   /** After a rule: stop with its first finding for a hint, or carry on with the islands as they now stand. */
   const after = () => { if (broke) return -1; if (changed) { if (rec) return 1; if (grew) { A = analyse(P, st); grew = false; } } return 0; };
-  const rules = [
-    // an island that has all its cells is walled in by sea
+  const rules = [];
+  // an arch bridge: its two ends are island and the water runs under it, so its two sides are sea
+  if (P.fancy) rules.push(() => {
+    for (let x = 0; x < cells; x++) {
+      if (!bridge[x]) continue;
+      const arms = bridgeArms(P.N, x, bridge[x]);
+      for (const y of arms.ends) put(y, 2);
+      for (const y of arms.sides) put(y, 1);
+      if (done("bridge", [x])) return;
+    }
+  });
+  rules.push(
+    // an island that has all its cells (the most its number, its bound or the land count allows) is walled in by sea
     () => {
       for (const c of A.comps) {
-        if (c.clues > 1 || (c.clues && c.cells.length > c.clue)) { broke = true; return; }
-        if (c.clues !== 1 || c.cells.length !== c.clue) continue;
+        if (c.clues > 1 || (c.clues && c.cells.length > c.hi)) { broke = true; return; }
+        if (c.clues !== 1 || c.cells.length !== c.hi) continue;
         for (const x of c.libs) put(x, 1);
         if (done("complete", c.cells)) return;
       }
@@ -116,7 +187,7 @@ function sweep(P, st, cutting, rec) {
         for (const y of ns[x]) if (st[y] === 2) near.add(A.cid[y]);
         if (near.size < 2) continue;
         let n = 1, clues = 0, clueOf = 0;
-        for (const k of near) { const c = A.comps[k]; n += c.cells.length; clues += c.clues; if (c.clues) clueOf = c.clue; }
+        for (const k of near) { const c = A.comps[k]; n += c.cells.length; clues += c.clues; if (c.clues) clueOf = c.hi; }
         if (clues > 1 || (clues && n > clueOf)) {
           put(x, 1);
           if (done("between", [x, ...[...near].flatMap(k => A.comps[k].cells)])) return;
@@ -126,7 +197,7 @@ function sweep(P, st, cutting, rec) {
     // an island still short of its number with one way out takes it; one with none can't be finished
     () => {
       for (const c of A.comps) {
-        if (c.clues === 1 && c.cells.length === c.clue) continue;
+        if (c.clues === 1 && (c.cells.length === c.hi || c.cells.length >= c.lo)) continue;     // (an island past its fewest cells need not grow)
         const free = c.libs.filter(x => st[x] !== 1);          // (the sea set since the islands were read is left out)
         if (!free.length) { broke = true; return; }
         if (free.length === 1) { put(free[0], 2); if (done("grow", c.cells)) return; }
@@ -136,7 +207,7 @@ function sweep(P, st, cutting, rec) {
     () => {
       for (const b of blocks) {
         let sea = 0, free = -1;
-        for (const x of b) { if (st[x] === 1) sea++; else if (!st[x]) free = x; }
+        for (const x of b) { if (st[x] === 1 || (bridge[x] && st[x] === 2)) sea++; else if (!st[x]) free = x; }
         if (sea === 4) { broke = true; return; }
         if (sea === 3 && free >= 0) { put(free, 2); if (done("pool", Array.from(b))) return; }
       }
@@ -145,6 +216,7 @@ function sweep(P, st, cutting, rec) {
     () => {
       let sea = 0, land = 0;
       for (let x = 0; x < cells; x++) { if (st[x] === 1) sea++; else if (st[x] === 2) land++; }
+      if (P.total < 0) return;
       if (land > P.total || cells - sea < P.total) { broke = true; return; }
       if (land === P.total) { for (let x = 0; x < cells; x++) if (!st[x]) put(x, 1); if (done("count", [])) return; }
       else if (cells - sea === P.total) { for (let x = 0; x < cells; x++) if (!st[x]) put(x, 2); if (done("count", [])) return; }
@@ -153,7 +225,7 @@ function sweep(P, st, cutting, rec) {
     () => {
       const { comps, cid } = A, got = new Uint8Array(cells), dist = new Int8Array(cells);
       comps.forEach((c, ci) => {
-        const room = c.clue - c.cells.length;
+        const room = c.hi - c.cells.length;
         if (c.clues !== 1 || room <= 0) return;
         dist.fill(-1);
         const queue = c.cells.slice();
@@ -168,7 +240,9 @@ function sweep(P, st, cutting, rec) {
             dist[z] = dist[y] + 1; got[z] = 1; queue.push(z);
           }
         }
+        if (P.fancy && queue.length < c.lo) broke = true;       // the cells it could ever hold are fewer than its fewest
       });
+      if (broke) return;
       for (const c of comps) if (!c.clues && !c.cells.some(x => got[x])) { broke = true; return; }
       for (let x = 0; x < cells; x++) {
         if (st[x] || got[x]) continue;
@@ -176,20 +250,21 @@ function sweep(P, st, cutting, rec) {
         if (done("reach", [x])) return;
       }
     },
-  ];
+  );
   if (cutting) {
     // a cell that is the only link between parts of the sea is sea itself; sea already cut in two can't be put right
     rules.push(() => {
+      const wet = x => st[x] === 1 || (bridge[x] > 0 && st[x] === 2);       // the water runs under a bridge
       let total = 0, root = -1;
-      for (let x = 0; x < cells; x++) if (st[x] === 1) { total++; if (root < 0) root = x; }
+      for (let x = 0; x < cells; x++) if (wet(x)) { total++; if (root < 0) root = x; }
       if (!total) return;
       const disc = new Int16Array(cells).fill(-1), low = new Int16Array(cells), sub = new Int16Array(cells), cuts = [];
       let t = 0, seen = 0;
       const walk = (u, from) => {
         disc[u] = low[u] = t++;
-        if (st[u] === 1) { sub[u] = 1; seen++; }
+        if (wet(u)) { sub[u] = 1; seen++; }
         for (const v of ns[u]) {
-          if (st[v] === 2 || v === from) continue;
+          if ((st[v] === 2 && !wet(v)) || v === from) continue;
           if (disc[v] < 0) {
             walk(v, u);
             low[u] = Math.min(low[u], low[v]);
@@ -219,23 +294,24 @@ function propagate(P, st, cutting, rounds = Infinity) {
   }
   return 0;
 }
-/** Whether a state with every cell settled is an answer: every island its number, no 2×2 of sea, the sea in one piece. */
+/** Whether a state with every cell settled is an answer: every island its number (or within its bound), no 2×2 of sea, the sea in one piece (a bridge counts as sea). */
 function valid(P, st) {
-  const { cells, ns, blocks } = P;
+  const { cells, ns, blocks, bridge } = P;
   if (st.includes(0)) return false;
-  const A = analyse(P, st);
-  if (A.comps.some(c => c.clues !== 1 || c.cells.length !== c.clue)) return false;
-  if (blocks.some(b => b.every(x => st[x] === 1))) return false;
-  const first = st.indexOf(1);
+  const A = analyse(P, st), wet = x => st[x] === 1 || bridge[x] > 0;
+  if (A.comps.some(c => c.clues !== 1 || c.cells.length < c.lo0 || c.cells.length > c.hi0)) return false;
+  if (P.total >= 0 && A.comps.reduce((n, c) => n + c.cells.length, 0) !== P.total) return false;
+  if (blocks.some(b => b.every(wet))) return false;
+  const first = st.findIndex((v, x) => wet(x));
   if (first < 0) return true;
   const seen = new Uint8Array(cells), todo = [first];
   seen[first] = 1;
   let reached = 0, sea = 0;
-  for (let x = 0; x < cells; x++) if (st[x] === 1) sea++;
+  for (let x = 0; x < cells; x++) if (wet(x)) sea++;
   while (todo.length) {
     const x = todo.pop();
     reached++;
-    for (const y of ns[x]) if (st[y] === 1 && !seen[y]) { seen[y] = 1; todo.push(y); }
+    for (const y of ns[x]) if (wet(y) && !seen[y]) { seen[y] = 1; todo.push(y); }
   }
   return reached === sea;
 }
@@ -381,6 +457,51 @@ function randomSolution(N, rng, share, biggest, fresh) {
   return { isl, size };
 }
 const gridOf = P => Array.from(P.clue, n => (n ? n.toString(36) : "-")).join("");
+const boundsOf = P => Array.from(P.bound, b => "-+<?"[b]).join(""), bridgesOf = P => Array.from(P.bridge, b => "-hv"[b]).join("");
+
+/**
+ * Arch bridges laid over a made board (only for a puzzle with the twist): a sea cell with island on two opposite sides and
+ * sea on the other two becomes a bridge, a cell of the island its ends then join (two islands become one, the bridge cell
+ * counting in its size). The first is a cell the sea can't do without (the sea would be cut in two were it island), so the
+ * bridge is what keeps the sea one piece. Returns { isl, size, bridge, lockLand, lockSea } with islands numbered afresh, or null.
+ */
+function bridgeUp(S, N, rng, many, cap) {
+  const { ns } = board(N), cells = N * N, isl = S.isl.slice(), size = S.size.slice();
+  const bridge = new Uint8Array(cells), lockLand = new Uint8Array(cells), lockSea = new Uint8Array(cells);
+  const wet = x => isl[x] < 0 || bridge[x] > 0;
+  const needed = b => {          // the water can't go round: without b the rest of it is cut in two
+    let first = -1, total = 0;
+    for (let x = 0; x < cells; x++) if (wet(x) && x !== b) { total++; if (first < 0) first = x; }
+    const seen = new Uint8Array(cells), todo = [first];
+    seen[first] = 1;
+    let reached = 0;
+    while (todo.length) { const x = todo.pop(); reached++; for (const y of ns[x]) if (wet(y) && y !== b && !seen[y]) { seen[y] = 1; todo.push(y); } }
+    return reached < total;
+  };
+  for (let n = 0; n < many; n++) {
+    const found = [];
+    for (let r = 1; r < N - 1; r++) for (let c = 1; c < N - 1; c++) {
+      const b = r * N + c;
+      if (isl[b] >= 0 || lockSea[b]) continue;
+      for (const axis of [1, 2]) {
+        const arms = bridgeArms(N, b, axis);
+        if (!arms.ends.every(e => isl[e] >= 0) || !arms.sides.every(e => isl[e] < 0 && !bridge[e] && !lockLand[e])) continue;
+        const k1 = isl[arms.ends[0]], k2 = isl[arms.ends[1]];
+        if ((k1 === k2 ? size[k1] : size[k1] + size[k2]) + 1 > cap) continue;
+        found.push({ b, axis, arms });
+      }
+    }
+    const must = n === 0 ? found.filter(f => needed(f.b)) : found;
+    if (!must.length) return n ? { isl, size, bridge, lockLand, lockSea, done: true } : null;
+    const { b, axis, arms } = must[Math.floor(rng() * must.length)], k1 = isl[arms.ends[0]], k2 = isl[arms.ends[1]];
+    if (k1 !== k2) { for (let x = 0; x < cells; x++) if (isl[x] === k2) isl[x] = k1; size[k1] += size[k2]; size[k2] = 0; }
+    isl[b] = k1; size[k1]++;
+    bridge[b] = axis; lockLand[b] = 1;
+    for (const e of arms.ends) lockLand[e] = 1;
+    for (const e of arms.sides) lockSea[e] = 1;
+  }
+  return { isl, size, bridge, lockLand, lockSea, done: true };
+}
 const unknownIn = st => { let n = 0; for (const v of st) if (!v) n++; return n; };
 /**
  * Boards made towards a level (`want`, 0 to 2), the best of the tries: { size, grid, sol, level } with level what it came
@@ -391,7 +512,7 @@ const unknownIn = st => { let n = 0; for (const v of st) if (!v) n++; return n; 
  * board has about the fewest numbers the level allows. Every change keeps the board an answer. Easy is the plain rules,
  * Medium the sea kept whole too, Hard a supposition too.
  */
-function build(seed, size, want) {
+function build(seed, size, want, tw = null) {
   const rng = rngOf(seed), N = size, cells = N * N, { ns, blocks } = board(N);
   const pick = a => a[Math.floor(rng() * a.length)];
   let best = null;
@@ -400,31 +521,46 @@ function build(seed, size, want) {
     if (!S) continue;
     t++;
     let { isl, size: sz } = S;
-    const at = sz.map((_, k) => pick(Array.from(isl, (j, x) => (j === k ? x : -1)).filter(x => x >= 0)));
+    // arch bridges (a puzzle with the twist): islands joined over a canal; a board that has no place for one is another try
+    let lock = null;
+    if (tw?.bridges) {
+      lock = bridgeUp(S, N, rng, N <= 6 ? 1 : N === 8 ? 1 + (rng() < 0.5 ? 1 : 0) : 2, ROOMY[want] * 2 + 1);
+      if (!lock) continue;
+      const names = [], index = new Map();
+      for (const k of lock.isl) if (k >= 0 && !index.has(k)) { index.set(k, names.length); names.push(lock.size[k]); }
+      isl = lock.isl.map(k => (k < 0 ? -1 : index.get(k)));
+      sz = names;
+    }
+    const bridgeAt = lock ? lock.bridge : null;
+    const wet = x => isl[x] < 0 || (bridgeAt && bridgeAt[x] > 0);
+    const holds = (k, x) => isl[x] === k && !(bridgeAt && bridgeAt[x]);       // (a number never sits on a bridge)
+    const at = sz.map((_, k) => pick(Array.from(isl, (j, x) => (holds(k, x) ? x : -1)).filter(x => x >= 0)));
     const P = puzzleOf(N, "-".repeat(cells), "1".repeat(cells));
+    if (tw) P.fancy = true;
     /** The puzzle as the board stands: numbers where the islands' numbers are, and the answer. */
     const sync = () => {
       P.clue.fill(0);
-      const cs = [];
-      sz.forEach((n, k) => { if (n) { P.clue[at[k]] = n; cs.push(at[k]); } });
-      P.clues = Int16Array.from(cs.sort((u, v) => u - v));
+      sz.forEach((n, k) => { if (n) P.clue[at[k]] = n; });
       P.total = sz.reduce((n, v) => n + v, 0);
       for (let x = 0; x < cells; x++) P.sol[x] = isl[x] < 0 ? 1 : 2;
+      if (bridgeAt) P.bridge.set(bridgeAt);
+      seat(P);
     };
     const seaWhole = skip => {                                       // the sea is one piece without cell `skip` (a land cell stays land)
       const seen = new Uint8Array(cells), todo = [];
       let total = 0;
-      for (let x = 0; x < cells; x++) if (isl[x] < 0 && x !== skip) { total++; if (!todo.length) { todo.push(x); seen[x] = 1; } }
+      for (let x = 0; x < cells; x++) if (wet(x) && x !== skip) { total++; if (!todo.length) { todo.push(x); seen[x] = 1; } }
       let reached = 0;
       while (todo.length) {
         const x = todo.pop();
         reached++;
-        for (const y of ns[x]) if (isl[y] < 0 && y !== skip && !seen[y]) { seen[y] = 1; todo.push(y); }
+        for (const y of ns[x]) if (wet(y) && y !== skip && !seen[y]) { seen[y] = 1; todo.push(y); }
       }
       return reached === total;
     };
     /** Makes sea cell x land: a new island if nothing is beside it, else the one island beside it (never two). */
     const give = x => {
+      if (lock?.lockSea[x]) return false;
       let k = -1;
       for (const y of ns[x]) if (isl[y] >= 0) { if (k >= 0 && isl[y] !== k) return false; k = isl[y]; }
       if (k >= 0 && sz[k] >= roomy) return false;
@@ -436,9 +572,9 @@ function build(seed, size, want) {
     /** Makes land cell x sea: not its island's number, its island staying whole, no 2×2 of sea made, joined to the sea. */
     const take = x => {
       const k = isl[x];
-      if (k < 0 || (x === at[k] && sz[k] > 1)) return false;
-      if (!ns[x].some(y => isl[y] < 0)) return false;
-      if (blocks.some(b => b.includes(x) && b.every(y => y === x || isl[y] < 0))) return false;
+      if (k < 0 || (x === at[k] && sz[k] > 1) || lock?.lockLand[x]) return false;
+      if (!ns[x].some(wet)) return false;
+      if (blocks.some(b => b.includes(x) && b.every(y => y === x || wet(y)))) return false;
       if (sz[k] > 1) {
         const rest = Array.from(isl, (j, y) => (j === k && y !== x ? y : -1)).filter(y => y >= 0), seen = new Set([rest[0]]), todo = [rest[0]];
         while (todo.length) for (const y of ns[todo.pop()]) if (isl[y] === k && y !== x && !seen.has(y)) { seen.add(y); todo.push(y); }
@@ -464,7 +600,7 @@ function build(seed, size, want) {
         const stuck = new Set();
         for (let x = 0; x < cells; x++) if (isl[x] >= 0 && sz[isl[x]] > 1 && (!st[x] || ns[x].some(y => !st[y]))) stuck.add(isl[x]);
         const k = pick(stuck.size && want > 0 ? [...stuck] : sz.map((n, j) => (n > 1 ? j : -1)).filter(j => j >= 0));
-        if (k !== undefined) { at[k] = pick(Array.from(isl, (j, x) => (j === k && x !== at[k] ? x : -1)).filter(x => x >= 0)); moved = true; }
+        if (k !== undefined) { at[k] = pick(Array.from(isl, (j, x) => (holds(k, x) && x !== at[k] ? x : -1)).filter(x => x >= 0)); moved = true; }
       } else if (r < 0.9) {
         const open = Array.from(st, (v, x) => (!v && isl[x] < 0 ? x : -1)).filter(x => x >= 0);
         const beside = open.filter(x => ns[x].some(y => isl[y] >= 0));      // mostly an island grows; a new one now and then
@@ -484,6 +620,7 @@ function build(seed, size, want) {
     const finishes = () => { sync(); return want === 2 ? solveAs(P, 2).ok : !unknownIn(stand() || [0]) && solveAs(P, want).ok; };
     for (const k of shuffle(sz.map((n, j) => (n ? j : -1)).filter(j => j >= 0), rng)) {         // a whole island back to the sea
       const was = save(), mine = Array.from(isl, (j, y) => (j === k ? y : -1)).filter(y => y >= 0);
+      if (lock && mine.some(y => lock.lockLand[y])) continue;                                    // (one with a bridge stays)
       for (const y of mine) isl[y] = -1;
       sz[k] = 0; at[k] = -1;
       if (blocks.some(b => b.every(y => isl[y] < 0)) || !finishes()) back(was);
@@ -499,15 +636,38 @@ function build(seed, size, want) {
       const k = pick(sz.map((n, j) => (n > 1 ? j : -1)).filter(j => j >= 0));
       if (k === undefined) break;
       const was = save();
-      at[k] = pick(Array.from(isl, (j, x) => (j === k && x !== at[k] ? x : -1)).filter(x => x >= 0));
+      at[k] = pick(Array.from(isl, (j, x) => (holds(k, x) && x !== at[k] ? x : -1)).filter(x => x >= 0));
       sync();
       if (!finishes()) back(was);
     }
     sync();
+    // bounds and unknown islands: numbers loosened one at a time (an island's "n" to "n+" or "≤n", or to "?") for as long as
+    // reasoning at the level still finishes the board, so each bound left is one the puzzle needs. The land count is given.
+    if (tw && (tw.ranges || tw.unknown)) {
+      let loose = 0, hidden = 0;
+      const order = shuffle(Array.from(P.clues), rng);
+      for (const x of order) {
+        const n = P.clue[x], options = [];
+        if (tw.unknown) options.push([0, 3]);
+        if (tw.ranges) options.push([n - (rng() < 0.4 ? 1 : 0), 1], [n + (rng() < 0.4 ? 1 : 0), 2]);     // "n+" or "(n-1)+", "≤n" or "≤(n+1)"
+        for (const [v, b] of shuffle(options, rng)) {
+          if (b !== 3 && v < 2) continue;                                   // (a bound of one cell is no bound)
+          P.clue[x] = v; P.bound[x] = b; seat(P);
+          if (solveAs(P, want).ok) { if (b === 3) hidden++; else loose++; break; }
+          P.clue[x] = n; P.bound[x] = 0; seat(P);
+        }
+      }
+      const few = N <= 6 ? 1 : 2;
+      if ((tw.ranges && loose < few) || (tw.unknown && hidden < few)) continue;
+    }
     P.grid = gridOf(P);
     const got = gradeOf(P, want);
     if (got < 0) continue;
     const found = { size, grid: P.grid, sol: Array.from(P.sol).join(""), level: ORDER[got] };
+    if (tw) {
+      if (tw.ranges || tw.unknown) { found.bd = boundsOf(P); found.land = P.total; }
+      if (tw.bridges) found.br = bridgesOf(P);
+    }
     if (got === want) return found;
     if (!best || Math.abs(got - want) < Math.abs(ORDER.indexOf(best.level) - want)) best = found;
   }
@@ -518,10 +678,10 @@ function build(seed, size, want) {
  * no board of the level comes in the tries allowed, the nearest level's is dealt (and, were there none, the seed moved on
  * and the levels tried again), so a puzzle is always dealt.
  */
-export function generate(seed, size, level) {
-  const want = Math.max(0, ORDER.indexOf(level));
+export function generate(seed, size, level, twist = "none") {
+  const tw = twistsOf(twist), want = Math.max(0, ORDER.indexOf(level));
   const order = [want, ...[0, 1, 2].filter(l => l !== want).sort((a, b) => Math.abs(a - want) - Math.abs(b - want) || a - b)];
-  for (let round = 0; round < 3; round++) for (const lv of order) { const found = build(seed + round * 7919, size, lv); if (found) return found; }
+  for (let round = 0; round < 3; round++) for (const lv of order) { const found = build(seed + round * 7919, size, lv, tw); if (found) return found; }
   return null;
 }
 /** The level a size can be had at that is nearest the one asked for (every level is offered for every size here). */
@@ -534,6 +694,7 @@ export const withMark = (marks, i, m) => marks.slice(0, i) + m + marks.slice(i +
 export const stateOf = (P, marks) => {
   const st = Int8Array.from(marks, ch => +ch);
   for (const x of P.clues) st[x] = 2;
+  if (P.fancy) for (let x = 0; x < P.cells; x++) if (P.bridge[x]) st[x] = 2;
   return st;
 };
 
@@ -544,20 +705,22 @@ export function solvedBy(P, marks) {
 }
 /**
  * What the marks break, from the rules alone (never the answer): { pool, island, cut, done } with the cells of a 2×2 of
- * sea, of an island with two numbers or more cells than its number, and of sea cut off from the rest by islands; and the
- * numbered cells of islands already whole.
+ * sea (a bridge counts as sea), of an island with two numbers or more cells than its number (or than its "≤" bound), and of
+ * sea cut off from the rest by islands; and the numbered cells of islands already whole (an exact island with its cells, a
+ * bound or unknown one within its bound and walled in).
  */
 export function breaks(P, marks) {
-  const { cells, ns, blocks } = P, st = stateOf(P, marks), pool = new Set(), island = new Set(), cut = new Set(), done = [];
-  for (const b of blocks) if (b.every(x => st[x] === 1)) for (const x of b) pool.add(x);
+  const { cells, ns, blocks, bridge } = P, st = stateOf(P, marks), pool = new Set(), island = new Set(), cut = new Set(), done = [];
+  const wet = x => st[x] === 1 || bridge[x] > 0;
+  for (const b of blocks) if (b.every(wet)) for (const x of b) pool.add(x);
   for (const c of analyse(P, st).comps) {
-    if (c.clues > 1 || (c.clues && c.cells.length > c.clue)) for (const x of c.cells) island.add(x);
-    else if (c.clues === 1 && c.cells.length === c.clue) done.push(c.cells.find(x => P.clue[x]));
+    if (c.clues > 1 || (c.clues && c.cells.length > c.hi0)) for (const x of c.cells) island.add(x);
+    else if (c.clues === 1 && (c.hi0 === c.lo0 ? c.cells.length === c.hi0 : !c.libs.length && c.cells.length >= c.lo0)) done.push(c.cells.find(x => P.stone[x]));
   }
   // sea in pieces that no unmarked cell could join (every cell round the piece an island), while sea lies elsewhere
   const seen = new Uint8Array(cells), pieces = [];
   for (let x = 0; x < cells; x++) {
-    if (st[x] !== 1 || seen[x]) continue;
+    if (!wet(x) || seen[x]) continue;
     const piece = { cells: [], open: false }, todo = [x];
     seen[x] = 1;
     while (todo.length) {
@@ -565,7 +728,7 @@ export function breaks(P, marks) {
       piece.cells.push(y);
       for (const z of ns[y]) {
         if (st[z] === 0) piece.open = true;
-        else if (st[z] === 1 && !seen[z]) { seen[z] = 1; todo.push(z); }
+        else if (wet(z) && !seen[z]) { seen[z] = 1; todo.push(z); }
       }
     }
     pieces.push(piece);
@@ -581,7 +744,7 @@ export function breaks(P, marks) {
  */
 export function hintFor(P, marks) {
   for (let x = 0; x < P.cells; x++) {
-    if (P.clue[x]) continue;
+    if (fixedAt(P, x)) continue;
     const should = P.sol[x] === 2 ? LAND : SEA;
     if (marks[x] !== NONE && marks[x] !== should) return { wrong: x, should };
   }
