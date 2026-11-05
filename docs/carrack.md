@@ -13,7 +13,7 @@ A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of
 
 - 4 November 2026, Korbi: "carrack should have a nice scrollable globe map. I currently can only see the routes, not even land/water behind it." The globe (`carrack-globe.js`, `carrack-board.js`; Chart's camera and Natural Earth land, copied, no modern borders) is the default; the flat schematic stays as Menu, Map, Flat.
 
-- 5 November 2026, Korbi: Carrack should be a deep top-tier strategy game, "very powerful bots and a learning section and a coach with off/hint/check/always". The menu's Coach choice is Off, Hint, Check, Always; Learn is in the play part. His rule that the menu is the minimum stands: nothing else was added.
+- 5 November 2026, Korbi: Carrack should be a deep top-tier strategy game, "very powerful bots and a learning section and a coach with off/hint/check/always". The menu's "Coach help" choice (not labelled "Coach", which `tests/menu-minimum-games.mjs` reserves for on/off switches) is Off, Hint, Check, Always, as he asked for this game by name; Learn is in the play part. His rule that the menu is the minimum stands: nothing else was added.
 
 ## The computer players
 

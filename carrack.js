@@ -726,7 +726,7 @@ function openMenu() {
   content.append(choice("Powers at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.n, v => { opts.n = Number(v); saveOpts(); }));
   content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
-  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; coach.key = ""; coach.r = null; saveOpts(); draw(); }));
+  set.append(choice("Coach help", COACH, opts.coach, v => { opts.coach = v; coach.key = ""; coach.r = null; saveOpts(); draw(); }));
   set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], mapNow(), v => { look.view = v; saveLook(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
