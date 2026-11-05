@@ -2,7 +2,8 @@
 // one answer by reasoning at the level the puzzle says, its twist really in it (and no clue that isn't needed: a road, a strait,
 // the rule against loops), the answer a true building (every number made, no two bridges crossing at a height, every realm joined,
 // no ring where there may be none, every strait's number made, no road over its width), the same twice, the hints alone building it.
-import { ORDER, layoutOf, count, answerOf, gradeOf, flagsOf, breaks, whatBreaks, hintFor, puzzleOf, solvedBy, withMark } from "../bridges-engine.js";
+import { ORDER, layoutOf, count, answerOf, gradeOf, flagsOf, breaks, whatBreaks, hintFor, puzzleOf, solvedBy, withMark, moreOf } from "../bridges-engine.js";
+import { gapAt, lineOf, onBoard } from "../bridges-lattice.js";
 import { LEVELS, seedOf, levelPuzzle, parOf } from "../bridges-levels.js";
 
 /** Whether a puzzle forbids rings: it is in its twist, not a field of its own. */
@@ -11,7 +12,7 @@ export const treeOf = p => flagsOf(p.twist || "none").tree;
 export const seedsOf = i => [seedOf(i), 4001 + i, 77001 + 31 * i];
 
 /** The layout of a generated puzzle: the engine's layoutOf with every field it carries. */
-export const layOfPuzzle = p => layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", { straits: p.straits || "", tree: treeOf(p) });
+export const layOfPuzzle = p => layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", moreOf(p));
 
 /**
  * Looks at levels `from` to `to - 1`, each with the seeds `picks` (indices into seedsOf), and prints what it finds through
@@ -28,10 +29,11 @@ export function checkLevels(check, from, to, picks) {
       worst = Math.max(worst, took); total++;
       if (!p) return fail(i, seed, "no puzzle");
       if (p.level === L.level) hit++;
-      const lay = layOfPuzzle(p), P = puzzleOf(p.size, p.grid, p.sol, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", { straits: p.straits || "", tree: treeOf(p) });
-      if (p.size !== L.size || p.sol.length !== lay.links.length) fail(i, seed, "wrong size or answer");
+      const lay = layOfPuzzle(p), P = puzzleOf(p.size, p.grid, p.sol, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", moreOf(p));
+      if (p.size !== L.size || p.sol.length !== lay.links.length || (p.shape === "hex") !== (L.shape === "hex")) fail(i, seed, "wrong size, board or answer");
+      if (p.shape === "hex" && [...p.grid].some((ch, k) => ch !== "." && !onBoard(p.size, true, Math.floor(k / p.size), k % p.size))) fail(i, seed, "an island off the hex board");
       if (count(lay, 2) !== 1) fail(i, seed, "not one answer");
-      if (answerOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", { straits: p.straits || "", tree: treeOf(p) }) !== p.sol) fail(i, seed, "another answer than its own");
+      if (answerOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.roads || "", moreOf(p)) !== p.sol) fail(i, seed, "another answer than its own");
       const got = gradeOf(lay);
       if (got !== ORDER.indexOf(p.level)) fail(i, seed, "graded differently than it says");
       // the twists are in the puzzle, and only the ones the level has
@@ -74,9 +76,9 @@ export function checkLevels(check, from, to, picks) {
         let made = 0;
         for (let g = 0; g < p.straits.length; g++) {
           if (p.straits[g] === ".") continue;
-          const gap = g < p.size - 1 ? g : g - (p.size - 1);
+          const { fam, gap } = gapAt(p.size, g);
           let n = 0;
-          lay.links.forEach((l, k) => { const a = lay.isl[l.a], b = lay.isl[l.b]; if (g < p.size - 1 ? l.vertical && a.r <= gap && gap < b.r : !l.vertical && a.c <= gap && gap < b.c) n += +p.sol[k]; });
+          lay.links.forEach((l, k) => { const a = lineOf(p.size, fam, lay.isl[l.a].r, lay.isl[l.a].c), b = lineOf(p.size, fam, lay.isl[l.b].r, lay.isl[l.b].c); if (Math.min(a, b) <= gap && gap < Math.max(a, b)) n += +p.sol[k]; });
           if (n !== +p.straits[g]) fail(i, seed, "a strait whose number the answer doesn't make");
           made++;
         }
@@ -92,7 +94,7 @@ export function checkLevels(check, from, to, picks) {
       // the first seed, looked at hardest: the same twice, every clue needed, the hints alone build it
       if (JSON.stringify(levelPuzzle(i, seed)) !== JSON.stringify(p)) fail(i, seed, "not the same twice");
       if (p.level === L.level) {
-        const level = ORDER.indexOf(p.level), without = (field, value) => layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", field === "roads" ? value : p.roads || "", { straits: field === "straits" ? value : p.straits || "", tree: field === "tree" ? false : treeOf(p) });
+        const level = ORDER.indexOf(p.level), without = (field, value) => layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", field === "roads" ? value : p.roads || "", { ...moreOf(p), straits: field === "straits" ? value : p.straits || "", tree: field === "tree" ? false : treeOf(p) });
         const unneeded = (g) => g >= 0 && g <= level;                // solvable by reasoning at the level without it: the clue is decoration
         for (let c = 0; c < (p.roads || "").length; c++) if (p.roads[c] !== "2") { clues++; if (!(p.roads[c] === "3" && p.sol[c] === "3") && unneeded(gradeOf(without("roads", p.roads.slice(0, c) + "2" + p.roads.slice(c + 1))))) fail(i, seed, "a road clue that isn't needed"); else needed++; }
         for (let c = 0; c < (p.straits || "").length; c++) if (p.straits[c] !== ".") { clues++; if (unneeded(gradeOf(without("straits", p.straits.slice(0, c) + "." + p.straits.slice(c + 1))))) fail(i, seed, "a strait that isn't needed"); else needed++; }

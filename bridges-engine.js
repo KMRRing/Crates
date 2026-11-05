@@ -528,6 +528,8 @@ export function generate(seed, size, level, twist = "none", shape = "square") {
     if (lay.isl.length < 4) continue;
     let got = gradeOf(lay), kinds = "";
     if (got < 0) continue;
+    // the one answer must be the board's own (viaducts can close a ring the rule against loops forbids, so a board made with them need not be its own answer)
+    if (hex || (T.hills && T.tree)) { const r = solveAs(lay, got); if (!r.ok || Array.from(r.st.lo, String).join("") !== sol) continue; }
     if (T.tree) { const loose = gradeOf(layOfBoard(size, { ...board, tree: false })); if (loose >= 0 && loose <= want) continue; }       // the rule must be a step the puzzle needs, not a fact about its answer
     if (T.ranges) ({ kinds, grade: got } = loosen(size, board, rng, 0.25 + 0.15 * rng(), want));
     const found = { size, grid, sol, level: ORDER[got] };
