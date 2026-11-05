@@ -1,9 +1,10 @@
 // Moor as a harbour, drawn with three.js (vendor/three.js, kept on the device, so it works offline): the puzzle is a basin of
 // water laid out in cells, walled on three sides by a timber quay with the counts painted on it and open on the fourth to the
 // harbour mouth between two moles (breakwaters), a lighthouse on one and a beacon on the other, and the open sea beyond with
-// ships at anchor that are only scenery. Behind the quay stands a town of Hanseatic gabled warehouses with a crane. Each dock is
-// a timber platform on piles with a lamp (green once its barge is moored), each barge a navy hull with a cream gunwale, a
-// wheelhouse and crates, lying along the edge of its dock; open water you have noted is a ripple. It is the puzzle, played: a tap
+// cogs at anchor that are only scenery. Behind the quay stands a town of Hanseatic brick and plaster warehouses with stepped gables
+// and a treadwheel crane. Each dock is a timber landing stage on piles with a lamp (green once its barge is moored), each barge a
+// small tarred cog with oak strakes, a stern castle and a square sail with the red cross, lying along the edge of its dock;
+// open water you have noted is a ripple. It is the puzzle, played: a tap
 // on a cell calls the page's press(cell, "tap") (the page moors, marks and clears, as on the chart), a right click press(cell,
 // "dot"), a drag turns the view, two fingers (or the wheel) zoom in and pan, two taps beside the board put it back, and a hint's
 // cells glow gilt. The page calls set(P) for a new puzzle and update(marks, breaks, hint) after a change. It draws only while it
@@ -25,11 +26,11 @@ const SEA_VIEW = 6;                           // how much sea the first view kee
 const WAVE = (x, z, t) => 0.012 * Math.sin(x * 1.1 + t * 0.9) + 0.01 * Math.sin(z * 1.4 - t * 0.7);
 
 const SKINS = {
-  day: { sea: 0x4a8fb5, foam: 0xffffff, quay: 0xb89a6a, quayLo: 0x8a6c42, ground: 0x93a872, plaza: 0xc9c2ad, wood: 0x9a6a3b, woodLo: 0x5e3f20, hull: 0x1d3750, rim: 0xf3e8c8, deck: 0xcfd8de, gilt: 0xe6b93a, red: 0xb5432f,
-    crates: [0xb5432f, 0xc8923a, 0x3f7f78], walls: [0xa8523c, 0xd6b97a, 0xe4dac0, 0x8e9aa3], roofs: [0x6b3a2e, 0x4d5560], win: 0x34424e, rock: 0x8b8f8c, lampOff: 0x6f6f6f, lampOn: 0x3fbf7a,
-    hemi: 1.15, sky: 0xfff4dc, under: 0x6d8fa6, key: 0xfff0d2, keyI: 2.3, exposure: 1.0, horizon: 0xd3e5ee, zenith: 0x6fa8dc, orb: 0xfff6cf, night: false },
-  night: { sea: 0x2b5775, foam: 0xdfeaf5, quay: 0x8d7a58, quayLo: 0x65563c, ground: 0x4c5e42, plaza: 0x8f8a7b, wood: 0xb5854d, woodLo: 0x7a5430, hull: 0x9dbad0, rim: 0xfff0cf, deck: 0xdfe8ee, gilt: 0xf4cf6a, red: 0xd8705a,
-    crates: [0xd8705a, 0xe2b865, 0x6fbdb3], walls: [0x91503f, 0xa38b60, 0xa09983, 0x71808a], roofs: [0x5b3328, 0x424a54], win: 0xf2c35c, rock: 0x74797a, lampOff: 0x8a8a8a, lampOn: 0x6ff0a8,
+  day: { sea: 0x5a8a90, foam: 0xf4f1e6, quay: 0x9c7b4f, quayLo: 0x6a4d2e, ground: 0x8e896f, plaza: 0xa89d86, wood: 0x8b5f35, woodLo: 0x4b331d, hull: 0x35271c, rim: 0x6f4c2b, deck: 0xb89a68, gilt: 0xe6b93a, red: 0xa8442f, sail: 0xe6dcc0,
+    crates: [0x7a5230, 0xb59a5e, 0x5e4023], walls: [0xa5553b, 0xcdb98c, 0xdcd2bb, 0x8d5a45], roofs: [0x7d3b2b, 0x4a4f57], win: 0x2f2a25, rock: 0x8c8b82, lampOff: 0x6f6f6f, lampOn: 0x3fbf7a,
+    hemi: 1.1, sky: 0xfff1d6, under: 0x7b8a8c, key: 0xffecc8, keyI: 2.2, exposure: 1.0, horizon: 0xd8d9cf, zenith: 0x93b0bf, orb: 0xfff3cf, night: false },
+  night: { sea: 0x2a4a58, foam: 0xdde3e6, quay: 0x7d6746, quayLo: 0x56452f, ground: 0x4d5645, plaza: 0x7d7869, wood: 0xa7794a, woodLo: 0x6b4a2b, hull: 0x8a7352, rim: 0xb89a6a, deck: 0xd7c79c, gilt: 0xf4cf6a, red: 0xd8705a, sail: 0xd8cfb6,
+    crates: [0xa87a4c, 0xcdb27a, 0x7e5a38], walls: [0x8f4f3d, 0xa8946a, 0xa39c88, 0x74534a], roofs: [0x5b3328, 0x424a54], win: 0xf2c35c, rock: 0x74797a, lampOff: 0x8a8a8a, lampOn: 0x6ff0a8,
     hemi: 1.3, sky: 0xa5b4d2, under: 0x1c2a38, key: 0xcfdcf6, keyI: 1.9, exposure: 1.1, horizon: 0x33476a, zenith: 0x08102a, orb: 0xe9eefc, night: true },
 };
 function skinNow() {
@@ -93,15 +94,15 @@ export function createModel(host, opts = {}) {
   const shipMats = new Map();
   const sm = color => { if (!shipMats.has(color)) shipMats.set(color, solid(color)); return shipMats.get(color); };
   const M = {
-    sea: solid(0x4a8fb5, { roughness: 0.55, metalness: 0.05 }), foam: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }),
+    sea: solid(0x5a8a90, { roughness: 0.55, metalness: 0.05 }), foam: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }),
     swell: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false }),
     grid: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false, side: 2 }),
-    quay: solid(0xb89a6a), quayLo: solid(0x8a6c42), ground: solid(0x93a872), plaza: solid(0xc9c2ad), wood: solid(0x9a6a3b), woodLo: solid(0x5e3f20),
-    deck: solid(0xd9b97a), rim: solid(0xf3e8c8), rock: solid(0x8b8f8c), cream: solid(0xeee6d2), red: solid(0xb5432f),
+    quay: solid(0x9c7b4f), quayLo: solid(0x6a4d2e), ground: solid(0x8e896f), plaza: solid(0xa89d86), wood: solid(0x8b5f35), woodLo: solid(0x4b331d),
+    deck: solid(0xd9b97a), rim: solid(0x6f4c2b), rock: solid(0x8b8f8c), cream: solid(0xeee6d2), red: solid(0xb5432f), sail: solid(0xe6dcc0),
     roof: [0, 1].map(() => solid(0x6b3a2e)), crate: [0, 1, 2].map(() => solid(0xb5432f)), wall: [0, 1, 2, 3].map(() => solid(0xd8cfb8)),
     win: new THREE.MeshBasicMaterial({ color: 0x34424e }), lantern: new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }),
     beam: new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.13, depthWrite: false, blending: 2 }),
-    ripple: solid(0xffffff, { transparent: true, opacity: 0.55 }), ripple2: solid(0x4a8fb5),
+    ripple: solid(0xffffff, { transparent: true, opacity: 0.55 }), ripple2: solid(0x5a8a90),
     litMat: new THREE.MeshBasicMaterial({ color: 0xe6b93a, transparent: true, opacity: 0.6, depthWrite: false }),
     whyMat: new THREE.MeshBasicMaterial({ color: 0xe6b93a, transparent: true, opacity: 0.28, depthWrite: false }),
   };
@@ -111,7 +112,7 @@ export function createModel(host, opts = {}) {
     if (skin && skin.key === k.key) return;
     skin = k;
     M.sea.color.setHex(k.sea); M.ripple2.color.setHex(k.sea); M.foam.color.setHex(k.foam); M.swell.color.setHex(k.foam); M.ripple.color.setHex(k.foam);
-    for (const [m, c] of [[M.quay, k.quay], [M.quayLo, k.quayLo], [M.ground, k.ground], [M.plaza, k.plaza], [M.wood, k.wood], [M.woodLo, k.woodLo], [M.deck, k.deck], [M.rim, k.rim], [M.rock, k.rock], [M.win, k.win], [M.red, k.red]]) m.color.setHex(c);
+    for (const [m, c] of [[M.quay, k.quay], [M.quayLo, k.quayLo], [M.ground, k.ground], [M.plaza, k.plaza], [M.wood, k.wood], [M.woodLo, k.woodLo], [M.deck, k.deck], [M.rim, k.rim], [M.rock, k.rock], [M.win, k.win], [M.red, k.red], [M.sail, k.sail]]) m.color.setHex(c);
     M.roof.forEach((m, i) => m.color.setHex(k.roofs[i])); M.crate.forEach((m, i) => m.color.setHex(k.crates[i])); M.wall.forEach((m, i) => m.color.setHex(k.walls[i]));
     M.litMat.color.setHex(k.gilt); M.whyMat.color.setHex(k.gilt); M.lantern.color.setHex(k.night ? 0xffe28a : 0xf5efd8);
     M.beam.visible = k.night;
@@ -183,6 +184,9 @@ export function createModel(host, opts = {}) {
     slab(-HX, HX, -HX, -half, M.quay);
     slab(-HX, -half, -HX, zEnd, M.quay); slab(half, HX, -HX, zEnd, M.quay);
     slab(-HX, -half + 0.0, zEnd - QUAY, zEnd, M.quay);
+    // the quay is planked: a seam every little way across its width, a darker line the counts are painted over
+    for (let x = -HX + 0.55; x < HX - 0.2; x += 0.55) put(geo.box, M.quayLo, 0.024, 0.008, QUAY, x, T + 0.004, -half - QUAY / 2);
+    for (const s of [-1, 1]) for (let z = -half + 0.1; z < zEnd - 0.3; z += 0.55) put(geo.box, M.quayLo, QUAY, 0.008, 0.024, s * (half + QUAY / 2), T + 0.004, z);
     put(geo.box, M.quayLo, 2 * half + 0.12, T + 0.42, 0.12, 0, (T - 0.42) / 2 + 0.02, -half);
     for (const s of [-1, 1]) put(geo.box, M.quayLo, 0.12, T + 0.42, zEnd + half, s * half, (T - 0.42) / 2 + 0.02, (zEnd - half) / 2);
     // each mole's head bends in toward the mouth, with a pad for the light
@@ -209,15 +213,17 @@ export function createModel(host, opts = {}) {
     }
     for (const s of [-1, 1]) put(geo.box, M.foam, 0.45, 0.01, ARM + 0.8, s * (HX + 0.35), 0.02, half + (ARM + 0.8) / 2 - 0.1);
     town(put, geo, frame, T, half, HX);
-    // the lighthouse on the right mole's head, a red beacon on the left
+    // the harbour light on the right mole's head, a stone tower with a timber gallery and a fire in a cage; a tarred beacon post on the left
     const lx = half - HOOK + 0.35, lz = zEnd - 0.4, LH = new THREE.Matrix4().makeTranslation(lx, 0, lz);
-    for (let i = 0; i < 4; i++) put(geo.cyl, i % 2 ? M.red : M.cream, 0.78 - i * 0.07, 0.62, 0.78 - i * 0.07, 0, T + 0.31 + i * 0.62, 0, 0, 0, 0, LH);
-    put(geo.cyl, M.woodLo, 0.92, 0.08, 0.92, 0, T + 2.54, 0, 0, 0, 0, LH);
-    put(geo.cyl, M.lantern, 0.4, 0.34, 0.4, 0, T + 2.75, 0, 0, 0, 0, LH);
-    put(geo.cone, M.red, 0.62, 0.4, 0.62, 0, T + 3.12, 0, 0, 0, 0, LH);
+    for (let i = 0; i < 4; i++) put(geo.cyl, i % 2 ? M.rock : M.plaza, 0.84 - i * 0.09, 0.62, 0.84 - i * 0.09, 0, T + 0.31 + i * 0.62, 0, 0, 0, 0, LH);
+    put(geo.cyl, M.woodLo, 1.0, 0.08, 1.0, 0, T + 2.54, 0, 0, 0, 0, LH);
+    for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) put(geo.box, M.woodLo, 0.04, 0.34, 0.04, dx, T + 2.75, dz, 0, 0, 0, LH);
+    put(geo.cyl, M.lantern, 0.3, 0.26, 0.3, 0, T + 2.72, 0, 0, 0, 0, LH);
+    put(geo.cone, M.woodLo, 0.62, 0.36, 0.62, 0, T + 3.1, 0, 0, 0, 0, LH);
     const BK = new THREE.Matrix4().makeTranslation(-lx, 0, lz);
-    put(geo.cyl, M.red, 0.34, 0.9, 0.34, 0, T + 0.45, 0, 0, 0, 0, BK);
-    put(geo.cyl, M.lantern, 0.24, 0.24, 0.24, 0, T + 1.0, 0, 0, 0, 0, BK);
+    put(geo.cyl, M.woodLo, 0.2, 1.0, 0.2, 0, T + 0.5, 0, 0, 0, 0, BK);
+    put(geo.cyl, M.wood, 0.36, 0.14, 0.36, 0, T + 1.05, 0, 0, 0, 0, BK);
+    put(geo.cyl, M.lantern, 0.26, 0.22, 0.26, 0, T + 1.2, 0, 0, 0, 0, BK);
     for (const { g, mat, ms } of acc.values()) {
       const im = new THREE.InstancedMesh(g, mat, ms.length);
       ms.forEach((m, i) => im.setMatrixAt(i, m));
@@ -290,9 +296,14 @@ export function createModel(host, opts = {}) {
       if (f === 0 && c === Math.floor(cols / 2)) { put(geo.box, M.woodLo, 0.34, 0.5, 0.03, (c - (cols - 1) / 2) * (w / cols), T + 0.25, d / 2 + 0.015, 0, 0, 0, P); continue; }
       put(geo.box, M.win, 0.15, 0.25, 0.03, (c - (cols - 1) / 2) * (w / cols), T + 0.5 + f * 0.72, d / 2 + 0.015, 0, 0, 0, P);
     }
+    // plaster walls are half-timbered (a dark frame of posts and a beam at each floor); brick walls stay plain
+    if (wi === 1 || wi === 2) {
+      for (let c = 0; c <= cols; c++) put(geo.box, M.woodLo, 0.06, h, 0.025, (c - cols / 2) * (w / cols), T + h / 2 - 0.02, d / 2 + 0.012, 0, 0, 0, P);
+      for (let f = 0; f <= floors; f++) put(geo.box, M.woodLo, w, 0.05, 0.025, 0, T + f * (h / floors) - 0.02, d / 2 + 0.012, 0, 0, 0, P);
+    }
     put(geo.box, M.woodLo, 0.08, 0.08, 0.5, 0, T + h + 0.7, d / 2 + 0.2, 0, 0, 0, P);
   }
-  /** The town behind the quay: a street of gabled warehouses facing the water along the far side and both flanks, a second row and a church behind, container stacks and a portal crane. Placed from the puzzle's size, so the same every time. */
+  /** The town behind the quay: a street of gabled warehouses facing the water along the far side and both flanks, a second row and a church behind, stacks of barrels and a treadwheel crane. Placed from the puzzle's size, so the same every time. */
   function town(put, geo, frame, T, half, HX) {
     const front = HX + 2.9;
     // the far side, shoulder to shoulder, and the taller row behind it
@@ -316,21 +327,26 @@ export function createModel(host, opts = {}) {
       if (i % 4 !== 3) house(put, geo, frame(s * (front + d / 2), z + w / 2, -s * Math.PI / 2), T, w, h, d, (hash(i * 3 + 503 + s) * 4) | 0, hash(i + 277 + s) < 0.5 ? 0 : 1);
       z += w + 0.1;
     }
-    // containers stacked on the right flank's paving
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) for (let k = 0; k <= j; k++) put(geo.box, M.crate[(i + j + k) % 3], 0.62, 0.3, 1.5, HX + 1.15 + j * 0.7, T + 0.15 + k * 0.31, half - 2.4 - i * 0.8);
-    for (let i = 0; i < 4; i++) for (let k = 0; k < 2; k++) put(geo.box, M.crate[(i + k * 2) % 3], 1.5, 0.3, 0.62, half * 0.45 + i * 0.8, T + 0.15 + k * 0.31, -HX - 1.2);
-    // a portal crane over the far quay: four legs, a bridge, a cab, a jib reaching out over the water and a counter-jib behind
+    // barrels stacked on the right flank's paving and along the far quay
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) put(geo.cyl, M.crate[(i + j) % 3], 0.44, 0.52, 0.44, HX + 1.0 + j * 0.52, T + 0.26, half - 2.4 - i * 0.56);
+    for (let i = 0; i < 3; i++) put(geo.cyl, M.crate[(i + 1) % 3], 0.44, 0.52, 0.44, HX + 1.26, T + 0.78, half - 2.68 - i * 0.56);
+    for (let i = 0; i < 4; i++) put(geo.cyl, M.crate[i % 3], 0.44, 0.52, 0.44, half * 0.45 + i * 0.5, T + 0.26, -HX - 1.2);
+    for (let i = 0; i < 3; i++) put(geo.cyl, M.crate[(i + 2) % 3], 0.44, 0.52, 0.44, half * 0.45 + 0.25 + i * 0.5, T + 0.78, -HX - 1.2);
+    for (let i = 0; i < 3; i++) put(geo.box, M.crate[1], 0.5, 0.2, 0.34, -half * 0.75 + i * 0.52, T + 0.1 + (i % 2) * 0.01, -HX - 1.2, hash(i + 31) * 0.4 - 0.2);   // sacks
+    // a treadwheel crane on the far quay (Hanseatic harbours had them): a timber tower under a pyramid roof, a jib reaching out over the water on a brace, a big wheel a man walks in, a rope and a barrel
     const C = frame(-half * 0.3, -(HX + 1.9), 0);
-    for (const [dx, dz] of [[-0.7, -0.5], [0.7, -0.5], [-0.7, 0.5], [0.7, 0.5]]) put(geo.box, M.woodLo, 0.12, 1.9, 0.12, dx, T + 0.95, dz, 0, 0, 0, C);
-    put(geo.box, M.woodLo, 1.7, 0.14, 1.3, 0, T + 1.95, 0, 0, 0, 0, C);
-    put(geo.box, M.crate[1], 0.5, 0.36, 0.5, 0, T + 2.2, -0.1, 0, 0, 0, C);
-    put(geo.box, M.woodLo, 0.1, 0.1, 3.4, 0, T + 2.6, 1.3, 0, -0.34, 0, C);
-    put(geo.box, M.woodLo, 0.1, 0.1, 1.2, 0, T + 2.22, -0.9, 0, 0.34, 0, C);
-    put(geo.box, M.rock, 0.4, 0.3, 0.4, 0, T + 2.05, -1.35, 0, 0, 0, C);
-    put(geo.box, M.woodLo, 0.03, 1.1, 0.03, 0, T + 2.4, 2.65, 0, 0, 0, C);
-    put(geo.box, M.crate[0], 0.5, 0.3, 0.9, 0, T + 1.7, 2.65, 0, 0, 0, C);
+    put(geo.box, M.wood, 1.2, 2.3, 1.0, 0, T + 1.15, 0, 0, 0, 0, C);
+    put(geo.cone, M.roof[0], 1.75, 1.2, 1.6, 0, T + 2.9, 0, 0, 0, 0, C);
+    for (const dx of [-0.66, 0.66]) {
+      put(geo.cyl, M.woodLo, 1.5, 0.12, 1.5, dx, T + 1.15, 0.1, 0, 0, Math.PI / 2, C);
+      put(geo.cyl, M.wood, 1.2, 0.14, 1.2, dx, T + 1.15, 0.1, 0, 0, Math.PI / 2, C);
+    }
+    put(geo.box, M.woodLo, 0.14, 0.14, 2.7, 0, T + 2.35, 1.9, 0, 0, 0, C);
+    put(geo.box, M.woodLo, 0.08, 0.08, 1.7, 0, T + 1.75, 1.4, 0, 0.65, 0, C);
+    put(geo.cyl, M.rim, 0.025, 1.0, 0.025, 0, T + 1.85, 3.1, 0, 0, 0, C);
+    put(geo.cyl, M.crate[0], 0.4, 0.46, 0.4, 0, T + 1.12, 3.1, 0, 0, 0, C);
   }
-  /** Ships at anchor and a coaster at the left mole, beyond the puzzle and not to be played: bigger, duller, and rocking on their own. */
+  /** Cogs at anchor and one moored at the left mole, beyond the puzzle and not to be played: bigger, duller, and rocking on their own. */
   function ships(half, HX, zEnd, HOOK) {
     const hullG = (() => {
       const s = new THREE.Shape();
@@ -341,34 +357,40 @@ export function createModel(host, opts = {}) {
       return g;
     })();
     const part = (g, mat, w, h, d, x, y, z, rz = 0) => { const m = new THREE.Mesh(g, mat); m.scale.set(w, h, d); m.position.set(x, y, z); m.rotation.z = rz; return m; };
-    const unit = new THREE.BoxGeometry(1, 1, 1), tube = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
+    const unit = new THREE.BoxGeometry(1, 1, 1), tube = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
     const add = (g, x, z, ry, sway) => { g.position.set(x, 0, z); g.rotation.y = ry; world.add(g); fx.ships.push({ g, x, z, ph: hash(Math.round(x * 7 + z * 3)) * 6.28, sway }); };
-    // a tanker
-    let g = new THREE.Group();
-    g.add(part(hullG, sm(0x7a2a22), 7, 1, 1.7, 0, -0.62, 0), part(unit, sm(0x3d4a52), 6.4, 0.06, 1.4, -0.2, 0.4, 0), part(unit, sm(0xeeeeee), 0.9, 1.2, 1.4, -2.7, 0.95, 0), part(unit, sm(0xeeeeee), 0.7, 0.4, 1.3, -2.7, 1.75, 0), part(tube, sm(0xb5432f), 0.35, 0.7, 0.35, -3.1, 1.9, 0));
-    for (let i = 0; i < 4; i++) g.add(part(tube, sm(0x9aa3a8), 0.55, 0.3, 0.55, -1 + i * 1.15, 0.58, 0));
-    add(g, half * 0.5 + 2.4, zEnd + 8, -0.5, 0.01);
-    // a Hanseatic cog under no sail but a furled one
-    g = new THREE.Group();
-    g.add(part(hullG, sm(0x7a3a24), 2.8, 1.0, 1.0, 0, -0.55, 0), part(unit, sm(0x7a5230), 0.9, 0.5, 1.1, -1.3, 0.75, 0), part(unit, sm(0x7a5230), 0.6, 0.4, 1.0, 1.2, 0.7, 0), part(tube, sm(0x5e3f20), 0.09, 3, 0.09, 0.1, 1.6, 0), part(unit, sm(0xf0e6c8), 0.1, 0.12, 1.7, 0.1, 1.9, 0), part(unit, sm(0xf0e6c8), 0.9, 0.04, 0.9, 0.1, 0.5, 0), part(unit, sm(0xb5432f), 0.25, 0.04, 0.25, 0.1, 3.1, 0));
-    g.scale.setScalar(0.8);
-    add(g, -half * 0.12, zEnd + 1.3, 0.3, 0.02);
-    // a coaster moored along the left mole's sea face
-    g = new THREE.Group();
-    g.add(part(hullG, sm(0x23507a), 3.4, 0.9, 1.0, 0, -0.5, 0), part(unit, sm(0x6b7a80), 2.2, 0.06, 0.85, 0.2, 0.36, 0), part(unit, sm(0xf0ece0), 0.7, 0.7, 0.9, -1.2, 0.75, 0), part(tube, sm(0xe6b93a), 0.22, 0.5, 0.22, -1.35, 1.3, 0));
-    add(g, -(HX + 0.75), half + 1.6, -Math.PI / 2, 0.01);
-    // a container ship far out
-    g = new THREE.Group();
-    g.add(part(hullG, sm(0x26343f), 9, 1.1, 2.1, 0, -0.65, 0), part(unit, sm(0xeeeeee), 0.9, 1.5, 1.8, -3.6, 1.1, 0));
-    for (let i = 0; i < 6; i++) for (let k = 0; k < 2; k++) g.add(part(unit, M.crate[(i + k) % 3], 0.9, 0.42, 1.7, -2.4 + i * 1.0, 0.65 + k * 0.43, 0));
-    add(g, -4, zEnd + 34, 0.12, 0.006);
+    /** A cog (or, with two masts, a hulk) `L` long: a tarred hull with oak strakes, a high stern castle and a low fore castle, and a square hemp sail with the red cross on each mast. */
+    const sailer = (L, masts) => {
+      const g = new THREE.Group(), tar = sm(0x2e231a), oak = sm(0x8a5e34), plank = sm(0xa8885a), hemp = sm(0xe3d8bc), cross = sm(0xa8352a);
+      g.add(part(hullG, tar, L, 0.34 * L, 0.36 * L, 0, -0.2 * L, 0));
+      for (const k of [0, 1, 2]) g.add(part(unit, oak, 0.72 * L, 0.012 * L, 0.368 * L, -0.14 * L, (-0.1 + k * 0.09) * L, 0));
+      g.add(part(unit, plank, 0.8 * L, 0.012 * L, 0.33 * L, -0.08 * L, 0.146 * L, 0));
+      g.add(part(unit, oak, 0.2 * L, 0.15 * L, 0.35 * L, -0.38 * L, 0.21 * L, 0), part(unit, plank, 0.23 * L, 0.015 * L, 0.37 * L, -0.38 * L, 0.29 * L, 0));
+      g.add(part(unit, oak, 0.15 * L, 0.11 * L, 0.26 * L, 0.29 * L, 0.2 * L, 0));
+      for (let m = 0; m < masts; m++) {
+        const x = (m ? 0.3 : 0.02) * L, H = (m ? 0.6 : 0.85) * L, y = 0.14 * L, sw = H / (0.85 * L);
+        g.add(part(tube, oak, 0.022 * L, H, 0.022 * L, x, y + H / 2, 0));
+        const rig = new THREE.Group(); rig.position.x = x; rig.rotation.y = 0.55; g.add(rig);          // braced round, as the barges' are
+        rig.add(part(unit, oak, 0.015 * L, 0.015 * L, 0.55 * L * sw, 0, y + 0.85 * H, 0));
+        rig.add(part(unit, hemp, 0.01 * L, 0.4 * H, 0.5 * L * sw, 0.012 * L, y + 0.65 * H, 0));
+        rig.add(part(unit, cross, 0.0125 * L, 0.4 * H, 0.06 * L * sw, 0.016 * L, y + 0.65 * H, 0), part(unit, cross, 0.0125 * L, 0.07 * H, 0.5 * L * sw, 0.016 * L, y + 0.65 * H, 0));
+        rig.add(part(unit, cross, 0.14 * L * sw, 0.035 * L, 0.005 * L, 0.07 * L * sw, y + H + 0.02 * L, 0));
+      }
+      return g;
+    };
+    add(sailer(4.4, 1), half * 0.5 + 2.4, zEnd + 8, -0.5, 0.01);
+    add(sailer(2.6, 1), -half * 0.12, zEnd + 1.3, 0.3, 0.02);
+    add(sailer(2.2, 1), -(HX + 0.75), half + 1.6, -Math.PI / 2, 0.01);          // moored along the left mole's sea face
+    add(sailer(6, 2), -4, zEnd + 34, 0.12, 0.006);
+    add(sailer(3.4, 1), half * 0.5 - 14, zEnd + 22, 2.5, 0.008);
   }
 
-  // ---------- a barge: a navy hull along its dock's edge with a cream gunwale, a wheelhouse, a deck and two crates, a ring of foam ----------
+  // ---------- a barge: a small tarred cog along its dock's edge, oak strakes, a stern castle, a square sail with the red cross, barrels, a ring of foam ----------
   const outline = (s) => { const sh = new THREE.Shape(); [[-0.48, -0.37], [0.17, -0.37], [0.49, 0], [0.17, 0.37], [-0.48, 0.37]].forEach(([x, y], i) => (i ? sh.lineTo(x * s, y * s) : sh.moveTo(x * s, y * s))); sh.closePath(); return sh; };
   const flat = (shape, depth, y) => { const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, y, 0); return g; };
   const hullGeo = flat(outline(1), 0.36, -0.12), rimGeo = flat(outline(1.05), 0.04, 0.215);
-  const deckGeo = new THREE.BoxGeometry(0.82, 0.025, 0.62), foamGeo = new THREE.BoxGeometry(1.08, 0.006, 0.88), crateGeo = new THREE.BoxGeometry(0.26, 0.22, 0.4), houseGeo = new THREE.BoxGeometry(0.24, 0.26, 0.5), roofGeo = new THREE.BoxGeometry(0.3, 0.04, 0.56);
+  const deckGeo = new THREE.BoxGeometry(0.82, 0.025, 0.62), foamGeo = new THREE.BoxGeometry(1.08, 0.006, 0.88), unitGeo = new THREE.BoxGeometry(1, 1, 1);
+  const mastGeo = new THREE.CylinderGeometry(0.02, 0.026, 0.64, 6), barrelGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.11, 8);
   function angleOf(x) {
     const [r, c] = [Math.floor(x / N), x % N];
     if ((r > 0 && P.dock[x - N]) || (r < N - 1 && P.dock[x + N])) return 0;
@@ -376,15 +398,22 @@ export function createModel(host, opts = {}) {
     return 0;
   }
   function cast(x) {
-    const [px, pz] = cellXZ(x), g = new THREE.Group(), hull = new THREE.Mesh(hullGeo, solid(skin?.hull ?? 0x1d3750));
+    const [px, pz] = cellXZ(x), g = new THREE.Group(), hull = new THREE.Mesh(hullGeo, solid(skin?.hull ?? 0x35271c));
+    const part = (geo, mat, w, h, d, ox, oy, oz, parent = g) => { const m = new THREE.Mesh(geo, mat); m.scale.set(w, h, d); m.position.set(ox, oy, oz); parent.add(m); };
     g.add(hull);
     g.add(new THREE.Mesh(rimGeo, M.rim));
     const foam = new THREE.Mesh(foamGeo, M.swell); foam.position.y = 0.012; g.add(foam);
     const deck = new THREE.Mesh(deckGeo, M.deck); deck.position.set(-0.03, 0.245, 0); g.add(deck);
-    const wh = new THREE.Mesh(houseGeo, M.wall[1]); wh.position.set(-0.3, 0.39, 0); g.add(wh);
-    const rf = new THREE.Mesh(roofGeo, M.roof[0]); rf.position.set(-0.3, 0.535, 0); g.add(rf);
-    const c1 = new THREE.Mesh(crateGeo, M.crate[hash(x) * 3 | 0]); c1.position.set(0.02, 0.365, 0); g.add(c1);
-    const c2 = new THREE.Mesh(crateGeo, M.crate[hash(x + 77) * 3 | 0]); c2.position.set(0.27, 0.345, 0); c2.scale.set(0.8, 0.8, 0.9); g.add(c2);
+    for (const y of [-0.04, 0.06, 0.15]) part(unitGeo, M.wood, 0.6, 0.012, 0.745, -0.15, y, 0);              // the strakes
+    part(unitGeo, M.wood, 0.2, 0.1, 0.5, -0.33, 0.3, 0); part(unitGeo, M.woodLo, 0.23, 0.02, 0.54, -0.33, 0.36, 0);   // the stern castle and its roof
+    part(mastGeo, M.woodLo, 1, 1, 1, 0.06, 0.56, 0);
+    // the yard is braced round a little, so the sail shows its face to the camera whichever way the barge lies
+    const rig = new THREE.Group(); rig.position.set(0.06, 0, 0); rig.rotation.y = 0.6; g.add(rig);
+    part(unitGeo, M.woodLo, 0.014, 0.014, 0.5, 0, 0.78, 0, rig);
+    part(unitGeo, M.sail, 0.01, 0.3, 0.46, 0.01, 0.62, 0, rig);
+    part(unitGeo, M.red, 0.013, 0.3, 0.05, 0.016, 0.62, 0, rig); part(unitGeo, M.red, 0.013, 0.05, 0.46, 0.016, 0.62, 0, rig);   // the red cross
+    part(unitGeo, M.red, 0.1, 0.03, 0.004, 0.05, 0.9, 0, rig);
+    part(barrelGeo, M.crate[hash(x) * 3 | 0], 1, 1, 1, 0.28, 0.3, 0.07); part(barrelGeo, M.crate[hash(x + 77) * 3 | 0], 1, 1, 1, 0.28, 0.3, -0.07);
     g.rotation.y = angleOf(x) * DEG;
     g.position.set(px, 0, pz);
     world.add(g);
