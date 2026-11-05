@@ -29,6 +29,8 @@ html[data-mode="night"] { --sv-silver: #c9d4e4; --sv-gold: #e5b95a; }
 .sv-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab; }
 .sv-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .sv-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+/* the flat view: a plate is as big as the cube it sits by (survey-2d.js measures them at 0.86 of one) */
+.sv-labels.flat .sv-lab { --b: clamp(.7rem, calc(var(--cell, 2rem) * .86), 1.7rem); }
 /* a reading: the ore cubes in a row. A plain plate is one seam (one run of ore), a ring two, a box three or more.
    --cell (set by the script) is a cube's width on the screen, so the plates grow with the block */
 .sv-lab { --b: clamp(.95rem, calc(var(--cell, 2rem) * .52), 1.5rem); position: absolute; left: 0; top: 0; display: grid; place-items: center; box-sizing: border-box;

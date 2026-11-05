@@ -10,6 +10,8 @@
 import * as THREE from "./vendor/three.js";
 import { defaultIs3D } from "./mode3d.js";   // Settings' 2D mode (battery saver): this game is 3D only, so its flattest is a ratio of 1 and no shadow map
 import { linesOf, coordsOf } from "./survey-engine.js";
+import { skinNow } from "./survey-skin.js";
+import { plateOf, plateShape, plateText } from "./survey-plate.js";
 
 const DEG = Math.PI / 180;
 const BACK = 1;                                   // THREE.BackSide (not in the bundle's exports)
@@ -21,21 +23,6 @@ const OFF = 0.1;                                  // how far beyond its face a r
 const CHIP_MS = 260, STRIKE_MS = 460, MARK_MS = 200, WAVE_MS = 38, SPIN = 0.5;   // animations; the wave of ore at the end (ms a cube later); the slow turn after a win (rad/s)
 const SHARDS = 220, SPARKS = 48, FAULT_GAP = 0.07;   // shards of a chipped cube; glints on ore; half the crack a fault opens (cosmetic: the rules see none)
 const AMBER = 0xffc65c;
-
-// ---------- the skins ----------
-const MODES = {
-  day: { rock: 0xb9ab92, sky: 0xf1e6cd, ground: 0x5a4d3c, hemi: 1.15, key: 0xfff1d6, keyI: 2.6, exposure: 1.0, shadow: 0.55 },
-  night: { rock: 0x98938a, sky: 0x6c80a6, ground: 0x141a22, hemi: 1.05, key: 0xcbdaf5, keyI: 2.2, exposure: 1.05, shadow: 0.6 },
-};
-const THEMES = { codex: { brass: [0xcfa142, 0xc39a3e], plate: [0x1c2a34, 0x0d151c] }, office: { brass: [0xc4a248, 0xbb9a40], plate: [0x22302a, 0x0f1612] } };
-/** The skin in force: the suite's theme and day or night (as set, else as the device), with the theme's gold and blue enamels (ore, marks). */
-export function skinNow() {
-  const root = document.documentElement, theme = THEMES[root.dataset.theme] ? root.dataset.theme : "codex";
-  const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
-  const css = getComputedStyle(root), pick = (name, or) => { const v = (css.getPropertyValue(name) || "").trim(); return /^#[0-9a-f]{6}$/i.test(v) ? v : or; };
-  const i = night ? 1 : 0;
-  return { name: `${theme} ${night ? "night" : "day"}`, night, ...MODES[night ? "night" : "day"], brass: THEMES[theme].brass[i], plate: THEMES[theme].plate[i], ore: pick("--c0", "#D49A22"), mark: pick("--c2", "#2C5B8A"), silver: night ? "#aebccf" : "#8d9db3", granite: night ? "#4b5762" : "#626d79", lamp: night ? "#ffd27a" : "#f4b640" };
-}
 
 // ---------- shapes ----------
 /** A unit cube with rounded edges: a box with four segments, its outer rings pulled onto quarter-circles of radius r. */
@@ -279,27 +266,17 @@ export function createBlock(host) {
     refit();
     update(false);
   }
-  /** The numbers of a plate that reads several channels: silver then gold where there are two ores (the two colours), a bar between the sides of a fault. Only numbers go in. */
-  function plateOf(t, axis) {
-    const cut = P.cut && P.cut.axis === axis, per = P.ores === 2 ? 2 : 1, out = [];
-    for (let side = 0; side < (cut ? 2 : 1); side++) {
-      const one = t.slice(side * per, side * per + per).map((v, k) => `<i class="${per === 2 ? (k ? "g" : "s") : "o"}">${v | 0}</i>`).join("");
-      out.push(`<span>${one}</span>`);
-    }
-    return out.join('<u></u>');
-  }
   function buildLabels() {
     labels.replaceChildren();
     return linesOf(n).map((ln, k) => {
       const at = ln.cells.map((c, i) => (P.present[c] ? i : -1)).filter(i => i >= 0);
       if (!at.length) return { ln, none: true };                                                   // no rock along this row: no plate
       const cl = P.clues[k], el = document.createElement("div");
-      const two = !!cl && !!cl.t && (P.ores === 2 || P.cut);                                       // two ores or a fault: a plate of several numbers
-      const shape = !cl ? " fog" : two ? " two" : P.kind === "runs" ? " runs" : P.kind === "counts" ? "" : ["", "", " ring", " box"][cl.g];   // one seam or none: a plain plate
+      const shape = plateShape(P, cl);
       el.className = "sv-lab";
       el.style.visibility = "hidden";                                                              // until its first place on the screen
-      if (two) el.innerHTML = plateOf(cl.t, ln.a);
-      else el.textContent = !cl ? "?" : P.kind === "runs" ? (cl.r.length ? cl.r.join(" ") : "0") : String(cl.c);
+      if (shape === " two") el.innerHTML = plateOf(P, cl.t, ln.a);
+      else el.textContent = plateText(P, cl);
       labels.append(el);
       return { el, ln, shape, first: at[0], last: at[at.length - 1], x: -1e9, y: -1e9, o: -1, cls: "" };   // first, last: where the rock begins and ends along the row
     });
@@ -615,16 +592,24 @@ export function createBlock(host) {
   /** Where a cube is on the page (client coordinates, as a pointer event has them). */
   function where(i) { const [x, y] = screenOf(ctr[i * 3], ctr[i * 3 + 1], ctr[i * 3 + 2]), r = canvas.getBoundingClientRect(); return [x + r.left, y + r.top]; }
 
-  new ResizeObserver(resize).observe(host);
-  new MutationObserver(applySkin).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
-  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applySkin);
+  const sizeWatch = new ResizeObserver(resize), skinWatch = new MutationObserver(applySkin), mq = matchMedia("(prefers-color-scheme: dark)");
+  sizeWatch.observe(host);
+  skinWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
+  mq.addEventListener?.("change", applySkin);
   canvas.addEventListener("webglcontextlost", e => e.preventDefault());
   canvas.addEventListener("webglcontextrestored", () => { applySkin(); invalidate(); });
   applySkin();
   resize();
 
+  /** Lets go of the graphics card and the watchers (the player chose the flat view). */
+  function dispose() {
+    dead = true; cancelAnimationFrame(frameId);
+    sizeWatch.disconnect(); skinWatch.disconnect(); mq.removeEventListener?.("change", applySkin);
+    renderer.dispose(); renderer.forceContextLoss?.();
+  }
+
   return {
-    canvas, set, update, pick, focus, halo: haloAt, orbit, setView, grab, release, zoomBy, pan, reset,
+    dispose, canvas, set, update, pick, focus, halo: haloAt, orbit, setView, grab, release, zoomBy, pan, reset,
     set onView(fn) { onView = fn; },
     get away() { return away(); },
     get coasting() { return !!(vAz || vEl || tween); },

@@ -10,7 +10,8 @@ import { SIZES, READINGS, STRIKE, HINT, makePuzzle, newRun, chip, mark, hint, wa
 import { LEVELS, COUNT, CHAPTERS, chapterOf, seedOf, levelPuzzle, shapeOf, parOf, starsFor, placeOfId } from "./survey-levels.js";
 import { sound } from "./survey-sound.js";
 import { miniature } from "./survey-mini.js";
-import { createBlock } from "./survey-3d.js";
+import { createFlat } from "./survey-2d.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";   // Settings' 2D mode; three.js (survey-3d.js) is fetched only when the 3D view is wanted
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -25,7 +26,7 @@ import { createDuel } from "./duel.js";
 const $ = id => document.getElementById(id);
 // RUN: the free block in play. TRACK: "levels" or "free", the way played. CAMP: the level being played and the stars won in each.
 // LRUNS: the block of each level as it was left (by level).
-const RUN = "survey:run", TIMES = "survey:times", READ = "survey:readings", VIEW = "survey:view", ERA = "survey:era", TRACK = "survey:track", CAMP = "survey:camp2", LRUNS = "survey:lruns2", SOUND = "survey:sound";
+const RUN = "survey:run", TIMES = "survey:times", READ = "survey:readings", VIEW = "survey:view", ERA = "survey:era", TRACK = "survey:track", CAMP = "survey:camp2", LRUNS = "survey:lruns2", SOUND = "survey:sound", LOOK = "survey:look";   // LOOK: "3d" or "flat", kept only when the player picks one (mode3d.js)
 // The ladder grew chapters in November 2026 (twists), which moved the levels: what was kept under the first 25 numbers (survey:camp, survey:lruns) is read once into these, by where each level stands now.
 const DAILY = { size: "medium", readings: "seams" };   // today's block is the same for everyone, so its size and readings are fixed
 const SAVE_EVERY = 5000;                                 // ms between saves of a block in play (a partner watching sees it that often)
@@ -63,13 +64,26 @@ const fingers = new Map();   // pointer id -> { x0, y0, x, y, cube (under it whe
 
 // ---------- the block ----------
 const stage = $("stage");
-let view = null;
-try { view = createBlock(stage); }
-catch (err) {
-  console.warn("Survey: no WebGL here.", err);
-  stage.replaceChildren(Object.assign(document.createElement("p"), { className: "sv-nogl", textContent: "Survey draws its block in 3D, which this browser has switched off or lacks." }));
+let view = null, look = read(LOOK, null);
+if (look !== "3d" && look !== "flat") look = null;
+const want3D = () => wants3D(look, "3d");
+/** The block in the view asked for; where the 3D one can't be made (no WebGL) the flat one stands in. */
+async function makeView(three) {
+  if (three) {
+    try { return { v: (await import("./survey-3d.js")).createBlock(stage), three: true }; }
+    catch (err) { console.warn("Survey: no WebGL here, drawing it flat.", err); }
+  }
+  try { return { v: createFlat(stage), three: false }; }
+  catch (err) {
+    console.warn("Survey: no canvas here.", err);
+    stage.replaceChildren(Object.assign(document.createElement("p"), { className: "sv-nogl", textContent: "This browser can't draw the block." }));
+    return { v: null, three: false };
+  }
 }
-if (view) { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(...v); }
+let viewIs3D = false;
+({ v: view, three: viewIs3D } = await makeView(want3D()));
+const restoreView = () => { if (view && viewIs3D) { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(...v); } };
+restoreView();
 
 // ---------- the clock ----------
 // A solo block counts the time spent on screen (run.ms); a match's counts from when the table started it (duel.js).
@@ -424,7 +438,10 @@ function openMenu() {
   });
   const settings = part(body, "settings");
   settings.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("chip"); }));
-  if (view) settings.append(action("Reset the view", () => view.reset(), "link"));
+  if (view) {
+    settings.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], viewIs3D ? "3d" : "flat", v => { setLook(v); }));
+    settings.append(action("Reset the view", () => view.reset(), "link"));
+  }
   const about = part(body, "about");
   if (levels) {
     const cleared = camp.stars.filter(Boolean).length;
@@ -459,10 +476,27 @@ const TAP_MS = 450, DOUBLE_MS = 320;
 let lastTap = { t: 0, x: 0, y: 0 }, pinch = null;
 const resetBtn = $("viewReset");
 const showReset = () => { if (resetBtn) resetBtn.hidden = !view?.away; };
-if (view) {
-  view.onView = v => { if (!IN_FRAME) write(VIEW, v.map(x => +x.toFixed(4))); showReset(); };
+/** Hands the page's wiring to a new view: its changes are kept (the 3D view's angles only; the flat one forgets its zoom), and the block in hand is put in it. */
+function attach() {
+  if (!view) return;
+  view.onView = v => { if (!IN_FRAME && viewIs3D) write(VIEW, v.map(x => +x.toFixed(4))); showReset(); };
   showReset();
 }
+attach();
+/** The 3D view or the flat one (Menu, View); `remember` writes the choice (the suite's default, mode3d.js, is never written). */
+async function setLook(l, remember = true) {
+  if (remember) { look = l; if (!IN_FRAME) write(LOOK, l); }
+  const three = l === "3d";
+  if (!view || viewIs3D === three) return;
+  fingers.clear();
+  view.dispose?.();
+  ({ v: view, three: viewIs3D } = await makeView(three));
+  restoreView();
+  attach();
+  if (S && view) { view.set(P, S.run); view.update(false); }
+  render();
+}
+onDefaultChange(is3D => { if (look == null) setLook(is3D ? "3d" : "flat", false); });   // Settings' 2D mode, live
 const spread = () => { const [a, b] = [...fingers.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
 stage.addEventListener("pointerdown", e => {
   if (e.button > 0 || !view) return;
@@ -490,7 +524,7 @@ addEventListener("pointermove", e => {
     view.pan(now.x - pinch.x, now.y - pinch.y);
     pinch = now;
   } else if (fingers.size === 1) {
-    if (g.pan) view.pan(dx, dy);
+    if (g.pan || view.flat) view.pan(dx, dy);                                // (the flat view has nothing to turn)
     else view.orbit(-dx * 0.0085, dy * 0.0075, e.timeStamp);
   }
 });
