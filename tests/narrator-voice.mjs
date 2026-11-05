@@ -26,7 +26,7 @@ for (const game of ["bigtwo", "landlord"]) {
   check(said.length === 1, `${game}: spoken`);
 }
 
-const toggles = fs.readdirSync(".").filter(f => /^[a-z0-9-]+\.js$/.test(f) && /toggle\("The narrator's voice"/.test(fs.readFileSync(f, "utf8")))
+const toggles = fs.readdirSync(".").filter(f => /^[a-z0-9-]+\.js$/.test(f) && /toggle\("The narrator's voice"|choice\("Table talk"[^\n]*opts\.voice/.test(fs.readFileSync(f, "utf8")))
   .map(f => f.replace(/\.js$/, "")).sort();
-check(toggles.length > 0 && toggles.every(g => SPOKEN_TABLES.includes(g)), `only the Chinese games offer the voice toggle (${toggles.join(", ")})`);
+check(toggles.length > 0 && toggles.every(g => SPOKEN_TABLES.includes(g)), `only the Chinese games offer the voice (a toggle, or the Off of their Table talk row) (${toggles.join(", ")})`);
 process.exit(bad ? 1 : 0);
