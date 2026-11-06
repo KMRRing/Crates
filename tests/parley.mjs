@@ -198,6 +198,50 @@ for (const u of ES.units) {
   check(!unknown.length, `unit ${u.id}'s reading has words not learned yet: ${unknown.join(", ")}`);
 }
 
+// ---------- Estonian ----------
+// no articles and no gender (so nothing for typed production to ask), three-form words learned as one, and a reading that uses only the exact forms met
+const ET = COURSES.find(c => c.id === "et");
+check(ET && ET.lang === "et-EE" && ET.name === "Estonian" && !ET.script && !ET.tones, "Estonian is a course, tagged et-EE");
+const etWords = ET.units.flatMap(u => u.words.map(w => ({ ...w, unit: u.id })));
+check(ET.units.length === 8 && ET.units.every((u, i) => u.id === i + 1), "Estonian has eight numbered units");
+check(etWords.length >= 110, `Estonian is a full first course (${etWords.length} words)`);
+check(ET.units.every(u => u.words.length >= 14 && u.words.length <= 15), "Estonian units hold 14 or 15 words");
+check(!dup(etWords.map(w => w.w)).length && !dup(etWords.map(w => w.en)).length, `no Estonian word or meaning twice: ${dup(etWords.map(w => w.w))} ${dup(etWords.map(w => w.en))}`);
+check(etWords.every(w => w.w && w.en && w.ex?.l2 && w.ex?.en && w.en.length <= 34 && (!w.note || w.note.length <= 140)), "every Estonian word has its meaning and example, short, with a short note");
+check(ET.units.every(u => u.grammar.title && u.grammar.rule && u.grammar.examples.length === 3 && u.grammar.examples.every(e => e.l2 && e.en)), "every Estonian unit has a pattern with three examples");
+check(!etWords.some(w => ART.test(w.w)), "no Estonian word opens with an article of another course (typed production would ask for one)");
+check(etWords.every(w => /^[a-zäöõüšž ]+$/.test(w.w)), "Estonian words are lower-case letters (ä ö õ ü š ž) and spaces");
+for (const u of ET.units) {
+  for (const s of [...u.words.map(w => w.ex.l2), ...u.grammar.examples.map(e => e.l2), u.text.l2]) {
+    check(/[.?!]$/.test(s) && !/\s[?!,.;:]/.test(s), `Estonian unit ${u.id}: end mark or stray space in "${s}"`);
+  }
+  check(u.text.qs.length === 3, `Estonian unit ${u.id}: three questions`);
+  for (const q of u.text.qs) {
+    check(q.o.length === 4 && q.a === 0 && new Set(q.o.map(o => o.toLowerCase())).size === 4 && !givesAway(q) && q.o.every(o => o.length <= 48), `Estonian unit ${u.id}: "${q.q}" has four different options that do not give it away`);
+  }
+  check(u.text.l2.length > 60 && u.text.en.length > 60, `Estonian unit ${u.id}: a reading with its English`);
+}
+// the cloze gaps the word where it first appears: a whole word (Tallinn must not hide linn)
+for (const w of etWords) {
+  const re = new RegExp(`(?<![\\p{L}])${esc(w.w)}(?![\\p{L}])`, "iu"), first = new RegExp(esc(w.w), "i").exec(w.ex.l2), m = re.exec(w.ex.l2);
+  if (m) check(first.index === m.index, `${w.w}: the cloze would gap part of another word in "${w.ex.l2}"`);
+}
+const etDrill = etWords.filter(w => new RegExp(`(?<![\\p{L}])${esc(w.w)}(?![\\p{L}])`, "iu").test(w.ex.l2));
+check(etDrill.length >= etWords.length * 0.6, `most Estonian words can be drilled in their sentence (${etDrill.length} of ${etWords.length})`);
+// a reading uses only forms met by its unit: the words, their examples and the pattern of units 1..n, names
+const ET_NAMES = new Set(["mari", "jaan", "tallinn", "tallinna", "tallinnas"]);
+const etKnown = new Set();
+for (const u of ET.units) {
+  for (const w of u.words) for (const t of tokens(`${w.w} ${w.ex.l2}`)) etKnown.add(t);
+  for (const t of tokens(u.grammar.rule)) etKnown.add(t);
+  for (const e of u.grammar.examples) for (const t of tokens(e.l2)) etKnown.add(t);
+  const unknown = [...new Set(tokens(u.text.l2))].filter(t => !etKnown.has(t) && !ET_NAMES.has(t));
+  check(!unknown.length, `Estonian unit ${u.id}'s reading has forms not met yet: ${unknown.join(", ")}`);
+}
+check(etWords.some(w => /õ/.test(w.w)) && etWords.some(w => /ä/.test(w.w)) && etWords.some(w => /ö/.test(w.w)) && etWords.some(w => /ü/.test(w.w)), "õ, ä, ö and ü all occur");
+check(/<option value="et">Estonian<\/option>/.test(fs.readFileSync(root + "parley.html", "utf8")), "the course picker offers Estonian");
+check(/parley: "[^"]*estonian/.test(fs.readFileSync(root + "games-find.js", "utf8")), "the games screen's search finds Parley by 'estonian'");
+
 // ---------- the voice ----------
 async function voiceWith(voices) {
   const spoken = [];
@@ -232,5 +276,5 @@ check(/parley: "[^"]*spanish/.test(fs.readFileSync(root + "games-find.js", "utf8
 const code = fs.readFileSync(root + "parley.js", "utf8");
 check(/es: \["el", "la"\]/.test(code), "typed production offers el and la for Spanish");
 
-console.log(bad ? `parley: ${bad} FAILED` : `parley: ok (${tables} verb tables, ${words.length} Spanish words in ${ES.units.length} units)`);
+console.log(bad ? `parley: ${bad} FAILED` : `parley: ok (${tables} verb tables, ${words.length} Spanish words in ${ES.units.length} units, ${etWords.length} Estonian words)`);
 process.exit(bad ? 1 : 0);
