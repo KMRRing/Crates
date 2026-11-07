@@ -5,7 +5,7 @@
 /* the middle: the one play lies there, full size on a marked place (Guandan's pile), the words under it */
 .b23 .tk-centre { --tk-side: 4.4rem; top: 20%; bottom: 14%; display: grid; grid-template-rows: auto auto; align-content: center; gap: .5rem; place-items: stretch; }
 .b23 .tk-centre[data-n="3"] { --tk-side: .6rem; top: 36%; }
-.b23-pile { --cd-line: clamp(1.1rem, 7.4cqw, 2rem); position: relative; display: flex; justify-content: center; align-items: center; min-width: 0; height: calc(var(--cd-line) * 4.4); }
+.b23-pile { --cd-line: clamp(.9rem, 5.6cqw, 1.5rem); position: relative; display: flex; justify-content: center; align-items: center; min-width: 0; height: calc(var(--cd-line) * 4.4); }
 .b23-pile::before { content: ""; position: absolute; inset: 0 .2rem; border: 1.5px dashed color-mix(in srgb, var(--tk-inl) 70%, transparent); border-radius: .5rem; background: color-mix(in srgb, #000 12%, transparent); }
 .b23-pile .cd-line { position: relative; gap: 0; }
 .b23-pile .cd-line > .cd + .cd { margin-left: -1.35em; }
