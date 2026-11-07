@@ -1,6 +1,6 @@
 // The six role faces of Cartel's gold dice, engraved: a face is a number and a role (1 Envoy, 2 Mintmaster, 3 Privateer,
-// 4 Clerk, 5 Syndic, 6 Alderman), so the picture is the role and a row of notches under it counts the face, the way a pip
-// would. Each is drawn twice by dice3d.js, once for the colour (dark ink cut into gold, lighter where it stands proud) and
+// 4 Clerk, 5 Syndic, 6 Alderman). Korbi, 7 Nov 2026: the number must read at a glance, so the face is its pips, large, as on any die,
+// with the role's picture a faint raised watermark behind them. Each is drawn twice by dice3d.js, once for the colour (dark ink cut into gold, lighter where it stands proud) and
 // once for the bump map (black where cut, lighter where raised), so the engraving catches the light. Pure drawing on a
 // canvas context at the cell's corner, in a 100-unit box centred on the cell: the glyph in -40..36, the notches below.
 import { shade } from "./dice3d.js";
@@ -104,19 +104,29 @@ function chain(ctx, t) {
 }
 const GLYPH = { 1: seal, 2: coins, 3: cog, 4: quill, 5: scales, 6: chain };
 
-/** dice3d's face painter for the gold dice: the role's picture, and v notches under it. */
+/** The pips of a face, as on any die (a 1 larger): the face's number reads at a glance, the role's picture stays behind as a raised watermark. */
+const PIPS = { 1: [[0, 0]], 2: [[-24, -24], [24, 24]], 3: [[-24, -24], [0, 0], [24, 24]], 4: [[-24, -24], [24, -24], [-24, 24], [24, 24]],
+  5: [[-24, -24], [24, -24], [0, 0], [-24, 24], [24, 24]], 6: [[-24, -27], [24, -27], [-24, 0], [24, 0], [-24, 27], [24, 27]] };
+
+/** dice3d's face painter for the gold dice: v pips, large and cut deep, over the role's picture raised faintly behind them. */
 export function roleArt(ctx, v, s, layer, st) {
-  const t = tools(ctx, layer, st), k = s / 100;
+  const k = s / 100, bump = layer === "bump";
   ctx.save();
   ctx.translate(s / 2, s * 0.47);
   ctx.scale(k * 0.92, k * 0.92);
   ctx.lineCap = ctx.lineJoin = "round";
-  t.dark();
-  GLYPH[v](ctx, t);
-  // the face's number as notches along the foot (the Envoy's 1 is the seal's one: still marked)
-  t.dark();
-  const gap = 7.4, x0 = -(v - 1) * gap / 2;
-  for (let i = 0; i < v; i++) disc(ctx, x0 + i * gap, 44, 2.5);
+  // the role's picture, a watermark in gold's own tones (raised a little, not cut)
+  const mark = { dark: () => { ctx.fillStyle = ctx.strokeStyle = bump ? "#9a9a9a" : shade(st.base, 1.1); }, light: () => { ctx.fillStyle = ctx.strokeStyle = bump ? "#cfcfcf" : shade(st.base, 1.22); } };
+  mark.dark();
+  ctx.save(); ctx.translate(0, 2); GLYPH[v](ctx, mark); ctx.restore();
+  // the pips: dark ink cut deep, each in a raised rim
+  const r = v === 1 ? 17 : 12.4;
+  for (const [x, y] of PIPS[v]) {
+    ctx.fillStyle = ctx.strokeStyle = bump ? "#d6d6d6" : shade(st.base, 1.25);
+    disc(ctx, x, y, r + 3);
+    ctx.fillStyle = bump ? "#000" : st.ink;
+    disc(ctx, x, y, r);
+  }
   ctx.restore();
 }
 /** The gold die's look with the role faces: pass as a die's `style` to dice3d. */

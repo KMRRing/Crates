@@ -14,12 +14,12 @@ import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 const SPAN = 20;                                                     // world units across the box: a pixel is 20 / width of them
 const clamp01 = u => Math.max(0, Math.min(1, u));
 
-// the table's colours by day and night (the flat table is dark in every theme, so this is too)
+// the table's colours by day and night: Guandan's mahogany under brass, ledgers of the same wood (Korbi, 7 Nov 2026)
 const LOOK = {
-  day: { baize: 0x6c3a22, oak: 0x4b2e1b, oakTop: 0x6b4527, brass: 0xc9a24a, brassHi: 0xf0cf79, seat: 0x45202a, seatTurn: 0x5a2833, seatOut: 0x26141a,
-    mine: 0x503420, aim: 0xf1ead8, picked: 0xe76f51, plate: 0xd2a64a, plateHi: 0xf3d98c, held: 0x2c7a52, broke: 0xa8382b, open: 0x24130b },
-  night: { baize: 0x4a2515, oak: 0x2f1d12, oakTop: 0x45301d, brass: 0xa98838, brassHi: 0xd2b25f, seat: 0x2f141b, seatTurn: 0x421d27, seatOut: 0x1a0d11,
-    mine: 0x382416, aim: 0xd8d1c0, picked: 0xd8603f, plate: 0xb48e3c, plateHi: 0xd9bb69, held: 0x1f5c3d, broke: 0x85291f, open: 0x180c06 },
+  day: { baize: 0x7a4026, oak: 0x4b2e1b, oakTop: 0x6b4527, brass: 0xc9a24a, brassHi: 0xf0cf79, seat: 0x5a3420, seatTurn: 0x73421f, seatOut: 0x2e190d,
+    mine: 0x5f3820, aim: 0xf1ead8, picked: 0xe76f51, plate: 0xd2a64a, plateHi: 0xf3d98c, held: 0x2c7a52, broke: 0xa8382b, open: 0x24130b },
+  night: { baize: 0x55291a, oak: 0x2f1d12, oakTop: 0x45301d, brass: 0xa98838, brassHi: 0xd2b25f, seat: 0x3e2315, seatTurn: 0x56301a, seatOut: 0x21110a,
+    mine: 0x432919, aim: 0xd8d1c0, picked: 0xd8603f, plate: 0xb48e3c, plateHi: 0xd9bb69, held: 0x1f5c3d, broke: 0x85291f, open: 0x180c06 },
 };
 const HEX = c => [(c >> 16 & 255) / 255, (c >> 8 & 255) / 255, (c & 255) / 255];
 

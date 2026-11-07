@@ -135,3 +135,6 @@ html[data-theme="office"] .so-tilt { border-radius: 12px; border-color: var(--ti
 html[data-theme="office"] .so-go { border-radius: 14px; background: var(--so-in); color: #fff; font-size: 1.02rem; font-stretch: 100%;
   letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html[data-theme="office"] .so-kind { font-stretch: 100%; }
+/* Korbi, 7 Nov 2026: the top line is the card room's brass plate (cardroom.css), its text inside it; the table under it is the mahogany top */
+#app.solitaire .so-strip.cr-strip { padding: .28rem .75rem; margin: .5rem 0 .8rem; align-items: center; }
+#app.solitaire .so-strip.cr-strip b { font-size: 1.05rem; }
