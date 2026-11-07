@@ -38,7 +38,7 @@ Source: Korbi's doc "Tuesday plan: app todo and Settle foundry" (6 Nov 2026), wh
 ## Wave 5: content and polish
 - **Levels:** Bridges (`bridges-levels.js`), Shunt (`shunt-levels.js`; standalone repo KMRRing/shunt).
 - **Difficulty tiers** for Dujiang (`nurikabe`; standalone repo), Moor, Asterism, Delta, Spot: via `ramp()`; wave 1's shared Level row now covers them.
-- **Sound:** **ask** which games.
+- **Sound (Korbi, 7 Nov):** EVERY game should have sound; most have none yet. Large task, not started: plan per game family (cards, boards, puzzles, idle) with `tests/sound-mute.mjs` as the guard; each game's Sound toggle in the settings part. Landfall's sea is done (quieter, regional: `landfall-sound.js`).
 - **Lanterns rocks:** `lanterns-3d.js`, `lanterns-model.js` (3D scene must be a port or strait opening to the sea); standalone repo KMRRing/lanterns.
 - **Carrack coach:** menu coach on/off; on = check plus hint (`carrack-coach.js`).
 - **Topple test page:** a page that runs every twist feature in order (`topple-levels.js`, `topple-engine.js`) so heavy tiles, springs etc. show fast; keep it out of the games screen and offline list if dev-only.

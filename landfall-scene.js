@@ -39,10 +39,21 @@ const ringTex = (dash = false) => canvasTex(128, 128, (ctx, w) => {
   ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; if (dash) ctx.setLineDash([9, 11]);
   ctx.beginPath(); ctx.arc(w / 2, w / 2, w / 2 - 6, 0, 6.283); ctx.stroke();
 }, false);
-const puffTex = () => canvasTex(128, 128, (ctx, w, h) => {
-  const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
-  g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.62, "rgba(255,255,255,.96)"); g.addColorStop(0.82, "rgba(255,255,255,.5)"); g.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+// A cloud puff: a cumulus heap of overlapping soft discs (so the edge is ragged and bright at the top), its underside shaded by
+// a grey wash. White, so that the instance colour (setClouds) gives it the sky's own light; the variants are drawn once each.
+const puffTex = seed => canvasTex(256, 256, (ctx, w, h) => {
+  const hash = n => { const x = Math.sin((n + seed * 17) * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  for (let i = 0; i < 26; i++) {
+    const a = hash(i * 3) * 6.283, d = Math.sqrt(hash(i * 3 + 1)) * 0.3, r = w * (0.11 + 0.15 * hash(i * 3 + 2) * (1 - d));
+    const x = w / 2 + Math.cos(a) * d * w, y = h / 2 + Math.sin(a) * d * h * 0.8 - h * 0.03;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, "rgba(255,255,255,.95)"); g.addColorStop(0.55, "rgba(255,255,255,.6)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  ctx.globalCompositeOperation = "source-atop";
+  const under = ctx.createLinearGradient(0, h * 0.25, 0, h * 0.8);
+  under.addColorStop(0, "rgba(150,160,180,0)"); under.addColorStop(1, "rgba(150,160,180,.55)");
+  ctx.fillStyle = under; ctx.fillRect(0, 0, w, h);
 }, false);
 const plankTex = () => canvasTex(256, 1024, (ctx, w, h) => {
   ctx.fillStyle = "#8a6a45"; ctx.fillRect(0, 0, w, h);
@@ -160,8 +171,8 @@ export function createScene(host, { reduced = () => false } = {}) {
   const beacon = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 }));
   beacon.renderOrder = 2; beacon.frustumCulled = false; beacon.visible = false; skyRoot.add(beacon);
 
-  const NPUFF = 72;
-  const puffMat = new THREE.MeshBasicMaterial({ map: puffTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  const NPUFF = 160;
+  const puffMat = new THREE.MeshBasicMaterial({ map: puffTex(1), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
   const puffs = new THREE.InstancedMesh(quad, puffMat, NPUFF);
   puffs.renderOrder = 3; puffs.frustumCulled = false; puffs.count = 0;
   skyRoot.add(puffs);
@@ -456,26 +467,32 @@ export function createScene(host, { reduced = () => false } = {}) {
     sunMat.opacity = 0.9 * k; sunDisc.material.opacity = k;
     sunDisc.visible = S.sunAlt > -1.5 && !S.sunHidden;
   }
-  /** Puffs for each cloud disc: a soft heap that covers the disc's radius, so that what it hides is what the engine says it hides. */
+  /** Puffs for each cloud disc: a ragged heap of lobes that covers the disc's radius, so that what it hides is what the engine says it hides.
+   *  The cloud takes the sky's own light: pale by day, and at dusk and night a darker shade of the sky behind it (never a second hue),
+   *  lighter on top and darker underneath. Each lobe is turned and sized a little differently, from the cloud's own number. */
   function setClouds() {
-    const day = S.sunAlt > 2;
-    const col = skyColours(S.sunAlt), body = day ? [226, 230, 238] : col.top.map(x => x * 0.5 + 12), edge = day ? [210, 216, 228] : col.hor.map(x => x * 0.4 + 8);
+    const day = S.sunAlt > 2, col = skyColours(S.sunAlt), mix = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+    const lit = day ? [238, 241, 248] : mix(col.top, col.hor, 0.45).map(x => x * 0.62 + 20), shade = day ? [176, 186, 206] : lit.map(x => x * 0.62);
+    const hash = n => { const x = Math.sin(n * 91.7 + 17.3) * 43758.5453; return x - Math.floor(x); };
     let n = 0;
     S.clouds.forEach((c, ci) => {
-      const lobes = [[0, 0, 1.12], [0.55, 0.15, 0.62], [-0.5, -0.2, 0.66], [0.2, -0.55, 0.58], [-0.25, 0.55, 0.58], [0.72, -0.4, 0.45], [-0.78, 0.3, 0.45]];
-      lobes.forEach(([dx, dy, k], li) => {
+      const seed = ci * 19 + Math.round(c.az);
+      for (let li = 0; li < 12; li++) {
         if (n >= NPUFF) return;
+        const a = hash(seed + li) * 6.283, d = li === 0 ? 0 : 0.35 + 0.5 * hash(seed + li + 40), dx = Math.cos(a) * d, dy = Math.sin(a) * d * 0.7;
+        const k = li === 0 ? 1.12 : 0.74 - 0.3 * d + 0.18 * hash(seed + li + 80);
         const cosA = Math.max(0.25, Math.cos(c.alt * D2R)), az = c.az + (dx * c.r * 0.7) / cosA, alt = clamp(c.alt + dy * c.r * 0.7, 1, 89);
-        const d = dirOf(az, alt), R = SKY_R - 90 - ci * 3 - li;
-        dummy.position.set(d[0] * R, d[1] * R, d[2] * R);
+        const dv = dirOf(az, alt), R = SKY_R - 90 - ci * 3 - li * 0.5;
+        dummy.position.set(dv[0] * R, dv[1] * R, dv[2] * R);
         dummy.lookAt(0, 0, 0);
-        const w = 2 * R * Math.tan(c.r * k * 1.28 * D2R / 2);
+        dummy.rotateZ(hash(seed + li + 120) * 6.283);
+        const w = 2 * R * Math.tan(c.r * k * 1.55 * D2R / 2);
         dummy.scale.set(w, w, 1); dummy.updateMatrix();
         puffs.setMatrixAt(n, dummy.matrix);
-        const sh = li === 0 ? 1 : 0.86 + 0.14 * ((li * 37) % 5) / 5, cc = (li % 2 ? edge : body).map(x => lin(x * sh));
+        const up = clamp(0.5 + dy * 0.6, 0, 1), cc = mix(shade, lit, up).map(x => lin(x * (0.94 + 0.12 * hash(seed + li + 160))));
         puffs.setColorAt(n, tmpC.setRGB(cc[0], cc[1], cc[2]));
         n++;
-      });
+      }
     });
     puffs.count = n; puffs.instanceMatrix.needsUpdate = true; if (puffs.instanceColor) puffs.instanceColor.needsUpdate = true;
   }

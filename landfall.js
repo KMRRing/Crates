@@ -421,6 +421,7 @@ function arrive(prev) {
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
   if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
   if (S.phase === "ritual" && prev !== "ritual") { if (L.origin.lat < 0) learn("south"); if (S.watch.weather === "storm") learn("gale"); }
+  sound.place(L.origin.lat); sound.conditions(S.watch.weather);
   sound.day(day && S.phase !== "end");
   switch (S.phase) {
     case "ritual": ui.d = 0; ui.lamp = true; ui.credited = false; ui.tier = 4; break;
