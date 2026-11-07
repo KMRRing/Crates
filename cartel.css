@@ -225,12 +225,14 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3-gold i { width: .8rem; height: .8rem; border-radius: 2px; background: #EBC768; border: 1px solid #A47A17; box-shadow: 0 .06rem .1rem rgba(0, 0, 0, .5); }
 .ct3-play { display: flex; flex: 1 1 auto; min-height: 0; flex-wrap: wrap; align-content: center; justify-content: center; align-items: center; gap: .3rem; }
 /* the cup stands mouth down on the cloth, a leather beaker with a brass rim; the number is the dice under it */
-.ct3-cup { position: relative; width: 2.3rem; height: 2.4rem; display: grid; place-items: center; padding-top: .35rem; flex: none; filter: drop-shadow(0 .25rem .2rem rgba(0, 0, 0, .55));
-  background: linear-gradient(90deg, #3A1F10, #7A4A26 38%, #5A3318 62%, #2E180B); clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%); border-radius: .2rem; }
-.ct3-cup::before { content: ""; position: absolute; left: 14%; right: 14%; top: 0; height: .32rem; background: linear-gradient(#F2D58B, #A47A17); }
-.ct3-cup::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: .22rem; background: linear-gradient(#C9A23B, #7A5518); }
-.ct3-cup b { position: relative; z-index: 1; font-size: 1.05rem; font-weight: 800; color: #F6EEE6; text-shadow: 0 .06rem .12rem rgba(0, 0, 0, .8); }
+.ct3-cup { width: 2.6rem; height: 2.6rem; flex: none; visibility: hidden; }   /* (the scene draws the cup where this box lies; the count is its top) */
 .ct3-board { display: flex; flex-wrap: wrap; justify-content: center; gap: .2rem; max-width: 100%; }
-.ct3-board .ct-die { width: calc(var(--seat-die, 1rem) * 1.25); height: calc(var(--seat-die, 1rem) * 1.25); filter: drop-shadow(0 .12rem .08rem rgba(0, 0, 0, .55)); }
+.ct3-board .ct-die { width: calc(var(--seat-die, 1rem) * 1.55); height: calc(var(--seat-die, 1rem) * 1.55); opacity: 0; }   /* the scene draws these dice; the taps stay the page's */
+/* your own dice, on your side of the cloth, drawn by the scene the same way (the captions under gold ones stay) */
+.ct3-mine { position: absolute; left: 50%; bottom: 3%; translate: -50% 0; width: 84%; padding: 0; z-index: 1; }
+.ct3-mine .ct-die { opacity: 0; }
+.ct3-mine .ct-dice { min-height: 0; padding-bottom: .1rem; }
+.ct3-mine figure { gap: .5rem; }
+.ct3-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
 .ct3 .ct-die.picked { outline: 0; }
 .ct3 .ct-ticker, .ct3 .ct-tally { text-shadow: 0 .06rem .12rem rgba(0, 0, 0, .6); }

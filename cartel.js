@@ -800,7 +800,7 @@ function movesOf() {
 }
 /** The table as the page has laid it out, for the scene: every box's rectangle from the stage's top left, and what each says. */
 function snapshot() {
-  return { n: g.players.length, me: ME ?? 0, seats: [...$("seats").children], centre: $("centre"), die: $("seats").style.getPropertyValue("--seat-die") };
+  return { n: g.players.length, me: ME ?? 0, seats: [...$("seats").children], centre: $("centre"), mine: $("mine"), scale: scale(), die: $("seats").style.getPropertyValue("--seat-die") };
 }
 /** Starts or stops the 3D table to match the View choice (cartel-3d.js loads only when it's wanted; where there's no WebGL the flat table stays and says why). */
 async function use3D() {
