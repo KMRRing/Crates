@@ -475,7 +475,7 @@ function drawBoard() {
     const len = Math.hypot(x2 - x1, y2 - y1), tx = (x2 - x1) / len, ty = (y2 - y1) / len, nx = -ty, ny = tx;     // along the link and across it (lanes and wedges lie across)
     const line = (d, cls) => svgEl("line", { x1: x1 + nx * d, y1: y1 + ny * d, x2: x2 + nx * d, y2: y2 + ny * d, class: cls }, g);
     // a road's width is drawn in the road: a wide one is a bed with three lanes, a narrow one is pinched by a wedge each side of its middle, an ordinary one is a single line as ever
-    if (l.cap === 3) { line(0, "brg-bed"); for (const d of [-0.14, 0, 0.14]) line(d, "brg-guide"); } else line(0, "brg-guide");
+    if (l.cap === 3) { line(0, "brg-bed"); line(0, "brg-courses"); for (const s of [-1, 1]) line(s * 0.23, "brg-parapet"); for (const d of [-0.14, 0, 0.14]) line(d, "brg-guide"); } else line(0, "brg-guide");
     if (l.high) { line(0, "brg-case"); line(0, "brg-piers"); }
     line(0, "brg-b brg-one");
     for (const s of [-1, 1]) line(s * 0.09, "brg-b brg-two");

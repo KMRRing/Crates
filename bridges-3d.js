@@ -262,7 +262,7 @@ export function createModel(host, opts = {}) {
   /** A link's bridges, once: a single, a double and (on a wide road) a triple, as groups `l.1`, `l.2`, `l.3` of the batch, shown and hidden as the marks change. */
   function bridgesOf(b, l) {
     const link = lay.links[l], a = lay.isl[link.a], bb = lay.isl[link.b], [x, z] = xz(a.r, a.c), span = spanOf(lay, link);
-    const linkM = new THREE.Matrix4().makeRotationY(frameTurn(lay, link)).setPosition(x, 0, z), r = realmed ? (a.realm ? 1 : 0) : -1, deckRole = r >= 0 ? `deck${r}` : "timber", railRole = r >= 0 ? `rail${r}` : "rail";
+    const linkM = new THREE.Matrix4().makeRotationY(frameTurn(lay, link)).setPosition(x, 0, z), r = realmed ? (a.realm ? 1 : 0) : -1, stone = link.cap === 3 && r < 0, deckRole = r >= 0 ? `deck${r}` : stone ? "stone" : "timber", railRole = r >= 0 ? `rail${r}` : stone ? "stone" : "rail";   // a bridge on a wide road is a stone one, so the road shows it can hold three even with one on it (Korbi, 8 November 2026)
     const sets = [[1, [0]], [2, [-0.1, 0.1]], ...(link.cap === 3 ? [[3, [-0.17, 0, 0.17]]] : [])];      // a wide road has room for a third bridge
     const put = (n, geo, local, role) => b.add(`${l}.${n}`, geo, local ? linkM.clone().multiply(local) : linkM, role);
     if (link.high) {

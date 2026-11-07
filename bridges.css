@@ -266,3 +266,12 @@ html[data-theme="office"] .brg-go { border-radius: 14px; background: var(--brg-i
   letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html[data-theme="office"] .brg-toast { border-radius: 10px; }
 html[data-theme="office"] .brg-kind { font-stretch: 100%; }
+
+/* a bridge on a wide road is a stone one: a pale deck of laid blocks between two parapets, drawn only once the road has a bridge on it, so the
+   road still says it could hold three (Korbi, 8 November 2026) */
+.brg-courses, .brg-parapet { visibility: hidden; pointer-events: none; fill: none; }
+.brg-courses { stroke: #8A8576; stroke-width: .44; stroke-dasharray: .015 .22; stroke-linecap: butt; }
+.brg-parapet { stroke: #6E6A5E; stroke-width: .06; stroke-linecap: butt; }
+.brg-l.c1 .brg-courses, .brg-l.c2 .brg-courses, .brg-l.c3 .brg-courses, .brg-l.c1 .brg-parapet, .brg-l.c2 .brg-parapet, .brg-l.c3 .brg-parapet { visibility: visible; }
+.brg-l.c1 .brg-bed, .brg-l.c2 .brg-bed, .brg-l.c3 .brg-bed { stroke: #D9D2BF; stroke-opacity: 1; }
+.brg-l.bad .brg-parapet { stroke: var(--brg-bad); }
