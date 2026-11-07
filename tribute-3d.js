@@ -86,6 +86,39 @@ const STAR = (() => {
   return pts.join(" ");
 })();
 const emblem = big => `<svg class="t3-em ${big ? "big" : "small"}" viewBox="0 0 24 24" aria-hidden="true"><circle class="ring" cx="12" cy="12" r="11.2"/><polygon class="star" points="${STAR}"/><circle class="hub" cx="12" cy="12" r="2.1"/></svg>`;
+// ---------- the court cards: a classic double-ended figure, one design a rank, in the card's own colour (suit red or black) ----------
+// (Korbi, 7 Nov 2026: "more beautiful, especially the ones with a face. Classic, vector art"; the gold letter in the middle went.)
+const INK_ = "#2B1D12", GOLD = "#D9A93E", GOLD_LO = "#A67A22", SKIN = "#F3D9B8", WHITE = "#FFFBEF";
+const ln = `stroke="${INK_}" stroke-width=".6" stroke-linejoin="round" stroke-linecap="round"`;
+const face = (hair = "", mouth = "") => `<rect x="23.2" y="26" width="5.6" height="5" fill="${SKIN}" ${ln}/><ellipse cx="26" cy="19" rx="7.2" ry="8.2" fill="${SKIN}" ${ln}/>`
+  + `${hair}<circle cx="23" cy="18.6" r=".9" fill="${INK_}"/><circle cx="29" cy="18.6" r=".9" fill="${INK_}"/><path d="M26 19.5v3" fill="none" ${ln} stroke-width=".4"/>${mouth || `<path d="M24 24.2q2 1.2 4 0" fill="none" ${ln}/>`}`;
+const jewel = (x, y, c) => `<circle cx="${x}" cy="${y}" r="1" fill="${c}" ${ln} stroke-width=".35"/>`;
+const HALF = {
+  // the king: crown, grey beard, an ermine collar, the sceptre
+  13: `<path d="M3 46C3 34 12 29.5 26 29.5S49 34 49 46Z" fill="currentColor" ${ln}/><path d="M26 31v15" stroke="${GOLD}" stroke-width="1.4"/>`
+    + `<path d="M9.5 32.5Q26 42 42.5 32.5L45 38Q26 49 7 38Z" fill="${WHITE}" ${ln}/>` + [14, 19, 24, 29, 34, 39].map((x, i) => `<path d="M${x} ${37 + (i % 2)}v1.6" ${ln} stroke-width=".8"/>`).join("")
+    + face(`<path d="M18.8 19Q19 31 26 31.6Q33 31 33.2 19Q31 25.5 26 25.5Q21 25.5 18.8 19Z" fill="#C9C2B4" ${ln}/>`, `<path d="M23 24.6q3 -1.4 6 0" fill="none" ${ln} stroke-width=".8"/>`)
+    + `<path d="M17.8 12.5L18.6 3.2 22.4 8 26 1 29.6 8 33.4 3.2 34.2 12.5Z" fill="${GOLD}" ${ln}/><rect x="17.8" y="10.6" width="16.4" height="3" fill="${GOLD_LO}" ${ln}/>${jewel(22, 12.1, "#C1272D")}${jewel(26, 12.1, "#2E5FA6")}${jewel(30, 12.1, "#C1272D")}`
+    + `<path d="M44 40V12" stroke="${GOLD_LO}" stroke-width="1.4" stroke-linecap="round"/><circle cx="44" cy="10.2" r="2.6" fill="${GOLD}" ${ln}/><path d="M44 5.2v1.6M41.6 10.2h-1.6M46.4 10.2H48" ${ln} stroke-width=".6"/>`,
+  // the queen: long fair hair, a small crown, pearls, a flower
+  12: `<path d="M16.4 19Q15 33 19.6 38H32.4Q37 33 35.6 19Q35.6 8 26 8Q16.4 8 16.4 19Z" fill="#D2973F" ${ln}/>`
+    + `<path d="M3 46C3 34 12 29.5 26 29.5S49 34 49 46Z" fill="currentColor" ${ln}/><path d="M18.4 31.4Q26 42 33.6 31.4" fill="${SKIN}" ${ln}/>`
+    + face(`<path d="M18.8 17Q20 10.6 26 10.4Q32 10.6 33.2 17Q29.5 14 26 14Q22.5 14 18.8 17Z" fill="#D2973F" ${ln}/>`)
+    + [20.5, 22.6, 24.8, 27.2, 29.4, 31.5].map((x, i) => `<circle cx="${x}" cy="${34.4 + Math.abs(i - 2.5) * 0.85}" r="1" fill="${WHITE}" ${ln} stroke-width=".4"/>`).join("")
+    + `<path d="M18.6 10.4L19.4 4.6 22.6 8 26 3 29.4 8 32.6 4.6 33.4 10.4Z" fill="${GOLD}" ${ln}/>${jewel(26, 8.9, "#2E5FA6")}`
+    + `<path d="M42 42V27" stroke="#4F7A3B" stroke-width="1.1" stroke-linecap="round"/><circle cx="42" cy="25" r="3" fill="#E9B8C4" ${ln}/><circle cx="42" cy="25" r="1.1" fill="${GOLD}"/><path d="M42 36q-4 -2 -5 -5" fill="none" stroke="#4F7A3B" stroke-width="1"/>`,
+  // the jack: a plumed cap, short hair, a banded tunic, the halberd
+  11: `<path d="M3 46C3 34 12 29.5 26 29.5S49 34 49 46Z" fill="currentColor" ${ln}/><path d="M7 46L26 31 45 46" fill="none" stroke="${GOLD}" stroke-width="2.2"/>`
+    + `<path d="M19.6 31.6L26 36.5 32.4 31.6" fill="${WHITE}" ${ln}/>`
+    + face(`<path d="M18.6 19Q18 11 26 10.6Q34 11 33.4 19Q32 14.6 26 14.6Q20 14.6 18.6 19Z" fill="#6B4425" ${ln}/><path d="M18.8 18Q17.6 23 19.6 25" fill="none" stroke="#6B4425" stroke-width="1.6" stroke-linecap="round"/>`)
+    + `<path d="M17 13Q16 4.6 27 4.4Q36.4 4.6 35.4 13Z" fill="currentColor" ${ln}/><rect x="16.4" y="11.2" width="19.6" height="2.8" rx="1" fill="${GOLD}" ${ln}/>`
+    + `<path d="M31 6Q40 -.4 47 3.4Q42 3.6 39.6 7.2Q36 7.6 34 8Z" fill="${WHITE}" ${ln}/><path d="M33.6 6.2Q40 2.6 45 3.4" fill="none" stroke="#C1272D" stroke-width=".8"/>`
+    + `<path d="M8 44V9" stroke="${GOLD_LO}" stroke-width="1.3" stroke-linecap="round"/><path d="M8 8.4L4.8 14 8 12.6 11.2 14Z" fill="#B9C0C8" ${ln}/><path d="M8 17L4.6 21 8 20 11.4 21Z" fill="#B9C0C8" ${ln}/>`,
+};
+const courtArt = r => `<svg class="t3-court" viewBox="0 0 52 92" aria-hidden="true"><rect x=".5" y=".5" width="51" height="91" rx="2.4" fill="#FFF8E6" stroke="${GOLD_LO}" stroke-width=".7"/>`
+  + `<rect x="2.6" y="2.6" width="46.8" height="86.8" rx="1.4" fill="none" stroke="${GOLD}" stroke-width=".35"/>`
+  + `${HALF[r]}<g transform="rotate(180 26 46)">${HALF[r]}</g><path d="M2.6 46h46.8" stroke="${GOLD}" stroke-width=".5"/></svg>`;
+
 /** A card's markup: its corner (rank over suit, a wild's star beside them, a joker's emblem), and its middle. The
  *  classes (tb-card, red, joker big or small, wild, level) are the page's own, set by its cardClass. */
 export function cardFace(id, level) {
@@ -94,7 +127,7 @@ export function cardFace(id, level) {
     return `<span class="t3i"><span class="t3r">${emblem(big)}</span></span><span class="t3m joker">${emblem(big)}<i>Joker</i></span>`;
   }
   const r = E.rankOf(id), glyph = E.SUITS[E.suitOf(id)], court = r >= 11 && r <= 13;
-  const mid = court ? `<span class="t3m court"><b>${FACE[r]}</b><i>${glyph}</i></span>` : `<span class="t3m">${glyph}</span>`;
+  const mid = court ? `<span class="t3m court">${courtArt(r)}</span>` : `<span class="t3m">${glyph}</span>`;
   return `<span class="t3i"><span class="t3r">${FACE[r]}</span><span class="t3s">${glyph}</span>${E.isWild(id, level) ? '<span class="t3w" aria-hidden="true">★</span>' : ""}</span>${mid}`;
 }
 const back = () => '<span class="t3b" aria-hidden="true"></span>';
@@ -144,13 +177,13 @@ export function createTable3d(c) {
   // ---------- the seats ----------
   const initial = name => [...String(name || "?").trim()][0]?.toUpperCase() || "?";
   function plateHtml(seat, slot) {
-    const g = G(), lv = g.levels?.[E.teamOf(seat)], n = g.hands[seat].length;
+    const g = G(), n = g.hands[seat].length;
     const place = g.phase === "over" && g.result ? g.result.order.indexOf(seat) : g.out.indexOf(seat);
     const crown = g.phase === "play" && g.top && g.top.seat === seat;
     const fan = n ? `<span class="t3-fan" aria-hidden="true">${Array.from({ length: Math.min(5, n) }, (_, j) => `<span class="t3b" style="--j:${(j - (Math.min(5, n) - 1) / 2).toFixed(1)}"></span>`).join("")}</span>` : "";
     const tally = place >= 0 ? `<span class="t3-place p${place}">${PLACE[place]}</span>` : slot === "me" ? `<span class="t3-n${n <= 10 ? " few" : ""}" aria-label="${n} cards">${n}</span>` : `${fan}<span class="t3-n${n <= 10 ? " few" : ""}" aria-label="${n} cards">${n}</span>`;
     return `<span class="t3-med" aria-hidden="true"><b>${esc(initial(c.nameOf(seat)))}</b>${crown ? CROWN : ""}</span>`
-      + `<span class="t3-info"><b class="t3-name">${esc(c.nameOf(seat))}</b><span class="t3-meta">${lv ? `Lv ${FACE[lv]}` : ""}</span></span><span class="t3-tally">${tally}</span><span class="t3-act"></span>`;
+      + `<span class="t3-info"><b class="t3-name">${esc(c.nameOf(seat))}</b></span><span class="t3-tally">${tally}</span><span class="t3-act"></span>`;
   }
   /** What a seat did in the trick under way, in words: its beaten play, or a pass (the play to beat is in the middle). */
   function actWords(seat) {
