@@ -131,18 +131,18 @@ const counted = (s, start) => s.seats.every(u => total(s, u) === (start?.[u] ?? 
   for (const m of [{ a: { bid: 3 } }, { b: { pass: 1 } }, { c: { pass: 1 } }, { d: { pass: 1 } }]) x = run(x, m);
   check(x.phase === "flip", "(a bid of 3 on 8 coins)");
   const hit = run(x, { a: { from: "b" } });
-  check(hit.phase === "lay" && total(hit, "a") === 1 && hit.wins.a === 0 && hit.first === "a" && hit.step !== x.step && hit.log.some(l => /Ana turns Bo's pewter/.test(l)) && hit.log.some(l => /loses a coin at random/.test(l)), "the pewter on top of Bo's stack: Ana loses a coin at random, the coins go back, Ana starts");
+  check(hit.phase === "lay" && total(hit, "a") === 1 && hit.wins.a === 0 && hit.first === "a" && hit.step !== x.step && hit.log.some(l => /Ana turns Bo's lead/.test(l)) && hit.log.some(l => /loses a coin at random/.test(l)), "the pewter on top of Bo's stack: Ana loses a coin at random, the coins go back, Ana starts");
   check(["a", "b", "c", "d"].every(u => u === "a" || total(hit, u) === 2) && H(hit, "b").join() === "p,b" && !hit.stack, "…and nobody else loses anything");
   // own pewter: a = [b, p]: top silver, then the pewter under it, bids 2 turns both
   const own = rig({ stacks: { a: ["b", "p"], b: ["p"], c: ["p"], d: ["p"] }, hands: {} });
   const o = run(run(run(run(own, { a: { bid: 2 } }), { b: { pass: 1 } }), { c: { pass: 1 } }), { d: { pass: 1 } });
-  check(o.log.some(l => /their own pewter/.test(l)) && total(o, "a") === 1 && o.first === "a", "the bidder's own pewter under their top coin: found by turning two");
+  check(o.log.some(l => /their own lead/.test(l)) && total(o, "a") === 1 && o.first === "a", "the bidder's own pewter under their top coin: found by turning two");
   const safe = run(run(run(run(own, { a: { bid: 1 } }), { b: { pass: 1 } }), { c: { pass: 1 } }), { d: { pass: 1 } });
   check(safe.wins.a === 1, "…but a bid of 1 turns only the silver on top");
   // a bid of everything: opens and turns with no one raising
   const all = rig({ stacks: { a: ["p"], b: ["p"], c: ["p"], d: ["b"] }, hands: {} });
   const e = run(all, { a: { bid: 4 } });
-  check(e.phase === "flip" && e.flip.got === 1 || e.log.some(l => /pewter/.test(l)), "a bid of every coin: no one can raise it, so it is turned at once");
+  check(e.phase === "flip" && e.flip.got === 1 || e.log.some(l => /lead/.test(l)), "a bid of every coin: no one can raise it, so it is turned at once");
 }
 {
   // the bidder out: the owner of the pewter starts the next round
@@ -308,7 +308,7 @@ const counted = (s, start) => s.seats.every(u => total(s, u) === (start?.[u] ?? 
       if (s.hand && !Object.keys(s.hand).length) fail("an empty object was kept");
       if (s.phase === "lay" && before.phase !== "lay") { if (before.bid) wonRounds++; }
       if (alive(s).length < alive(before).length) outs++;
-      if (s.log.length && before.log.at(-1) !== s.log.at(-1) && /pewter!/.test(s.log.slice(-3).join("|")) && !/pewter!/.test(before.log.slice(-3).join("|"))) hits++;
+      if (s.log.length && before.log.at(-1) !== s.log.at(-1) && /lead!/.test(s.log.slice(-3).join("|")) && !/lead!/.test(before.log.slice(-3).join("|"))) hits++;
     }
     if (s.phase === "over") {
       finished++; longest = Math.max(longest, steps);
@@ -323,7 +323,7 @@ const counted = (s, start) => s.seats.every(u => total(s, u) === (start?.[u] ?? 
 // ---------- a whole game at a table ----------
 {
   const t = await partyTable(["Korbi", "Mei", "Ana"]);
-  check(await t.start("pewter", { clock: "0", fill: "5" }) && t.state.step === "lay#1" && t.state.seats.length === 5 && /Pewter/.test(t.branch.say.text), "Party starts Pewter for three, two computer players in the empty seats, and the phone says so");
+  check(await t.start("pewter", { clock: "0", fill: "5" }) && t.state.step === "lay#1" && t.state.seats.length === 5 && /Coins/.test(t.branch.say.text), "Party starts Coins for three, two computer players in the empty seats, and the phone says so");
   let moves = 0;
   const humanSeat = u => t.seatOf(u);
   while (t.state.step !== "over" && moves++ < 600) {

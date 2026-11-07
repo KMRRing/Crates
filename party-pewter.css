@@ -1,6 +1,6 @@
-/* Pewter (Party): the table as a grid of tiles (name, rounds won, the coins laid face down or turned, the coins left), what
+/* Coins (Party; its files keep the name Pewter): the table as a grid of tiles (name, rounds won, the coins laid face down or turned, the coins left), what
    is happening and what this phone can do about it, your own coins, and the last few lines of what happened. A coin is
-   a disc: silver is round with a ring, a pewter has a square hole through it (as a cash coin), so nobody tells them
+   a disc: silver is round with a ring, the lead has a square hole through it (as a cash coin), so nobody tells them
    apart by colour alone. */
 .pw-col { --pw-silver: #C4CAD3; --pw-silver-edge: #7C8594; --pw-pewter: #5B6068; --pw-pewter-edge: #2D3138; --bad: #A8382B; gap: .35rem; }
 .pw-players { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem; }
@@ -16,17 +16,19 @@
 .pw-pip.on { background: var(--brass); }
 .pw-row { display: flex; align-items: center; gap: .3rem; min-height: 1.3rem; font-size: .8rem; color: var(--ink-soft); }
 .pw-stack { display: flex; align-items: center; flex: none; padding-right: .35rem; }
-.pw-stack .pw-coin { margin-right: -.35rem; }
+.pw-stack .pw-coin { margin-right: -.8rem; }
 .pw-left { flex: none; margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
 .pw-bid { font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--brass); }
 .pw-bid.pass { color: var(--ink-soft); font-weight: 600; }
 
-.pw-coin { position: relative; display: inline-block; flex: none; width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 1.5px solid var(--pw-silver-edge); box-sizing: border-box;
-  background: radial-gradient(circle at 35% 30%, #F2F4F7, var(--pw-silver) 60%, #9AA2AF); }
-.pw-coin::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; border: 1px solid var(--pw-silver-edge); }
-.pw-coin.pewter { border-color: var(--pw-pewter-edge); background: radial-gradient(circle at 35% 30%, #8A9099, var(--pw-pewter) 65%, #3F444B); }
-.pw-coin.pewter::after { inset: 33%; border-radius: 1px; border: 0; background: var(--sheet); box-shadow: 0 0 0 1px var(--pw-pewter-edge); }
-.pw-coin.back { border-color: var(--brass); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--brass) 35%, var(--sheet)) 0 3px, var(--sheet) 3px 6px); }
+/* coins: milled silver with a cross of rays and a rim, thick enough to stand in a pile; the lead one is a dull slug with a thumb dent and a square hole (a cash coin), so nobody tells them apart by colour alone */
+.pw-coin { position: relative; display: inline-block; flex: none; width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 1.5px solid var(--pw-silver-edge); box-sizing: border-box;
+  background: radial-gradient(circle at 34% 28%, #FFFFFF, var(--pw-silver) 55%, #8F97A5); box-shadow: 0 .12rem 0 var(--pw-silver-edge), 0 .22rem .3rem rgba(0, 0, 0, .35), inset 0 0 0 .13rem rgba(255, 255, 255, .35); }
+.pw-coin::after { content: ""; position: absolute; inset: 20%; border-radius: 50%; border: 1px solid var(--pw-silver-edge);
+  background: conic-gradient(from 0deg, transparent 0 4%, rgba(60, 70, 85, .28) 4% 6%, transparent 6% 29%, rgba(60, 70, 85, .28) 29% 31%, transparent 31% 54%, rgba(60, 70, 85, .28) 54% 56%, transparent 56% 79%, rgba(60, 70, 85, .28) 79% 81%, transparent 81%); }
+.pw-coin.lead { border-color: var(--pw-pewter-edge); background: radial-gradient(circle at 40% 36%, #7C828B, var(--pw-pewter) 62%, #3A3F46); box-shadow: 0 .12rem 0 var(--pw-pewter-edge), 0 .22rem .3rem rgba(0, 0, 0, .4), inset .12rem .12rem .25rem rgba(0, 0, 0, .35); }
+.pw-coin.lead::after { inset: 36%; border-radius: 1px; border: 0; background: var(--sheet); box-shadow: 0 0 0 1px var(--pw-pewter-edge); }
+.pw-coin.back { box-shadow: 0 .12rem 0 var(--brass), 0 .22rem .3rem rgba(0, 0, 0, .3); border-color: var(--brass); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--brass) 35%, var(--sheet)) 0 3px, var(--sheet) 3px 6px); }
 .pw-coin.back::after { display: none; }
 .pw-coin.turned { transform: translateY(-.1rem); }
 

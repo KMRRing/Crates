@@ -19,7 +19,7 @@ import { shuffle } from "./party-core.js";
 import { PERSONAS, pewterBot } from "./party-pewter-bot.js";
 import { play } from "./party-pewter-solo.js";
 
-export const COINS = ["p", "p", "p", "b"];                    // p silver, b pewter
+export const COINS = ["p", "p", "p", "b"];                    // p silver, b lead
 export const WINS = 2;
 export const MAX_SEATS = 6;
 const LOG = 30;                                                // lines of history kept
@@ -44,7 +44,7 @@ function after(s, u, list = alive(s)) {
   for (let k = 1; k <= s.seats.length; k++) { const v = s.seats[(i + k) % s.seats.length]; if (list.includes(v)) return v; }
   return u;
 }
-const word = c => (c === "b" ? "pewter" : "silver");
+const word = c => (c === "b" ? "lead" : "silver");
 const cap = w => w[0].toUpperCase() + w.slice(1);
 const coinWord = n => `${n} coin${n === 1 ? "" : "s"}`;
 
@@ -95,7 +95,7 @@ function startRound(G, first) {
 /** The round over, a pewter hit: the bidder loses a coin of their own at random. */
 function miss(G, by, owner) {
   const s = G.s;
-  note(G, owner === by ? `${nm(s, by)} turns their own pewter!` : `${nm(s, by)} turns ${nm(s, owner)}'s pewter!`);
+  note(G, owner === by ? `${nm(s, by)} turns their own lead!` : `${nm(s, by)} turns ${nm(s, owner)}'s lead!`);
   gather(s);
   const mine = hand(s, by), lost = Math.floor(G.rng() * mine.length);
   mine.splice(lost, 1);
@@ -259,18 +259,18 @@ const seatsFor = (n, options) => Math.max(n, Math.min(MAX_SEATS, Number(options?
 
 export default {
   id: "pewter",
-  name: "Pewter",
+  name: "Coins",
   css: "party-pewter.css",
   min: 2,                                                  // the lobby lists it from two people; need() lets one alone start it with computer players
   max: MAX_SEATS,
-  blurb: "Lay a coin, bid how many you can turn without finding the pewter.",
+  blurb: "Lay a coin, bid how many you can turn without finding the lead.",
   solo: play,                                              // alone against one to five computer players (party-pewter-solo.js)
   soloText: "Alone against 1–5 computer players",
   rules: [
-    "Everyone has four coins: three silver and one pewter, a bad one. Each round everyone lays one coin face down. Then, in turn, you either add another of your own coins on top of your stack, or open the bidding.",
-    "A bid names how many coins you will turn without finding a pewter. Others raise it, or pass and are out of the round. The highest bidder turns coins: all of their own stack first, from the top, then others' stacks, one coin at a time, from whichever stacks they choose.",
-    "All silver, and you win the round; two rounds win the game. Find a pewter and you lose a coin of your own, at random (the pewter's owner is named, and if you are out, starts the next round). Turn your own pewter and you lose a coin too. A player with no coins is out; the last one in wins.",
-    "Bluff with a silver on top of a pewter, or hold the pewter back in your hand. With no coins left in hand you must open the bidding. The Computer players option fills the seats nobody has.",
+    "Everyone has four coins: three silver and one lead, a bad one. Each round everyone lays one coin face down. Then, in turn, you either add another of your own coins on top of your stack, or open the bidding.",
+    "A bid names how many coins you will turn without finding a lead coin. Others raise it, or pass and are out of the round. The highest bidder turns coins: all of their own stack first, from the top, then others' stacks, one coin at a time, from whichever stacks they choose.",
+    "All silver, and you win the round; two rounds win the game. Find a lead and you lose a coin of your own, at random (the lead's owner is named, and if you are out, starts the next round). Turn your own lead and you lose a coin too. A player with no coins is out; the last one in wins.",
+    "Bluff with a silver on top of a lead, or hold the lead back in your hand. With no coins left in hand you must open the bidding. The Computer players option fills the seats nobody has.",
   ],
   options: [
     { id: "fill", label: "Computer players", choices: [["0", "None"], ["4", "Fill to 4"], ["5", "Fill to 5"], ["6", "Fill to 6"]], value: "0" },
@@ -280,8 +280,8 @@ export default {
 
   need(players, options) {
     const n = players.length, seats = seatsFor(n, options);
-    if (n > MAX_SEATS) return `Pewter takes at most ${MAX_SEATS}`;
-    if (seats < 3) return `Pewter needs 3 players: ${3 - n} more to join, or add computer players`;
+    if (n > MAX_SEATS) return `Coins takes at most ${MAX_SEATS}`;
+    if (seats < 3) return `Coins needs 3 players: ${3 - n} more to join, or add computer players`;
     return "";
   },
 
@@ -296,7 +296,7 @@ export default {
       step: "lay#1", phase: "lay", n: 1, seats, names: Object.fromEntries(all.map(p => [p.uid, p.name])),
       hand: Object.fromEntries(seats.map(u => [u, shuffle(COINS, rng)])), wins: Object.fromEntries(seats.map(u => [u, 0])),
       first, turn: first, clock, log: [`${nameOf(all, first)} starts.`],
-      say: `Pewter. Everyone lay a coin face down. ${nameOf(all, first)} starts.`,
+      say: `Coins. Everyone lay a coin face down. ${nameOf(all, first)} starts.`,
     };
     if (bots.length) s.bots = Object.fromEntries(bots.map(b => [b.uid, [1, 2, 3].includes(Number(options.level)) ? Number(options.level) : 2]));   // the level: 1 simple, 2 medium, 3 hard
     if (!clock) delete s.clock; else s.deadline = now + clock;
@@ -330,7 +330,7 @@ function nameOf(all, uid) { return all.find(p => p.uid === uid).name; }
 const local = { key: "", bid: 0 };
 let coinsHidden = false;
 
-const disc = (c, cls = "") => h("i", { class: `pw-coin ${c === "b" ? "pewter" : c === "?" ? "back" : "silver"} ${cls}`.trim(), title: c === "?" ? "Face down" : word(c) });
+const disc = (c, cls = "") => h("i", { class: `pw-coin ${c === "b" ? "lead" : c === "?" ? "back" : "silver"} ${cls}`.trim(), title: c === "?" ? "Face down" : word(c) });
 
 function drawPewter(stage, ctx) {
   const { state: s, me, players, inputs } = ctx;
@@ -386,7 +386,7 @@ function drawPewter(stage, ctx) {
       parts.push(ask("Lay a coin face down"));
       parts.push(h("div", { class: "pw-row2" }, ...["p", "b"].filter(c => mine.includes(c)).map(c =>
         button(`${cap(word(c))} ×${count(mine, c)}`, () => send({ lay: c }), { primary: c === "p", cls: "pw-lay" }))));
-      parts.push(sub("Silver is safe for you to turn. Pewter is a trap for whoever turns it."));
+      parts.push(sub("Silver is safe for you to turn. Lead is a trap for whoever turns it."));
     } else parts.push(ask(sent ? "Your coin is down" : "Coins are going down"));
     parts.push(h("p", { class: "pk-wait" }, waitingFor(peopleOf(who.filter(u => !isBot(s, u))), who.filter(done))));
     parts.push(clock());
@@ -400,7 +400,7 @@ function drawPewter(stage, ctx) {
     parts.push(clock());
   } else if (s.phase === "bid") {
     const u = s.turn;
-    parts.push(sub(`${name(s.bid.by)} bids ${s.bid.n}: that many coins turned without a pewter.`));
+    parts.push(sub(`${name(s.bid.by)} bids ${s.bid.n}: that many coins turned without a lead coin.`));
     if (u === me.uid && live) {
       parts.push(ask(`Raise above ${s.bid.n}, or pass`));
       parts.push(gridBid(s.bid.n + 1, T, "Raise to", n => send({ bid: n })));
