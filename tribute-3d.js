@@ -132,9 +132,18 @@ export function createTable3d(c) {
   document.body.insertAdjacentHTML("beforeend", '<div class="t3-fx" id="t3fx" aria-hidden="true"></div>');
   const fx = $("t3fx"), field = $("t3field"), mat = $("t3mat"), centre = $("t3centre"), playBox = $("t3play"), openBox = $("t3open"), inlay = $("t3inlay");
   createParallax(field);   // the table pivots a little with the pointer, or the phone's tilt (--tk-px, --tk-py), as the kit's tables do
+  // Korbi, 7 Nov 2026: starting in 3D on a phone the table sometimes stood flat until you switched view and back: the first draw came before
+  // the field had its size (--fw, --fh, which the perspective is built from) and nothing drew again. Whenever the field's size
+  // changes, it is measured anew and the page redraws.
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => {
+    const fr = field.getBoundingClientRect();
+    if (box.hidden || !fr.height || `${fr.width | 0}x${fr.height | 0}` === sized) return;
+    size();
+    dispatchEvent(new Event("resize"));
+  }).observe(field);
   const plates = { top: $("t3-top"), left: $("t3-left"), right: $("t3-right"), me: $("t3-me") };
   const G = () => c.G(), me = () => c.me();
-  let last = null, held = false, dealAt = 0, dealNext = false;
+  let last = null, held = false, dealAt = 0, dealNext = false, sized = "";
   const running = new Set();                                    // the animations going, so a pause can hold them
 
   /** An element's contents, set only when they change (an animation on what's inside runs on rather than restarts). */
@@ -285,6 +294,7 @@ export function createTable3d(c) {
     if (!fr.height) return false;
     field.style.setProperty("--fw", `${fr.width.toFixed(0)}px`);
     field.style.setProperty("--fh", `${fr.height.toFixed(0)}px`);
+    sized = `${fr.width | 0}x${fr.height | 0}`;
     return true;
   }
 

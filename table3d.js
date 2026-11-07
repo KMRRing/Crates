@@ -255,7 +255,8 @@ export function createParallax(el) {
     el.style.setProperty("--tk-py", y.toFixed(3));
     if (x !== tx || y !== ty) raf = requestAnimationFrame(write);
   };
-  const aim = (a, b) => { if (!el.isConnected) { api.dispose(); return; } if (!on()) return; tx = a; ty = b; if (!raf) raf = requestAnimationFrame(write); };
+  const aim = (a, b) => { if (!el.isConnected) { api.dispose(); return; } if (!on()) return; tx = Number.isFinite(a) ? a : 0; ty = Number.isFinite(b) ? b : 0;   // (a NaN would void the table's whole transform: flat)
+    if (!raf) raf = requestAnimationFrame(write); };
   const tilt = e => {
     if (e.beta == null || e.gamma == null) return;
     base ||= { beta: e.beta, gamma: e.gamma };
