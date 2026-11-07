@@ -240,7 +240,8 @@ function plays(auto) {
 /** Hint: the coach's play, its cards picked for you; tapped again, the others it weighed. */
 async function showHint() {
   if (!G || !E.asked(G, me) || coach() === "off") return;
-  const fresh = hint?.key !== keyNow(), h = plays(false);
+  const h = plays(false);
+  sayOff = "";
   if (h.auto) h.auto = false;                                    // its advice, now taken as a hint: the same play, picked
   render();
   await h.ready;
@@ -564,21 +565,28 @@ $("hand").addEventListener("click", e => {
 });
 
 // ---------- the buttons ----------
+let sayOff = "";                                                 // the coach's word (its signature) the player dismissed
+$("say").addEventListener("click", e => { if (e.target.closest(".tb-say-x")) { sayOff = $("say").dataset.sig || ""; $("say").hidden = true; } });
 function drawActions() {
   const box = $("actions"), say = $("say");
   box.replaceChildren();
-  say.classList.remove("kept");
+  say.classList.remove("kept", "bubble");
   if (rush) { drawRush(box, say); return; }
-  // a coach that speaks unasked keeps its room under your cards, so the table doesn't change size as it speaks
-  say.classList.toggle("kept", (coach() === "check" || coach() === "on") && G.phase !== "over");
-  const now = hint?.key === keyNow() ? hint : null, h = now?.list?.[now.at], last = verdict();
-  say.hidden = !(now || last || say.classList.contains("kept"));
+  // Korbi, 7 Nov 2026: the coach's word is a speech bubble over the screen, partly see-through and dismissable; it takes no room, so
+  // the wireframe is the same whether it speaks or not (the room the unasked coach used to keep is gone with it)
+  say.classList.add("bubble");
+  const now0 = hint?.key === keyNow() ? hint : null, last0 = verdict();
+  const sig = now0 ? `h:${now0.key}:${now0.at}:${now0.list ? 1 : 0}` : last0 ? `v:${last0.words}` : "";
+  const dismissed = !!sig && sig === sayOff;
+  const now = dismissed ? null : now0, h = now?.list?.[now.at], last = dismissed ? null : last0;
+  say.dataset.sig = sig;
+  say.hidden = !(now || last);
   if (now) {
     const n = now.list?.length || 0, label = now.auto ? "Coach" : "Hint";
     const plan = planView(), k = plan?.groups.length, plays = `${k === 1 ? "one play" : `${k} plays`} to go out`;
     const laid = !plan ? "" : ` <span class="tb-plan-note">Your cards as it plans them: ${plan.cards.length ? `this, then ${k ? plays : "out"}` : plays}.</span>`;
     say.innerHTML = !h ? `<b>${label}</b> <span class="tb-thinking">thinking…</span>`
-      : `<b>${label}</b> ${esc(h.why)}${laid}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
+      : `<b>${label}</b> ${esc(h.why.replace(/ Next best:.*$/s, ""))}${laid}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
     say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy());   // not the click itself as the list
   } else if (last) {
     const c = checked.get(last);
@@ -586,6 +594,7 @@ function drawActions() {
     // the sheet leads with the verdict: its numbers are the check's deals, not the ones the coach decided in
     say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy([{ ...c.list[0], why: last.words }, ...c.list.slice(1)], last.cards));
   } else say.replaceChildren();
+  if (!say.hidden) say.insertAdjacentHTML("beforeend", '<button type="button" class="tb-say-x" aria-label="Dismiss">×</button>');
   if (G.phase === "over") { box.append(goBtn(G.result.over ? "The final score" : "Next hand", () => showResult(), "primary")); return; }
   const ask = E.asked(G, me);
   if (!ask) {

@@ -295,3 +295,17 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
   #app.tribute.ontable:not(.fanned) .tb-hand { grid-column: 1; }
   #app.tribute.ontable:not(.fanned) .tb-bar { grid-row: 3 / span 2; padding-bottom: .3rem; }
 }
+
+/* Korbi, 7 Nov 2026: the hint (and the coach's words) as a speech bubble over the screen, partly see-through, dismissable with ×;
+   it takes no room, so nothing under it moves whether it speaks or not. It rises from the action row over your cards. */
+.tb-bar { position: relative; }
+#app.tribute .tb-say.bubble { position: absolute; left: 0; right: 0; bottom: calc(100% + .55rem); z-index: 20; margin: 0; min-height: 0; height: auto;
+  padding: .55rem 2rem .6rem .75rem; border: 1px solid var(--brass); border-radius: .5rem; font-size: .82rem; line-height: 1.35; color: var(--ink);
+  background: color-mix(in srgb, var(--sheet) 80%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 .3rem .9rem rgba(0, 0, 0, .3); overscroll-behavior: contain; }
+#app.tribute .tb-say.bubble[hidden] { display: none; }
+.tb-say.bubble::after { content: ""; position: absolute; left: 1.4rem; bottom: -.4rem; width: .7rem; height: .7rem; border: solid var(--brass); border-width: 0 1px 1px 0; transform: rotate(45deg);
+  background: color-mix(in srgb, var(--sheet) 80%, transparent); }
+.tb-say-x { position: absolute; top: .2rem; right: .25rem; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: none; color: var(--ink); font-size: 1.2rem; line-height: 1; opacity: .7; cursor: pointer; }
+.tb-say-x:hover { opacity: 1; }
+/* sideways the bar is a column that ends in the buttons: the bubble rises from them, not from the column's top */
+@media (orientation: landscape) and (min-width: 700px) { #app.tribute .tb-say.bubble { bottom: 3.7rem; } }
