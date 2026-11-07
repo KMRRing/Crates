@@ -35,11 +35,11 @@ let mind = null;              // what you know
 let publicMind = null;        // what everyone knows (to show which of your dice the table has seen)
 let followed = "";            // the game and seat the minds follow
 let ui = null;                // your choices in progress
-// Menu, View: the flat table (the page's own boxes) or the 3D one (cartel-3d.js, three.js), which stands in the same boxes
-// and replaces only the drawing; the default is the suite's (mode3d.js), written only when the player picks
+// Menu, View: the flat table (the page's own boxes) or the 3D one (cartel-3d.js: Guandan's cloth), which stands the same boxes on
+// it and replaces only the drawing; the default is the suite's (mode3d.js), written only when the player picks
 const view = tableView("cartel", ["flat", "Flat"]);
 let T3 = null, T3loading = false;
-const ghost = () => view.get() === "3d";     // the table's dice are empty boxes for the scene to stand in, wherever it is yet
+const ghost = () => view.get() === "3d";     // 3D is wanted (the table is on the cloth once T3 has loaded)
 
 const freshUi = () => ({ panel: null, reroll: new Set(), free: null, ask: { target: null, type: "count", f: 4, n: 15 }, claim: { ability: "bank", target: null, face: 4 }, hit: null, bid: null });
 /** A seat's name: yours "You"; at a table, whoever sits there, else the computer's personality. */
@@ -144,7 +144,7 @@ async function play(move) {
 
 // ---------- rendering ----------
 function render() {
-  $("table").classList.toggle("ct3", ghost());
+  $("table").classList.toggle("ct3", !!T3);
   renderSeats();
   renderCentre();
   renderMine();
@@ -164,15 +164,10 @@ function svgEl(tag, attrs, parent) {
   return n;
 }
 /** A die: { face (null = hidden), kind, how ("peek" = only you know), seen (everyone has seen it) }. */
-function dieSvg({ face, kind, how, seen, id }, size, standIn = false) {
+function dieSvg({ face, kind, how, seen }, size) {
   const gold = kind === "gold";
   const svg = svgEl("svg", { viewBox: "0 0 24 24", width: size, height: size, class: "ct-die", role: "img" });
   svg.setAttribute("aria-label", face == null ? `hidden ${kind} die` : `${kind} ${face}${gold ? `, ${ROLES[face]}` : ""}${how === "peek" ? ", only you know" : ""}`);
-  if (standIn) {
-    // the 3D table draws this die where the box is (taps, labels and the picked outline stay the page's)
-    Object.assign(svg.dataset, { die: id, kind, face: face ?? "", how: how || "", seen: seen ? "1" : "" });
-    return svg;
-  }
   if (face == null) {
     svgEl("rect", { x: 1.2, y: 1.2, width: 21.6, height: 21.6, rx: 5, fill: "#1A0B0F", stroke: gold ? "#C9A23B" : "#6B4B52", "stroke-width": 1.6 }, svg);
     svgEl("text", { x: 12, y: 16.2, "text-anchor": "middle", "font-size": 11, "font-weight": 800, fill: gold ? "#C9A23B" : "#8C6E75", "font-family": "Archivo, Arial, sans-serif" }, svg).textContent = "?";
@@ -358,7 +353,7 @@ function renderSeats() {
     const dice = document.createElement("div");
     dice.className = "ct-dice";
     dice.append(...byKind(mind.known(p.i)).map(d => {
-      const svg = dieSvg(d, 20, ghost());
+      const svg = dieSvg(d, 20);
       svg.style.width = svg.style.height = "var(--seat-die, 20px)";
       if (d.kind === "gold" && d.face != null) { svg.classList.add("ct-tappable"); svg.addEventListener("click", e => { e.stopPropagation(); showRole(d.face, p.i); }); }
       return svg;
@@ -384,7 +379,7 @@ function renderCentre() {
   // with no bid standing, the last call's verdict sits where the bid stood, until someone bids again
   const lastBidOrCall = [...g.events].reverse().find(e => e.t === "bid" || e.t === "call");
   if (b) {
-    marker.append(`${b.q} ×`, dieSvg({ face: b.f, kind: "plain", id: "bid" }, 24, ghost()));
+    marker.append(`${b.q} ×`, dieSvg({ face: b.f, kind: "plain", id: "bid" }, 24));
     marker.dataset.state = "bid";
     by.textContent = `${b.by === ME ? "your bid" : `${name(b.by)}'s bid`} · ${totalDice(g)} dice`;
   } else if (lastBidOrCall?.t === "call") {
@@ -456,7 +451,7 @@ function renderMine() {
   dice.className = "ct-dice";
   dice.append(...byKind(me.dice).map(d => {
     const fig = document.createElement("figure");
-    const svg = dieSvg({ face: d.face, kind: d.kind, seen: seenByAll.has(d.id), id: d.id }, 36, ghost());
+    const svg = dieSvg({ face: d.face, kind: d.kind, seen: seenByAll.has(d.id), id: d.id }, 36);
     svg.style.width = svg.style.height = "var(--mine-die, 36px)";
     if (shaken.has(d.id)) svg.classList.add("shake");
     const chosen = fixing ? ui.free === d.id : ui.reroll.has(d.id);
@@ -805,22 +800,7 @@ function movesOf() {
 }
 /** The table as the page has laid it out, for the scene: every box's rectangle from the stage's top left, and what each says. */
 function snapshot() {
-  const stage = $("stage").getBoundingClientRect();
-  const rel = el => { const r = el.getBoundingClientRect(); return { x: r.left - stage.left, y: r.top - stage.top, w: r.width, h: r.height }; };
-  const has = (el, c) => el.classList.contains(c);
-  const marker = document.querySelector(".ct-marker");
-  const dice = [];
-  for (const el of $("table").querySelectorAll("[data-die]")) {
-    const r = rel(el), parent = el.closest(".ct-dice")?.getBoundingClientRect();
-    // a die clipped out of its seat's two rows is not on the table
-    if (parent && (r.y + r.h / 2 > parent.bottom - stage.top + 1 || r.x + r.w / 2 > parent.right - stage.left + 1)) continue;
-    dice.push({ id: el.dataset.die, kind: el.dataset.kind, face: el.dataset.face === "" ? null : Number(el.dataset.face), how: el.dataset.how, seen: !!el.dataset.seen, picked: has(el, "picked"), ...r });
-  }
-  const verdict = marker && (marker.dataset.state === "held" || marker.dataset.state === "broke") ? marker.dataset.state : null;
-  return { w: stage.width, h: stage.height, dice, verdict, ...movesOf(),
-    seats: [...$("seats").querySelectorAll(".ct-seat")].map(el => ({ idx: Number(el.dataset.seat), turn: has(el, "turn"), out: has(el, "out"), aim: has(el, "targetable"), picked: has(el, "picked"), ...rel(el) })),
-    mine: ME != null ? { turn: has($("mine"), "turn"), ...rel($("mine")) } : null,
-    centre: rel($("centre")), marker: marker ? { state: marker.dataset.state || "bid", ...rel(marker) } : null };
+  return { n: g.players.length, me: ME ?? 0, seats: [...$("seats").children], centre: $("centre"), die: $("seats").style.getPropertyValue("--seat-die") };
 }
 /** Starts or stops the 3D table to match the View choice (cartel-3d.js loads only when it's wanted; where there's no WebGL the flat table stays and says why). */
 async function use3D() {

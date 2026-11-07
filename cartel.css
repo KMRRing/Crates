@@ -37,15 +37,16 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
   box-shadow: inset 0 0 0 5px #6B4128, inset 0 0 0 7px #4A2A1A, 0 6px 18px rgba(0, 0, 0, .18);
   color: #F6EEE6; display: grid; gap: .3rem; }
 .ct-seats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .45rem; align-items: start; }
-.ct-seat { display: grid; justify-items: center; align-content: start; gap: .2rem; padding: .35rem .25rem .4rem; border-radius: 6px;
-  background: rgba(255, 255, 255, .05); border: 2px solid rgba(255, 255, 255, .08); position: relative; }
-.ct-seat.turn { border-color: #E9C46A; box-shadow: 0 0 0 3px rgba(233, 196, 106, .25); }
+.ct-seat { display: grid; justify-items: center; align-content: start; gap: .2rem; padding: .4rem .3rem .45rem; border-radius: 1.1rem; position: relative;
+  background: radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, .1), rgba(255, 255, 255, 0) 72%); }
+.ct-seat.turn { background: radial-gradient(ellipse at 50% 42%, rgba(233, 196, 106, .26), rgba(233, 196, 106, 0) 74%); }
+.ct-seat.turn .ct-plaque b { color: #E9C46A; }
 .ct-seat.out { opacity: .38; }
-/* choosing a target: the seats that can be chosen glow, the chosen one is ringed */
-.ct-seat.targetable { cursor: pointer; border-color: rgba(246, 238, 230, .7); background: rgba(255, 255, 255, .1); animation: ct-aim 1.4s ease-in-out infinite; }
-.ct-seat.targetable.picked { border-color: #E76F51; box-shadow: 0 0 0 3px rgba(231, 111, 81, .35), 0 0 18px rgba(231, 111, 81, .45); animation: none; background: rgba(231, 111, 81, .14); }
-.ct-seat.targetable.picked::after { content: "target"; position: absolute; top: -.6rem; left: 50%; transform: translateX(-50%); padding: .05rem .45rem; border-radius: 3px; background: #B8492A; color: #fff; font-size: .62rem; font-weight: 800; letter-spacing: calc(.04em * var(--track)); text-transform: var(--caps); }
-@keyframes ct-aim { 0%, 100% { box-shadow: 0 0 0 0 rgba(246, 238, 230, .25); } 50% { box-shadow: 0 0 0 4px rgba(246, 238, 230, .08); } }
+/* choosing a target: the seats that can be chosen glow, the chosen one is lit */
+.ct-seat.targetable { cursor: pointer; background: radial-gradient(ellipse at 50% 42%, rgba(246, 238, 230, .2), rgba(246, 238, 230, 0) 76%); animation: ct-aim 1.4s ease-in-out infinite; }
+.ct-seat.targetable.picked { animation: none; background: radial-gradient(ellipse at 50% 42%, rgba(231, 111, 81, .36), rgba(231, 111, 81, 0) 76%); }
+.ct-seat.targetable.picked::after { content: "target"; position: absolute; top: -.6rem; left: 50%; transform: translateX(-50%); padding: .05rem .45rem; border-radius: 3px; background: #B8492A; color: #fff; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+@keyframes ct-aim { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
 @media (prefers-reduced-motion: reduce) { .ct-seat.targetable { animation: none; } }
 .ct-plaque { text-align: center; line-height: 1.1; min-width: 0; max-width: 100%; }
 .ct-seat .ct-plaque b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -94,7 +95,7 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-verdict.broke { background: #B23A2C; color: #fff; }
 
 /* you, at the near edge */
-.ct-mine { display: grid; justify-items: center; gap: .25rem; padding-top: .3rem; border-top: 1px dashed rgba(255, 255, 255, .15); }
+.ct-mine { display: grid; justify-items: center; gap: .25rem; padding-top: .3rem; }
 .ct-mine .ct-plaque { display: flex; gap: .4rem; align-items: baseline; }
 .ct-mine-ask { margin: 0; font-size: .72rem; font-weight: 750; color: #E9C46A; text-align: center; max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -198,23 +199,19 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct-toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .ct-toast { transition: none; } }
 
-/* the 3D table (Menu, View: 3D; cartel-3d.js): the scene fills the table's box and the page's own boxes stand over it, so the
-   text, the taps and the picked outline are the same as on the flat table. The scene stands a leather ledger under each seat,
-   a brass plate under the bid and the dice in the empty boxes that hold their place. */
+/* the 3D table (Menu, View: 3D; cartel-3d.js): Guandan's cloth (table3d.css) in the table's box, an opponent on each plate with their dice, the
+   bid in the middle; the page's own elements stand on it, so the taps and the picked outline are the flat table's. Your dice and
+   buttons stay under it. */
 .ct-stage { display: none; }
-.ct3 .ct-stage { display: block; position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 0;
-  background: #14271f; }                              /* what shows until the scene's first frame */
-.ct3 > :not(.ct-stage) { position: relative; z-index: 1; }
-.ct3 { background: none; box-shadow: none; outline-color: transparent; }
-.ct3 .ct-seat { background: none; border-color: transparent; box-shadow: none; animation: none; }
-.ct3 .ct-seat.turn { border-color: transparent; box-shadow: none; }
-.ct3 .ct-seat.targetable:not(.picked) { border-color: transparent; }
-.ct3 .ct-seat.targetable.picked { border-color: transparent; box-shadow: none; background: none; }
-.ct3 .ct-mine { border-top: 0; }
+.ct3 { display: flex; flex-direction: column; padding: 0; border: 0; outline: 0; background: none; box-shadow: none; }
+.ct3 .ct-stage { display: block; position: relative; flex: 1 1 0; min-height: 0; }
+.ct3 .tk-field { height: 100%; }
+.ct3 .ct-seats, .ct3 .tk-plate.at-b { display: none; }
+.ct3 .tk-centre { --tk-side: .8rem; pointer-events: auto; }
+.ct3 .ct-centre { width: 100%; }
+.ct3-dice { display: flex; flex-wrap: wrap; justify-content: center; gap: .12rem; max-width: 100%; }
+.ct3 .tk-plate:is(.at-l, .at-r) { width: 5.8rem; }
+.ct3 .tk-plate:is(.at-l, .at-r) .tk-name { font-size: .8rem; letter-spacing: 0; }
+.ct3 .tk-plate .ct-die { width: var(--seat-die, 1rem); height: var(--seat-die, 1rem); }
 .ct3 .ct-die.picked { outline: 0; }
-.ct3 .ct-marker { background: none; border: 0; padding: .2rem .85rem; color: #2B1B08; text-shadow: 0 1px 0 rgba(255, 238, 190, .6); }
-.ct3 .ct-marker small { opacity: .8; }
-.ct3 .ct-marker.open { color: #E8DFC9; text-shadow: none; font-weight: 700; }
-.ct3 .ct-marker.held, .ct3 .ct-marker.broke { color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); background: none; border: 0; }
-.ct3 .ct-ticker, .ct3 .ct-tally { text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
-.ct3 .ct-notes li { background: rgba(10, 20, 15, .55); }
+.ct3 .ct-ticker, .ct3 .ct-tally { text-shadow: 0 .06rem .12rem rgba(0, 0, 0, .6); }
