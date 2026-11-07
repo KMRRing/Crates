@@ -773,7 +773,7 @@ function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", isLevel(S) ? `Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText(kindOfRun(S))}`);
+  put("kind", isLevel(S) ? `Level ${S.lv + 1} · Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText(kindOfRun(S))}`);
 }
 function drawLine() {
   const l = $("line");
