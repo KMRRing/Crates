@@ -242,7 +242,6 @@ async function showHint() {
   if (!G || !E.asked(G, me) || coach() === "off") return;
   const fresh = hint?.key !== keyNow(), h = plays(false);
   if (h.auto) h.auto = false;                                    // its advice, now taken as a hint: the same play, picked
-  else if (!fresh && h.list) h.at = (h.at + 1) % Math.max(1, h.list.length);
   render();
   await h.ready;
   const p = hint === h ? h.list?.[h.at] : null;
@@ -575,7 +574,7 @@ function drawActions() {
   const now = hint?.key === keyNow() ? hint : null, h = now?.list?.[now.at], last = verdict();
   say.hidden = !(now || last || say.classList.contains("kept"));
   if (now) {
-    const n = now.list?.length || 0, label = now.auto ? "Coach" : `Hint${n > 1 ? ` ${now.at + 1}/${n}` : ""}`;
+    const n = now.list?.length || 0, label = now.auto ? "Coach" : "Hint";
     const plan = planView(), k = plan?.groups.length, plays = `${k === 1 ? "one play" : `${k} plays`} to go out`;
     const laid = !plan ? "" : ` <span class="tb-plan-note">Your cards as it plans them: ${plan.cards.length ? `this, then ${k ? plays : "out"}` : plays}.</span>`;
     say.innerHTML = !h ? `<b>${label}</b> <span class="tb-thinking">thinking…</span>`

@@ -216,6 +216,26 @@ export function createTable3d(c) {
     capEl.style.left = `${(Math.min(...cards.map(r => r.left)) / 2 + Math.max(...cards.map(r => r.right)) / 2 - fr.left).toFixed(1)}px`;
     capEl.style.top = `${(Math.max(...cards.map(r => r.bottom)) - fr.top + 6).toFixed(1)}px`;
   }
+  /** Korbi, 7 Nov 2026: the card animation was sometimes there and sometimes not. Any redraw that changed the pile's markup even slightly
+   *  (a card's size follows your hand's) rebuilt every card and ended a flight half-way. The pile is now patched in place: a play
+   *  already there keeps its elements and takes the new sizes, only a new play adds elements, and only a swept one leaves. */
+  function patchPlay(box, html) {
+    if (box._h === html) return;
+    box._h = html;
+    const t = document.createElement("template");
+    t.innerHTML = html;
+    const have = new Map([...box.children].map(e => [e.dataset.i, e])), keep = new Set();
+    for (const n of [...t.content.children]) {
+      const o = have.get(n.dataset.i);
+      if (!o) { box.append(n); keep.add(n); continue; }
+      keep.add(o);
+      o.className = n.className;
+      o.style.cssText = n.style.cssText;
+      const cards = new Map([...o.querySelectorAll(".t3-cd")].map(e => [e.dataset.id, e]));
+      for (const nc of n.querySelectorAll(".t3-cd")) { const x = cards.get(nc.dataset.id); if (x) { x.className = nc.className; x.style.cssText = nc.style.cssText; } }
+    }
+    for (const o of [...box.children]) if (!keep.has(o)) o.remove();
+  }
   function drawMiddle() {
     const g = G(), cs = getComputedStyle(centre), px = v => parseFloat(v) || 0, rem = px(getComputedStyle(document.documentElement).fontSize) || 16;
     const room = { w: centre.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight), h: centre.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) };
@@ -240,7 +260,7 @@ export function createTable3d(c) {
           const m = n++ === 0 ? 0 : fit.step - 1 + (k === 0 && gapped ? fit.gap : 0);
           return `<span class="${c.cardClass(id, g.level)} t3f t3-cd" data-id="${id}" style="margin-left:calc(var(--cw) * ${m.toFixed(3)})">${cardFace(id, g.level)}</span>`;
         }).join("")).join("");
-        return `<span class="t3-cards t3-lay${r?.bomb ? " bomb" : ""}" style="--cw:${fit.w.toFixed(1)}px;left:${(50 + dx + jit(3) * 8).toFixed(1)}%;top:${(50 + dy + jit(13) * 7).toFixed(1)}%;`
+        return `<span class="t3-cards t3-lay${r?.bomb ? " bomb" : ""}" data-i="${i}" style="--cw:${fit.w.toFixed(1)}px;left:${(50 + dx + jit(3) * 8).toFixed(1)}%;top:${(50 + dy + jit(13) * 7).toFixed(1)}%;`
           + `transform:translate(-50%,-50%) rotate(${(jit(7) * 12).toFixed(1)}deg)">${cards}</span>`;
       }).join("");
     }
@@ -250,7 +270,7 @@ export function createTable3d(c) {
       const w = Math.max(22, Math.min(cap * 0.8, (room.h - 3 * rem) / RATIO / (g.tribute?.pays?.length > 1 ? 2 : 1)));
       open = (opening ? openHtml(w) : "") + (seat >= 0 ? `<span class="t3-call">${esc(c.who(seat))} ${g.phase === "return" ? (seat === me() ? "give" : "gives") + " a card back" : seat === me() ? "lead" : "leads"}</span>` : "");
     }
-    fill(playBox, play);
+    patchPlay(playBox, play);
     fill(openBox, open);
     caption(play && g.top ? labelOf(g.top.seat, g.top.reading) : "");
     centre.classList.toggle("has", !!play);
