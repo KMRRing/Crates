@@ -1,6 +1,6 @@
 // Big Two's 3D table (Menu, View: 3D): the same game and state as the flat table on the card games' shared tipped cloth
-// (table3d.js). The seats (three or four) stand round it as plates with a fan of backs and the count left; each seat's latest play
-// lies on the cloth in a lane in front of it, its cards flown there from its plate; what the trick is says in the middle.
+// (table3d.js). The seats (three or four) stand round it as plates with a fan of backs and the count left; the latest play
+// lies on the cloth in the middle, its cards flown there from its seat's plate; what the trick is says in the middle.
 // Your cards and the buttons stay the page's own.
 import { createCloth, createMotion, rectOf, fill, slotOf } from "./table3d.js";
 
@@ -21,36 +21,34 @@ export function plateOf({ name, seat, mine = false, turn = false, count = 0, sco
 }
 
 export function createBigTwo3d(host, { quiet = () => false } = {}) {
-  let cloth = null, motion = null, lanes = null, top = null, seats = 0;
+  let cloth = null, motion = null, pile = null, top = null, seats = 0;
   const m = () => (motion ||= createMotion({ quiet }));
   const build = n => {
     cloth = createCloth(host, { seats: n, clockwise: false });
     seats = n;
     cloth.centre.dataset.n = n;
-    cloth.centre.innerHTML = Array.from({ length: n }, (_, i) => `<div class="b23-lane s${i}" data-slot="${i}"></div>`).join("") + `<div class="b23-top"></div>`;
-    lanes = [...cloth.centre.querySelectorAll(".b23-lane")];
+    cloth.centre.innerHTML = `<div class="b23-pile"></div><div class="b23-top"></div>`;
+    pile = cloth.centre.querySelector(".b23-pile");
     top = cloth.centre.querySelector(".b23-top");
   };
 
-  /** `t`: { seats, me, plates: by seat, lanes: markup by seat, top: markup (what the trick is) }. */
+  /** `t`: { seats, me, plates: by seat, pile: { seat, html } | null, top: markup (what the trick is) }. */
   function draw(t) {
     const first = !cloth || seats !== t.seats;
     if (first) build(t.seats);
     t.plates.forEach((p, seat) => cloth.set(slotOf(seat, t.me, t.seats), p));
     fill(top, t.top);
-    t.plates.forEach((_, seat) => {
-      const slot = slotOf(seat, t.me, t.seats), lane = lanes[slot];
-      if (!fill(lane, t.lanes[seat] || "") || first) return;
-      const from = rectOf(cloth.plates[slot].querySelector(".tk-med"));
-      [...lane.querySelectorAll(".cd")].slice(0, 5).forEach((cd, i) => {
-        const to = rectOf(cd);
-        if (from && to) m().fly({ face: cd.outerHTML, from: { ...from, h: to.h }, to, up0: true, up1: true, delay: i * 30, ms: 340, land: cd });
-      });
+    // the play lies in the middle, its cards flown there from the plate of the seat that made it
+    if (!fill(pile, t.pile?.html || "") || first || !t.pile) return;
+    const from = rectOf(cloth.plates[slotOf(t.pile.seat, t.me, t.seats)].querySelector(".tk-med"));
+    [...pile.querySelectorAll(".cd")].slice(0, 5).forEach((cd, i) => {
+      const to = rectOf(cd);
+      if (from && to) m().fly({ face: cd.outerHTML, from: { ...from, h: to.h }, to, up0: true, up1: true, delay: i * 30, ms: 340, land: cd });
     });
   }
   return {
     draw,
     pause: on => motion?.hold(on),
-    dispose() { motion?.dispose(); motion = null; cloth = null; lanes = null; top = null; seats = 0; host.innerHTML = ""; },
+    dispose() { motion?.dispose(); motion = null; cloth = null; pile = null; top = null; seats = 0; host.innerHTML = ""; },
   };
 }

@@ -2,22 +2,28 @@
 #app.bigtwo { --tk-felt: color-mix(in srgb, var(--b2-in) 80%, #0B1E2A); }
 .b2-table.b23 { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
 .b2-table.b23 .tk-field { flex: 1 1 0; }
-/* the lanes: the play of each seat on the cloth in front of it, the middle's words under them */
-.b23 .tk-centre { --cd-line: clamp(.55rem, min(2.6cqh, 2.2cqw), 1.2rem); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto) 1fr; align-content: center; gap: .15rem .3rem; place-items: stretch; --tk-side: 6.2rem; }
-.b23 .tk-centre[data-n="3"] { --tk-side: .6rem; top: 40%; grid-template-rows: auto auto 1fr; }
-.b23-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.5); }
-.b23-lane .cd-line { gap: 0; }
-.b23-lane .cd-line > .cd + .cd { margin-left: -1.15em; }
-.b23-lane .b2-left { opacity: .9; }
-.tk-centre[data-n="4"] .b23-lane.s2 { grid-column: 1 / -1; grid-row: 1; }
-.tk-centre[data-n="4"] .b23-lane.s3 { grid-column: 1; grid-row: 2; }
-.tk-centre[data-n="4"] .b23-lane.s1 { grid-column: 2; grid-row: 2; }
-.tk-centre[data-n="4"] .b23-lane.s0 { grid-column: 1 / -1; grid-row: 3; }
-.tk-centre[data-n="3"] .b23-lane.s2 { grid-column: 1; grid-row: 1; }
-.tk-centre[data-n="3"] .b23-lane.s1 { grid-column: 2; grid-row: 1; }
-.tk-centre[data-n="3"] .b23-lane.s0 { grid-column: 1 / -1; grid-row: 2; }
-.b23-top { grid-column: 1 / -1; grid-row: -2 / -1; display: grid; justify-items: center; align-content: center; gap: .15rem; text-align: center; min-width: 0; }
-.b23 .b2-beat { margin: 0; font-size: .78rem; color: var(--tk-text); }
+/* the middle: the one play lies there, full size on a marked place (Guandan's pile), the words under it */
+.b23 .tk-centre { --tk-side: 4.4rem; top: 20%; bottom: 14%; display: grid; grid-template-rows: auto auto; align-content: center; gap: .5rem; place-items: stretch; }
+.b23 .tk-centre[data-n="3"] { --tk-side: .6rem; top: 36%; }
+.b23-pile { --cd-line: clamp(1.1rem, 7.4cqw, 2rem); position: relative; display: flex; justify-content: center; align-items: center; min-width: 0; height: calc(var(--cd-line) * 4.4); }
+.b23-pile::before { content: ""; position: absolute; inset: 0 .2rem; border: 1.5px dashed color-mix(in srgb, var(--tk-inl) 70%, transparent); border-radius: .5rem; background: color-mix(in srgb, #000 12%, transparent); }
+.b23-pile .cd-line { position: relative; gap: 0; }
+.b23-pile .cd-line > .cd + .cd { margin-left: -1.35em; }
+.b23-rest { display: grid; gap: .2rem; justify-items: center; }
+.b23-rw { display: flex; align-items: center; gap: .4rem; font-size: .72rem; color: var(--tk-text); }
+.b23-rw .cd-line { --cd-line: .7rem; gap: 0; opacity: .92; }
+.b23-rw .cd-line > .cd + .cd { margin-left: -1.3em; }
+/* the seats at the sides stand higher up the table; the hands at the plates a little larger */
+.b23 .tk-plate:is(.at-l, .at-r) { top: 44%; }
+.b23 .tk-plate .tk-fan { width: 2.3rem; height: 2rem; }
+.b23 .tk-plate:is(.at-l, .at-r) .tk-fan { width: 2.1rem; height: 1.8rem; }
+.b23 .tk-plate .tk-count { font-size: .95rem; }
+/* the table closer to the banner above and the cards below */
+.b2-strip { margin: .5rem 0 0; }
+.b2-table.b23 { margin: -.3rem 0 -1.3rem; }
+.b2-side { padding-top: 0; gap: .15rem; }
+.b23-top { display: grid; justify-items: center; align-content: center; gap: .15rem; text-align: center; min-width: 0; }
+.b23 .b2-beat { margin: 0; font-size: .86rem; color: var(--tk-text); }
 .b23 .b2-said { margin: 0; font-size: .74rem; color: var(--tk-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b23 .b2-next { background: color-mix(in srgb, var(--tk-text) 30%, transparent); }
 .b23 .b2-next i { background: var(--tk-gilt); }
@@ -27,3 +33,5 @@
 .b23-pay.down { color: #F0A596; }
 .tk-count.low { color: #A8382B; }
 @container (max-height: 420px) { .b23 .b2-said { display: none; } }
+/* a short screen has no room above the sides for the top seat: they stand lower there */
+@media (max-height: 700px) and (orientation: portrait) { .b23 .tk-plate:is(.at-l, .at-r) { top: 54%; } }

@@ -221,8 +221,11 @@ function drawTable(v) {
       word: !res && a?.pass ? passWord : "", think: s.step === "play" && s.turn === seat && !isMe(seat), lead: !shown && s.trick.by === seat && !!s.trick.last,
       pay: res && res.winner !== seat ? res.paid[seat] : 0, won: res && res.winner === seat ? res.paid.reduce((x, y) => x + y, 0) : 0, over: !!res,
     }));
-    const lanes = acts.map((a, seat) => (res ? (res.winner === seat ? "" : `<span class="cd-line b2-left">${cards(res.hands[seat])}</span>`) : a?.cards ? `<span class="cd-line">${cards(a.cards)}</span>` : ""));
-    three.draw({ seats: s.seats, me, plates, lanes, top: `<p class="b2-said">${esc(v.said || "")}</p>${res ? (s.step === "shown" ? `<span class="b2-next"><i data-until="${s.until}"></i></span>` : "") : s.trick.last ? `<p class="b2-beat">To beat: <b>${esc(nameOf(s.trick.by))}</b>'s ${esc(playName(s.trick.last))}</p>` : `<p class="b2-beat">${isMe(s.turn) ? "Your lead" : `${esc(nameOf(s.turn))} leads`}</p>`}` });
+    // the one play on the cloth, big, in the middle (Guandan's pile); a deal paid out lays the others' last cards under it
+    const last = !res && s.trick.last ? actOf(s, s.trick.by)?.cards : null;
+    const pile = last ? { seat: s.trick.by, html: `<span class="cd-line">${cards(last)}</span>` } : null;
+    const rest = res ? `<span class="b23-rest">${s.hands.map((_, seat) => (res.winner === seat ? "" : `<span class="b23-rw"><b>${esc(isMe(seat) ? "You" : nameOf(seat))}</b><span class="cd-line b2-left">${cards(res.hands[seat])}</span></span>`)).join("")}</span>` : "";
+    three.draw({ seats: s.seats, me, plates, pile, top: `<p class="b2-said">${esc(v.said || "")}</p>${rest}${res ? (s.step === "shown" ? `<span class="b2-next"><i data-until="${s.until}"></i></span>` : "") : s.trick.last ? `<p class="b2-beat">To beat: <b>${esc(nameOf(s.trick.by))}</b>'s ${esc(playName(s.trick.last))}</p>` : `<p class="b2-beat">${isMe(s.turn) ? "Your lead" : `${esc(nameOf(s.turn))} leads`}</p>`}` });
     runBar();
     return;
   }
@@ -264,7 +267,7 @@ function drawHand(v) {
   cols.forEach((c, k) => c.forEach(id => colOf.set(id, k)));
   // Always: the coach's play marked in your hand, until a Hint picks it
   const advised = !h && opts.coach === "on" && advice?.key === decisionOf(v) && advice.r.best.t === "play" ? new Set(advice.r.best.cards) : null;
-  drawHandBox(box, { cols, face, label: cardName,
+  drawHandBox(box, { cols, face, label: cardName, reachRem: 4.6,
     classes: id => [sel.has(id) && "sel", advised?.has(id) && "advised", h && (colOf.get(id) - (h.cards.length ? 1 : 0)) % 2 === 1 && colOf.get(id) >= (h.cards.length ? 1 : 0) && !sel.has(id) && "shade"].filter(Boolean).join(" ") });
 }
 wireDrag($("hand"), { has: id => sel.has(id), toggle: (id, pick) => { if (!V?.G || V.seat == null) return; if (pick) sel.add(id); else sel.delete(id); draw(); } });
@@ -296,8 +299,7 @@ function statusLine(v) {
   const nxt = (v.seat + 1) % s.seats, warn = s.opts.top && s.hands[nxt].length === 1 ? ` · <b>頂大</b>: ${esc(nameOf(nxt))} has one card` : "";
   if (s.mustLead != null) return `Your lead: the ${esc(cardName(s.mustLead))} must be in it${warn}`;
   if (!s.trick.last) return `Your lead: any play${warn}`;
-  const k = s.trick.last;
-  return `Beat the ${esc(playName(k))}, or pass${warn}`;
+  return `Your turn${warn}`;
 }
 
 function drawBar() {

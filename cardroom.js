@@ -42,11 +42,11 @@ export function bubble(el) {
 
 // ---------- your cards ----------
 /** A column to a rank, its cards each showing at least their corner; always the room of the deepest stack (7.2rem below the card). */
-export function stackedLayout(cols, rem, room, { big = false } = {}) {
+export function stackedLayout(cols, rem, room, { big = false, reachRem = 7.2 } = {}) {
   const W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
   const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
   const deepest = Math.max(1, ...cols.map(c => c.length));
-  const index = 2.1 * rem, reach = 7.2 * rem;
+  const index = 2.1 * rem, reach = reachRem * rem;
   const drop = deepest > 1 ? Math.min(index, Math.max(0.9 * rem, reach / (deepest - 1))) : 0, tight = deepest > 1 && drop < index;
   const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
   const at = [];
@@ -74,12 +74,13 @@ const low = () => matchMedia("(max-height: 520px)").matches;
  * @param face     id -> { rank, suit } | { joker }   (cards.js)
  * @param label    id -> the card's name
  * @param classes  id -> extra classes (sel, advised, dim, shade…)
+ * @param reachRem how far below a card the deepest stack may reach; a game whose stacks are shallow (four suits) takes less
  * @returns the layout, with `.fan`
  */
-export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null }) {
+export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2 }) {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, room = box.parentElement?.clientWidth || box.clientWidth || 360;
   const row = fan ?? (sideways() && low());
-  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1 : 1.1 }) : stackedLayout(cols, rem, room, { big: sideways() && !low() });
+  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1 : 1.1 }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
   const rows = Math.max(...cols.map(c => c.length), 1);
   const t = (x) => (x + lay.W / 2 - room / 2) / (room / 2), drop = (row ? 0.9 : 0.55) * rem, tilt = row ? 6 : 4;
   box.classList.add("cr-hand");
