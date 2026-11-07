@@ -44,7 +44,8 @@ export function topicsControls({ onChange } = {}) {
 }
 
 let sheet = null;
-/** Opens the control in a sheet over the page (the games' menus close first, so the sheet is all there is). */
+/** Opens the control in a sheet over the page (the games' menus close first, so the sheet is all there is). Only a game's
+ *  menu opens it, so closing it, by Back to menu, the cross, or a tap outside, opens that menu again (Korbi, 7 Nov 2026). */
 export function openTopics() {
   if (!sheet) {
     sheet = document.createElement("dialog");
@@ -52,6 +53,8 @@ export function openTopics() {
     sheet.setAttribute("aria-label", "Topics");
     sheet.innerHTML = `<div class="pick-head"><h2>Topics</h2><button class="icon-btn" type="button" data-close aria-label="Close">${CLOSE}</button></div><div class="settings-body"></div>`;
     sheet.querySelector("[data-close]").addEventListener("click", () => sheet.close());
+    sheet.querySelector(".settings-body").before(action("Back to menu", () => sheet.close(), "link"));
+    sheet.addEventListener("close", () => document.getElementById("menuBtn")?.click());
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
     document.body.appendChild(sheet);
   }

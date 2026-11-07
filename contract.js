@@ -606,7 +606,6 @@ function openMenu() {
   play.append(action(cp.done ? `Learn bridge: ${cp.done} of ${cp.of} lessons done` : "Learn bridge, from the rules", () => course.open()));
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The last deal", showReview, "link"));
-  play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   set.append(toggle("Coach", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));

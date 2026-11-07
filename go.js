@@ -408,7 +408,6 @@ function openMenu() {
   play.append(action(in3d ? "Play in 2D" : "Play in 3D", () => setView(in3d ? "2d" : "3d"), "link"));
   const cp = progressOf("go", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Go, from the rules", () => course.open()));
-  play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
   content.append(choice("You play", [["b", "Black"], ["w", "White"], ["two", "Two on this phone"]], opts.side, v => { opts.side = v; saveOpts(); openMenu(); }));

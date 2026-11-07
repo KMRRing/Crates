@@ -267,7 +267,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("pegs", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Cribbage, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Cribbage, from the rules", () => course.open()));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("pegs:streak", { now: 0, best: 0 });

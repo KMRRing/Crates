@@ -266,7 +266,6 @@ function openMenu() {
   const cp = progressOf("banquet", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Banquet, from the rules", () => course.open()));
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
-  play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Game", GAMES, opts.mode, v => { opts.mode = v; saveOpts(); }));
   set.append(line("The game applies from the next game."));

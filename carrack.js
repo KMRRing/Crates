@@ -721,7 +721,6 @@ function openMenu() {
   const cp = progressOf("carrack", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Carrack, from the first year", () => course.open()));
   play.append(action("First game: a walkthrough", openWalk, "link"));
-  play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Powers at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.n, v => { opts.n = Number(v); saveOpts(); }));
   content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));

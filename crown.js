@@ -496,7 +496,6 @@ function openMenu() {
   const cp = progressOf("crown", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn draughts, from the rules", () => course.open()));
   if (dayShot) todayPart(body, { app: "crown", done: shotDone() || undefined, play: () => dayShot.open(DAY.chapters[0].lessons[0].id) });
-  play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Rules", SET_IDS.map(id => [id, SETS[id].name]), opts.set, v => { opts.set = v; saveOpts(); }));
   content.append(line(`${SETS[opts.set].blurb}`));

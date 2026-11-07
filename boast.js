@@ -415,7 +415,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("boast", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn liar's dice, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn liar's dice, from the rules", () => course.open()));
   const set = part(body, "settings");
   const next = () => { saveOpts(); };
   set.append(view.choice(() => draw()));

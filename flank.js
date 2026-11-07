@@ -345,7 +345,6 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("flank", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Reversi, from the rules", () => course.open()));
-  play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Opponent", [["computer", "Computer"], ["two", "Two on this phone"]], opts.mode, v => { opts.mode = v; saveOpts(); }));
   const set = part(body, "settings");

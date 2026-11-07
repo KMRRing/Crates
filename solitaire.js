@@ -490,7 +490,7 @@ function openMenu() {
   const play = part(body, "play"), content = part(body, "content"), settings = part(body, "settings"), about = part(body, "about");
   play.append(action("New deal", () => newDeal("random"), "primary"));
   if (S && S.log.length && !S.done) play.append(action("Start this deal again", restart));
-  play.append(action("Learn Solitaire", () => course.open()), action("The rules", showRules, "link"));
+  play.append(action("Learn Solitaire", () => course.open()));
   content.append(mirror("Game", $("variant")));
   const won = (read(DAILIES, {})[today()] || {})[prefs.variant];
   todayPart(body, { done: won != null, result: won != null ? fmt(won) : "", play: () => newDeal("daily"), playing: S?.mode === "daily" && S.key === today() && S.id === prefs.variant });   // newDeal asks before it gives a game up

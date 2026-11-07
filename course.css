@@ -31,7 +31,7 @@ dialog.ln-sheet:not(.map) .ln-map, dialog.ln-sheet.map .ln-lesson { display: non
 .ln-ch .here .tick { color: var(--ln-in); }
 .ln-ch .t { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ln-ch .zh { color: var(--ink-soft); white-space: nowrap; }
-.ln-rules { width: 100%; margin-top: 1rem; }
+.ln-rules { width: 100%; margin-bottom: 1rem; }
 
 /* a lesson: the stage as large as the room the words leave it */
 .ln-lesson { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: .5rem; padding-top: .45rem; }

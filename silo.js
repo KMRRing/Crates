@@ -308,7 +308,6 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("silo", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn four in a row, from the rules", () => course.open()));
-  play.append(action("The rules on one page", showRules, "link"));
   if (!page.atTable && page.host) {
     const content = part(body, "content");
     content.append(choice("Opponent", [["computer", "Computer"], ["friend", "Two on this phone"]], opts.opponent, v => { opts.opponent = v; saveOpts(); thinking = null; page.runner.kick(); draw(); }));

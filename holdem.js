@@ -535,7 +535,6 @@ function openMenu() {
   const cp = progressOf("holdem", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Hold'em, from the rules", () => course.open()));
   page.menu(play);
-  play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));

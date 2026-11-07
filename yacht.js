@@ -299,7 +299,6 @@ function openMenu() {
   }
   const cp = progressOf("yacht", COURSE);
   content.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Yacht, from the rules", () => course.open()));
-  content.append(action("The rules", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   set.append(choice("Players", [[1, "Alone"], [2, "2"], [3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); saveOpts(); }));
@@ -314,7 +313,6 @@ bindSwitcher($("appsBtn"), "yacht");
 document.querySelector(".ya-mark").innerHTML = APPS.find(a => a.id === "yacht")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.addEventListener("resize", () => { if (V) draw(); });

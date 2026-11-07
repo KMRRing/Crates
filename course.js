@@ -159,13 +159,13 @@ export function createCourse({ id, course, stage, onPlay = () => {}, onRules = n
     $(".ln-title b").textContent = course.title;
     $(".ln-title small").textContent = `${course.zh ? `${course.zh} · ` : ""}${done} of ${LESSONS.length} lessons`;
     const cont = pr.at && byId(pr.at.id) ? byId(pr.at.id) : next;
-    $(".ln-map").innerHTML = (cont ? `<button type="button" class="ln-go ln-start" data-lesson="${cont.lesson.id}">${done || pr.at ? "Continue" : "Start"}: ${esc(cont.lesson.title)}</button>`
+    // the rules are the first page of Learn, above the lessons (Korbi, 7 Nov 2026: the menus carry no rules button of their own)
+    $(".ln-map").innerHTML = (onRules ? `<button type="button" class="ln-go quiet ln-rules" data-rules>The rules on one page</button>` : "") + (cont ? `<button type="button" class="ln-go ln-start" data-lesson="${cont.lesson.id}">${done || pr.at ? "Continue" : "Start"}: ${esc(cont.lesson.title)}</button>`
       : `<p class="ln-all">Every lesson done. Play a game, or go over any lesson again.</p>`)
       + course.chapters.map(c => `<section class="ln-ch"><h3>${esc(c.title)}${c.zh ? ` <span>${esc(c.zh)}</span>` : ""}</h3><ol>${c.lessons.map(l => {
         const ok = !!pr.done[l.id], here = cont?.lesson.id === l.id;
         return `<li><button type="button" data-lesson="${l.id}" class="${ok ? "done" : ""}${here ? " here" : ""}"><span class="tick" aria-hidden="true">${ok ? "✓" : here ? "●" : ""}</span><span class="t">${esc(l.title)}</span><span class="zh">${esc(l.zh || "")}</span></button></li>`;
-      }).join("")}</ol></section>`).join("")
-      + (onRules ? `<button type="button" class="ln-go quiet ln-rules" data-rules>The rules on one page</button>` : "");
+      }).join("")}</ol></section>`).join("");
   }
   $(".ln-map").addEventListener("click", e => {
     if (e.target.closest("[data-rules]")) { onRules?.(); return; }

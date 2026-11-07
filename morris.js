@@ -428,7 +428,6 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("morris", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Nine Men's Morris, from the rules", () => course.open()));
-  play.append(action("The rules on one page", showRules, "link"));
   if (V?.G && !V.over && !IN_FRAME && (isTwo(V) || V.seat != null)) {
     play.append(action("Resign", async () => {
       if (await sure("Resign this game?", { yes: "Resign", no: "Keep playing" })) { const why = await move({ resign: true }); if (why) toast(why); }

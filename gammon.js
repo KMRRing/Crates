@@ -342,7 +342,6 @@ function openMenu() {
   const cp = progressOf("gammon", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn backgammon, from the rules", () => course.open()));
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
-  play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => drawBoard()));
   if (board3d) set.append(action("Reset the 3D view", () => board3d?.resetView()));

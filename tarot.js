@@ -530,7 +530,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("tarot", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Tarot, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Tarot, from the rules", () => course.open()));
   const set = part(body, "settings");
   set.append(choice("Players", [[3, "3"], [4, "4"], [5, "5"]], opts.seats, v => { opts.seats = Number(v); opts.hot = Math.min(opts.hot, opts.seats); saveOpts(); }));
   set.append(choice("On this phone", [1, 2, 3, 4, 5].filter(n => n <= opts.seats).map(n => [n, n === 1 ? "just me" : `${n} people`]), opts.hot, v => { opts.hot = Number(v); saveOpts(); }));
