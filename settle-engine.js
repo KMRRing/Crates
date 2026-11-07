@@ -1,230 +1,170 @@
-// Settle's rules, pure (no page): a tank farm of six tanks, eight parcels high, and four grades of liquid from the
-// heaviest to the lightest: water, FAME (biodiesel), diesel, naphtha. A parcel pumped into a tank sinks below every
-// lighter one and settles on what's heavier, lifting the lighter ones a level, so a tank always stands in order. Three
-// or more parcels of one grade at one level, in neighbouring tanks, ship out; what floated above them drops a level,
-// which can line up more. Two parcels are offered at a time; you choose which and where. Every few pumps a delivery
-// comes in of its own, more often as the game goes on. A tank pumped past eight spills its top parcel, a life lost,
-// and the third spill ends the game. FAME left standing on water sours: after five pumps the parcel touching the water
-// turns to slops, an emulsion heavier than FAME and lighter than water, which never lines up. Every few pumps a
-// draw-off is ready: spent on a tank, it drains the water and slops from its foot, and what's above drops, which can
-// line up and ship. And a tanker at the jetty takes one grade: three of it in a line ship, four of any other; every
-// ten pumps the next comes, for another grade (shown while it waits), and the lines of three of its grade standing
-// ready ship as it comes in. The page (settle.js) draws it; tests/settle.mjs checks this.
+// Settle's rules, pure (no page): a Hanseatic foundry. Crucibles stand side by side, each some parcels high; the metals in
+// them settle by density, heaviest at the foot, so a pour lands at its density level and the stacks are never the player's
+// choice, only which crucible. Two parcels are offered; pick one and pour it into one crucible. An order is a block w
+// crucibles wide by k levels tall: when the parcels in the block are exactly the order's recipe, in any arrangement, the
+// whole block drains and is cast, what stood above drops, and the next block is looked for (a chain). Zinc left on top of
+// a crucible for BURN pours burns to dross, which floats, fills room and matches no order; skimming it off costs a turn.
+// The melt is won at its goal of casts and lost when every crucible is full (and no dross can be skimmed).
+// The page (settle.js) draws it; tests/settle.mjs checks this.
 //
-// A game is one object, as saved: { v, seed, n (draws made), tanks (six lists of grades 0–4, bottom up, each in order
-// of density), hand (the two parcels offered), pumps (moves made, draw-offs too), untilDelivery, sour (for each tank,
-// pumps its FAME has stood on water), untilDraw (pumps until a draw-off is ready; 0, ready), want (the grade the
-// tanker at the jetty takes), next (the next tanker's), untilTanker (pumps until it comes), lives, score, over };
-// a level's adds lv (its number), rules, goal, limit, shipped (parcels shipped so far) and won.
+// A game is one object, as saved: { v, seed, n (draws made), lv (the level, 0 for a random or daily melt), cols, height,
+// orders (ids, settle-alloys.js's RECIPES), mix ([metal, weight] pairs the parcels are drawn from), goal (casts), burn
+// (whether zinc burns), tanks (cols lists of parcels, bottom up, each { m (metal), a (pours zinc has stood on top) }),
+// hand (the two metals offered), pours (turns taken, skims too), score, casts, burned, over, won }.
+import { METALS, RECIPES, BURN, DROSS, heavier } from "./settle-alloys.js";
 
-export const TANKS = 6, LEVELS = 8, GRADES = 4, LIVES = 3, START = 14;
-// slops (SLOP) aren't one of the GRADES offered or delivered: only FAME standing on water makes them
-export const WATER = 0, FAME = 1, SLOP = 4;
-export const NAMES = ["Water", "FAME", "Diesel", "Naphtha", "Slops"], DENSITY = [999, 883, 835, 700, 950];   // kg/m³ at 15 °C
-// FAME on water for SOUR pumps turns to slops; a draw-off is ready DRAW pumps after the last; a tanker stays TANKER pumps
-export const SOUR = 5, DRAW = 10, TANKER = 10;
-// the deliveries: until so many pumps, every so many pumps, so many parcels
-export const PACE = [[25, 3, 1], [60, 2, 1], [120, 1, 1], [200, 1, 2], [Infinity, 1, 3]];
-/** Whether a part of the game is on: all are, unless a level's rules switch one off (deliver, sour, tanker, draw). */
-export const rule = (s, k) => s.rules?.[k] !== false;
-const paceAt = pumps => PACE.find(([until]) => pumps < until);
-export const deliveryEvery = pumps => paceAt(pumps)[1];
-export const deliveryCount = pumps => paceAt(pumps)[2];
+export const VERSION = 2;
+export { BURN };
+/** What a cast of n parcels is worth: ten times the square, so a longer block is worth more than its parcels apart. */
+export const worth = n => 10 * n * n;
+/** What a burn of zinc to dross costs. */
+export const BURN_COST = 10;
 
-function draw(seed, n) {
+/** The nth draw of a seed, 0 to 1 (a hash, so a melt is the same melt on every device). */
+export function draw(seed, n) {
   let a = (Math.imul((seed >>> 0) ^ 0x9E3779B9, 0x85EBCA6B) ^ Math.imul((n >>> 0) + 0x632BE5AB, 0xC2B2AE35)) >>> 0;
   a = (a + 0x6D2B79F5) >>> 0;
   let t = Math.imul(a ^ (a >>> 15), a | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
-const pick = (s, k) => Math.floor(draw(s.seed, s.n++) * k);
+/** The metal the nth draw of a seed is, by the mix's weights. */
+export function parcelAt(seed, n, mix) {
+  let r = draw(seed, n) * mix.reduce((a, [, w]) => a + w, 0);
+  for (const [m, w] of mix) if ((r -= w) < 0) return m;
+  return mix[0][0];
+}
+/** A mix that favours what some orders need: each order's parts, with a little of every metal in play so nothing is certain. */
+export function mixFor(orderIds, floor = 0.25) {
+  const w = {};
+  for (const id of orderIds) for (const [m, k] of Object.entries(RECIPES[id].parts)) w[m] = (w[m] || 0) + k / RECIPES[id].n;
+  for (const m of Object.keys(w)) w[m] += floor / Object.keys(w).length;
+  return Object.entries(w).sort((a, b) => b[1] - a[1]).map(([m, x]) => [m, Math.round(x * 1000) / 1000]);
+}
 
-/** The level a parcel of grade g settles at in a tank: on everything as heavy or heavier. */
-export const settles = (tank, g) => tank.filter(x => DENSITY[x] >= DENSITY[g]).length;
-/** The tanks with a parcel of grade g pumped into tank t: it settles on what's as heavy or heavier. */
-export function pumped(tanks, t, g) {
-  const out = tanks.map(x => x.slice());
-  out[t].splice(settles(out[t], g), 0, g);
-  return out;
-}
-/** How many parcels a draw-off would take from a tank: the water and slops at its foot (the two heaviest). */
-export const foot = tank => tank.filter(x => x === WATER || x === SLOP).length;
-/** How many of grade g in a line ship with the tanker for grade `want` at the jetty: three of its grade, four of any other. */
-export const need = (g, want) => (want == null || g === want ? 3 : 4);
 /**
- * The parcels in a line that ships with the tanker for grade `want` ([t, level] pairs): three or more of its grade at one
- * level in neighbouring tanks, four or more of any other; slops never. With no tanker given, three of any grade: the
- * lines standing ready for their grade's tanker as well.
+ * A new melt. spec: { cols, height, orders, goal, mix (default: mixFor the orders), burn (default: true when zinc is dealt),
+ * lv }; the same seed deals the same parcels.
  */
-export function lines(tanks, want) {
-  const out = [];
-  for (let level = 0; level < LEVELS + 1; level++) {
-    let start = 0;
-    for (let t = 1; t <= tanks.length; t++) {
-      const g = tanks[start]?.[level];
-      if (t < tanks.length && g != null && tanks[t][level] === g) continue;
-      if (g != null && g !== SLOP && t - start >= need(g, want)) for (let k = start; k < t; k++) out.push([k, level]);
-      start = t;
-    }
-  }
-  return out;
+export function newGame(spec, seed) {
+  const mix = spec.mix ?? mixFor(spec.orders);
+  const s = {
+    v: VERSION, seed: seed >>> 0, n: 0, lv: spec.lv ?? 0, cols: spec.cols, height: spec.height, orders: spec.orders.slice(), mix, goal: spec.goal,
+    burn: spec.burn ?? mix.some(([m]) => m === "Zn"), tanks: Array.from({ length: spec.cols }, () => []), hand: [], pours: 0, score: 0, casts: 0, burned: 0, over: false, won: false,
+  };
+  s.hand = [parcelAt(s.seed, s.n++, mix), parcelAt(s.seed, s.n++, mix)];
+  return s;
 }
-/**
- * Ships out every line with the tanker for grade `want` at the jetty, wave after wave as what's above drops: the tanks
- * after and the waves ([[t, level, grade]]).
- */
-export function ship(tanks, want) {
-  let now = tanks.map(x => x.slice());
-  const waves = [];
-  for (let found = lines(now, want); found.length; found = lines(now, want)) {
-    waves.push(found.map(([t, level]) => [t, level, now[t][level]]));
-    // highest first, so the levels of the rest in the same tank stand
-    for (const [t, level] of [...found].sort((a, b) => b[1] - a[1])) now[t].splice(level, 1);
-  }
-  return { tanks: now, waves };
+/** Whether a saved object is a game this build made. */
+export const valid = g => !!g && g.v === VERSION && Number.isInteger(g.cols) && Array.isArray(g.tanks) && g.tanks.length === g.cols && Array.isArray(g.hand) && g.hand.length === 2
+  && Array.isArray(g.orders) && g.orders.every(id => RECIPES[id]) && g.tanks.every(t => Array.isArray(t) && t.every(p => METALS[p?.m]));
+const clone = tanks => tanks.map(t => t.map(p => ({ ...p })));
+
+/** The level a parcel of metal m settles at in a crucible: on everything as dense or denser. */
+export const settles = (tank, m) => tank.filter(p => heavier(p.m, m)).length;
+/** The crucibles with a parcel of metal m poured into crucible c: { tanks, level, fresh (the parcel) }. */
+export function poured(tanks, c, m) {
+  const out = clone(tanks), level = settles(out[c], m), fresh = { m, a: 0 };
+  out[c].splice(level, 0, fresh);
+  return { tanks: out, level, fresh };
 }
-/** A delivery for a tank: a grade and a tank with room for it that makes no line. */
-function delivery(s) {
-  const room = [...Array(TANKS).keys()].filter(t => s.tanks[t].length < LEVELS);
-  for (let tries = 0; tries < 24 && room.length; tries++) {
-    const t = room[pick(s, room.length)], g = pick(s, GRADES);
-    if (!lines(pumped(s.tanks, t, g), s.want).length) return { t, g };
+
+const BLOCKS = ids => ids.map(id => RECIPES[id]).sort((a, b) => b.n - a.n || (a.id < b.id ? -1 : 1));
+/** Whether the parcels of a block are exactly an order's recipe, in any arrangement. */
+export function isRecipe(parcels, r) {
+  if (parcels.length !== r.n) return false;
+  const have = {};
+  for (const p of parcels) have[p.m] = (have[p.m] || 0) + 1;
+  return Object.keys(have).length === Object.keys(r.parts).length && Object.entries(r.parts).every(([m, k]) => have[m] === k);
+}
+/** The first block to ship, lowest level first, then the biggest order, then the leftmost: { r, c, order } or null. */
+export function findBlock(tanks, orderIds) {
+  const height = Math.max(0, ...tanks.map(t => t.length));
+  for (let r = 0; r < height; r++) for (const o of BLOCKS(orderIds)) for (let c = 0; c + o.w <= tanks.length; c++) {
+    const cells = [];
+    let whole = true;
+    for (let x = c; x < c + o.w && whole; x++) for (let y = r; y < r + o.k; y++) { const p = tanks[x][y]; if (!p) { whole = false; break; } cells.push(p); }
+    if (whole && isRecipe(cells, o)) return { r, c, order: o };
   }
   return null;
 }
-
-/** The grade of the tanker after one for grade g: any other, at random. */
-const another = (s, g) => (g + 1 + pick(s, GRADES - 1)) % GRADES;
-/** The first tankers: the one at the jetty, the next, and the pumps until it comes. */
-function charter(s) {
-  s.want = pick(s, GRADES);
-  s.next = another(s, s.want);
-  s.untilTanker = TANKER;
-  return s;
-}
-/** A new game from a seed: START parcels about the tanks, no line of three standing, two parcels offered, a tanker in. */
-export function newGame(seed) {
-  const s = { v: 1, seed: seed >>> 0, n: 0, tanks: Array.from({ length: TANKS }, () => []), hand: [], pumps: 0, untilDelivery: deliveryEvery(0), sour: new Array(TANKS).fill(0), untilDraw: DRAW, lives: LIVES, score: 0, over: false };
-  for (let k = 0; k < START; k++) { const d = delivery(s); if (d) s.tanks = pumped(s.tanks, d.t, d.g); }
-  s.hand = [pick(s, GRADES), pick(s, GRADES)];
-  return charter(s);
-}
-/** A game saved before slops and draw-offs given their clocks, and one saved before the tankers given its first. */
-export function upgrade(game) {
-  let s = game;
-  if (s.goal != null) return s;   // a level is always whole
-  if (!Array.isArray(s.sour) || s.untilDraw == null) s = { ...structuredClone(s), sour: new Array(TANKS).fill(0), untilDraw: DRAW };
-  if (s.want == null) s = charter(s === game ? structuredClone(s) : s);
-  return s;
-}
-/** Ten times the square of the parcels shipped in one pump, all its waves together. */
-export const worth = n => 10 * n * n;
-
 /**
- * Where FAME stands on water (the parcel over a tank's top water), a pump nearer souring; at SOUR the FAME touching
- * the water turns to slops, which then stand between them. The parcels that turned, [t, level].
+ * The orders that ship from these crucibles, block after block (what's above dropping into the place of each before the next
+ * is looked for): { tanks, casts: [{ id, name, r, c, w, k, n, gain, cells: [[crucible, level, metal]] }] }.
  */
-function sour(s) {
-  const turned = [];
-  s.tanks.forEach((tank, t) => {
-    const w = tank.lastIndexOf(WATER);
-    if (w < 0 || tank[w + 1] !== FAME) { s.sour[t] = 0; return; }
-    if (++s.sour[t] < SOUR) return;
-    tank[w + 1] = SLOP;
-    s.sour[t] = 0;
-    turned.push([t, w + 1]);
-  });
-  return turned;
-}
-const shipped = waves => waves.reduce((a, w) => a + w.length, 0);
-/**
- * The rest of a move, a pump or a draw-off: what lines up ships, the tank pumped into (t, or -1) spills past eight,
- * the next tanker may come in (the lines of three of its grade shipping), a delivery may come, FAME on water sours,
- * and a draw-off comes nearer (or, just spent, starts again).
- */
-function settle(s, t, drew) {
-  const r = ship(s.tanks, s.want);
-  s.tanks = r.tanks;
-  const n = shipped(r.waves), gain = n ? worth(n) : 0;
-  // past eight the top parcel spills over
-  let spilled = -1;
-  if (t >= 0 && s.tanks[t].length > LEVELS) { spilled = s.tanks[t].pop(); s.lives--; }
-  let tanker = null;
-  if (rule(s, "tanker") && --s.untilTanker <= 0) {
-    s.want = s.next;
-    s.next = another(s, s.want);
-    s.untilTanker = TANKER;
-    const a = ship(s.tanks, s.want), m = shipped(a.waves);
-    s.tanks = a.tanks;
-    tanker = { want: s.want, waves: a.waves, gain: m ? worth(m) : 0 };
-  }
-  s.score += gain + (tanker?.gain ?? 0);
-  s.pumps++;
-  // a level is won the moment enough has shipped: nothing comes after it
-  if (s.goal != null) {
-    s.shipped += n + (tanker ? shipped(tanker.waves) : 0);
-    if (s.shipped >= s.goal) s.won = true;
-  }
-  const delivered = [];
-  if (!s.won && rule(s, "deliver") && --s.untilDelivery <= 0) {
-    for (let k = deliveryCount(s.pumps - 1); k > 0; k--) {
-      const d = delivery(s);
-      if (d) { s.tanks = pumped(s.tanks, d.t, d.g); delivered.push(d); }
+export function ship(tanks, orderIds) {
+  let t = clone(tanks);
+  const casts = [];
+  for (let b = findBlock(t, orderIds); b; b = findBlock(t, orderIds)) {
+    const { r, c, order: o } = b, cells = [];
+    for (let x = c; x < c + o.w; x++) {
+      for (let y = r; y < r + o.k; y++) cells.push([x, y, t[x][y].m]);
+      t[x].splice(r, o.k);
     }
-    s.untilDelivery = deliveryEvery(s.pumps);
+    casts.push({ id: o.id, name: o.name, r, c, w: o.w, k: o.k, n: o.n, gain: worth(o.n), cells });
   }
-  const soured = s.won || !rule(s, "sour") ? [] : sour(s);
-  s.untilDraw = drew ? DRAW : Math.max(0, s.untilDraw - 1);
-  s.over = s.won || s.lives <= 0 || (s.goal != null && s.pumps >= s.limit);
-  return { state: s, waves: r.waves, gain, spilled, tanker, delivered, soured, over: s.over };
+  return { tanks: t, casts };
 }
-/**
- * Pumps the offered parcel in hand slot `slot` into tank t: the game after it, and what happened, for the page to
- * show: grade, level (where it settled), waves (as ship gives them), gain (what they scored), spilled (the grade
- * spilled over, or -1), tanker (the next tanker come in: { want, waves, gain }, or null), delivered ([{ t, g }]),
- * soured ([t, level]: FAME turned to slops), over. Pure.
- */
-export function pump(game, slot, t) {
-  const s = structuredClone(game), g = s.hand[slot];
-  if (s.over || g == null) throw new Error("no parcel there");
-  if (!(t >= 0 && t < TANKS)) throw new Error("no such tank");
-  const level = settles(s.tanks[t], g);
-  s.tanks = pumped(s.tanks, t, g);
-  s.hand[slot] = pick(s, GRADES);
-  return { grade: g, level, ...settle(s, t, false) };
+
+/** The pours open now: [{ slot, c }] for each parcel offered and each crucible with room. */
+export function moves(s) {
+  const out = [];
+  for (let slot = 0; slot < 2; slot++) for (let c = 0; c < s.cols; c++) if (s.tanks[c].length < s.height) out.push({ slot, c });
+  return out;
 }
-/**
- * Spends the draw-off on tank t: the water and slops at its foot drained, what's above dropping into their place.
- * The game after it, and what happened: drained (the grades taken, bottom up), then as a pump's. Pure; throws if no
- * draw-off is ready or the tank has nothing at its foot.
- */
-export function drawOff(game, t) {
-  const s = structuredClone(game);
-  if (s.over || !rule(s, "draw") || s.untilDraw > 0) throw new Error("no draw-off ready");
-  if (!(t >= 0 && t < TANKS)) throw new Error("no such tank");
-  const k = foot(s.tanks[t]);
-  if (!k) throw new Error("nothing at its foot");
-  const drained = s.tanks[t].splice(0, k);
-  return { drained, ...settle(s, -1, true) };
-}
-/** Every pump there is: [{ slot, t }]. For the tests and the tuning players. */
-export const moves = () => [0, 1].flatMap(slot => [...Array(TANKS).keys()].map(t => ({ slot, t })));
-/** The tanks a draw-off could be spent on now (none while it isn't ready). */
-export const draws = s => (s.over || !rule(s, "draw") || s.untilDraw > 0 ? [] : [...Array(TANKS).keys()].filter(t => foot(s.tanks[t]) > 0));
-export const filled = s => s.tanks.reduce((a, x) => a + x.length, 0);
+/** The crucibles with dross on top, which a skim clears. */
+export const skims = s => (s.burn ? s.tanks.map((t, c) => (t.at(-1)?.m === DROSS ? c : -1)).filter(c => c >= 0) : []);
+const stuck = s => !moves(s).length && !skims(s).length;
 
 /**
- * A level's game: the level's tanks dealt from its seed (no line standing), its parts switched on or off (`rules`), a
- * goal to ship and the pumps it has. level: { id, seed, parcels (dealt about the tanks), rules, goal, limit, drawn
- * (the draw-off ready from the start), sour (pumps FAME standing on water at the start has already soured for) }.
+ * Ages the zinc standing on top of each crucible, but not the parcel just poured (flagged f: it has not stood there yet);
+ * what reaches BURN turns to dross: [[crucible, level]] burnt. The flags are cleared.
  */
-export function newLevel(level) {
-  const s = { v: 1, seed: level.seed >>> 0, n: 0, tanks: Array.from({ length: TANKS }, () => []), hand: [], pumps: 0, untilDelivery: deliveryEvery(0), sour: new Array(TANKS).fill(0), untilDraw: level.drawn ? 0 : DRAW, lives: LIVES, score: 0, over: false,
-    lv: level.id, rules: { ...level.rules }, goal: level.goal, limit: level.limit, shipped: 0, won: false };
-  for (let k = 0; k < level.parcels; k++) { const d = delivery(s); if (d) s.tanks = pumped(s.tanks, d.t, d.g); }
-  s.hand = [pick(s, GRADES), pick(s, GRADES)];
-  // FAME already standing on water when the level opens has been souring for `sour` pumps
-  if (level.sour) s.tanks.forEach((tank, t) => { const w = tank.lastIndexOf(WATER); if (w >= 0 && tank[w + 1] === FAME) s.sour[t] = level.sour; });
-  return rule(s, "tanker") ? charter(s) : s;
+function age(tanks, on) {
+  const burnt = [];
+  tanks.forEach((t, c) => {
+    const p = t.at(-1);
+    if (on && p && p.m === "Zn" && !p.f && ++p.a >= BURN) { p.m = DROSS; p.a = 0; burnt.push([c, t.length - 1]); }
+    for (const q of t) delete q.f;
+  });
+  return burnt;
 }
+function settleUp(s, tanks, casts, burnt) {
+  const gain = casts.reduce((a, x) => a + x.gain, 0), lost = Math.min(s.score + gain, burnt.length * BURN_COST);
+  s.tanks = tanks;
+  s.score += gain - lost;
+  s.casts += casts.length;
+  s.burned += burnt.length;
+  s.pours++;
+  if (s.casts >= s.goal) { s.won = true; s.over = true; } else if (stuck(s)) s.over = true;
+  return { gain, lost };
+}
+
+/**
+ * Pours the parcel offered in `slot` into crucible c: { state (the game after; the one given is left as it was), level (where
+ * the parcel settled), casts (the blocks that shipped, in order), burnt (zinc that burned to dross: [[crucible, level]]),
+ * gain, lost }. Throws on a move the rules don't allow.
+ */
+export function pour(s, slot, c) {
+  if (s.over) throw new Error("the melt is over");
+  if (!(slot === 0 || slot === 1) || !(c >= 0 && c < s.cols)) throw new Error("no such pour");
+  if (s.tanks[c].length >= s.height) throw new Error(`crucible ${c + 1} is full`);
+  const next = structuredClone(s), m = s.hand[slot], { tanks, level, fresh } = poured(s.tanks, c, m);
+  fresh.f = 1;   // the parcel just poured does not age on the pour that puts it there: it has not stood on top yet
+  const sh = ship(tanks, s.orders), burnt = age(sh.tanks, s.burn);
+  next.hand[slot] = parcelAt(s.seed, next.n++, s.mix);
+  const { gain, lost } = settleUp(next, sh.tanks, sh.casts, burnt);
+  return { state: next, level, casts: sh.casts, burnt, gain, lost };
+}
+/** Skims the dross off the top of crucible c: costs a turn (zinc elsewhere ages), no parcel is used. Same result shape as pour. */
+export function skim(s, c) {
+  if (s.over) throw new Error("the melt is over");
+  if (!skims(s).includes(c)) throw new Error(`no dross on top of crucible ${c + 1}`);
+  const next = structuredClone(s);
+  next.tanks[c].pop();
+  const sh = ship(next.tanks, s.orders), burnt = age(sh.tanks, s.burn);
+  const { gain, lost } = settleUp(next, sh.tanks, sh.casts, burnt);
+  return { state: next, level: -1, casts: sh.casts, burnt, gain, lost, skimmed: c };
+}
+/** What a move would do, without making it: pour (slot 0 or 1) or skim (slot -1). */
+export const preview = (s, slot, c) => (slot < 0 ? skim(s, c) : pour(s, slot, c));

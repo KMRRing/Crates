@@ -25,12 +25,12 @@
   </header>
 
   <div class="st-strip full-pull">
-    <span class="st-score" id="stripA">Score <b id="score">0</b></span>
-    <span id="lives" class="st-lives"></span>
-    <span class="st-best" id="stripB">Best <b id="best">0</b></span>
+    <span id="stripA"></span>
+    <span id="stripB"></span>
   </div>
-  <section id="farm" class="st-farm fit-grow fit-box" aria-label="The tank farm">
-    <svg id="board" class="st-board" xmlns="http://www.w3.org/2000/svg" viewBox="-2 -14 74 87" role="img" aria-label="The tank farm"></svg>
+  <section id="orders" class="st-orders" aria-label="Standing orders"></section>
+  <section id="farm" class="st-farm fit-grow fit-box" aria-label="The crucibles">
+    <canvas id="board" class="st-board" role="img" aria-label="Crucibles of molten metal, the heaviest at the foot"></canvas>
   </section>
 
   <section class="st-side">
@@ -38,11 +38,11 @@
     <div id="tray" class="st-tray">
       <button class="st-card" type="button" data-slot="0"></button>
       <button class="st-card" type="button" data-slot="1"></button>
-      <button class="st-card st-draw" type="button" data-slot="draw" id="drawBtn"></button>
+      <button class="st-card st-skim" type="button" data-slot="skim" id="skimBtn"></button>
     </div>
     <div id="result" class="st-result" hidden>
       <p id="verdict" class="st-verdict"></p>
-      <div class="st-btns"><button class="st-go" type="button" id="againBtn">New game</button><button class="st-go" type="button" id="nextBtn" hidden>Next level</button></div>
+      <div class="st-btns"><button class="st-go" type="button" id="againBtn">New melt</button><button class="st-go" type="button" id="nextBtn" hidden>Next level</button></div>
     </div>
   </section>
 </div>

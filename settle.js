@@ -1,451 +1,438 @@
-// Settle: six tanks of a tank farm, four grades settling by density. Drag one of the two parcels offered onto a tank
-// (or tap it, then the tank); while it's held over a tank, the farm is shown as the parcel would leave it: where it
-// settles, what it lifts, the lines that would ship out ringed, or the spill it would cause. Let go to pump it. The
-// draw-off beside them, once ready, is dragged onto a tank the same way, to drain the water and slops from its foot;
-// FAME standing on water shows how many pumps it has before it sours. Over the header pipe the tanker at the jetty
-// shows the grade it takes by threes (any other by fours), and the next one's grade and when it comes; lines of three
-// standing ready for their grade's tanker are dotted. The rules are settle-engine.js's; this file draws the farm, plays
-// each move out and keeps the game.
-import { TANKS, LEVELS, LIVES, NAMES, DENSITY, WATER, FAME, SLOP, SOUR, newGame, newLevel, upgrade, rule, settles, pumped, foot, lines, ship, pump, drawOff, draws, worth } from "./settle-engine.js";
-import { LEVELS as COURSE, levelOf, starsFor, isOpen } from "./settle-levels.js";
+// Settle: a foundry. Crucibles stand side by side, metals poured into them settle by density (heaviest at the foot), and a
+// block of the right parcels, as wide and tall as a standing order says, is cast and drawn off. Drag one of the two
+// parcels offered onto a crucible (or tap it, then the crucible): held over one, the board shows the crucible as the pour
+// would leave it (where the parcel settles, the block that would be cast ringed, zinc that would burn). Zinc left on top
+// burns to dross after a few pours; Skim, dragged the same way, takes dross off a crucible's top and costs a turn.
+// The rules are settle-engine.js's, the hand of the bot settle-solve.js's; this file draws the board on a canvas, plays
+// each move out and keeps the game. Three ways to play, each with its own saved run: the levels, a random melt (its
+// difficulty climbs on a hidden ramp) and today's melt, the same on every device.
+import { newGame, poured, pour, skim, preview, skims, worth, BURN_COST } from "./settle-engine.js";
+import { METALS, RECIPES, TIERS, BURN, SKIM_NOTE } from "./settle-alloys.js";
+import { LEVELS, levelOf, specOf, starsFor, isOpen, randomSpec, dailySpec } from "./settle-levels.js";
+import { valid } from "./settle-engine.js";
+import { sound } from "./settle-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, onPause } from "./menu.js";
+import { part, action, line, toggle, onPause, todayPart } from "./menu.js";
 import { roundOver } from "./random.js";
-import { noteStars, IN_FRAME } from "./suite.js";
-import { wants3D, onDefaultChange } from "./mode3d.js";
-import { busy, load3d } from "./loading.js";
+import { noteStars, IN_FRAME, today, arrivedForToday } from "./suite.js";
+import { ramp } from "./ramp.js";
 
 const $ = id => document.getElementById(id);
-const SVG = "http://www.w3.org/2000/svg";
-const VIEW = "suite:settle-view";   // flat or 3D: this device's own, so it stays out of what syncs (and a watching frame never writes it)
-const RUN = "settle:run", LRUN = "settle:lrun", DONE = "settle:levels", MODE = "settle:mode", BEST = "settle:best", SEEN = "settle:seen", DREW = "settle:drew", JETTY = "settle:jetty";   // pumps made with the tanker explained
-const TW = 10, GAP = 2, LH = 7.4, BASE = 60;   // a tank's width, the gap between, a level's height, the floor
-const LETTER = ["W", "F", "D", "N", "S"];
-const DRAWN = "draw";   // the draw-off card's slot, held as a parcel's is
+const MODE = "settle:mode", CAMP = "settle:camp", LRUN = "settle:lrun", RRUN = "settle:rrun", DRUN = "settle:drun", DAILY = "settle:daily", BEST = "settle:best", SOUND = "settle:sound", VER = "settle:ver";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-// the Farm (a 3x3 board) was removed on 4 November 2026; its keys are cleared so nobody lands on a missing mode
-try { for (const k of ["settle:kind", "settle:frun", "settle:fbest"]) localStorage.removeItem(k); } catch { /* private mode */ }
+const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => n.toLocaleString("en-GB");
-const upper = s => s[0].toUpperCase() + s.slice(1);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+// The tank farm this page was before 8 November 2026 saved other things under the same prefix: cleared once, so nobody lands on a missing mode
+if (!IN_FRAME && read(VER, 0) !== 2) {
+  try { for (const k of ["settle:run", "settle:lrun", "settle:levels", "settle:mode", "settle:best", "settle:seen", "settle:drew", "settle:jetty", "suite:settle-view"]) localStorage.removeItem(k); } catch { /* private mode */ }
+  write(VER, 2);
+}
+sound.on = read(SOUND, true) !== false;
 
 let S = null;            // the game (settle-engine.js's), as saved
-let playing = false;     // a pump being played out
-let drag = null;         // a parcel offered (or the draw-off), held: { slot, id, x0, y0, moved, t }
-let picked = -1;         // a parcel (or the draw-off) tapped, to use with a tap on a tank
-let V3 = null;            // the 3D farm (settle-3d.js), when it is the one shown; else the flat farm in the page
-let berth = null;        // the tanker drawn while a pump plays out ({ want, next, untilTanker }), else the game's
+let mode = "levels";     // levels, random or daily
+let day = 0;             // the day (YYYYMMDD) while today's melt is being played
+let playing = false;     // a move being played out
+let drag = null;         // a parcel (or the skim) held: { slot, id, x0, y0, moved, c, px, py }
+let picked = null;       // a card tapped, to use with a tap on a crucible
+let msg = "";            // what the last move did, until the next
+let camp = read(CAMP, {});   // { level id: { stars, turns } }
+const starsAll = () => Object.values(camp).reduce((n, d) => n + (d?.stars || 0), 0);
+const SKIMMING = -1;     // the skim's slot, as the engine has it
 
-const valid = g => g && g.v === 1 && Array.isArray(g.tanks) && g.tanks.length === TANKS && Array.isArray(g.hand) && g.hand.length === 2;
-// the game in play is a level's (S.goal) or the endless one; each keeps its own run, and the mode says which opens
-const isLevel = () => S.goal != null;
-let done = read(DONE, {});   // { level number: { stars, pumps } }
-const starsAll = () => Object.values(done).reduce((n, d) => n + (d?.stars || 0), 0);
-function save() { write(isLevel() ? LRUN : RUN, S); }
-function newRun() { S = newGame(Math.floor(Math.random() * 2 ** 31)); write(MODE, "endless"); drag = null; picked = -1; save(); render(); }
-function openLevel(L) { S = newLevel(L); write(MODE, "levels"); drag = null; picked = -1; save(); render(); }
-/** The level to carry on with: the first without a star. */
-const nextUp = () => COURSE.find(L => !done[L.id]?.stars) ?? COURSE.at(-1);
+// ---------- the game in play ----------
+const isLevel = () => mode === "levels";
+function save() {
+  if (mode === "daily") write(DRUN, { day, s: S });
+  else write(mode === "levels" ? LRUN : RRUN, S);
+}
+function begin(s, m) {
+  S = s; mode = m; drag = null; picked = null; msg = ""; playing = false;
+  if (m !== "daily") day = 0;
+  if (m !== "daily") write(MODE, m);   // today's is a visit, not a place to be left in
+  save();
+  buildOrders();
+  render();
+}
+const nextUp = () => LEVELS.find(L => !camp[L.id]?.stars) ?? LEVELS.at(-1);
+const openLevel = L => begin(newGame(specOf(L), L.seed), "levels");
+function openRandom() {
+  const seed = Math.floor(Math.random() * 2 ** 31), s = newGame(randomSpec(ramp("settle", LEVELS.map(L => L.id)), seed), seed);
+  begin(s, "random");
+}
+function playDaily() {
+  day = today();
+  const kept = read(DRUN, null);
+  if (kept && kept.day === day && valid(kept.s)) begin(kept.s, "daily");
+  else { const { spec, seed } = dailySpec(day); begin(newGame(spec, seed), "daily"); }
+}
 function keepStars() {
-  const L = levelOf(S.lv), stars = starsFor(L, S.pumps), was = done[L.id];
-  done = { ...done, [L.id]: { stars: Math.max(was?.stars || 0, stars), pumps: Math.min(was?.pumps ?? Infinity, S.pumps) } };
-  write(DONE, done);
+  const L = levelOf(S.lv), stars = starsFor(L, S.pours), was = camp[L.id];
+  camp = { ...camp, [L.id]: { stars: Math.max(was?.stars || 0, stars), turns: Math.min(was?.turns ?? Infinity, S.pours) } };
+  write(CAMP, camp);
   noteStars("settle", starsAll());
 }
 
-// ---------- drawing ----------
-const el = (tag, attrs = {}, ...kids) => {
-  const n = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) if (v != null) n.setAttribute(k, v);
-  n.append(...kids);
-  return n;
-};
-const tx = t => t * (TW + GAP), ly = level => BASE - (level + 1) * LH;
-/** A parcel: its grade's colour and letter (slops speckled, an emulsion); placed by an outer group so its own can move. */
-function parcelEl(g, t, level, cls = "", key = null) {
-  const label = el("text", { class: "st-letter", x: TW / 2, y: LH / 2 + .1 });
-  label.textContent = LETTER[g];
-  const body = el("g", { class: `st-parcel k${g} ${cls}`.trim() }, el("rect", { x: .8, y: .35, width: TW - 1.6, height: LH - .7, rx: 1.1 }));
-  if (g === SLOP) for (const [x, y, r] of [[2.3, 1.7, .45], [7.6, 2.2, .35], [2.9, 5.6, .35], [7.2, 5.4, .5]]) body.append(el("circle", { class: "st-bead", cx: x, cy: y, r }));
-  body.append(label);
-  return el("g", { transform: `translate(${tx(t)} ${ly(level).toFixed(2)})`, "data-key": key }, body);
+// ---------- the board, on a canvas ----------
+const board = $("board"), ctx = board.getContext("2d");
+let dpr = 1, theme = {};
+const glyphs = Object.fromEntries(Object.entries(METALS).map(([k, m]) => [k, new Path2D(m.glyph)]));
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+function readTheme() {
+  const cs = getComputedStyle(document.documentElement), v = (n, d) => cs.getPropertyValue(n).trim() || d;
+  theme = { ink: v("--ink", "#222"), brass: v("--brass", "#a8802a"), vat: v("--st-vat", "#2a2630"), rule: v("--rule", "#888"), danger: v("--st-danger", "#a8382b") };
 }
-/** A grade's name as a sentence has it. */
-const named = g => (g === FAME ? "FAME" : NAMES[g].toLowerCase());
-/** The ship that comes for a grade, as a sentence names it: a barge takes the water away, a tanker the rest. */
-const vessel = g => (g === WATER ? "the water barge" : `${named(g)}'s tanker`);
-/** The lines of three standing ready for their grade's tanker in these tanks: those of three that don't ship now. */
-const waiting = (tanks, want) => { const go = new Set(lines(tanks, want).map(p => p.join())); return lines(tanks).filter(p => !go.has(p.join())); };
-/** A cargo on deck, or a swatch of the next one: a grade's enamel and letter, small. */
-function cargoEl(g, x, y, w, h) {
-  const label = el("text", { class: "st-letter", x: x + w / 2, y: y + h / 2 + .05 });
-  label.textContent = LETTER[g];
-  return el("g", { class: `st-parcel st-cargo k${g}` }, el("rect", { x, y, width: w, height: h, rx: .6 }), label);
+function fit() {
+  const farm = $("farm"), w = farm.clientWidth, h = farm.clientHeight;
+  if (!w || !h) return;
+  dpr = Math.min(2, devicePixelRatio || 1);
+  board.width = Math.round(w * dpr); board.height = Math.round(h * dpr);
+  board.style.width = `${w}px`; board.style.height = `${h}px`;
 }
-/** Over the header pipe: the tanker at the jetty, its grade's cargo on deck, by threes; the next one's grade, and when. */
-function jettyEl({ want, next, untilTanker }, dim) {
-  const by = el("text", { class: "st-jetty-t", x: 18.6, y: -10.4 }), when = el("text", { class: "st-jetty-t", x: 60.4, y: -10.4 }), then = el("text", { class: "st-jetty-t end", x: 52.2, y: -10.4 });
-  by.textContent = "by threes";
-  then.textContent = "next";
-  when.textContent = `in ${untilTanker}`;
-  const ship = el("g", { class: "st-ship" }, el("path", { class: "st-hull", d: "M.3 -10.2H17.2L15.6 -7.8H1.3Z" }), el("rect", { class: "st-hull", x: 1, y: -13.3, width: 3.4, height: 3.1, rx: .4 }), cargoEl(want, 5.4, -13, 10.8, 2.8));
-  return el("g", { class: `st-jetty${dim ? " dim" : ""}` }, ship, by, then, cargoEl(next, 53.2, -11.8, 6.2, 2.8), when);
+/** Where the crucibles stand, in canvas pixels: cell width cw and height ch, the gap between, the left edge and the floor. */
+function geo() {
+  const W = board.width / dpr, H = board.height / dpr, gap = 12, ch0 = (H - 10) / (S.height + .15);
+  const cw = Math.min((W - 8 - gap * (S.cols - 1)) / S.cols, ch0 * 1.5), ch = Math.min(ch0, cw * 1.4);
+  return { W, H, gap, cw, ch, x0: (W - (S.cols * cw + (S.cols - 1) * gap)) / 2, floor: H - 6 };
 }
-/** Where FAME stands on water in a tank, the level of the water under it, or -1. */
-const contact = tank => { const w = tank.lastIndexOf(WATER); return w >= 0 && tank[w + 1] === FAME ? w : -1; };
-/**
- * The farm: these tanks, with extra: { ring ([t, level] parcels to ring: the lines shipping), wait (lines of three to
- * dot, standing ready for their tanker), fresh ([t, level]: the parcel pumped), over (a tank shown overflowing), tag
- * ([text, t]), aim (a tank the parcel is held over), sour (each tank's pumps of FAME on water, to mark how long it has
- * left) }; the tanker over it is the one in play.
- */
-function drawBoard(tanks, extra = {}) {
-  if (V3) { V3.draw(tanks, extra, rule(S, "tanker") ? { want: (berth ?? S).want, next: (berth ?? S).next, untilTanker: (berth ?? S).untilTanker } : null); return; }
-  const shells = el("g", {});
-  for (let t = 0; t < TANKS; t++) {
-    const x = tx(t);
-    shells.append(el("rect", { class: `st-shell${extra.aim === t ? " aim" : ""}`, x, y: ly(LEVELS - 1) - 1.4, width: TW, height: LEVELS * LH + 1.6, rx: 2.2 }),
-      el("path", { class: "st-drop", d: `M${x + TW / 2} -6.5V${ly(LEVELS - 1) - 1.4}` }));
+const colX = (g, c) => g.x0 + c * (g.cw + g.gap);
+const cellY = (g, level) => g.floor - (level + 1) * g.ch;
+/** The crucible under a point of the page (anywhere over its column), or -1. */
+function crucibleAt(px, py) {
+  if (!S) return -1;
+  const r = board.getBoundingClientRect(), g = geo(), x = px - r.left, y = py - r.top;
+  if (y < -8 || y > r.height + 8) return -1;
+  for (let c = 0; c < S.cols; c++) if (x >= colX(g, c) - g.gap / 2 && x <= colX(g, c) + g.cw + g.gap / 2) return c;
+  return -1;
+}
+
+let view = null;         // what the board shows now: { tanks, ghost, ring, held, stream, flash, target }
+let fx = [];             // pops and sparks
+function paintCell(g, c, level, p, { alpha = 1, top = false, t = 0 } = {}) {
+  const m = METALS[p.m], x = colX(g, c), y = cellY(g, level), w = g.cw, h = g.ch;
+  const wave = top ? Math.sin(t / 380 + c * 1.7) * 1.1 : 0;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.rect(x, y + wave, w, h - wave);
+  ctx.fillStyle = m.base; ctx.fill();
+  const sheen = ctx.createLinearGradient(x, y, x, y + h);
+  sheen.addColorStop(0, rgba(m.hi, .9 * m.shine)); sheen.addColorStop(.4, rgba(m.hi, .22 * m.shine)); sheen.addColorStop(1, "rgba(0,0,0,.22)");
+  ctx.fillStyle = sheen; ctx.fill();
+  if (m.shine > .6) {   // a bright metal gets a slanting streak
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = rgba(m.hi, .28 * m.shine);
+    ctx.beginPath(); ctx.moveTo(x + w * .12, y + h); ctx.lineTo(x + w * .34, y); ctx.lineTo(x + w * .46, y); ctx.lineTo(x + w * .24, y + h); ctx.fill();
   }
-  const parcels = el("g", { id: "parcels" });
-  tanks.forEach((tank, t) => tank.forEach((g, level) => {
-    const fresh = extra.fresh && extra.fresh[0] === t && extra.fresh[1] === level, spill = level >= LEVELS;
-    parcels.append(parcelEl(g, t, level, fresh ? "fresh" : spill ? "spill" : "", `${t}:${level}`));
-  }));
-  const marks = el("g", {});
-  for (const [t, level] of extra.wait || []) marks.append(el("rect", { class: "st-ring wait", x: tx(t) + .35, y: ly(level) - .05, width: TW - .7, height: LH + .1, rx: 1.4 }));
-  for (const [t, level] of extra.ring || []) marks.append(el("rect", { class: "st-ring", x: tx(t) + .25, y: ly(level) - .15, width: TW - .5, height: LH + .3, rx: 1.5 }));
-  // FAME on water: a mark where they meet, with the pumps left before it sours
-  if (extra.sour) tanks.forEach((tank, t) => {
-    const w = contact(tank), left = SOUR - extra.sour[t];
-    if (w < 0 || !extra.sour[t]) return;
-    const x = tx(t) + TW - .3, y = ly(w), n = el("text", { class: "st-sour-n", x, y: y + .1 });
-    n.textContent = left;
-    marks.append(el("g", { class: `st-sour${left <= 1 ? " due" : ""}` }, el("circle", { cx: x, cy: y, r: 2 }), n));
-  });
-  if (extra.tag) { const t = el("text", { class: "st-tag", x: Math.min(62, Math.max(8, tx(extra.tag[1]) + TW / 2)), y: -8 }); t.textContent = extra.tag[0]; marks.append(t); }
-  $("board").replaceChildren(
-    el("rect", { class: "st-ground", x: -2, y: BASE, width: 74, height: 3.5, rx: .8 }),
-    rule(S, "tanker") ? jettyEl(berth ?? S, !!extra.tag) : el("g", {}), el("path", { class: "st-header", d: `M-1 -6.5H71` }), shells, parcels, marks, el("g", { id: "fx" }));
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // zinc left on top darkens towards dross as it ages, with a pip for each pour it has left
+  if (p.m === "Zn" && S.burn && top && p.a > 0) {
+    ctx.fillStyle = `rgba(30,22,14,${.12 + .5 * p.a / BURN})`; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#fff";
+    for (let i = 0; i < BURN - p.a; i++) { ctx.beginPath(); ctx.arc(x + 5 + i * 6, y + 5, 2, 0, 7); ctx.fill(); }
+  }
+  ctx.strokeStyle = "rgba(0,0,0,.28)"; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  const s = Math.min(w, h) * .62;
+  ctx.translate(x + (w - s) / 2, y + (h - s) / 2); ctx.scale(s / 24, s / 24);
+  ctx.strokeStyle = "rgba(20,16,10,.7)"; ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.stroke(glyphs[p.m]);
+  ctx.restore();
+}
+function paint(now) {
+  if (!S || !view) return;
+  const g = geo();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, g.W, g.H);
+  for (let c = 0; c < S.cols; c++) {
+    const x = colX(g, c), top = cellY(g, S.height - 1);
+    ctx.fillStyle = theme.vat; ctx.globalAlpha = view.target === c ? .75 : 1;
+    ctx.fillRect(x - 3, top, g.cw + 6, g.floor - top + 3); ctx.globalAlpha = 1;
+    const t = view.tanks[c];
+    t.forEach((p, l) => paintCell(g, c, l, p, { top: l === t.length - 1, t: now }));
+    ctx.strokeStyle = theme.brass; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 3, top); ctx.lineTo(x - 3, g.floor + 3); ctx.lineTo(x + g.cw + 3, g.floor + 3); ctx.lineTo(x + g.cw + 3, top); ctx.stroke();
+  }
+  if (view.ghost) {   // where the parcel held would settle
+    const { c, level, m } = view.ghost;
+    paintCell(g, c, level, { m, a: 0 }, { alpha: .55 });
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = theme.ink; ctx.lineWidth = 1.5; ctx.strokeRect(colX(g, c) + 1, cellY(g, level) + 1, g.cw - 2, g.ch - 2); ctx.setLineDash([]);
+  }
+  if (view.ring) for (const [c, l] of view.ring) { ctx.strokeStyle = theme.brass; ctx.lineWidth = 3; ctx.strokeRect(colX(g, c) + 1.5, cellY(g, l) + 1.5, g.cw - 3, g.ch - 3); }
+  if (view.flash) { const k = .5 + .5 * Math.sin(now / 70); for (const [c, l] of view.flash) { ctx.fillStyle = `rgba(255,236,170,${.25 + .45 * k})`; ctx.fillRect(colX(g, c), cellY(g, l), g.cw, g.ch); } }
+  if (view.stream) {   // a stream falling from the lip into the crucible
+    const { c, m, t0 } = view.stream, k = Math.min(1, (now - t0) / 260), x = colX(g, c) + g.cw / 2, top = cellY(g, S.height - 1) - 10;
+    const to = cellY(g, view.tanks[c].length) ;
+    ctx.fillStyle = METALS[m].base; ctx.fillRect(x - 4, top, 8, Math.max(0, (to - top) * k));
+  }
+  if (view.held) { const { m, x, y } = view.held, s = Math.min(g.cw, g.ch) * .9; ctx.save(); ctx.globalAlpha = .9; ctx.fillStyle = METALS[m].base; ctx.fillRect(x - s / 2, y - s / 2, s, s); ctx.restore(); ctx.save(); ctx.translate(x - s * .3, y - s * .3); ctx.scale(s * .6 / 24, s * .6 / 24); ctx.strokeStyle = "rgba(20,16,10,.7)"; ctx.lineWidth = 2.4; ctx.stroke(glyphs[m]); ctx.restore(); }
+  fx = fx.filter(f => now - f.t0 < f.life);
+  for (const f of fx) {
+    const k = (now - f.t0) / f.life;
+    if (f.kind === "pop") { ctx.globalAlpha = 1 - k; ctx.fillStyle = theme.brass; ctx.font = "800 18px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText(f.text, f.x, f.y - 26 * k); ctx.globalAlpha = 1; }
+    else { const e = now - f.t0; ctx.globalAlpha = 1 - k; ctx.fillStyle = f.color; ctx.fillRect(f.x + f.vx * e / 16, f.y + f.vy * e / 16 + .0009 * e * e / 2, 3, 3); ctx.globalAlpha = 1; }
+  }
+  if (view.tag) { ctx.fillStyle = theme.brass; ctx.font = "800 15px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText(view.tag.text, view.tag.x, view.tag.y); }
+}
+let paused = false, looping = false;
+function loop(now) {
+  if (paused) { looping = false; return; }
+  paint(now);
+  requestAnimationFrame(loop);
+}
+function start() { if (!looping) { looping = true; requestAnimationFrame(loop); } }
+onPause(() => { paused = true; }, () => { paused = false; start(); });
+const pop = (c, level, text) => { const g = geo(); fx.push({ kind: "pop", text, x: colX(g, c) + g.cw / 2, y: cellY(g, level), t0: performance.now(), life: 1000 }); };
+function sparks(c, level) {
+  const g = geo(), now = performance.now();
+  for (let i = 0; i < 12; i++) fx.push({ kind: "spark", x: colX(g, c) + Math.random() * g.cw, y: cellY(g, level) + g.ch / 2, vx: (Math.random() - .5) * 3, vy: -Math.random() * 4, color: i % 2 ? "#ffd27a" : "#fff3c4", t0: now, life: 700 });
+}
+
+// ---------- the page around the board ----------
+const symbol = m => m;
+function chipOf(m, cls = "") {
+  const k = METALS[m];
+  return `<i class="${cls}" style="background:linear-gradient(180deg,${rgba(k.hi, .55 * k.shine + .1)},${k.base})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${k.glyph}"/></svg></i>`;
+}
+function buildOrders() {
+  const box = $("orders");
+  box.style.setProperty("--n", S.orders.length);
+  box.replaceChildren();
+  for (const id of S.orders) {
+    const r = RECIPES[id], cells = Object.entries(r.parts).sort((a, b) => METALS[b[0]].dens - METALS[a[0]].dens).flatMap(([m, k]) => Array(k).fill(m));
+    const rows = [];   // the heaviest at the foot, filled along each row from the bottom
+    for (let y = 0; y < r.k; y++) rows.unshift(cells.slice(y * r.w, (y + 1) * r.w));
+    const card = document.createElement("div");
+    card.className = "st-order"; card.dataset.id = id;
+    card.innerHTML = `<h2>${r.name}</h2><div class="st-block" style="--w:${r.w}">${rows.flat().map(m => `<i style="background:linear-gradient(180deg,${rgba(METALS[m].hi, .5 * METALS[m].shine + .1)},${METALS[m].base})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${METALS[m].glyph}"/></svg></i>`).join("")}</div>`
+      + `<p><span class="st-parts">${Object.entries(r.parts).map(([m, k]) => `${symbol(m)} ${k}`).join(" · ")}</span><br>${r.w} × ${r.k}</p>`;
+    box.append(card);
+  }
 }
 function drawStrip() {
-  if (isLevel()) {
-    $("stripA").innerHTML = `Level <b>${S.lv}</b> · shipped <b>${Math.min(S.shipped, S.goal)}</b>/<b>${S.goal}</b>`;
-    $("stripB").innerHTML = `Pump <b>${S.over ? S.pumps : S.pumps + 1}</b>/<b>${S.limit}</b>`;
-  } else {
-    $("stripA").innerHTML = `Score <b>${fmt(S.score)}</b>`;
-    $("stripB").innerHTML = `Best <b>${fmt(Math.max(read(BEST, 0), S.score))}</b>`;
-  }
-  const lives = $("lives");
-  lives.replaceChildren(...Array.from({ length: LIVES }, (_, k) => { const i = document.createElement("i"); if (k < S.lives) i.className = "on"; return i; }));
-  lives.setAttribute("aria-label", `${S.lives} of ${LIVES} lives`);
+  const L = isLevel() ? levelOf(S.lv) : null;
+  $("stripA").innerHTML = `Cast <b>${S.casts}</b> of ${S.goal} · <b>${fmt(S.score)}</b>`;
+  $("stripB").innerHTML = L ? `Turn <b>${S.pours}</b> · par ${L.par}` : `Turn <b>${S.pours}</b>${mode === "daily" ? " · today" : ""}`;
 }
-/**
- * The line under the farm when no parcel is held: a level's brief before its first pump, then what's coming. An endless
- * game's first pump, then the tanker for three pumps (once, for everyone); else the next delivery and the FAME nearest
- * souring.
- */
-function sideLine() {
-  const when = n => (n === 1 ? "after this pump" : `in ${n} pumps`);
-  const souring = rule(S, "sour") ? [...Array(TANKS).keys()].filter(t => S.sour[t] && contact(S.tanks[t]) >= 0).sort((a, b) => S.sour[b] - S.sour[a])[0] : null;
-  const tell = [rule(S, "deliver") ? `a delivery comes ${when(S.untilDelivery)}` : "", souring != null ? `tank ${souring + 1}'s FAME on water sours ${when(SOUR - S.sour[souring])}` : ""].filter(Boolean).join("; ");
-  const tanker = () => `The ${S.want === WATER ? "barge" : "tanker"} in takes ${named(S.want)} by threes, other grades by fours; ${S.next === WATER ? "the water barge" : `${named(S.next)}'s`} is next`;
-  const firstDraw = !read(DREW, false) && draws(S).length > 0, drawn = "A draw-off is ready: drag it onto a tank to drain the water and slops from its foot";
-  if (isLevel()) {
-    const L = levelOf(S.lv), left = S.goal - S.shipped;
-    return S.pumps === 0 ? L.note : rule(S, "tanker") && S.pumps < 3 ? tanker() : draws(S).length && S.pumps < 5 && L.drawn ? drawn
-      : `Ship ${left} more in ${S.limit - S.pumps} pump${S.limit - S.pumps === 1 ? "" : "s"}${tell ? `; ${tell}` : ""}`;
-  }
-  const first = !read(SEEN, false) && S.pumps < 1;
-  return first ? "Drag a parcel onto a tank: it settles by density, the heaviest at the foot"
-    : read(JETTY, 0) < 3 ? tanker() : firstDraw ? drawn : upper(tell);
+function drawTray() {
+  const over = S.over, tray = $("tray");
+  tray.hidden = over; $("line").hidden = over; $("result").hidden = !over;
+  tray.classList.toggle("noskim", !S.burn);
+  S.hand.forEach((m, i) => {
+    const b = tray.children[i], k = METALS[m];
+    b.innerHTML = `<span class="st-chip" style="background:linear-gradient(180deg,${rgba(k.hi, .55 * k.shine + .1)},${k.base})"><svg class="st-stamp" viewBox="0 0 24 24" aria-hidden="true"><path d="${k.glyph}"/></svg></span><b>${k.name}</b><span>${k.dens} g/cm³</span>`;
+    b.classList.toggle("picked", picked === i);
+    b.classList.toggle("lifted", !!drag?.moved && drag.slot === i);
+    b.setAttribute("aria-label", `${k.name}, density ${k.dens}`);
+  });
+  const sk = $("skimBtn"), ready = !over && skims(S).length > 0;
+  sk.hidden = !S.burn;
+  sk.disabled = !ready;
+  sk.classList.toggle("ready", ready);
+  sk.classList.toggle("picked", picked === SKIMMING);
+  sk.classList.toggle("lifted", !!drag?.moved && drag.slot === SKIMMING);
+  sk.innerHTML = `<svg class="st-ladle" viewBox="0 0 24 18" aria-hidden="true"><path d="M2 3h8M6 3v6"/><circle cx="14" cy="11" r="5"/><path d="M19 11h3"/></svg><b>Skim</b><span>${ready ? "dross on top" : "no dross"}</span>`;
 }
-function drawSide(text) {
-  $("tray").hidden = S.over;
-  $("line").hidden = S.over;
-  $("result").hidden = !S.over;
-  if (S.over) {
-    const best = read(BEST, 0), L = isLevel() ? levelOf(S.lv) : null, more = L && COURSE.some(x => x.id === L.id + 1);
-    $("verdict").textContent = L ? (S.won ? `Level ${L.id} done in ${S.pumps} pump${S.pumps === 1 ? "" : "s"}: ${"★".repeat(starsFor(L, S.pumps))}${"☆".repeat(3 - starsFor(L, S.pumps))} (par ${L.par})`
-        : `${S.lives <= 0 ? "A third spill" : "Out of pumps"}: ${S.shipped} of ${S.goal} shipped`)
-      : `A third spill: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
-    $("againBtn").textContent = L ? (S.won ? "Replay" : "Try again") : "New game";
-    $("nextBtn").hidden = !(L && S.won && more);
-    $("result").classList.toggle("two", !!L);
-    return;
-  }
-  $("drawBtn").hidden = !rule(S, "draw");
-  $("tray").classList.toggle("nodraw", !rule(S, "draw"));
-  $("line").textContent = text ?? sideLine();
-  for (const b of document.querySelectorAll(".st-card:not(.st-draw)")) {
-    const slot = Number(b.dataset.slot), g = S.hand[slot];
-    b.classList.toggle("picked", slot === picked);
-    b.classList.toggle("lifted", drag?.slot === slot && drag.moved);
-    const sw = el("svg", { viewBox: `0 0 ${TW} ${LH}`, class: "st-swatch", "aria-hidden": "true" }, parcelEl(g, 0, -1).firstChild);
-    b.replaceChildren(sw, Object.assign(document.createElement("b"), { textContent: NAMES[g] }), Object.assign(document.createElement("span"), { textContent: `${DENSITY[g]} kg/m³` }));
-    b.setAttribute("aria-label", `${NAMES[g]}, ${DENSITY[g]} kg per cubic metre: drag it onto a tank`);
-  }
-  // the draw-off: ready, or how many pumps until it is
-  const d = $("drawBtn"), ready = S.untilDraw === 0, can = draws(S).length > 0;
-  d.disabled = !ready || !can;
-  d.classList.toggle("ready", ready && can);
-  d.classList.toggle("picked", picked === DRAWN);
-  d.classList.toggle("lifted", drag?.slot === DRAWN && drag.moved);
-  // a hyphen that never breaks: the card is narrow
-  d.replaceChildren(valveEl(), Object.assign(document.createElement("b"), { textContent: "Draw\u2011off" }),
-    Object.assign(document.createElement("span"), { textContent: !ready ? `in ${S.untilDraw}` : can ? "ready" : "nothing to drain" }));
-  d.setAttribute("aria-label", ready ? "Draw-off ready: drag it onto a tank to drain the water and slops from its foot" : `Draw-off ready in ${S.untilDraw} pumps`);
+function drawResult() {
+  if (!S.over) return;
+  const L = isLevel() ? levelOf(S.lv) : null, again = $("againBtn"), next = $("nextBtn"), box = $("result");
+  let text;
+  if (S.won) {
+    if (L) { const n = starsFor(L, S.pours); text = `Cast ${S.goal} in ${plural(S.pours, "turn")} (par ${L.par}) · ${"★".repeat(n)}${"☆".repeat(3 - n)}`; }
+    else text = `Melt won: ${S.goal} cast in ${plural(S.pours, "turn")}, ${fmt(S.score)} points`;
+  } else text = `Crucibles full with ${S.casts} of ${S.goal} cast`;
+  $("verdict").textContent = text;
+  const nextLevel = L && S.won ? levelOf(L.id + 1) : null;
+  again.hidden = mode === "daily";
+  again.textContent = mode === "levels" ? (S.won ? "Replay" : "Try again") : "New melt";
+  next.hidden = mode === "daily" ? false : !nextLevel;
+  next.textContent = mode === "daily" ? "Back to levels" : "Next level";
+  box.classList.toggle("two", !again.hidden && !next.hidden);
 }
-/** A valve's handwheel, for the draw-off. */
-function valveEl() {
-  const spokes = [0, 60, 120].map(a => { const r = (a * Math.PI) / 180; return el("path", { d: `M${(5 - 2.6 * Math.cos(r)).toFixed(2)} ${(3.7 - 2.6 * Math.sin(r)).toFixed(2)}L${(5 + 2.6 * Math.cos(r)).toFixed(2)} ${(3.7 + 2.6 * Math.sin(r)).toFixed(2)}` }); });
-  return el("svg", { viewBox: `0 0 ${TW} ${LH}`, class: "st-swatch st-valve", "aria-hidden": "true" }, el("circle", { cx: 5, cy: 3.7, r: 2.9 }), ...spokes, el("circle", { class: "st-hub", cx: 5, cy: 3.7, r: .8 }));
-}
-function render() { drawBoard(S.tanks, { sour: S.sour, wait: waiting(S.tanks, S.want) }); drawStrip(); drawSide(); }
-/** What a draw-off on a tank would do, shown: the farm with its foot drained, what would ship ringed. */
-function showDraw(t) {
-  const k = foot(S.tanks[t]);
-  if (!k) { drawBoard(S.tanks, { aim: t }); drawSide(`Tank ${t + 1} has no water or slops at its foot`); return; }
-  const out = S.tanks[t].slice(0, k), after = S.tanks.map((x, i) => (i === t ? x.slice(k) : x.slice())), r = ship(after, S.want), n = r.waves.reduce((a, w) => a + w.length, 0);
-  const water = out.filter(g => g === WATER).length, slops = k - water;
-  drawBoard(after, { ring: lines(after, S.want), wait: waiting(after, S.want), aim: t, tag: n ? [`+${fmt(worth(n))}`, t] : null });
-  drawSide(`Draw off tank ${t + 1}: ${[water ? `${water} water` : "", slops ? `${slops} slops` : ""].filter(Boolean).join(" and ")} drained${n ? `, ${n} parcels ship, +${fmt(worth(n))}` : ", nothing lines up"}`);
-}
-/** What pumping the parcel in a slot into a tank would do, shown. */
-function show(slot, t) {
-  if (slot === DRAWN) { showDraw(t); return; }
-  const g = S.hand[slot], level = settles(S.tanks[t], g), after = pumped(S.tanks, t, g), r = ship(after, S.want);
-  const n = r.waves.reduce((a, w) => a + w.length, 0), spills = r.tanks[t].length > LEVELS, wait = waiting(after, S.want);
-  drawBoard(after, { ring: lines(after, S.want), wait, fresh: [t, level], aim: t, tag: n ? [`+${fmt(worth(n))}`, t] : null });
-  // a line of three of another grade made (four would ship): it stands ready for its grade's tanker
-  drawSide(spills ? `Tank ${t + 1} would be over full: its ${named(r.tanks[t].at(-1))} spills, a life`
-    : n ? `${NAMES[g]} into tank ${t + 1}: ${n} parcels ship out${r.waves.length > 1 ? ` in ${r.waves.length} waves` : ""}, +${fmt(worth(n))}`
-      : wait.some(([a, b]) => a === t && b === level) ? `${NAMES[g]} into tank ${t + 1}: three ${named(g)} in a line, ready for ${vessel(g)} or a fourth`
-        : `${NAMES[g]} into tank ${t + 1}: it settles at level ${level + 1}${after[t].length > level + 1 ? `, lifting ${after[t].length - level - 1} above it` : ""}`);
+function render() {
+  if (!S) return;
+  readTheme(); fit();
+  view = { tanks: S.tanks };
+  $("line").textContent = msg;
+  drawStrip(); drawTray(); drawResult();
+  $("board").setAttribute("aria-label", `Crucibles: ${S.tanks.map((t, i) => `${i + 1}: ${t.map(p => METALS[p.m].name).join(", ") || "empty"}`).join("; ")}`);
+  start();
 }
 
-// ---------- a pump ----------
-const wait = ms => new Promise(r => setTimeout(r, ms));
-const animate = (node, frames, opts) => (node?.animate ? node.animate(frames, { fill: "both", ...opts }).finished.catch(() => {}) : Promise.resolve());
-const node = (t, level) => $("board").querySelector(`[data-key="${t}:${level}"] > g`);
-/** Moves drawn parcels from where they stood: [t, level now, level before] (before LEVELS + 1: in from the pipe). */
-function slide(moves, ms = 220) {
-  if (V3) return V3.slide(moves, ms);
-  return Promise.all(moves.map(([t, now, was]) => animate(node(t, now), [{ transform: `translateY(${((now - was) * LH).toFixed(2)}px)` }, { transform: "translateY(0)" }], { duration: ms, easing: "ease-out" })));
+// ---------- holding a parcel over the crucibles ----------
+function describe(r, slot) {
+  const bits = [];
+  bits.push(slot < 0 ? "Skims the dross off: a turn" : `Settles at level ${r.level + 1}`);
+  if (r.casts.length) bits.push(`casts ${r.casts.map(x => x.name).join(", ")} +${fmt(r.gain)}`);
+  if (r.burnt.length) bits.push(`${plural(r.burnt.length, "zinc")} burns to dross −${BURN_COST * r.burnt.length}`);
+  return bits.join(" · ");
 }
-/** A parcel settling into a tank: it comes down the pipe, the lighter ones above it rise a level. */
-async function settleIn(tanks, t, g) {
-  const level = settles(tanks[t], g), after = pumped(tanks, t, g);
-  drawBoard(after, { fresh: [t, level] });
-  const rise = [];
-  for (let k = level + 1; k < after[t].length; k++) rise.push([t, k, k - 1]);
-  await slide([[t, level, LEVELS + 1], ...rise], 260);
-  return after;
-}
-/** A draw-off: the foot of tank t (k parcels) drains away through the floor, and what stood on it drops. */
-async function drain(tanks, t, k) {
-  drawBoard(tanks, { aim: t });
-  const out = [];
-  if (V3) out.push(V3.drain(t, k));
-  else for (let level = 0; level < k; level++) out.push(animate(node(t, level), [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${(LH * 1.2).toFixed(2)}px)`, opacity: 0 }], { duration: 320, easing: "ease-in" }));
-  await Promise.all(out);
-  const after = tanks.map((x, i) => (i === t ? x.slice(k) : x.slice()));
-  drawBoard(after);
-  await slide(after[t].map((_, level) => [t, level, level + k]), 260);
-  return after;
-}
-/** Lines shipping out, wave after wave, what floated above dropping into their places: the tanks after. */
-async function shipOut(tanks, waves) {
-  for (const wave of waves) {
-    drawBoard(tanks, { ring: wave.map(([a, b]) => [a, b]) });
-    await wait(260);
-    if (V3) V3.shipFx(wave);
-    else {
-      const fx = $("board").querySelector("#fx");
-      for (const [a, b, g] of wave) { const p = parcelEl(g, a, b); fx.append(p); animate(p.firstChild, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-6px)", opacity: 0 }], { duration: 300, easing: "ease-in" }).then(() => p.remove()); }
-    }
-    const next = tanks.map(x => x.slice()), drops = [];
-    for (const [a, b] of [...wave].sort((p, q) => q[1] - p[1])) next[a].splice(b, 1);
-    next.forEach((tank, a) => {
-      const gone = wave.filter(w => w[0] === a).map(w => w[1]);
-      if (!gone.length) return;
-      tanks[a].forEach((_, was) => { if (!gone.includes(was)) { const now = was - gone.filter(x => x < was).length; if (now !== was) drops.push([a, now, was]); } });
-    });
-    tanks = next;
-    drawBoard(tanks);
-    await slide(drops);
-  }
-  return tanks;
-}
-async function commit(slot, t) {
-  if (playing || S.over) return;
-  const drawing = slot === DRAWN;
-  if (drawing && !foot(S.tanks[t])) { toast(`Tank ${t + 1} has no water or slops at its foot`); picked = -1; render(); return; }
-  playing = true;
-  picked = -1;
-  const before = S, told = read(JETTY, 0), r = drawing ? drawOff(S, t) : pump(S, slot, t);
-  S = r.state;
-  berth = before;
-  save();
-  if (isLevel()) { if (S.won) keepStars(); }   // counted the moment it's final, not when the result opens
-  else {
-    if (S.score > read(BEST, 0)) write(BEST, S.score);
-    if (told < 3 && (read(SEEN, false) || before.pumps > 0)) write(JETTY, told + 1);
-    if (S.pumps >= 3) write(SEEN, true);
-    if (drawing) write(DREW, true);
-  }
-  drawSide(" ");
-  if (V3 && r.delivered.length) V3.truckCall(r.delivered[0].g);   // the delivery's truck drives in while the pump plays out
-  let tanks = drawing ? await drain(before.tanks, t, r.drained.length) : await settleIn(before.tanks, t, r.grade);
-  tanks = await shipOut(tanks, r.waves);
-  if (r.gain) popup(r.waves.flat(), r.gain);
-  if (r.spilled >= 0) {
-    // the parcel over the top runs off
-    tanks[t] = tanks[t].slice(0, LEVELS);
-    drawBoard(tanks);
-    if (V3) V3.spill(t, r.spilled);
-    else {
-      const p = parcelEl(r.spilled, t, LEVELS, "spill");
-      $("board").querySelector("#fx").append(p);
-      animate(p.firstChild, [{ transform: "translate(0, 0)", opacity: 1 }, { transform: "translate(6px, 10px) rotate(25deg)", opacity: 0 }], { duration: 500, easing: "ease-in" });
-    }
-    toast(S.over ? "A third spill" : `Tank ${t + 1} spills its ${named(r.spilled)}: ${S.lives} ${S.lives === 1 ? "life" : "lives"} left`);
-    await wait(450);
-  }
-  // the next tanker comes in, and what stands ready for it ships
-  if (r.tanker) {
-    berth = S;
-    drawBoard(tanks);
-    if (V3) V3.tankerIn();
-    else animate($("board").querySelector(".st-ship"), [{ transform: "translateX(-18px)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], { duration: 520, easing: "ease-out" });
-    await wait(V3 ? 920 : 560);
-    const n = r.tanker.waves.reduce((a, w) => a + w.length, 0);
-    tanks = await shipOut(tanks, r.tanker.waves);
-    if (n) { popup(r.tanker.waves.flat(), r.tanker.gain); toast(`${upper(vessel(r.tanker.want))} is in: ${n} parcels ship, +${fmt(r.tanker.gain)}`); }
-  }
-  berth = null;
-  drawStrip();
-  for (const d of r.delivered) { if (V3) await V3.truckTo(d.t, d.g); tanks = await settleIn(tanks, d.t, d.g); }
-  V3?.truckGo();
-  render();
-  // FAME left on water too long: slops where it stood
-  if (r.soured.length) {
-    if (V3) V3.souredFx(r.soured);
-    else for (const [a, b] of r.soured) animate(node(a, b), [{ transform: "scale(1)" }, { transform: "scale(1.25)" }, { transform: "scale(1)" }], { duration: 520, easing: "ease-in-out" });
-    toast(`${r.soured.map(([a]) => `Tank ${a + 1}'s`).join(" and ")} FAME has soured on the water: slops`);
-  }
-  playing = false;
-  if (S.over) roundOver("settle");
-}
-function popup(cells, gain) {
-  if (V3) { V3.pop(cells, gain, cells.length >= 6); return; }
-  const fx = $("board").querySelector("#fx");
-  const x = cells.reduce((a, c) => a + tx(c[0]) + TW / 2, 0) / cells.length, y = cells.reduce((a, c) => a + ly(c[1]) + LH / 2, 0) / cells.length;
-  const t = el("text", { class: `st-pop${cells.length >= 6 ? " big" : ""}`, x: x.toFixed(1), y: y.toFixed(1) });
-  t.textContent = `+${fmt(gain)}`;
-  fx.append(t);
-  animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-12px)", opacity: 0 }], { duration: 1000, easing: "ease-out" });
-}
-
-// ---------- holding a parcel over the farm ----------
-/** The tank under a point on the screen (anywhere over its column), or -1. */
-function tankAt(px, py) {
-  if (V3) return V3.tankAt(px, py);
-  const m = $("board").getScreenCTM();
-  if (!m) return -1;
-  const p = new DOMPoint(px, py).matrixTransform(m.inverse()), t = Math.floor((p.x + GAP / 2) / (TW + GAP));
-  return t >= 0 && t < TANKS && p.y > -11 && p.y < BASE + 4 ? t : -1;
+function show(slot, c) {
+  let r;
+  try { r = preview(S, slot, c); } catch { view = { tanks: S.tanks, target: c }; $("line").textContent = slot < 0 ? "No dross on top there" : "That crucible is full"; return; }
+  const m = slot < 0 ? null : S.hand[slot];
+  const tanks = slot < 0 ? S.tanks.map((t, i) => (i === c ? t.slice(0, -1) : t)) : poured(S.tanks, c, m).tanks;
+  const g = geo();
+  view = { tanks, target: c, ghost: slot < 0 ? null : { c, level: r.level, m }, ring: r.casts[0]?.cells.map(([x, y]) => [x, y]) ?? null };
+  if (r.gain) view.tag = { text: `+${fmt(r.gain)}`, x: colX(g, c) + g.cw / 2, y: cellY(g, S.height - 1) - 4 };
+  $("line").textContent = describe(r, slot);
 }
 function startDrag(e, slot) {
   if (playing || S.over || e.button > 0 || e.currentTarget.disabled) return;
   e.preventDefault();
-  drag = { slot, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, t: -1 };
+  sound.unlock();
+  drag = { slot, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, c: -1 };
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
 }
 function moveDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;
-  if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) { drag.moved = true; picked = -1; drawSide(); }
+  if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) { drag.moved = true; picked = null; sound.play("tick"); drawTray(); }
   if (!drag.moved) return;
-  const t = tankAt(e.clientX, e.clientY);
-  if (t === drag.t) return;
-  drag.t = t;
-  if (t >= 0) show(drag.slot, t);
-  else { drawBoard(S.tanks); drawSide(); }
+  const c = crucibleAt(e.clientX, e.clientY), r = board.getBoundingClientRect();
+  if (c !== drag.c) { drag.c = c; if (c >= 0) show(drag.slot, c); else { view = { tanks: S.tanks }; $("line").textContent = ""; } }
+  if (drag.slot !== SKIMMING) view = { ...view, held: { m: S.hand[drag.slot], x: e.clientX - r.left, y: e.clientY - r.top } };
 }
 function endDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;
-  const { slot, t, moved } = drag;
+  const { slot, c, moved } = drag;
   drag = null;
-  if (moved && t >= 0) { commit(slot, t); return; }
-  if (!moved) picked = picked === slot ? -1 : slot;
+  if (moved && c >= 0) { commit(slot, c); return; }
+  if (!moved) {
+    picked = picked === slot ? null : slot;
+    sound.play("tick");
+    // one crucible with dross: a tap on Skim is enough
+    if (picked === SKIMMING && skims(S).length === 1) { const only = skims(S)[0]; picked = null; commit(SKIMMING, only); return; }
+  }
   render();
 }
 function tapBoard(e) {
-  if (playing || S.over || drag || picked === -1) return;
-  const t = tankAt(e.clientX, e.clientY);
-  if (t >= 0) commit(picked, t);
+  if (playing || !S || S.over || drag || picked === null) return;
+  const c = crucibleAt(e.clientX, e.clientY);
+  if (c >= 0) commit(picked, c);
 }
 function hoverBoard(e) {
-  if (e.pointerType !== "mouse" || picked === -1 || drag || playing) return;
-  const t = tankAt(e.clientX, e.clientY);
-  if (t >= 0) show(picked, t);
-  else render();
+  if (e.pointerType !== "mouse" || picked === null || drag || playing) return;
+  const c = crucibleAt(e.clientX, e.clientY);
+  if (c >= 0) show(picked, c); else { view = { tanks: S.tanks }; $("line").textContent = ""; }
+}
+
+/** Plays a move out and keeps it: the stream falls, the parcel settles, each block cast flashes and rings, zinc hisses to dross. */
+async function commit(slot, c) {
+  if (playing || S.over) return;
+  let r;
+  try { r = slot === SKIMMING ? skim(S, c) : pour(S, slot, c); } catch { sound.play("nope"); picked = null; render(); return; }
+  playing = true; picked = null; drag = null;
+  const m = slot === SKIMMING ? null : S.hand[slot];
+  $("line").textContent = "";
+  drawTray();
+  let tanks;
+  if (m) {
+    view = { tanks: S.tanks, stream: { c, m, t0: performance.now() } };
+    sound.play("glug"); await wait(260);
+    tanks = poured(S.tanks, c, m).tanks;
+    view = { tanks }; sound.play("clunk"); await wait(150);
+  } else {
+    tanks = S.tanks.map((t, i) => (i === c ? t.slice(0, -1) : t));
+    view = { tanks }; sound.play("skim"); await wait(240);
+  }
+  for (const [bc, bl] of r.burnt) { sound.play("hiss"); pop(bc, bl, `−${BURN_COST}`); }
+  for (const [i, cast] of r.casts.entries()) {
+    if (i === 0) view = { tanks, flash: cast.cells.map(([x, y]) => [x, y]) };
+    sound.play("cast", { k: i });
+    pop(cast.c, cast.r + cast.k - 1, `+${fmt(cast.gain)}`);
+    for (const [x, y] of cast.cells) sparks(x, y);
+    document.querySelector(`.st-order[data-id="${cast.id}"]`)?.classList.add("hit");
+    await wait(420);
+  }
+  setTimeout(() => document.querySelectorAll(".st-order.hit").forEach(n => n.classList.remove("hit")), 500);
+  S = r.state;
+  msg = [r.casts.length ? `Cast ${r.casts.map(x => x.name).join(", ")} +${fmt(r.gain)}` : "", r.burnt.length ? `Zinc burned to dross −${r.lost}` : ""].filter(Boolean).join(" · ");
+  save();
+  playing = false;
+  if (S.over) finish();
+  render();
+}
+/** The melt is over: its stars, best, daily record and ramp are kept, and a Random round ends. */
+function finish() {
+  sound.play(S.won ? "win" : "lose");
+  if (mode === "levels" && S.won) keepStars();
+  if (mode === "random") S.won ? ramp.won(S.burned === 0) : ramp.lost();
+  if (mode === "daily") write(DAILY, { ...read(DAILY, {}), [day]: { won: S.won, turns: S.pours, score: S.score, casts: S.casts } });
+  if (S.won && S.score > read(BEST, 0)) write(BEST, S.score);
+  roundOver("settle");
 }
 
 // ---------- messages, the menu ----------
 let toastTimer = 0;
-function toast(msg) {
+function toast(text) {
   const t = $("toast");
-  t.textContent = msg;
+  t.textContent = text;
   t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
 }
-/** The levels as a grid of numbers with their stars; the ones not yet open are dimmed. */
-function levelGrid() {
+function levelGrid(tier) {
   const grid = document.createElement("div");
   grid.className = "st-levels";
-  for (const L of COURSE) {
-    const b = document.createElement("button"), n = done[L.id]?.stars || 0, open = isOpen(L.id, done);
+  for (const L of LEVELS.filter(x => x.tier === tier.id)) {
+    const b = document.createElement("button"), n = camp[L.id]?.stars || 0, open = isOpen(L.id, camp);
     b.type = "button";
-    b.className = `st-lv${isLevel() && S.lv === L.id ? " now" : ""}`;
+    b.className = `st-lv${mode === "levels" && S.lv === L.id ? " now" : ""}`;
     b.disabled = !open;
-    b.innerHTML = `<b>${L.id}</b><i>${"\u2605".repeat(n)}${"\u2606".repeat(3 - n)}</i>`;
+    b.innerHTML = `<b>${L.id}</b><i>${"★".repeat(n)}${"☆".repeat(3 - n)}</i>`;
     b.setAttribute("aria-label", `Level ${L.id}, ${L.name}${open ? `, ${n} of 3 stars` : ", locked: finish the one before"}`);
     b.addEventListener("click", () => { $("menuDlg").close(); openLevel(L); });
     grid.append(b);
   }
   return grid;
 }
-/** Levels or the endless game: each keeps its own run, so switching loses nothing. */
-function switchMode(m) {
-  if (m === "levels") {
-    const g = read(LRUN, null);
-    if (valid(g) && g.goal != null && levelOf(g.lv)) { S = g; write(MODE, "levels"); drag = null; picked = -1; render(); }
-    else openLevel(nextUp());
-  } else {
-    const g = read(RUN, null);
-    if (valid(g) && g.goal == null) { S = upgrade(g); write(MODE, "endless"); drag = null; picked = -1; render(); } else newRun();
-  }
-  openMenu();
+const alloyCard = id => {
+  const r = RECIPES[id], d = document.createElement("div");
+  d.className = "st-alloy";
+  d.innerHTML = `<b></b> — ${Object.entries(r.parts).map(([m, k]) => `${m} ${k}`).join(" : ")}, ${r.w} × ${r.k}<small></small>`;
+  d.querySelector("b").textContent = r.name;
+  d.querySelector("small").textContent = r.real;
+  return d;
+};
+/** Where a game left in a mode can be picked up again. */
+function resumeOf(m) {
+  const g = read(m === "levels" ? LRUN : RRUN, null);
+  return valid(g) && !g.over && (m === "levels" ? levelOf(g.lv) : g.lv === 0) ? g : null;
 }
 function openMenu() {
   const body = $("menuBody"), L = isLevel() ? levelOf(S.lv) : null;
   body.replaceChildren();
   const play = part(body, "play");
-  if (L) {
-    const next = nextUp();
-    play.append(action(S.over ? `Continue \u00b7 level ${next.id}` : `Continue level ${S.lv}`, () => { if (S.over) openLevel(next); }, "primary"),
-      action("Restart this level", () => openLevel(L), "link"));
-  } else play.append(action("New game", newRun, "primary"));
+  if (mode === "levels") play.append(action(`Restart level ${L.id}`, () => openLevel(L), "primary"));
+  else if (mode === "random") play.append(action("New random melt", openRandom, "primary"));
+  else play.append(action("Back to levels", () => { const g = resumeOf("levels"); if (g) begin(g, "levels"); else openLevel(nextUp()); }, "link"));
   const content = part(body, "content");
-  content.append(choice("Game", [["levels", "Levels"], ["endless", "Endless"]], L ? "levels" : "endless", switchMode));
-  if (L) content.append(levelGrid());
-  if (!IN_FRAME) part(body, "settings").append(choice("View", [["flat", "Flat"], ["3d", "3D"]], wide() ? "3d" : "flat", v => { write(VIEW, v); showFarm(v === "3d"); }));
+  const got = read(DAILY, {})[today()];
+  todayPart(body, {
+    done: !!got, result: got ? (got.won ? `${plural(got.turns, "turn")}, ${fmt(got.score)}` : "not won") : "",
+    play: playDaily, playing: mode === "daily",
+    back: mode === "daily" ? { text: "Back to your melt", fn: () => { const g = resumeOf("levels"); if (g) begin(g, "levels"); else openLevel(nextUp()); } } : null,
+  });
+  if (mode !== "random") content.append(action("Random melt", () => { const g = resumeOf("random"); if (g) begin(g, "random"); else openRandom(); }, "link"));
+  for (const tier of TIERS) {
+    const h = document.createElement("p");
+    h.className = "st-tier";
+    h.innerHTML = "<span></span> <small></small>";
+    h.firstChild.textContent = `${tier.guild} · ${tier.en}`;
+    h.lastChild.textContent = tier.idea;
+    content.append(h, levelGrid(tier));
+  }
+  if (!IN_FRAME) part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.unlock(); }));
+  const about = part(body, "about");
+  about.append(line(`${starsAll()} of ${LEVELS.length * 3} stars. Metals settle by density: lead 11.3, copper 9.0, tin 7.3, zinc 7.1. ${S.burn ? SKIM_NOTE : ""}`.trim()));
   const best = read(BEST, 0);
-  part(body, "about").append(line(L ? `Level ${L.id}, ${L.name}: ship ${L.goal} in ${L.limit} pumps; par ${L.par}. ${starsAll()} of ${COURSE.length * 3} stars`
-    : `This game: ${fmt(S.score)} in ${S.pumps} pump${S.pumps === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));
+  if (best) about.append(line(`Best score ${fmt(best)}`));
+  for (const id of S.orders) about.append(alloyCard(id));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -454,45 +441,27 @@ bindSwitcher($("appsBtn"), "settle");
 document.querySelector(".st-mark").innerHTML = APPS.find(a => a.id === "settle").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-for (const b of document.querySelectorAll(".st-card")) b.addEventListener("pointerdown", e => startDrag(e, b.dataset.slot === DRAWN ? DRAWN : Number(b.dataset.slot)));
+$("tray").querySelectorAll(".st-card").forEach(b => b.addEventListener("pointerdown", e => startDrag(e, b.dataset.slot === "skim" ? SKIMMING : Number(b.dataset.slot))));
 addEventListener("pointermove", moveDrag);
 addEventListener("pointerup", endDrag);
 addEventListener("pointercancel", e => { if (drag?.id === e.pointerId) { drag = null; render(); } });
-$("board").addEventListener("pointerup", tapBoard);
-$("board").addEventListener("pointermove", hoverBoard);
-$("againBtn").addEventListener("click", () => (isLevel() ? openLevel(levelOf(S.lv)) : newRun()));
-$("nextBtn").addEventListener("click", () => openLevel(levelOf(S.lv + 1)));
-
-// ---------- the 3D farm: the suite's default (mode3d.js) unless the player chose (VIEW is written only then) ----------
-const wide = () => wants3D(read(VIEW, null), "3d");
-/** Shows the farm in 3D (settle-3d.js) or flat; where there's no WebGL the flat farm stays and says why. */
-async function showFarm(want3d, quiet = false) {
-  if (want3d === !!V3) return;
-  if (!want3d) { V3?.dispose(); V3 = null; $("board").style.display = ""; render(); return; }
-  const done = busy("Building the tank farm");
-  try {
-    const mod = await load3d(import("./settle-3d.js"));
-    V3 = mod.create3D($("farm"), { tap: tapBoard, hover: hoverBoard, lost: () => { toast("The 3D farm lost its graphics: drawing the flat farm"); showFarm(false); } });
-    $("board").style.display = "none";
-    render();
-  } catch (err) {
-    console.warn("Settle: no 3D here, so the farm is drawn flat.", err);
-    V3 = null;
-    $("board").style.display = "";
-    if (!IN_FRAME && !quiet) toast("3D isn't available on this device: the farm stays flat");
-  } finally { done(); }
-}
-onPause(() => V3?.pause(), ms => V3?.resume(ms));
+board.addEventListener("pointerup", tapBoard);
+board.addEventListener("pointermove", hoverBoard);
+$("againBtn").addEventListener("click", async () => {
+  if (mode === "levels") openLevel(levelOf(S.lv)); else openRandom();
+});
+$("nextBtn").addEventListener("click", () => {
+  if (mode === "daily") { const g = resumeOf("levels"); if (g) begin(g, "levels"); else openLevel(nextUp()); } else openLevel(levelOf(S.lv + 1));
+});
+new ResizeObserver(() => { if (S) render(); }).observe($("farm"));
+new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode"] });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", readTheme);
 
 // for tests and debugging
-window.__settle = { get state() { return S; }, commit, tankAt, newRun, openLevel, showFarm, get view() { return V3; } };
+window.__settle = { get state() { return S; }, get mode() { return mode; }, commit, crucibleAt, openLevel, openRandom, playDaily, geo, toast };
 
-// opens on the mode last played: the levels for a newcomer, the endless game for one who has a game saved
-const mode = read(MODE, null) ?? (valid(read(RUN, null)) ? "endless" : "levels");
-S = read(mode === "levels" ? LRUN : RUN, null);
-if (mode === "levels") {
-  if (valid(S) && S.goal != null && levelOf(S.lv)) render(); else openLevel(nextUp());
-} else if (!valid(S)) newRun();
-else { S = upgrade(S); render(); }
-if (wide()) { $("board").style.display = "none"; showFarm(true, read(VIEW, null) == null); }   // no flash of the flat farm first; a device that cannot is not told when it never asked
-onDefaultChange(is3D => { if (read(VIEW, null) == null) showFarm(is3D, true); });   // Settings' 2D mode, live
+// opens on the mode last played; the tile opens today's melt while it is still to play (the run in hand is kept as it was)
+const last = read(MODE, "levels");
+if (last === "random" && resumeOf("random")) begin(resumeOf("random"), "random");
+else { const g = resumeOf("levels"); if (g) begin(g, "levels"); else openLevel(nextUp()); }
+if (!IN_FRAME && arrivedForToday() && !read(DAILY, {})[today()]) playDaily();
