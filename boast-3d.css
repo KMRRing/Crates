@@ -35,4 +35,4 @@
 .tk-n4 .tk-plate:is(.at-l, .at-r) { top: 68%; }
 .tk-tally { font-size: 1.2rem; }
 .tk-tally .bo3-call { font-size: 1.05rem; }
-@container (max-height: 420px) { .tk-plate.at-t { top: 47%; } .tk-n4 .tk-plate:is(.at-l, .at-r) { top: 66%; } }
+@container (max-height: 26.25rem) { .tk-plate.at-t { top: 47%; } .tk-n4 .tk-plate:is(.at-l, .at-r) { top: 66%; } }
