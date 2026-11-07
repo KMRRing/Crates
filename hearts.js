@@ -85,7 +85,6 @@ function draw() {
     tail: `${s.dir === "hold" ? "No pass" : `Pass ${DIR_WORD[s.dir]}`} · to ${s.opts.to}<br>♥ ${s.broken ? "broken" : "unbroken"}` });
   drawTable(v);
   drawHand(v);
-  $("status").innerHTML = `<span>${statusLine(v)}</span>`;
   drawBar();
 }
 
@@ -195,35 +194,6 @@ async function doPlay(id) {
   draw();
 }
 
-function statusLine(v) {
-  const s = v.state;
-  if (s.step === "over") return esc(s.winners.includes(v.seat) ? "You win the game" : `${s.winners.map(who).join(" and ")} wins`);
-  if (s.step === "shown") {
-    const r = s.result;
-    if (r.moon >= 0) return `<b>${esc(does(r.moon, "shoot", "shoots"))} the moon!</b> ${r.moon === v.seat ? "The others take 26 each" : s.opts.moon === "sub" ? "26 off the shooter's score" : "Everyone else takes 26"}`;
-    const low = Math.min(...r.pts);
-    return `Hand over · ${r.pts[v.seat ?? 0] === low ? "you took the fewest" : `you took ${r.pts[v.seat ?? 0]}`}`;
-  }
-  if (s.step === "trick") {
-    const w = trickWinner(s.trick.plays), pts = sumPoints(s.trick.plays.map(p => p.card));
-    return esc(`${does(w, "take", "takes")} the trick${pts ? ` · ${pts} point${pts === 1 ? "" : "s"}` : ""}`);
-  }
-  if (v.seat == null) return esc(s.step === "pass" ? "Passing cards" : `${nameOf(s.turn)} to play`);
-  if (s.step === "pass") {
-    if (s.give[v.seat].length === 3) {
-      const wait = [0, 1, 2, 3].filter(i => s.give[i].length < 3).map(who);
-      return esc(`Waiting for ${wait.join(", ")}`);
-    }
-    return `Pick three cards to pass <b>${DIR_WORD[s.dir]}</b>: ${sel.size} of 3`;
-  }
-  if (!isMe(s.turn)) { const w = v.seats[s.turn]; return esc(w?.bot && !w.away ? `${w.name} is thinking…` : `${w?.name || "Someone"} to play`); }
-  const legal = legalCards(s, v.seat);
-  if (!s.trick.plays.length) return s.done === 0 ? `Your lead: the <b>2♣</b>` : `Your lead${s.broken ? "" : ": hearts aren't broken yet"}`;
-  const led = suitOf(s.trick.plays[0].card);
-  if (legal.every(c => suitOf(c) === led)) return `Follow suit: <b>${["♦", "♣", "♥", "♠"][led]}</b>`;
-  return s.done === 0 && legal.every(c => !pointsOf(c)) ? "No suit to follow: play any card, but no points on the first trick" : "No suit to follow: play any card";
-}
-
 function drawBar() {
   const bar = $("bar"), v = V;
   if (!v?.G) { bar.innerHTML = `<button type="button" class="btn primary hr-go" data-act="new">New game</button>`; return; }
@@ -233,7 +203,7 @@ function drawBar() {
   if (!seated) { bar.innerHTML = ""; return; }
   if (s.step === "pass") {
     const gave = s.give[v.seat].length === 3;
-    bar.innerHTML = `<button type="button" class="btn primary hr-go hr-main" data-act="give" ${!gave && sel.size === 3 ? "" : "disabled"}>${gave ? "Passed" : `Pass 3 ${DIR_WORD[s.dir]}`}</button>`
+    bar.innerHTML = `<button type="button" class="btn primary hr-go hr-main" data-act="give" ${!gave && sel.size === 3 ? "" : "disabled"}>${gave ? "Passed" : sel.size === 3 ? `Pass 3 ${DIR_WORD[s.dir]}` : `Pass ${DIR_WORD[s.dir]} · ${sel.size} of 3`}</button>`
       + (sel.size && !gave ? `<button type="button" class="icon-btn hr-clear" data-act="clear" aria-label="Put them back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : "");
     return;
   }

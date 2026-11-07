@@ -57,20 +57,14 @@ html[data-mode="night"] :is(.b2-pay, .b2-seat.last .b2-n b) { color: #E8806F; }
 
 /* ---------- your cards and your buttons ---------- */
 .b2-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
-/* two lines kept, the words centred in them, so a longer line (a hint and how the rest of the hand goes, 頂大's warning)
-   doesn't push the cards down as it comes and goes */
-.b2-status { display: flex; align-items: center; justify-content: center; height: 2.6em; margin: 0; overflow: hidden; line-height: 1.3; text-align: center; font-size: .9rem; color: var(--ink-soft); }
-.b2-status b { color: var(--b2-in); }
-/* a coach that speaks unasked (Check, Always) keeps three lines' room, so the table holds its size as it speaks and
-   falls quiet; its word on a move it would have made otherwise in oxblood, so it isn't taken for advice */
-.b2-status .b2-miss { color: #A8382B; }
-.b2-status .ld { margin-right: .4em; }
-.b2-status .b2-why { margin-left: .25em; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .b2-status .b2-miss { color: #E8806F; } }
-html[data-mode="night"] .b2-status .b2-miss { color: #E8806F; }
-/* a hint: its play first, then the plays the rest of your hand makes, each set apart (bigtwo.js's GAP), every other one
-   shaded, so what goes with what reads at a glance */
-/* Always: the coach's play ringed in your hand until a Hint picks it */
+/* (no status line: the table, the plates and the buttons say what is going on; the coach's words and the 頂大 warning are the bubble) */
+.b2-status { display: none; }
+/* the coach's word on a move it would have made otherwise in oxblood, so it isn't taken for advice */
+.cr-bubble .b2-miss { color: #A8382B; }
+.cr-bubble .ld { margin-right: .4em; }
+.cr-bubble .b2-why { margin-left: .25em; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .cr-bubble .b2-miss { color: #E8806F; } }
+html[data-mode="night"] .cr-bubble .b2-miss { color: #E8806F; }
 .b2-watch { margin: auto; color: var(--ink-soft); }
 .b2-bar { display: flex; gap: .45rem; align-items: center; }
 .b2-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

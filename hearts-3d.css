@@ -16,3 +16,9 @@
 .hr3-taken { font-style: normal; font-weight: 800; color: #F0A596; }
 .tk-count.low { color: #A8382B; }
 @container (max-height: 420px) { .hr3 .hr-note { display: none; } }
+/* Korbi, 7 Nov 2026: the table clear of the banner above and close to the cards below, which stand clear of the buttons; the side seats lower */
+.hr-table.hr3 { margin: .8rem 0 -1.3rem; }
+.hr-side { padding-top: 0; gap: .15rem; }
+#app.hearts .cr-hand { margin-bottom: 1.7rem; }
+.hr3 .tk-plate:is(.at-l, .at-r) { top: 62%; }
+@media (max-height: 700px) and (orientation: portrait) { .hr3 .tk-plate:is(.at-l, .at-r) { top: 66%; } }

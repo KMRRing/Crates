@@ -170,8 +170,8 @@ function draw() {
   drawHand(v);
   // the coach's word is a bubble over the screen (cardroom.js), what the table is waiting for a plain line
   const said = splitStatus(statusLine(v));
-  $("status").innerHTML = `<span>${said.plain}</span>`;
-  coachBubble.show(said.bubble);
+  // (a plain line says nothing the table and the buttons don't, so there is no status line: only the coach, and the 頂大 warning)
+  coachBubble.show(said.bubble || (s.step === "play" && isMe(s.turn) ? said.plain : ""));
   drawBar();
   advise(v);
 }
@@ -297,9 +297,7 @@ function statusLine(v) {
   if (v.seat == null) return esc(`${nameOf(s.turn)} to play`);
   if (!isMe(s.turn)) { const w = v.seats[s.turn]; return esc(w?.bot && !w.away ? `${w.name} is thinking…` : `${w?.name || "Someone"} to play`); }
   const nxt = (v.seat + 1) % s.seats, warn = s.opts.top && s.hands[nxt].length === 1 ? ` · <b>頂大</b>: ${esc(nameOf(nxt))} has one card` : "";
-  if (s.mustLead != null) return `Your lead: the ${esc(cardName(s.mustLead))} must be in it${warn}`;
-  if (!s.trick.last) return `Your lead: any play${warn}`;
-  return `Your turn${warn}`;
+  return warn.slice(3);                                           // nothing to say: the buttons are what you do next (only the 頂大 warning)
 }
 
 function drawBar() {
@@ -385,7 +383,7 @@ function showWhy(which) {
   $("whyBody").innerHTML = html;
   if (!$("whyDlg").open) $("whyDlg").showModal();
 }
-$("status").addEventListener("click", e => { const b = e.target.closest(".b2-why"); if (b) showWhy(b.dataset.why === "review" ? "review" : liveHint() ? "hint" : ""); });
+$("coach").addEventListener("click", e => { const b = e.target.closest(".b2-why"); if (b) showWhy(b.dataset.why === "review" ? "review" : liveHint() ? "hint" : ""); });
 $("whyClose").addEventListener("click", () => $("whyDlg").close());
 
 // ---------- a game's end ----------
