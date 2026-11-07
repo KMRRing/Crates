@@ -3,7 +3,7 @@
 .hr-table.hr3 { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
 .hr-table.hr3 .tk-field { flex: 1 1 0; }
 /* the lanes: each seat's card on the cloth in front of it, the middle's words under them */
-.hr3 .tk-centre { transform: translateZ(3px); --cd-line: clamp(.7rem, min(5cqh, 4cqw), 1.7rem); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto) 1fr; align-content: center;
+.hr3 .tk-centre { --cd-line: clamp(.8rem, min(5.8cqh, 4.8cqw), 2.1rem); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto) 1fr; align-content: center;
   gap: .1rem .3rem; place-items: stretch; --tk-side: 6.2rem; }
 .hr3-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.5); font-size: var(--cd-line); }
 .hr3-lane.s2 { grid-column: 1 / -1; grid-row: 1; }

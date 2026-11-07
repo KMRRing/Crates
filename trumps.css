@@ -15,6 +15,8 @@ html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 /* the drawn suits: in a card's corner and large at its foot, and in a line of words */
 .tr-cd .tr-s { width: .82em; height: .82em; margin-top: .06em; }
 .tr-cd .tr-pip { position: absolute; right: .1em; bottom: .1em; width: 1.35em; height: 1.35em; }
+.tr-cd.vec { padding: 0; }
+.tr-cd.vec .tr-art { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tr-cd svg, .tr-icon svg { display: block; width: 100%; height: 100%; }
 .tr-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.2em; }
 .tr-fs { font-weight: 800; }

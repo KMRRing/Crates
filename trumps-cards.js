@@ -33,6 +33,8 @@ export function cardName(id, pack, suitMap = null) {
   return `${rank} of ${p.en[s]}`;
 }
 
+import { cardArt } from "./trumps-art.js";
+
 // the Swiss and German packs' suit marks, drawn: bells, shields, roses, acorns; hearts, leaves
 const ICONS = {
   bell: `<svg viewBox="0 0 20 20"><path d="M10 2.2a1.6 1.6 0 1 1 0 .01M4.6 9.5a5.4 5.4 0 0 1 10.8 0v3.6l1.6 2.1H3l1.6-2.1z" fill="#E1A82E" stroke="#5A3A12" stroke-width="1.1"/><path d="M4.8 11.6h10.4" stroke="#B3302A" stroke-width="1.6"/><circle cx="10" cy="16.6" r="1.6" fill="#5A3A12"/></svg>`,
@@ -54,6 +56,6 @@ export const LOOK = { german: null };
 export function packCard(id, pack, { cls = "", data = {} } = {}) {
   const attrs = Object.entries(data).map(([k, v]) => ` data-${k}="${esc(v)}"`).join(""), pic = pack === "german" ? LOOK.german?.[id] : null;
   if (pic) return `<span class="cd tr-cd german pic${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(cardName(id, pack))}"><img src="${pic}" alt="" draggable="false" decoding="async"></span>`;
-  const icon = suitIcon(pack, suitOf(id));
-  return `<span class="cd tr-cd ${pack}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(cardName(id, pack))}"><span class="cd-r">${PACKS[pack].rank[rankOf(id)]}</span><span class="tr-s">${icon}</span><span class="tr-pip">${icon}</span></span>`;
+  // the face is one drawing (trumps-art.js)
+  return `<span class="cd tr-cd vec ${pack}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(cardName(id, pack))}">${cardArt(pack, rankOf(id), suitOf(id), PACKS[pack].rank[rankOf(id)])}</span>`;
 }

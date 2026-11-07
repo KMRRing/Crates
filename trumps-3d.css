@@ -1,8 +1,34 @@
-/* Trumps' 3D view (Menu, View: 3D): the table a cloth tipped away from you, its far side further and smaller, with the codex's brass
-   rim. Only the picture changes: the layout, the sizes and every tap are the flat table's own, and nothing is redrawn (the compositor
-   does it). Not in the table-filling choice (.ontable), where the cloth already fills the screen. */
-.tr3:not(.ontable) .tr-table { transform-origin: 50% 100%; transform: perspective(60rem) rotateX(12deg);
-  border: 2px solid var(--brass); border-radius: .5rem;
-  box-shadow: inset 0 0 0 .28rem var(--tr-felt), inset 0 0 0 calc(.28rem + 1px) var(--brass), 0 1.1rem 1.2rem -.9rem rgba(0, 0, 0, .55);
-  background: radial-gradient(ellipse 70% 55% at 50% 55%, color-mix(in srgb, var(--tr-felt) 70%, #FFF), transparent 75%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(6, 14, 24, .3)), var(--tr-felt); }
-.tr3:not(.ontable) .tr-table .cd { box-shadow: 0 .12em .3em rgba(0, 0, 0, .42); }
+/* Trumps' 3D table (trumps-3d.js) on the shared cloth (table3d.css): the page's green baize, a card to a lane, as Hearts. */
+#app.trumps { --tk-felt: color-mix(in srgb, var(--tr-in) 80%, #0B1E2A); }
+.tr-table.tr3c { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
+.tr-table.tr3c .tk-field { flex: 1 1 0; }
+/* the lanes: each seat's card on the cloth in front of it */
+.tr3c .tk-centre { --cd-line: clamp(.8rem, min(5.6cqh, 4.8cqw), 2.1rem); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto) 1fr; align-content: center;
+  gap: .1rem .3rem; place-items: stretch; --tk-side: 6.2rem; pointer-events: none; }
+.tr3c .tk-centre, .tr3-lane { transform-style: preserve-3d; }
+.tr3-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.5); font-size: var(--cd-line); }
+.tr3-lane.s2 { grid-column: 1 / -1; grid-row: 1; }
+.tr3-lane.s1 { grid-column: 1; grid-row: 2; }
+.tr3-lane.s3 { grid-column: 2; grid-row: 2; }
+.tr3-lane.s0 { grid-column: 1 / -1; grid-row: 3; }
+.tr3-top { grid-column: 1 / -1; grid-row: -2 / -1; display: grid; justify-items: center; align-content: center; gap: .15rem; text-align: center; min-width: 0; font-size: var(--cd-line); }
+.tr3-top small { font-size: .74rem; color: var(--tk-soft); }
+/* a hand's score takes the middle */
+.tr3-res { display: none; }
+.tr3c .tk-centre.res { grid-template-rows: 1fr; pointer-events: auto; }
+.tr3c .tk-centre.res :is(.tr3-lane, .tr3-top) { display: none; }
+.tr3c .tk-centre.res .tr3-res { display: grid; grid-column: 1 / -1; grid-row: 1; place-items: center; }
+.tr3-role, .tr3-deal { margin-right: .25rem; padding: 0 .25rem; border-radius: .2rem; font-style: normal; font-size: .68rem; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
+.tr3-deal { background: none; box-shadow: inset 0 0 0 1px var(--tk-soft); color: var(--tk-soft); }
+.tr3c .tk-plate .tk-act { max-width: 7rem; }
+/* the table clear of the banner above and close to the cards below, which stand clear of the buttons; the side seats lower */
+.tr-table.tr3c { margin: .55rem 0 .1rem; }
+#app.trumps .cr-hand { margin-bottom: 1.4rem; }
+.tr3c .tk-plate:is(.at-l, .at-r) { top: 62%; }
+@media (max-height: 700px) and (orientation: portrait) { .tr3c .tk-plate:is(.at-l, .at-r) { top: 66%; } }
+.tk-count.low { color: #A8382B; }
+/* a name is one line (a long one is cut short) */
+#app.trumps .tr3c .tk-plate:is(.at-l, .at-r) { width: 7rem; }
+#app.trumps .tr3c .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .84rem; }
+/* the bidding's buttons take the room below, leaving a short field: the cloth stands taller in it, nearer the banner */
+@container (max-height: 420px) { .tr3c .tk-mat { height: 122%; } }

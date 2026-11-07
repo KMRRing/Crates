@@ -14,6 +14,7 @@ import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK 
 import { deckPics } from "./trumps-deck.js";
 import { cardHtml, backHtml } from "./cards.js";
 import { plateHtml, drawHandBox } from "./cardroom.js";
+import { createTrumps3d, plateOf as plate3 } from "./trumps-3d.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -30,6 +31,8 @@ import { sideways } from "./wide.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
+const FLAT_TABLE = $("table").innerHTML;                          // the flat table's places, put back when the view goes back to it
+let three = null;                                                 // the cloth (trumps-3d.js), while the view is 3D
 const OPTS = "trumps:opts", RUN = "trumps:game";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -197,14 +200,18 @@ function draw() {
   if (!page) return;
   if (coach() !== coachWas) { coachWas = coach(); advice = said = null; }   // the table's coach changed: its words go
   const v = V;
-  $("table").classList.toggle("tk-mahogany", tileNow() === "schafkopf");   // wave 2 (7 Nov 2026): Schafkopf's table is mahogany under brass, the shared frame (table3d.css)
+  $("table").classList.toggle("tk-mahogany", tileNow() === "schafkopf" && view.get() !== "3d");   // the flat table's mahogany frame (table3d.css); the cloth is mahogany itself
   placeFull();
   wearTile();
-  if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren(); $("centre").innerHTML = ""; $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
+  if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight", "centre"]) $(id)?.replaceChildren(); three?.dispose(); three = null; $("table").classList.remove("tr3c"); $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
   if (coach() === "on" && !v.over) { const a = adviceNow(); if (a) a.shown = true; }
   drawInfo(v.state);
-  for (const [id, place] of [["seatTop", "top"], ["seatLeft", "left"], ["seatRight", "right"]]) drawSeat($(id), v.state, seatAt(v.state, place));
-  drawCentre(v.state);
+  if (view.get() === "3d") drawCloth(v.state);
+  else {
+    if (three) { three.dispose(); three = null; $("table").classList.remove("tr3c"); $("table").innerHTML = FLAT_TABLE; }
+    for (const [id, place] of [["seatTop", "top"], ["seatLeft", "left"], ["seatRight", "right"]]) drawSeat($(id), v.state, seatAt(v.state, place));
+    drawCentre(v.state);
+  }
   drawHand(v.state);
   drawControls(v.state);
   fitTable();
@@ -223,7 +230,7 @@ const SHOW = 0.9, BACK_SHOW = 0.62, LIFT = 0.45;       // in a card's size: how 
 let cardPx = 0;
 function fitTable() {
   const s = V?.state;
-  if (!s) return;
+  if (!s || three) return;                                       // (the cloth's cards are sized by its own CSS)
   const app = $("app"), centre = $("centre"), hand = $("hand"), side = $("side"), n = DEALT[s.game] || 8, beside = sideways();
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const room = Math.min(...["seatTop", "seatLeft", "seatRight"].map(id => $(id).clientWidth * 0.92));
@@ -318,12 +325,14 @@ function bidWords(s, b) {
   if (s.game === "coinche") return b.t === "pass" ? "Passe" : b.t === "coinche" ? "Coinche !" : b.t === "surcoinche" ? "Surcoinche !" : `${b.value === 250 ? "Capot" : b.value} ${PACKS.french.suits[b.suit]}`;
   return b.t === "pass" ? "Weiter" : b.type === "sau" ? "I spui" : b.type === "wenz" ? "Wenz" : "Solo";
 }
+/** The part a seat plays this hand, once the contract is made. */
+const roleOf = (s, seat) => (!s.contract ? "" : s.game === "schafkopf" && seat === s.contract.declarer ? "plays" : s.game === "jass" && seat === s.contract.chooser ? "trump" : (s.game === "belote" || s.game === "coinche") && seat === s.contract.taker ? "took" : "");
 function drawSeat(box, s, seat) {
   const turn = rules.toMove(s) === seat, n = s.hands[seat].length;
   const last = [...s.bidlog].reverse().find(b => b.seat === seat);
   const bubble = s.step === "bid" && last ? `<span class="tr-bubble">${esc(bidWords(s, last))}</span>` : "";
   const team = GAMES[s.game].teams === "fixed" ? (teamOf(seat) === teamOf(me()) ? " partner" : "") : "";
-  const role = s.contract && s.game === "schafkopf" && seat === s.contract.declarer ? `<span class="tr-role">plays</span>` : s.contract && s.game === "jass" && seat === s.contract.chooser ? `<span class="tr-role">trump</span>` : s.contract && (s.game === "belote" || s.game === "coinche") && seat === s.contract.taker ? `<span class="tr-role">took</span>` : "";
+  const role = roleOf(s, seat) ? `<span class="tr-role">${roleOf(s, seat)}</span>` : "";
   const dealer = seat === s.dealer ? `<span class="tr-dealer" title="dealer">D</span>` : "";
   box.className = `tr-seat ${box.classList[1]}${turn ? " turn" : ""}${team}`;
   const back = LOOK.german && s.game === "schafkopf" ? `<span class="cd tr-cd pic tr-back"><img src="${LOOK.german.back}" alt="" draggable="false"></span>` : backHtml();
@@ -331,12 +340,28 @@ function drawSeat(box, s, seat) {
   box.innerHTML = `<span class="tr-who"><span class="tr-name">${esc(nameOf(seat))}</span>${dealer}${role}</span><span class="tr-backs">${Array.from({ length: Math.min(n, 9) }, () => back).join("")}</span>${bubble}${weisLine(s, seat)}`;
 }
 /** A Jass player's Weis, said during the first trick (the side with the best one scores all of its own). */
-function weisLine(s, seat) {
-  if (s.game !== "jass" || !s.weis || !s.contract || s.tricks.length > 1 || (s.tricks.length === 0 && s.trick.length === 0)) return "";
-  const w = s.weis[seat] || [];
-  if (!w.length) return "";
-  const total = w.reduce((a, x) => a + x.value, 0);
-  return `<span class="tr-weis">Weis ${total}</span>`;
+function weisTotal(s, seat) {
+  if (s.game !== "jass" || !s.weis || !s.contract || s.tricks.length > 1 || (s.tricks.length === 0 && s.trick.length === 0)) return 0;
+  return (s.weis[seat] || []).reduce((a, x) => a + x.value, 0);
+}
+const weisLine = (s, seat) => (weisTotal(s, seat) ? `<span class="tr-weis">Weis ${weisTotal(s, seat)}</span>` : "");
+
+// ---------- the 3D table ----------
+/** The cloth (trumps-3d.js): the four seats as plates, each one's card in its lane, a hand's score over the middle. */
+function drawCloth(s) {
+  const table = $("table"), mine = me(), over = s.step === "scored" || s.step === "over";
+  table.classList.add("tr3c");
+  three ||= createTrumps3d(table, { quiet: () => IN_FRAME });
+  const sides = GAMES[s.game].teams === "fixed";
+  const plates = [0, 1, 2, 3].map(seat => {
+    const last = [...s.bidlog].reverse().find(b => b.seat === seat), weis = weisTotal(s, seat), turn = rules.toMove(s) === seat;
+    return plate3({ name: nameOf(seat), seat, mine: seat === mine, turn, count: s.hands[seat].length, role: roleOf(s, seat), dealer: seat === s.dealer,
+      word: s.step === "bid" && last ? bidWords(s, last) : weis ? `Weis ${weis}` : "", mate: sides && seat !== mine && teamOf(seat) === teamOf(mine), think: turn && seat !== mine && !over });
+  });
+  const trick = s.step === "bid" || over ? [] : s.trick, win = s.step === "trick" ? s.tricks.at(-1)?.winner : null;
+  const lanes = [0, 1, 2, 3].map(seat => { const t = trick.find(x => x.seat === seat); return t ? card(t.card, s, { cls: seat === win ? "lit" : "" }) : ""; });
+  const top = s.step === "bid" && s.game === "belote" ? `${card(s.turned, s)}<small>${s.round === 1 ? "turned up" : "round two"}</small>` : "";
+  three.draw({ me: mine, plates, lanes, top, result: over ? handResult(s) : "", winner: s.tricks.length ? s.tricks.at(-1).winner : null });
 }
 
 /** The middle: the trick, each card on its player's side; the turned card while Belote is bid; a hand's score. */
@@ -387,10 +412,10 @@ function drawHand(s) {
   // Guandan's fan (cardroom.js), in the game's own pack: a run to a suit, the cards you may play lifted on your turn
   const cols = [];
   for (const id of hand) { const last = cols.at(-1); if (last && suitOf(last[0]) === suitOf(id)) last.push(id); else cols.push([id]); }
-  drawHandBox(box, { cols, fan: true, html: (id, o) => card(id, s, o), label: id => id, classes: id => (mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "") });
+  drawHandBox(box, { cols, fan: true, big: s.game === "jass" ? 1.8 : 2.1, html: (id, o) => card(id, s, o), label: id => id, classes: id => (mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "") });
 }
 // a tap on a hand's score puts it away too, and deals the next
-$("centre").addEventListener("click", () => { if (awaitingDeal()) nextHand(); });
+$("table").addEventListener("click", () => { if (awaitingDeal()) nextHand(); });
 $("hand").addEventListener("click", async e => {
   const el = e.target.closest("[data-id]");
   const s = V?.state;
