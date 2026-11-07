@@ -65,10 +65,10 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
     "inside: Paris in France, Madrid not; Maseru in Lesotho and not in South Africa (its hole); Chukotka past 180° in Russia; Northern Cyprus in Cyprus");
   const fr = { cat: "countries" }, city = { cat: "cities" };
   check(E.pointsFor(fr, 0) === E.score(0) && E.pointsFor(fr, 3) === 0 && E.pointsFor(city, 3) === E.score(3), "a country scores in full inside its outline and nothing outside; other places by distance");
-  // regions: a place goes by its country, Russia and Turkey by their side of the Urals and the Bosphorus
+  // regions: a place goes by its country, Russia and Turkey by their side of the Urals and the Bosphorus. Korbi, 7 Nov 2026: Chart has only Worldwide and the six continents (no Middle East, no sub-regions), so the Gulf is Asia
   const EVERY = PLACES;
   const R = q => E.regionsOfPlace(EVERY.find(p => p.name.startsWith(q)), REGION_OF).join("+");
-  check(R("Ras Tanura") === "middle-east" && R("Norilsk") === "asia" && R("The Ceyhan terminal") === "middle-east" && R("The port of Rotterdam") === "europe" && R("The port of Santos") === "south-america",
+  check(R("Ras Tanura") === "asia" && R("Norilsk") === "asia" && R("The Ceyhan terminal") === "asia" && R("The port of Rotterdam") === "europe" && R("The port of Santos") === "south-america",
     `regions: Ras Tanura ${R("Ras Tanura")}, Norilsk ${R("Norilsk")}, Ceyhan ${R("The Ceyhan terminal")}, Rotterdam ${R("The port of Rotterdam")}, Santos ${R("The port of Santos")}`);
   // topics, a mix of them (each out, in or more): Balanced and the dropdown's old topics deal exactly as they did, one
   // topic all ten from itself, Balanced at most two of a kind; a topic out never, a topic more more often
@@ -117,7 +117,7 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
       && key(E.topicsOf(off("art"))) === null && key(E.topicsOf(off("hist"))) === null, "a mix keeps its best under Everything, its one topic, a preset or an old topic; your own mix of several keeps none");
     check(E.comparableMix(E.topicsOf(on)) && E.comparableMix(E.topicsOf(preset("culture"))) && E.comparableMix(E.TOPIC_PRESETS.trader.topics) && !E.comparableMix(E.topicsOf(preset("trade"))) && !E.comparableMix(E.topicsOf(preset("stem")))
       && !E.comparableMix(E.topicsOf(off("art"))) && !E.comparableMix(E.OLD_TOPICS.nature), "a preset's deal counts for your best, one topic (Trade, STEM here), your own mix and an old topic don't");
-    // Local places follow Geography: dealt in a region of their own only, and only with Geography on
+    // Local places (the retired sub-regions' categories) follow Geography but are never dealt now
     const local = PLACES.filter(p => E.LOCAL.has(p.cat));
     check(local.length > 20 && local.every(p => E.topicOf(p.cat) === "local") && E.topicsOf(on).local === 1 && E.topicsOf(off("geo")).local === 0, `Local places (${local.length} of them) are one topic, in with Geography`);
   }

@@ -34,7 +34,7 @@ const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "phys
 // to: Scottish towns in Scotland and in Britain, never in Europe or the world
 // (what is marked for removal is out unless Settings includes it; a daily never does)
 const poolOf = ({ topics, region = "world" } = {}, daily = false) => PLACES.filter(p => (topics?.[topicOf(p.cat)] ?? 1) > 0 && allowed(p.mk, daily)
-  && (region === "world" || p.regions.includes(region)) && (!LOCAL.has(p.cat) || (REGIONS[region]?.sub && p.regions.includes(region))));
+  && (region === "world" || p.regions.includes(region)) && !LOCAL.has(p.cat));
 import { LAND, BORDERS } from "./world.js";
 import { DETAIL } from "./chart-detail.js";
 import { ISLANDS, ISLAND_DOTS } from "./chart-islands.js";
@@ -101,7 +101,7 @@ const nextSel = () => ({ topics: mix(), region: selOf(S).region });
  *  nothing in (a link mistyped) deals as Balanced. */
 const selOf = s => {
   const topics = s?.topics ? cleanMix(TOPICS, s.topics) : OLD_TOPICS[s?.topic] || OLD_TOPICS.all;
-  return { topics: anyIn(TOPICS, topics) ? topics : OLD_TOPICS.all, region: s?.region || "world" };
+  return { topics: anyIn(TOPICS, topics) ? topics : OLD_TOPICS.all, region: REGIONS[s?.region] ? s.region : "world" };   // a retired sub-region (Britain, Bavaria…) deals the world
 };
 /** A mix as a link carries it (&t=): a topic of old by its name (nature), any other mix but Balanced topic by topic. */
 const topicsParam = w => oldTopicOf(w) ?? mixParam(TOPICS, w);
@@ -280,30 +280,6 @@ function drawMap(ctx, proj, win, w, h, detail = null, fineBorders = false) {
     ctx.stroke();
   }
 }
-// a reveal keeps a sub-region's scale (Lake Geneva at city scale); elsewhere it opens out to 12° at least
-const revealSpan = () => (REGIONS[S.region]?.sub ? regionSpan(S.region) : 12);
-/** A sub-region (Bavaria, Scotland, Britain) carries its outline or borders, and its rivers and lakes for bearings: drawn
- *  faintly, under the pins, whenever a round is played in it. */
-function drawRegion(ctx, proj, region) {
-  const r = REGIONS[region];
-  if (!r?.outline && !r?.borders && !r?.context && !r?.lakes) return;
-  const trace = pts => proj.edge(ctx, pts), ring = pts => proj.edge(ctx, pts, true);
-  if (r.lakes) { ctx.beginPath(); for (const poly of DETAIL[r.lakes]) for (const rg of poly) ring(rg); ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
-  if (r.fineBorders) { ctx.beginPath(); for (const l of DETAIL[r.fineBorders]) trace(l); ctx.strokeStyle = css("--ch-border"); ctx.lineWidth = 1.3; ctx.stroke(); }
-  for (const id of r.context || []) {
-    const g = GEO.find(f => f.id === id);
-    if (!g) continue;
-    ctx.beginPath();
-    if (g.rings && g.kind === "lake") { for (const rg of g.rings) ring(rg); ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
-    else if (g.rings) { for (const rg of g.rings) ring(rg); ctx.setLineDash([2, 4]); ctx.strokeStyle = "rgba(110,90,60,.45)"; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]); }
-    if (g.lines) { for (const l of g.lines) trace(l); ctx.strokeStyle = "rgba(60,120,180,.55)"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke(); }
-  }
-  if (!r.outline && !r.borders) return;
-  ctx.beginPath();
-  if (r.outline) ring(r.outline);
-  for (const b of r.borders || []) trace(b);
-  ctx.setLineDash([6, 4]); ctx.strokeStyle = css("--ch-border"); ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
-}
 /** A feature on the map: a river as a blue line, a range, desert, plateau or lake as a filled shape. */
 function drawFeature(ctx, proj, g) {
   const good = css("--ch-good");
@@ -367,7 +343,7 @@ const projFor = name => { const [w, h] = SIZES[name], win = viewWindow(views[nam
 // ---------- the globe ----------
 /** The globe's camera: framed on the reveal's pins and place once there is one, else on what the flat map shows (a region
  *  opens on its continent; the world, on no place in particular). */
-const cameraNow = () => (views.globe ??= S.phase === "reveal" ? globe.frame(revealPoints(current()), revealSpan())
+const cameraNow = () => (views.globe ??= S.phase === "reveal" ? globe.frame(revealPoints(current()), 12)
   : selOf(S).region === "world" ? globe.WORLD : globe.fromWindow(REGIONS[selOf(S).region].window, regionSpan(selOf(S).region)));
 /** The points a reveal frames: every pin and the place (a feature's whole extent). */
 function revealPoints(p) {
@@ -443,9 +419,8 @@ function drawMaps() {
   const { proj, win, w, h } = mapNow();
   canvas.classList.toggle("globe", mode3d);
   const ctx = setup(canvas, w, h);
-  if (mode3d) drawGlobe(ctx, proj, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
-  else drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
-  drawRegion(ctx, proj, S.region || "world");
+  if (mode3d) drawGlobe(ctx, proj);
+  else drawMap(ctx, proj, win, w, h);
   if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
   const on = (q, draw) => { const xy = proj.toXY(q.lon, q.lat); if (xy) draw(...xy); };   // a place round the back of the globe isn't drawn
   if (inRoom()) {
@@ -573,9 +548,9 @@ function soloView(p) {
   const e = S.log[S.index];
   if (p.geo) {
     const [lon0, lat0, lon1, lat1] = featureBox(p.geo), q = e || p;
-    return viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, revealSpan());
+    return viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, 12);
   }
-  return e ? viewCovering(e, p, ...SIZES.world, revealSpan()) : clampView(viewAround(p.lon, p.lat, REGIONS[S.region]?.sub ? regionSpan(S.region) * 2 : 20), ...SIZES.world);
+  return e ? viewCovering(e, p, ...SIZES.world, 12) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
 }
 
 // ---------- the end of a set ----------
@@ -728,7 +703,7 @@ function tableView(p) {
   const pts = tableMarks().map(m => m.at);
   if (p.geo) { const [lon0, lat0, lon1, lat1] = featureBox(p.geo); pts.push({ lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }); }
   else pts.push(p);
-  return pts.length > 1 ? viewFitting(pts, ...SIZES.world, { minSpan: revealSpan(), pad: 1.4 }) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
+  return pts.length > 1 ? viewFitting(pts, ...SIZES.world, { minSpan: 12, pad: 1.4 }) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
 }
 /** Who the table is waiting for, in words: "Waiting for Sarah and Tom…". */
 function waitingText() {

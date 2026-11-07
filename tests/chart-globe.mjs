@@ -54,6 +54,15 @@ check(G.turn({ lon: 0, lat: 0, a: 5 }, 50, 0, 360).lon > -3 && G.zoom({ lon: 0, 
 const eu = G.fromWindow([-25, 45, 34, 72]);
 check(Math.abs(eu.lon - 10) < 1e-9 && Math.abs(eu.lat - 53) < 1e-9 && eu.a > 15 && eu.a < 35 && G.fromWindow([5.85, 7.05, 46.12, 46.7], 1.5).a >= 0.8, "a region's window opens on the region, a small one no tighter than the least span");
 check(G.WORLD.a === 90, "the world opens on the whole near side");
+// Korbi, 7 Nov 2026: the globe flashed land over the sea as it turned. A ring that touches the horizon at one vertex (the Sudan/Chad
+// outline seen from 73°W, 41°N) came out with a closing arc of a whole turn, filling the disc. No ring may fill much more than the disc
+// when it is mostly out of sight.
+{
+  const c = G.camera({ lon: -72.82, lat: 41.29, a: 40 }, 400), disc = Math.PI * c.R ** 2;
+  let worst = 0;
+  for (const poly of LAND) for (const ring of poly) { const p = {}, pts = rec(p); if (c.shape(p, ring)) worst = Math.max(worst, area(pts) / disc); }
+  check(worst < 0.5, `a ring touching the horizon is not closed round the disc (largest shape ${(worst * 100).toFixed(0)}% of it)`);
+}
 const gc = G.greatCircle({ lon: 0, lat: 60 }, { lon: 180, lat: 60 }, 8);
 check(Math.abs(gc[0][1] - 60) < 1e-9 && Math.abs(gc.at(-1)[1] - 60) < 1e-6 && Math.max(...gc.map(p => p[1])) > 89, "a great circle between two places at 60° north on opposite meridians goes over the pole");
 // a counter-clockwise ring (inside on the left), small, and a clockwise one

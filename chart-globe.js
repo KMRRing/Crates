@@ -6,6 +6,7 @@ const RAD = Math.PI / 180, TAU = 2 * Math.PI;
 export const A_MIN = 0.8, A_MAX = 90;
 /** The share of the canvas the whole near side fills: room left round it for the atmosphere. */
 const FILL = 0.94;
+const FLUSH = 1.5 * RAD;      // a closing arc this close to a full turn is none (see shape)
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const wrapLon = lon => ((((lon + 180) % 360) + 360) % 360) - 180;
 
@@ -101,7 +102,9 @@ export function camera({ lon, lat, a }, size) {
     }
     for (const ch of chains) { const e = ch.pts[0], x = ch.pts.at(-1); ch.in = Math.atan2(e[1], e[0]); ch.out = Math.atan2(x[1], x[0]); }
     // the way round the horizon from one angle to another, in `dir`'s direction (0 up to a full turn)
-    const gap = (from, to) => ((dir * (to - from)) % TAU + TAU) % TAU;
+    // A chain that ends where another begins (a ring touching the horizon) can come out a hair the wrong way round, a gap
+    // of nearly a full turn instead of nothing: that closed the shape round the whole disc, and the land flashed over the sea.
+    const gap = (from, to) => { const g = ((dir * (to - from)) % TAU + TAU) % TAU; return g > TAU - FLUSH ? 0 : g; };
     for (const ch of chains) ch.next = chains.reduce((best, o) => (gap(ch.out, o.in) < gap(ch.out, best.in) ? o : best), chains[0]);
     const done = new Set();
     for (const start of chains) {

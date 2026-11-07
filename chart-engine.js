@@ -185,33 +185,16 @@ export function pickMixed(seed, bank, weights, perSet = PER_SET) {
 /** The regions a set can be narrowed to, each with the window a question opens on: [lon0, lon1, lat0, lat1]. */
 export const REGIONS = {
   europe: { name: "Europe", window: [-25, 45, 34, 72] },
-  "middle-east": { name: "Middle East", window: [24, 64, 11, 44] },
   asia: { name: "Asia", window: [40, 150, -11, 60] },
   africa: { name: "Africa", window: [-20, 55, -36, 38] },
   "north-america": { name: "North America", window: [-170, -50, 6, 72] },
   "south-america": { name: "South America", window: [-83, -33, -56, 13] },
   oceania: { name: "Oceania", window: [110, 180, -48, -1] },
-  // a region within a country: its places are the ones marked with its state, and its own category (local) is dealt
-  // only here, so Landshut and the Watzmann don't turn up in a round of the world
-  // a sub-region takes its places by country (Britain) or by the state marked in kb/ (Scotland, Bavaria); its own category
-  // (local) is dealt only in sub-regions its places belong to, never in a round of a continent or the world. It's drawn
-  // with its borders (open lines) or outline (closed, traced roughly for bearings) and rivers and lakes from chart-geo.js
-  britain: { name: "Britain", sub: true, detail: "british-isles", window: [-8.7, 1.9, 49.8, 60.9], countries: ["United Kingdom"], local: "britain", context: ["thames", "severn"],
-    borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]], [[-3.08, 53.28], [-2.93, 53.18], [-2.95, 53.0], [-3.0, 52.93], [-3.05, 52.8], [-3.12, 52.62], [-3.05, 52.45], [-3.0, 52.35], [-3.05, 52.2], [-3.0, 52.05], [-2.95, 51.95], [-2.82, 51.85], [-2.65, 51.7], [-2.65, 51.61]]] },
-  alps: { name: "The Alps", sub: true, window: [5, 16.5, 43.6, 48.4], mark: "Alps", local: "ski", context: ["alps"] },
-  // Lake Geneva at city scale, and the Watch Valley along the Jura: 1:10m lakes filled and 1:10m borders in place of the
-  // coarse ones (chart-detail.js)
-  "lake-geneva": { name: "Lake Geneva", sub: true, window: [5.85, 7.05, 46.12, 46.7], mark: "Lake Geneva", local: "leman", lakes: "jura-lakes", fineBorders: "jura-borders" },
-  "watch-valley": { name: "Watch Valley", sub: true, window: [5.8, 8.9, 46.1, 47.85], mark: "Watch Valley", local: "horology", lakes: "jura-lakes", fineBorders: "jura-borders" },
-  china: { name: "China", sub: true, window: [73, 135, 18, 54], countries: ["China"], local: "china", context: ["yangtze", "yellow"] },
-  scotland: { name: "Scotland", sub: true, detail: "british-isles", window: [-7.8, -0.6, 54.5, 60.9], state: "Scotland", local: "scotland", borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]]] },
-  // its outline (traced roughly, for bearings), and the rivers and lakes drawn under it (ids in chart-geo.js)
-  bavaria: { name: "Bavaria", sub: true, window: [8.9, 13.9, 47.2, 50.6], state: "Bavaria", local: "bavaria", context: ["danube", "constance"],
-    outline: [[9.02, 50.05], [9.1, 50.21], [9.5, 50.24], [9.73, 50.42], [9.95, 50.42], [10.06, 50.55], [10.45, 50.4], [10.73, 50.38], [11.0, 50.42], [11.27, 50.45], [11.48, 50.5], [11.7, 50.4], [11.95, 50.4], [12.1, 50.32], [12.25, 50.2], [12.1, 50.1], [12.48, 49.98], [12.4, 49.75], [12.55, 49.55], [12.8, 49.33], [13.2, 49.15], [13.5, 48.97], [13.84, 48.77], [13.73, 48.52], [13.44, 48.56], [13.3, 48.3], [12.95, 48.2], [12.85, 48.1], [12.95, 47.95], [13.03, 47.8], [13.08, 47.65], [12.98, 47.45], [12.75, 47.6], [12.5, 47.68], [12.2, 47.6], [11.9, 47.6], [11.6, 47.58], [11.35, 47.43], [11.05, 47.4], [10.85, 47.48], [10.55, 47.53], [10.45, 47.4], [10.18, 47.27], [9.97, 47.53], [9.65, 47.53], [9.56, 47.54], [9.85, 47.7], [10.1, 47.85], [10.13, 48.1], [10.03, 48.4], [10.25, 48.55], [10.35, 48.75], [10.25, 49.0], [10.2, 49.2], [10.1, 49.4], [9.95, 49.55], [9.62, 49.62], [9.4, 49.65], [9.1, 49.58], [9.02, 49.75]] },
 };
 
-/** The categories of a region's own places: dealt only in a sub-region they belong to, never in a continent or the world. */
-export const LOCAL = new Set(Object.values(REGIONS).map(r => r.local).filter(Boolean));
+/** Categories of places that belonged to sub-regions (Britain, the Alps, Lake Geneva, the Watch Valley, China, Scotland,
+ *  Bavaria), which Korbi removed on 7 Nov 2026. The bank (built from kb/) still holds them, so they stay out of every deal. */
+export const LOCAL = new Set(["britain", "ski", "leman", "horology", "china", "scotland", "bavaria"]);
 
 // ---------- the map's projection: Mercator, clipped near the poles ----------
 export const LAT_MAX = 78;
@@ -304,9 +287,8 @@ const PLACE_REGIONS = { Svalbard: ["europe"], Greenland: ["north-america"], "New
 export function regionsOfPlace(p, regionOf) {
   const first = (p.country || "").split(/,| and | to /)[0].trim().replace(/^the /, "");
   if (first === "Russia") return [p.lon < 60 ? "europe" : "asia"];
-  if (first === "Turkey") return [p.lon < 30 ? "europe" : "middle-east"];
-  const within = Object.entries(REGIONS).filter(([, r]) => (r.state && r.state === p.state) || r.countries?.includes(first) || (r.mark && p.marks?.includes(r.mark))).map(([k]) => k);
-  return [...(regionOf[first] || PLACE_REGIONS[first] || []), ...within];
+  if (first === "Turkey") return [p.lon < 30 ? "europe" : "asia"];
+  return regionOf[first] || PLACE_REGIONS[first] || [];
 }
 /** The view a question opens on in a region: its window, fitted to the map. */
 export function regionView(region, w, h) {
