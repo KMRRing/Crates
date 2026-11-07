@@ -751,8 +751,16 @@ function resolve(S, dir) {
   return dir === "up" ? up(S) : dir === "down" ? down(S) : side(S, dir === "left" ? -1 : 1);
 }
 
-/** A foe the swipe going on is for cannot hurt me: its target, and the ones a sweep goes on to. */
-const targeted = (h, f) => !!h.lunge && (h.lunge.foe === f.id || (h.lunge.also || []).includes(f.id));
+/** A foe the swipe going on is for cannot hurt me: its target, and the foe a sweep will really go on to (the one the cut is
+ *  eligible to hit, asked again every step). Any other foe is not safe: attacked by two, I am immune to the one I am attacking
+ *  and to no other, unless my attack goes on to it (4 November 2026, Korbi; 7 November: "if their attack would not be
+ *  eligible to hit another one, then they get hit"). */
+const targeted = (S, f) => {
+  const L = S.hero.lunge;
+  if (!L) return false;
+  if (L.foe === f.id) return true;
+  return L.how === "side" && !!L.dir && sweepFoe(S, S.hero.lane + L.dir, L.left)?.id === f.id;
+};
 /** A foe already hitting me (its hit waits LATE_WIN) is still a target for as long as it waits, however late the swipe. */
 const late = f => f.threat != null;
 
@@ -914,8 +922,6 @@ function startLunge(S, f, dir, how, extra = {}) {
   const left = Math.max(0.06, ttcOf(S, f));
   h.lunge = { foe: f.id, how, dir, left, total: left, air: h.y - h.gy > 0.5 || f.y - gyOf(f) > 0.3 };       // air: it set off from the air, or is at a foe in it, so it counts as an attack in the air
   h.vy = 0; h.slam = false; h.roll = 0;
-  // the foes a sweep will go on to are as safe as the one it is for: the swipe is for all of them
-  if (dir && how === "side") { const n = sweepFoe(S, f.lane + dir, left); if (n && n.id !== f.id) h.lunge.also = [n.id]; }
   S.ev.push({ type: "lunge", how, kind: f.kind, gate: f.gate ? f.gate.id : 0, ...extra });
 }
 
@@ -1012,7 +1018,7 @@ export function step(S, dt) {
   for (const f of alive(S)) {
     if (f.gate) continue;
     if (late(f)) {                                                  // it is hitting me, but a swipe at it still wins for LATE_WIN seconds
-      if (targeted(h, f)) continue;                                 // (the swipe is not done yet: it cannot hurt me)
+      if (targeted(S, f)) continue;                                 // (the swipe is not done yet: it cannot hurt me)
       const cd = clashDir(S, f);
       if (cd) { clash(S, f, cd.dir); continue; }
       if (h.hurt > 0) f.threat = null;
@@ -1021,7 +1027,7 @@ export function step(S, dt) {
     }
     const dz = f.z - h.z;
     if (dz < -FOE_REACH || dz > FOE_REACH) continue;
-    if (h.hurt > 0 || targeted(h, f)) continue;
+    if (h.hurt > 0 || targeted(S, f)) continue;
     if (Math.abs(f.x - h.x) > (inert(f) ? 0.75 : f.ph === 3 || f.kind === "thrower" ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
     if (KINDS[f.kind].air && h.roll > 0 && grounded(h)) continue;                  // a roll goes under a gull's dive
     const cd = clashDir(S, f), overlap = h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1;

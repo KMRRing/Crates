@@ -219,7 +219,7 @@ const events = S => take(S).map(e => e.type);
   {
     const T = scene({ hero: { lane: -1, x: -LANE_W } }), near = foeAt(T, "crab", 0, 0.4), far = foeAt(T, "crab", 1, 0.3);
     run(T, 0.01); swipe(T, "right"); run(T, 0.6);
-    check(!near.alive && far.alive && T.hero.lane === 0, "with a foe in the next lane too, the next lane's is the one cut");
+    check(!near.alive && !far.alive && T.hero.lane === 1 && T.hearts === 3, "with a foe in the next lane too, the cut goes on to it when it can still be reached (it is hitting me, but a swipe at it wins for LATE_WIN)");
   }
   [S, f] = trial(-1, 1, 0.4, "right", "gull", true);
   check(!f.alive && S.hero.lane === 1, "in the air a gull two lanes across is cut down the same way");
@@ -431,6 +431,13 @@ const events = S => take(S).map(e => e.type);
     const ev = []; for (let i = 0; i < 90; i++) { step(T, DT); ev.push(...take(T)); }
     const kinds = ev.filter(e => ["kill", "lane", "lunge"].includes(e.type)).map(e => e.type + (e.sweep ? "*" : "")).join();
     check(/kill,lane,lunge\*,kill/.test(kinds), `the events say so: ${kinds}`);
+  }
+  {
+    // 7 November 2026, Korbi: attacked by two, I am immune to the one I am attacking only. A second foe the cut is not eligible
+    // to go on to (here an armoured shield bearer in the next lane) still lands its hit; one the sweep reaches does not.
+    const T = scene({ hero: { lane: -1, x: -LANE_W } }); foeAt(T, "crab", 0, 0.4); foeAt(T, "shield", 1, 0.45);
+    run(T, 0.01); take(T); swipe(T, "right"); run(T, 1.2);
+    check(T.hearts < 3, `a second foe the cut cannot go on to is not held off (hearts ${T.hearts})`);
   }
   {
     const q = { id: "Q1", bank: "test", q: "?", o: ["a", "b", "c"], a: 2, x: "", about: [] };
