@@ -88,15 +88,15 @@ export default {
     "Find the real title: 1,000 points, and the artist scores 500 for each who did. Fool someone with your title: 500 for each one fooled. The house adds titles of its own when there are too few. One round or two; the most points wins.",
   ],
   options: [
-    { id: "rounds", hidden: true, label: "Rounds", choices: [["1", "1"], ["2", "2"]], value: "1" },
+    { id: "rounds", label: "Rounds", choices: [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], value: "1" },
     { id: "secs", hidden: true, label: "Time to draw", choices: [["60", "1 minute"], ["90", "90 seconds"], ["120", "2 minutes"]], value: "90" },
   ],
 
   start({ players, options, rng, now, shown }) {
-    const s = { rounds: options.rounds === "2" ? 2 : 1, secs: [60, 90, 120].includes(Number(options.secs)) ? Number(options.secs) : 90, round: 0, dealt: [],
+    const s = { rounds: Math.min(4, Math.max(1, Number(options.rounds) || 1)), secs: [60, 90, 120].includes(Number(options.secs)) ? Number(options.secs) : 90, round: 0, dealt: [],
       order: players.map(p => p.uid), names: Object.fromEntries(players.map(p => [p.uid, p.name])), scores: Object.fromEntries(players.map(p => [p.uid, 0])) };
     s.show = deal(s, players, now, rng, shown || []);
-    s.say = `Gallery${s.rounds > 1 ? ", two rounds" : ""}. Everyone has a strange title on their phone: draw yours, and keep it to yourself.`;
+    s.say = `Gallery${s.rounds > 1 ? `, ${s.rounds} rounds` : ""}. Everyone has a strange title on their phone: draw yours, and keep it to yourself.`;
     return s;
   },
 

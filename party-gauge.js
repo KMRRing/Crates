@@ -77,14 +77,14 @@ export default {
   ],
   options: [
     { id: "mode", label: "Play", choices: [["each", "Each for themselves"], ["together", "Together"]], value: "each" },
-    { id: "rounds", hidden: true, label: "Rounds", choices: [["1", "Once round the table"], ["2", "Twice round"]], value: "1" },
+    { id: "rounds", label: "Rounds", choices: [["1", "Once round the table"], ["2", "Twice round"], ["3", "Three times"]], value: "1" },
     { id: "lang", label: "Scales", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
     { id: "clock", hidden: true, label: "A clock for the clue and the dial", choices: [["0", "None"], ["60", "1 minute"], ["90", "90 seconds"]], value: "0" },
   ],
   need: (players, options) => (options.mode !== "together" && players.length < 3 ? "Each for themselves needs 3 players: with two, play Together" : ""),
 
   start({ players, options, rng, now }) {
-    const mode = options.mode === "together" ? "together" : "each", rounds = players.length * (options.rounds === "2" ? 2 : 1);
+    const mode = options.mode === "together" ? "together" : "each", rounds = players.length * Math.min(3, Math.max(1, Number(options.rounds) || 1));
     const s = { mode, lang: ["en", "zh", "both"].includes(options.lang) ? options.lang : "en", clock: Number(options.clock) || 0, rounds, rn: 0,
       order: players.map(p => p.uid), names: Object.fromEntries(players.map(p => [p.uid, p.name])), seat: Math.floor(rng() * players.length) - 1,
       deck: shuffle(CARDS.map((_, i) => i), rng).slice(0, 2 * rounds), log: [], ...(mode === "together" ? { total: 0 } : { scores: Object.fromEntries(players.map(p => [p.uid, 0])) }) };

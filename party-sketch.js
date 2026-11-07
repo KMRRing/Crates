@@ -114,12 +114,12 @@ export default {
   rules: [
     "In turn round the table, one player draws. They choose one of three words and draw it on their phone, in a minute and twenty seconds (or the time the lobby set), with a choice of inks and pens, an eraser and undo; everyone else watches the drawing appear on their own phone and types guesses, as many as they like. No letters or numbers in the drawing: that's the one rule the phone can't keep for you.",
     "A right guess scores 300 at once, falling to 50 on the bell, and the one drawing scores what the guessers scored on average, so a drawing that only one of them gets scores little. Your wrong guesses show to the others; a near miss is shown only to you, as close. Half way through the clock a letter of the word shows, three quarters through another. When everyone has it, or the time's up, the word is shown with its drawing and who got it.",
-    "Each player draws once a round, for one, two or three rounds; the most points wins. The words are in English, Chinese or both, and a guess in either language counts.",
+    "Each player draws once a round, for as many rounds as you choose, one to five; the most points wins. The words are in English, Chinese or both, and a guess in either language counts.",
   ],
   options: [
     { id: "lang", label: "Words", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
     { id: "level", hidden: true, label: "Difficulty", choices: [["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], value: "mixed" },
-    { id: "rounds", hidden: true, label: "Rounds", choices: [["1", "1"], ["2", "2"], ["3", "3"]], value: "2" },
+    { id: "rounds", label: "Rounds", choices: [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"]], value: "2" },
     { id: "secs", hidden: true, label: "Time to draw", choices: [["60", "1 minute"], ["80", "80 seconds"], ["120", "2 minutes"]], value: "80" },
   ],
 
@@ -127,7 +127,7 @@ export default {
     const s = {
       lang: ["en", "zh", "both"].includes(options.lang) ? options.lang : "en",
       level: LEVELS[options.level] ? options.level : "mixed",
-      rounds: Math.min(3, Math.max(1, Number(options.rounds) || 2)),
+      rounds: Math.min(5, Math.max(1, Number(options.rounds) || 2)),
       secs: [60, 80, 120].includes(Number(options.secs)) ? Number(options.secs) : 80,
       order: players.map(p => p.uid), names: Object.fromEntries(players.map(p => [p.uid, p.name])),
       scores: Object.fromEntries(players.map(p => [p.uid, 0])), round: 0, at: -1, turn: 0, dealt: [],

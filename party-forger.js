@@ -110,12 +110,12 @@ export default {
   ],
   options: [
     { id: "lang", label: "Words", choices: [["en", "English"], ["zh", "中文"], ["both", "Both"]], value: "en" },
-    { id: "rounds", hidden: true, label: "Rounds", choices: [["3", "3"], ["5", "5"], ["each", "Once each"]], value: "3" },
+    { id: "rounds", label: "Rounds", choices: [["3", "3"], ["5", "5"], ["7", "7"], ["10", "10"], ["each", "Once each"]], value: "3" },
   ],
 
   start({ players, options, rng, now, shown }) {
     const order = players.map(p => p.uid), n = order.length;
-    const rounds = options.rounds === "each" ? n : [3, 5].includes(Number(options.rounds)) ? Number(options.rounds) : 3;
+    const rounds = options.rounds === "each" ? n : [3, 5, 7, 10].includes(Number(options.rounds)) ? Number(options.rounds) : 3;
     // each a forger in turn, in an order nobody knows, before anyone is twice
     const forgers = [];
     while (forgers.length < rounds) forgers.push(...shuffle(order, rng));
