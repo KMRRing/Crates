@@ -83,7 +83,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   check(/wants3D\(prefs\.view, "model"\)/.test(js) && /Play in 3D/.test(js) && /Play in 2D/.test(js), "the view is the player's choice or the suite's default (3D, flat in 2D mode), and the menu offers each view");
   check(/setPixelRatio\(Math\.min\(devicePixelRatio \|\| 1, 2\)\)/.test(glsrc), "WebGL's pixel ratio is capped at 2");
   check(!/\b(alert|confirm|prompt)\(/.test(glsrc), "no browser pop-ups");
-  check(/soundSolved\(\)/.test(js) && /IN_FRAME\) soundSolved/.test(js), "the knock and the running water play on the player's own solve, never in a watching frame");
+  check(/soundSolved\(\)/.test(js) && /IN_FRAME && prefs\.sound !== false\) soundSolved/.test(js), "the knock and the running water play on the player's own solve, never in a watching frame, and not with the Sound setting off");
 }
 
 process.exit(bad ? 1 : 0);
