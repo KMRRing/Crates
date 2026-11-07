@@ -7,6 +7,7 @@
 // Held dice stand in a row near you; tap one to hold it or let it go. It draws only while something moves, 30 frames a
 // second at the most, and the pixel ratio is capped at 2.
 import * as THREE from "./vendor/three.js";
+import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 import { DIE, FELT, ROW_Z, SCATTER, GAP, heldSpot, scatterSpots, keyNumber, FACES, PIP_AT } from "./yacht-3d-geo.js";
 
 const PCF = 1;                                                              // THREE.PCFShadowMap (the soft one is not in the bundle)
@@ -101,6 +102,19 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
   const matFelt = std(0x55291a, 0.62), matRim = std(0x3a1d0e, 0.5), matBrass = std(0xc8923a, 0.34, 0.55);
   const matDie = std(0xffffff, 0.32), matPip = std(0x1c2a34, 0.5), matRed = std(0xc0262d, 0.5);
 
+  /** Mahogany grain painted on a canvas: long dark streaks over a warm base (the same wood as the card room's table). */
+  function grain(base, streak, seed) {
+    const c = document.createElement("canvas"); c.width = 512; c.height = 256;
+    const g = c.getContext("2d"); g.fillStyle = base; g.fillRect(0, 0, 512, 256);
+    let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 90; i++) { g.strokeStyle = streak; g.globalAlpha = 0.06 + rnd() * 0.16; g.lineWidth = 0.6 + rnd() * 2.4;
+      const y = rnd() * 256, w = (rnd() - 0.5) * 10; g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(170, y + w, 340, y - w, 512, y + w * 0.4); g.stroke(); }
+    const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace; return track(t);
+  }
+  matFelt.map = grain("#5a2a1a", "#2a0f08", 7);
+  matRim.map = grain("#4a2412", "#1c0a05", 19);
+  matFelt.color.set(0xffffff); matRim.color.set(0xffffff);
+
   // ---------- the table ----------
   const mesh = (g, m, cast = true, receive = true) => { const o = new THREE.Mesh(g, m); o.castShadow = cast; o.receiveShadow = receive; o.frustumCulled = false; scene.add(o); return o; };
   const box = (w, h, d, x, y, z) => { const g = track(new THREE.BoxGeometry(w, h, d)); const o = mesh(g, matRim, false, true); o.position.set(x, y, z); return o; };
@@ -153,9 +167,8 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
   function applySkin() {
     const root = document.documentElement, css = getComputedStyle(root);
     night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
-    const yard = (css.getPropertyValue("--yard") || "").trim(), hex = /^#[0-9a-f]{6}$/i.test(yard) ? yard : night ? "#10181F" : "#E8DFC9";
-    renderer.setClearColor(hex, 1);
-    matFelt.color.set(night ? 0x3a1c10 : 0x55291a);   // Korbi, 7 Nov 2026: the dice on the card room's mahogany, not felt
+    renderer.setClearColor(night ? 0x1a0c07 : 0x2c140b, 1);   // the tray's own dark wood, not the page's colour
+    matFelt.color.set(night ? 0x9a7a6a : 0xffffff);   // Korbi, 7 Nov 2026: the dice on the card room's mahogany, not felt
     ivory = new THREE.Color(night ? 0xede3cc : 0xfbf4e4);
     sun.intensity = night ? 2.3 : 2.8;
     hemi.intensity = night ? 0.85 : 1.0;

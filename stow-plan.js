@@ -9,6 +9,7 @@ import { placements, options } from "./stow-engine.js";
 import { cellsOf, turned, extent, pieceFor, fieldOf, placedList, occupancy, boardOf, audit, seat, act, rulesOf, tonnes, lastIn, liftable, PORTS } from "./stow-pack.js";
 import { holdScene, drawPiece, reachFor } from "./stow-3d.js";
 import { scale } from "./wide.js";
+import { gateMarkup } from "./stow-gate.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const f3 = v => (Math.abs(v) < 5e-4 ? "0" : +v.toFixed(3));
@@ -177,9 +178,7 @@ export function createPlan(ctx) {
   /** The hatch covers over the hold's frame: shut once the stow's done (sliding shut the first time). */
   function hatchMarkup([x, y, w, h], clip = true) {
     if (!P.done || hatch === "open" || hatch === "peek") return "";
-    const closing = hatch === "closing";
-    const cover = (cx, side) => `<g class="cover ${side}"><rect x="${f3(cx)}" y="${f3(y)}" width="${f3(w / 2)}" height="${f3(h)}"/><path d="${[0.25, 0.5, 0.75].map(k => `M${f3(cx)} ${f3(y + h * k)}h${f3(w / 2)}`).join("")}"/></g>`;
-    return `<g class="hatch${closing ? " closing" : ""}"${clip ? ' clip-path="url(#sw-clip)"' : ""}>${cover(x, "l")}${cover(x + w / 2, "r")}<path class="seam" d="M${f3(x + w / 2)} ${f3(y)}v${f3(h)}"/><text class="stamp" x="${f3(x + w / 2)}" y="${f3(y + h / 2)}" style="font-size:${f3(Math.min(w, h) * 0.11)}px">Stowed</text></g>`;
+    return gateMarkup([x, y, w, h], { closing: hatch === "closing", clip });
   }
 
   // ---------- a hold in decks ----------

@@ -18,6 +18,7 @@ import { COURSE } from "./yacht-course.js";
 import { yachtStage } from "./yacht-course-stage.js";
 import "./pwa.js";
 import { load3d } from "./loading.js";
+import { plateHtml } from "./cardroom.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "yacht:opts", RECORD = "yacht:record", BEST = "yacht:best", DAILY = "yacht:daily";
@@ -77,12 +78,13 @@ function draw() {
 
 function drawStatus(v) {
   const box = $("status");
-  if (!v?.G) { box.textContent = ""; return; }
-  const s = v.state;
-  if (s.step === "over") { box.innerHTML = "Game over"; return; }
-  const who = isMe(s.turn) ? "Your turn" : `${esc(nameOf(s.turn))}’s turn`, round = roundOf(s, s.turn) + 1;
-  const rolls = s.left === 3 ? "three rolls" : s.left === 0 ? "no rolls left" : `${s.left} ${s.left === 1 ? "roll" : "rolls"} left`;
-  box.innerHTML = `Round <b>${round}</b> of ${ROUNDS} · ${who} · ${rolls}`;
+  if (!v?.G) { box.innerHTML = ""; return; }
+  const s = v.state, over = s.step === "over";
+  const left = over ? 0 : s.left, pips = "●".repeat(3 - left) + "○".repeat(left);
+  box.innerHTML = plateHtml({ title: "Yacht", items: [
+    { k: "Round", v: over ? ROUNDS : roundOf(s, s.turn) + 1 },
+    { k: over ? "Done" : isMe(s.turn) ? "You" : esc(nameOf(s.turn)), v: over ? "—" : `<span class="ya-pips" aria-label="${left} rolls left">${pips}</span>`, on: !over && isMe(s.turn) },
+  ] });
 }
 
 // ---------- the dice: flat, or on the felt (yacht-3d.js, loaded when asked for) ----------
@@ -194,11 +196,9 @@ function drawControls(v) {
   }
   const canRoll = s.left > 0 && !s.held.every(Boolean), sel = ui.sel;
   const rollWord = "Roll";
-  const rollSub = s.left === 0 ? "none left" : s.left === 3 ? "three rolls" : s.held.every(Boolean) ? "let a die go" : `${s.left} left`;
   const pts = sel != null ? scoreOf(sel, s.dice) : null;
-  const scoreSub = s.left === 3 ? "roll first" : sel != null ? CATS[sel].name : opts.quick ? "tap a row" : "pick a row";
-  box.innerHTML = `<button class="btn${canRoll && (s.left === 3 || sel == null) ? " primary" : ""}" type="button" data-act="roll" ${canRoll ? "" : "disabled"}><b>${rollWord}</b><small>${rollSub}</small></button>
-    <button class="btn${sel != null || s.left === 0 ? " primary" : ""}" type="button" data-act="score" ${sel != null ? "" : "disabled"}><b>${pts != null ? `Score ${pts}` : "Score"}</b><small>${esc(scoreSub)}</small></button>`;
+  box.innerHTML = `<button class="btn${canRoll && (s.left === 3 || sel == null) ? " primary" : ""}" type="button" data-act="roll" ${canRoll ? "" : "disabled"}><b>${rollWord}</b></button>
+    <button class="btn${sel != null || s.left === 0 ? " primary" : ""}" type="button" data-act="score" ${sel != null ? "" : "disabled"}><b>${pts != null ? `Score ${pts}` : "Score"}</b></button>`;
 }
 async function scoreIn(c) {
   const why = await page.move({ t: "score", c });

@@ -211,16 +211,24 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806
 .sw-board .hatch-bg { fill: color-mix(in srgb, var(--sw-bad) 12%, transparent); }
 .sw-board .hatch-ln { stroke: var(--sw-bad); stroke-width: .07; }
 .sw-board .side-mark { font-size: .24px; font-weight: 850; fill: var(--ink-soft); text-anchor: middle; dominant-baseline: central; }
-/* the hatch, shut over a hold stowed: two navy covers (brass by night) sliding in from the sides, ribbed, lettered */
+/* the gate, shut over a hold stowed (stow-gate.js): two art deco leaves in navy and brass (gilt by night) sliding in from the sides */
 .hatch { pointer-events: none; }
 .hatch .cover { transform-box: fill-box; }
-.hatch .cover rect { fill: var(--plate); }
-.hatch .cover path { stroke: color-mix(in srgb, var(--plate-ink) 30%, transparent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
-.hatch .seam { stroke: var(--plate-ink); stroke-width: 1.4px; vector-effect: non-scaling-stroke; stroke-opacity: .6; }
-.hatch .stamp { fill: var(--plate-ink); font-weight: 850; text-anchor: middle; dominant-baseline: central; text-transform: var(--caps); letter-spacing: calc(.16em * var(--track)); font-stretch: var(--wide); }
+.gate .gd-ground { fill: var(--plate); }
+.gate .gd-lattice { fill: none; stroke: var(--brass); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-opacity: .22; }
+.gate .gd-frame { fill: none; stroke: var(--brass-hi, var(--brass)); stroke-width: 2.2px; vector-effect: non-scaling-stroke; stroke-linejoin: miter; }
+.gate .gd-hair { fill: none; stroke: var(--brass); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-opacity: .85; }
+.gate .gd-line { fill: none; stroke: var(--brass); stroke-width: 1.1px; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.gate .gd-step, .gate .gd-cap { fill: var(--brass); stroke: none; }
+.gate .gd-pilaster { fill: color-mix(in srgb, var(--plate) 82%, var(--brass)); stroke: var(--brass); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.gate .gd-disc { fill: color-mix(in srgb, var(--plate) 70%, black); }
+.gate .gd-bead { fill: var(--brass-hi, var(--brass)); }
+.gate .seam { stroke: var(--brass-hi, var(--brass)); stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
+.gate .plaque { fill: var(--plate); stroke: var(--brass-hi, var(--brass)); stroke-width: 1.6px; vector-effect: non-scaling-stroke; stroke-linejoin: miter; }
+.hatch .stamp { fill: var(--brass-hi, var(--plate-ink)); font-weight: 850; text-anchor: middle; dominant-baseline: central; text-transform: var(--caps); letter-spacing: calc(.16em * var(--track)); font-stretch: var(--wide); }
 .hatch.closing .cover.l { animation: sw-cover-l .6s cubic-bezier(.3, .8, .25, 1) both; }
 .hatch.closing .cover.r { animation: sw-cover-r .6s cubic-bezier(.3, .8, .25, 1) both; }
-.hatch.closing .stamp, .hatch.closing .seam { animation: sw-lettered .35s .5s both; }
+.hatch.closing .stamp, .hatch.closing .seam, .hatch.closing .plaque { animation: sw-lettered .35s .5s both; }
 @keyframes sw-cover-l { from { transform: translateX(-100%); } }
 @keyframes sw-cover-r { from { transform: translateX(100%); } }
 @keyframes sw-lettered { from { opacity: 0; } }
