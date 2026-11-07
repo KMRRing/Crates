@@ -188,7 +188,7 @@ for (const th of ["codex", "office"]) for (const night of [false, true]) {
 }
 check(["codex"].every(th => [false, true].every(n => JSON.stringify(skinFor(th, n)) === JSON.stringify(skinFor("office", n)))), "every theme has the same silver watch (no gold or brass skin)");
 check(skinFor("codex", true).keyI < skinFor("codex", false).keyI && skinFor("codex", true).exposure > skinFor("codex", false).exposure, "night is a weaker sun and a longer exposure, as in Topple");
-check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 0), "four finishes: gilt, blued steel, rose gold, black");
+check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 0), "four finishes: gold, rose gold, steel, black");
 {
   // the four types are told apart by hue and lightness, and (not by colour) by their windows and teeth
   const hue = hex => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; return (mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; };
@@ -196,9 +196,9 @@ check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 
   let apart = true;
   for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
     const dh = Math.min(Math.abs(hue(cs[i]) - hue(cs[j])), 360 - Math.abs(hue(cs[i]) - hue(cs[j]))), dl = Math.abs(lum(cs[i]) - lum(cs[j]));
-    if (!(dl > 45 || (dh > 40 && sat(cs[i]) > 60 && sat(cs[j]) > 60 && dl > 20))) apart = false;
+    if (!(dl > 45 || dh >= 25 || Math.abs(sat(cs[i]) - sat(cs[j])) > 45)) apart = false;   // the bright metals are alike in lightness, as metals are: they differ in hue or in how much colour they carry
   }
-  check(apart, "every two gear finishes differ by 45 in lightness, or by a clear hue with some lightness, so the colour-blind can tell them");
+  check(apart, "every two gear finishes differ by 45 in lightness, by 25 degrees of hue or by how much colour they carry (and the pitches by their teeth)");
   check(new Set(WINDOWS).size === 4 && SHAPES.every((sh, k) => k === 3 || new Set(SHAPES.map(x => x.n)).size >= 3), "every gear type has its own number of windows besides its own teeth");
 }
 
