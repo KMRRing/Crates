@@ -155,7 +155,7 @@ function begin(s, fresh = false) {
   savePrefs();
   $("variant").value = S.id;
   $("table").classList.remove("won");
-  say(!prefs.seen && !IN_FRAME && !S.log.length ? "Tap a card to send it where it goes, or drag it. Tap the stock for more cards." : "");
+  say("");   // (Korbi, 7 Nov 2026: no instructive text; the cards and buttons say what to do)
   if (fresh) { sound.shuffle(); sound.dealing(7, 0.07, 0.7); }
   draw(true, fresh);
   save();
@@ -453,7 +453,6 @@ function draw(instant = false, deal = false) {
   $("redoBtn").disabled = !S.redo.length || thinking;
   const fin = canFinish();
   $("hintBtn").querySelector("b").textContent = fin ? "Finish" : "Hint";
-  $("hintBtn").querySelector("small").textContent = fin ? "the rest goes up" : "a move that wins";
   $("hintBtn").disabled = thinking;
   drawTime();
   if (!said && !done && !E.moves(G).length) say("No moves left. Undo, or start a new deal.", "bad");

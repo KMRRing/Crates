@@ -103,7 +103,7 @@ export function createView(host, opts = {}) {
   let four = false, won = false, wonAt = 0;
   const cards = new Map();                 // uid → { mesh, shadow, rank, suit, tgt, cur, delay, ring }
   const slotMeshes = [], dropMeshes = [], hintMeshes = [], rings = new Map();
-  let badge = null, badgeKey = "", sparks = null, spark = [], sheen = null;
+  let badge = null, badgeKey = "", sparks = null, spark = [], sheen = null, table = null;
   const tex = new Map();                   // key → { tex, canvas, paint }
   const mats = new Map();
   let fam = FAMILY(), col = null;
@@ -284,6 +284,30 @@ export function createView(host, opts = {}) {
     });
   }
 
+  // Korbi, 7 Nov 2026: the table is drawn here, not left to the page: mahogany with long grain under a brass rule, so tipped away it is a table
+  // seen from a seat and not a flat baize with cards floating over it. (The page's own baize steps aside while this view is on.)
+  function tableMat() {
+    const ratio = H / Math.max(1, W), tw = 512, th = Math.max(128, Math.round(512 * ratio));
+    return pictureMat(`table${ratio.toFixed(2)}`, tw, th, (c, w, h) => {
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "#6B2F1B"); g.addColorStop(0.5, "#7A3822"); g.addColorStop(1, "#4F2013");
+      c.fillStyle = g; c.fillRect(0, 0, w, h);
+      let a = 0x51A3, rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      for (let i = 0; i < 160; i++) {                       // the grain: long thin streaks, light and dark
+        const y = rnd() * h, len = w * (0.25 + rnd() * 0.75), x = rnd() * (w - len);
+        c.strokeStyle = rnd() < 0.5 ? `rgba(30,10,4,${0.1 + rnd() * 0.16})` : `rgba(255,190,140,${0.04 + rnd() * 0.07})`;
+        c.lineWidth = 0.5 + rnd() * 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y + (rnd() - 0.5) * 3); c.stroke();
+      }
+      const gl = c.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, w * 0.7);   // a pool of light in the middle
+      gl.addColorStop(0, "rgba(255,200,150,.2)"); gl.addColorStop(1, "rgba(255,200,150,0)");
+      c.fillStyle = gl; c.fillRect(0, 0, w, h);
+      const m = Math.round(w * 0.012);                      // the rim: a brass rule and a hairline inside it
+      c.strokeStyle = col.gilt; c.lineWidth = Math.max(3, w * 0.007); c.strokeRect(m, m, w - 2 * m, h - 2 * m);
+      c.strokeStyle = "rgba(226,184,101,.4)"; c.lineWidth = 1; c.strokeRect(m * 2.4, m * 2.4, w - 4.8 * m, h - 4.8 * m);
+      c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = Math.max(4, w * 0.012); c.strokeRect(0, 0, w, h);
+    });
+  }
+
   // ---------- the cards ----------
   let faces = [], texSize = 0;
   /** The cards to draw (uid, rank, suit); they are made when the first frame says how large a card is. */
@@ -304,6 +328,7 @@ export function createView(host, opts = {}) {
       scene.add(shadow, mesh);
       cards.set(uid, { mesh, shadow, rank, suit, tgt: null, cur: null, delay: 0, t0: 0, lift: 0 });
     }
+    table = new THREE.Mesh(quad, tableMat()); table.renderOrder = -6; table.frustumCulled = false; scene.add(table);
     sheen = new THREE.Mesh(quad, sheenMat()); sheen.renderOrder = -3; sheen.frustumCulled = false; scene.add(sheen);
     sparks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: col.gilt, toneMapped: false }), 56);
     sparks.frustumCulled = false; sparks.renderOrder = 5; sparks.count = 0;
@@ -313,10 +338,10 @@ export function createView(host, opts = {}) {
   /** Everything made from a picture or a card goes (a new variant, or cards that need a larger picture). */
   function purge() {
     for (const c of cards.values()) scene.remove(c.mesh, c.shadow);
-    for (const m of [...slotMeshes, ...dropMeshes, ...hintMeshes, badge, sheen, sparks]) if (m) scene.remove(m);
+    for (const m of [...slotMeshes, ...dropMeshes, ...hintMeshes, badge, sheen, table, sparks]) if (m) scene.remove(m);
     for (const r of rings.values()) scene.remove(r.mesh);
     cards.clear(); rings.clear(); slotMeshes.length = dropMeshes.length = hintMeshes.length = 0;
-    badge = sheen = sparks = null; badgeKey = ""; spark = [];
+    badge = sheen = table = sparks = null; badgeKey = ""; spark = [];
     for (const t of tex.values()) t.texture.dispose();
     for (const m of mats.values()) m.dispose();
     for (const m of shadowMats) m.dispose();
@@ -402,6 +427,7 @@ export function createView(host, opts = {}) {
     camera.lookAt(0, 0, 0);
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+    if (table) { table.position.set(0, -0.4, 0); table.scale.set(W, 1, H); }
     if (sheen) { sheen.position.set(0, 0.05, 0); sheen.scale.set(W * 1.5, 1, H * 1.3); }
   }
   const clampTilt = t => Math.max(0, Math.min(TILT_MAX, t));

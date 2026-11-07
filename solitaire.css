@@ -138,3 +138,6 @@ html[data-theme="office"] .so-kind { font-stretch: 100%; }
 /* Korbi, 7 Nov 2026: the top line is the card room's brass plate (cardroom.css), its text inside it; the table under it is the mahogany top */
 #app.solitaire .so-strip.cr-strip { padding: .28rem .75rem; margin: .5rem 0 .8rem; align-items: center; }
 #app.solitaire .so-strip.cr-strip b { font-size: 1.05rem; }
+
+/* 3D: the table is drawn by the view (solitaire-3d.js), so the page's own baize and frame step aside and it stands on the page, as the card games' tables do */
+#app .so-card.tk-mahogany:has(.so-board.is3d) { background: none !important; box-shadow: none !important; border-color: transparent !important; }
