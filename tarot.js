@@ -15,6 +15,9 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { tarotCard, backHtml } from "./tarot-faces.js";
 import { plateHtml, bubble, drawHandBox } from "./cardroom.js";
+import { createTarot3d, plateOf as plate3 } from "./tarot-3d.js";
+import { tableView } from "./table3d-view.js";
+import { slotOf } from "./table3d.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -197,29 +200,34 @@ function trickCard(s, seat) {
   }
   return null;
 }
-function slotHtml(v, seat) {
+/** What a seat shows this moment: the card it has played, a word it said, or that it is deciding. */
+function slotParts(v, seat) {
   const s = v.state;
   if (s.step === "bid" || s.step === "thrown" || (s.step === "call" || s.step === "discard" || s.step === "announce") && !s.tricks.length) {
     const b = [...s.bids].reverse().find(x => x.seat === seat);
     if (s.step === "bid" || s.step === "thrown") {
-      if (b) return `<span class="tr-word${b.n ? " yes" : ""}">${esc(b.n ? BIDS[b.n].short : "Pass")}</span>`;
-      return s.step === "bid" && s.turn === seat && !(viewer(v) === seat) ? `<span class="tr-thinking">bidding</span>` : "";
+      if (b) return { word: b.n ? BIDS[b.n].short : "Pass", yes: !!b.n };
+      return s.step === "bid" && s.turn === seat && !(viewer(v) === seat) ? { think: "bidding" } : {};
     }
-    if (seat === s.taker) return `<span class="tr-word yes">${esc(BIDS[s.bid].short)}</span>`;
-    return "";
+    if (seat === s.taker) return { word: BIDS[s.bid].short, yes: true };
+    return {};
   }
-  if (s.step === "shown" || s.step === "over") return "";
+  if (s.step === "shown" || s.step === "over") return {};
   const t = trickCard(s, seat);
-  if (t) return tarotCard(t.card, { cls: `${t.old ? "old" : ""}${t.won ? " won" : ""}` });
-  if (s.step === "play" && v.toMove === seat && viewer(v) !== seat) return `<span class="tr-thinking">${v.seats[seat]?.bot ? "thinking" : "to play"}</span>`;
-  return "";
+  if (t) return { card: tarotCard(t.card, { cls: `${t.old ? "old" : ""}${t.won ? " won" : ""}` }) };
+  if (s.step === "play" && v.toMove === seat && viewer(v) !== seat) return { think: v.seats[seat]?.bot ? "thinking" : "to play" };
+  return {};
+}
+function slotHtml(v, seat) {
+  const p = slotParts(v, seat);
+  return p.card || (p.word != null ? `<span class="tr-word${p.yes ? " yes" : ""}">${esc(p.word)}</span>` : p.think ? `<span class="tr-thinking">${p.think}</span>` : "");
 }
 
 // ---------- the table ----------
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("strip").textContent = ""; $("bar").innerHTML = ""; $("cover").hidden = true; return; }
+  if (!v?.G) { three?.dispose(); three = null; $("table").classList.remove("tr3c"); $("table").innerHTML = ""; $("hand").innerHTML = ""; $("strip").textContent = ""; $("bar").innerHTML = ""; $("cover").hidden = true; return; }
   const s = v.state;
   $("strip").innerHTML = stripLine(v);
   drawCover(v);
@@ -243,7 +251,23 @@ function panel(v, seat) {
   return `<div class="tr-panel${turn ? " turn" : ""}"><div class="tr-who"><b>${esc(who(seat))}</b>${roleChip(v, seat)}</div>
     <div class="tr-meta"><span class="tr-n" title="Cards left">${backHtml()}<b>${n}</b></span><span class="tr-sc" title="Points">${sign(s.scores[seat])}</span></div></div>`;
 }
+const view = tableView("tarot");                                   // Menu, View: the flat table or the 3D one (tarot-3d.js)
+let three = null;
+/** The cloth: each seat a plate, its card in front of it, what the table says in the middle. */
+function drawCloth(v) {
+  const s = v.state, n = s.n, me = footSeat(v), box = $("table");
+  box.classList.add("tr3c");
+  box.classList.toggle("tr-playing", s.step === "play");
+  three ||= createTarot3d(box, { quiet: () => IN_FRAME });
+  const live = ["bid", "call", "discard", "announce", "play"].includes(s.step);
+  const parts = Array.from({ length: n }, (_, seat) => slotParts(v, seat));
+  const plates = parts.map((p, seat) => plate3({ name: who(seat), seat, mine: seat === me, turn: live && v.toMove === seat, count: s.hands[seat].length,
+    score: sign(s.scores[seat]), role: roleChip(v, seat).replace(/<[^>]+>/g, ""), word: p.word || "", think: !!p.think && seat !== me }));
+  three.draw({ me, n, plates, lanes: parts.map(p => p.card || ""), mid: midHtml(v, true) });
+}
 function drawTable(v) {
+  if (view.get() === "3d") return drawCloth(v);
+  if (three) { three.dispose(); three = null; $("table").classList.remove("tr3c"); }
   const s = v.state, n = s.n, me = footSeat(v), box = $("table");
   const others = Array.from({ length: n - 1 }, (_, k) => (me + n - 1 - k) % n);
   const cols = others.map(o => `<div class="tr-col" data-seat="${o}">${panel(v, o)}<div class="tr-slot">${slotHtml(v, o)}</div></div>`).join("");
@@ -255,13 +279,13 @@ function drawTable(v) {
 }
 
 /** The middle of the table: the dog, the call, the result. */
-function midHtml(v) {
+function midHtml(v, cloth = false) {
   const s = v.state, me = footSeat(v);
   const cardsRow = (ids, cls = "") => `<span class="cd-line tr-line ${ids.length > 6 ? "many " : ""}${cls}">${ids.map(c => tarotCard(c)).join("")}</span>`;
   if (s.step === "shown" || s.step === "over") return resultHtml(v);
   if (s.step === "thrown") return `<p class="tr-note">${s.why?.sec != null ? `<b>${esc(who(s.why.sec))}</b> ${vb(s.why.sec, "hold", "holds")} the 1 of trumps and no other trump: a petit sec. The deal is void.` : "Nobody bid: the hands are thrown in."}</p>`;
   if (s.step === "bid") {
-    return `<p class="tr-note">The dog: ${s.dog.length} cards, ${s.n === 5 ? "to the taker, after a king is called" : "to the taker"}. ${s.bids.length ? "" : `<b>${esc(who(s.first))}</b> ${vb(s.first, "bid", "bids")} first.`}</p>`;
+    return cloth ? "" : `<p class="tr-note">The dog: ${s.dog.length} cards, ${s.n === 5 ? "to the taker, after a king is called" : "to the taker"}. ${s.bids.length ? "" : `<b>${esc(who(s.first))}</b> ${vb(s.first, "bid", "bids")} first.`}</p>`;
   }
   if (s.step === "call") {
     if (v.toMove === viewer(v)) return `<p class="tr-note">Call a king: its holder is your partner.</p><div class="tr-calls">${callable(s.hands[s.taker]).map(c => tarotCard(c, { cls: sel.has(c) ? "sel" : s.hands[s.taker].includes(c) ? "mine" : "", data: { call: c } })).join("")}</div>`;
@@ -278,7 +302,7 @@ function midHtml(v) {
   for (const p of s.poignees) bits.push(`<b>${esc(who(p.seat))}</b> ${vb(p.seat, "show", "shows")} a ${POIGNEE_NAMES[p.level]} handful ${cardsRow(p.cards, "small")}`);
   const no = s.tricks.length + (s.trick.plays.length ? 1 : 0) || 1;
   const head = `<p class="tr-note">Trick <b>${Math.min(no, SIZES[s.n].hand)}</b> of ${SIZES[s.n].hand}${s.ecartShown.length ? ` · discarded trumps ${s.ecartShown.map(c => short(c)).join(" ")}` : ""}</p>`;
-  return head + bits.map(b => `<p class="tr-note">${b}</p>`).join("");
+  return (cloth ? "" : head) + bits.map(b => `<p class="tr-note">${b}</p>`).join("");
 }
 
 function resultHtml(v) {
@@ -509,6 +533,7 @@ function openMenu() {
   const cp = progressOf("tarot", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Tarot, from the rules", () => course.open()));
   const set = part(body, "settings");
+  set.append(view.choice(() => draw()));
   set.append(choice("Players", [[3, "3"], [4, "4"], [5, "5"]], opts.seats, v => { opts.seats = Number(v); opts.hot = Math.min(opts.hot, opts.seats); saveOpts(); }));
   set.append(choice("On this phone", [1, 2, 3, 4, 5].filter(n => n <= opts.seats).map(n => [n, n === 1 ? "just me" : `${n} people`]), opts.hot, v => { opts.hot = Number(v); saveOpts(); }));
   set.append(line("People on this phone pass it round: each hand is hidden until its player taps. The players apply from the next game."));

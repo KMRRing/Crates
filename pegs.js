@@ -10,6 +10,7 @@ import { COURSE, judge, face as lessonFace, label as lessonLabel, hold } from ".
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml } from "./cards.js";
 import { plateHtml, drawHandBox } from "./cardroom.js";
+import { createPegs3d, plateOf as plate3 } from "./pegs-3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { ramp } from "./ramp.js";
@@ -113,11 +114,11 @@ function lane(s, seat) {
 }
 
 const view = tableView("pegs");                                    // Menu, View: the flat table or the cloth tipped away from you (pegs-3d.css)
-const applyView = () => $("app").classList.toggle("pg3", view.get() === "3d");
+let three = null;                                                  // the cloth (pegs-3d.js), while the view is 3D
 
 function drawTable(v) {
-  applyView();
-  const s = v.state, me = mine(), foe = 1 - me, box = $("table");
+  const s = v.state, me = mine(), foe = 1 - me, box = $("table"), cloth = view.get() === "3d";
+  if (!cloth && three) { three.dispose(); three = null; box.classList.remove("pg3c"); }
   const board = `<div class="pg-board">${lane(s, foe)}${lane(s, me)}</div>`;
   const foeCards = s.step === "show" || s.step === "over" ? 0 : s.hands[foe].length;
   const backs = foeCards ? `<span class="pg-backs">${s.hands[foe].map(() => backHtml()).join("")}</span>` : "";
@@ -136,6 +137,13 @@ function drawTable(v) {
       <div class="pg-crib"><span class="pg-cribcards">${[0, 1, 2, 3].map(() => backHtml()).join("")}</span><small>${esc(whose(s.dealer))} crib</small></div></div>
       <div class="pg-seq cd-line">${s.seq.map(e => card(e.card, e.seat === me ? "mine" : "")).join("") || '<span class="pg-new">New round</span>'}</div>
       <p class="pg-last">${esc(lastLine(s))}</p></div>`;
+  }
+  if (cloth) {
+    box.classList.add("pg3c");
+    three ||= createPegs3d(box);
+    const plate = seat => plate3({ name: who(seat), seat, mine: seat === me, turn: (s.step === "play" || s.step === "discard") && v.toMove === seat, count: s.hands[seat].length, score: s.scores[seat], dealer: s.dealer === seat });
+    three.draw({ plates: [plate(me), plate(foe)], centre: board + mid });
+    return;
   }
   box.innerHTML = head + board + mid;
 }

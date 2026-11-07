@@ -1,0 +1,20 @@
+/* Tarot's 3D table (tarot-3d.js) on the shared cloth (table3d.css): the cloth is the page's own colour, a card to a place in front of each seat. */
+#app.tarot { --tk-felt: color-mix(in srgb, var(--tr-in) 80%, #0B1E2A); }
+.tr-table.tr3c { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; margin: .55rem 0 .1rem; }
+.tr-table.tr3c .tk-field { flex: 1 1 0; }
+.tr3c .tk-mat { --cd-line: clamp(.8rem, min(5cqh, 4.4cqw), 1.9rem); }
+.tr3-lane { position: absolute; z-index: 2; translate: -50% -50%; display: flex; justify-content: center; align-items: center; font-size: var(--cd-line); transform-style: preserve-3d; }
+.tr3c .tk-centre { --tk-side: .9rem; top: 36%; bottom: 30%; display: grid; place-items: center; transform-style: preserve-3d; pointer-events: none;
+  --ink: var(--tk-text); --ink-soft: var(--tk-soft); --rule: color-mix(in srgb, var(--tk-text) 30%, transparent); color: var(--tk-text); font-size: var(--cd-line); }
+.tr3-mid { display: grid; justify-items: center; gap: .3rem; text-align: center; max-width: 100%; pointer-events: auto; font-size: .8rem; }
+.tr3-mid .tr-note, .tr3-mid .tr-result { margin: 0; font-size: .8rem; color: var(--tk-text); }
+.tr3-mid .tr-line { --cd-line: .9rem; }
+/* in the play the lanes have the middle; what is said is a line low on the cloth */
+.tr3c.tr-playing .tk-centre { top: 72%; bottom: 12%; }
+.tr3c.tr-playing .tr3-mid .cd-line { --cd-line: .7rem; }
+.tr3c .tk-plate .tk-act { max-width: 7rem; }
+.tr3-sc { margin-right: .25rem; font-style: normal; font-weight: 800; }
+.tr3-role { padding: 0 .25rem; border-radius: .2rem; font-style: normal; font-size: .68rem; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
+#app.tarot .tr3c .tk-plate .tk-name, .tr3c .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .84rem; }
+.tr3c .tk-plate:is(.at-l, .at-r) { width: 6.6rem; }
+@container (max-height: 420px) { .tr3c .tk-mat { height: 122%; } }
