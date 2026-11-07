@@ -272,3 +272,7 @@ html[data-mode="night"] #app.tb3 .tb-table { background: radial-gradient(ellipse
   .t3-hno { display: none; }
 }
 @media (orientation: landscape) and (min-width: 700px) { .t3-lvplate { flex-wrap: wrap; } }
+
+/* wave 2 (7 Nov 2026): the cloth is the shared mahogany top under brass (table3d.css's --tk-wood), the cloth's weave and rays gone */
+#app.tb3 .tb-table.tk-mahogany .t3-mat { background: var(--tk-wood); border-color: var(--tk-brass);
+  box-shadow: inset 0 0 0 .28rem rgba(20, 8, 2, .55), inset 0 0 0 calc(.28rem + 1px) color-mix(in srgb, var(--tk-brass) 80%, transparent), inset 0 .5rem 1.4rem rgba(0, 0, 0, .45), 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .5); }

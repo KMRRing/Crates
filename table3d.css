@@ -185,3 +185,24 @@ html[data-theme="office"][data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-w1
   .tk-centre { --tk-side: 6.2rem; top: 20%; bottom: 16%; }
   .tk-inlay { width: 6.4rem; font-size: 2.6rem; }
 }
+
+/* The mahogany table (wave 2, Korbi, 7 Nov 2026): no felt, a polished mahogany top under a brass rail, for the card games whose table
+   is their own (Schafkopf, Guandan; later the other trick-takers). `--tk-wood` is the top, as a stack of backgrounds (the kit's grain,
+   the lamp's pool sliding with the tilt, plank seams, a warm gradient); a game puts `tk-mahogany` on its table's box, or, where its
+   3D view has a cloth of its own (Tribute's .t3-mat), paints that with `var(--tk-wood)`. Light text on the wood: --ink and --ink-soft
+   are lightened inside .tk-mahogany. Codex day is a warm red-brown, night darker; Office a graphite top under a steel rail. */
+:root { --tk-brass: #CFA24E;
+  --tk-wood: var(--tk-grain) 0 0 / 260px 260px, radial-gradient(ellipse 72% 52% at calc(50% + var(--tk-px, 0) * 11%) 46%, rgba(255, 208, 150, .22), transparent 76%),
+    repeating-linear-gradient(90deg, transparent 0 2.2rem, rgba(30, 8, 0, .12) 2.2rem 2.3rem), linear-gradient(180deg, #7C4025, #5C2D19 56%, #43200F); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tk-brass: #B08A3E;
+  --tk-wood: var(--tk-grain) 0 0 / 260px 260px, radial-gradient(ellipse 72% 52% at calc(50% + var(--tk-px, 0) * 11%) 46%, rgba(255, 208, 150, .14), transparent 76%),
+    repeating-linear-gradient(90deg, transparent 0 2.2rem, rgba(30, 8, 0, .14) 2.2rem 2.3rem), linear-gradient(180deg, #5A2D1A, #411F10 56%, #2D150A); } }
+html[data-mode="night"] { --tk-brass: #B08A3E;
+  --tk-wood: var(--tk-grain) 0 0 / 260px 260px, radial-gradient(ellipse 72% 52% at calc(50% + var(--tk-px, 0) * 11%) 46%, rgba(255, 208, 150, .14), transparent 76%),
+    repeating-linear-gradient(90deg, transparent 0 2.2rem, rgba(30, 8, 0, .14) 2.2rem 2.3rem), linear-gradient(180deg, #5A2D1A, #411F10 56%, #2D150A); }
+html[data-theme="office"] { --tk-brass: #9BA3AD; --tk-wood: var(--tk-grain) 0 0 / 260px 260px, linear-gradient(180deg, #3A4048, #272C33 56%, #181B20); }
+#app:not(.tb3) .tk-mahogany { --ink: #F6EBD3; --ink-soft: #D8C6A3; color: var(--ink);
+  border: .26rem solid var(--tk-brass); border-radius: .6rem; background: var(--tk-wood);
+  box-shadow: inset 0 0 0 1px #140A04, inset 0 .5rem 1.4rem rgba(0, 0, 0, .5), inset 0 0 0 .32rem rgba(20, 8, 2, .55), 0 .9rem 1.1rem -.9rem rgba(0, 0, 0, .6); }
+@keyframes tk-go { 0%, 10% { box-shadow: inset 0 0 0 1px #140A04, inset 0 0 1.6rem .25rem rgba(127, 194, 168, .55), inset 0 0 0 .32rem rgba(20, 8, 2, .55); } 100% { box-shadow: inset 0 0 0 1px #140A04, inset 0 .5rem 1.4rem rgba(0, 0, 0, .5), inset 0 0 0 .32rem rgba(20, 8, 2, .55); } }
+#app:not(.tb3) .tk-mahogany.go { animation: tk-go 1.6s ease-out; }

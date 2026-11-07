@@ -744,7 +744,7 @@ function flashGo() {
   t.classList.add("go");
 }
 
-$("table").addEventListener("animationend", e => { if (e.animationName === "tb-go" || e.animationName === "t3-go") $("table").classList.remove("go"); });
+$("table").addEventListener("animationend", e => { if (e.animationName === "tb-go" || e.animationName === "t3-go" || e.animationName === "tk-go") $("table").classList.remove("go"); });
 
 // ---------- the plays on the table: as large as your cards, larger where the table has the room ----------
 /**

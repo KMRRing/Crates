@@ -39,11 +39,12 @@ const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "
 let opts = { game: "jass", level: "medium", full: false, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. Each game by its classic rules and length (Jass: Swiss
-// cards, every card single, 1000, Weis and Stöck; Belote 1000; Coinche 2000; Schafkopf 8 deals, simple cards), no full
+// cards, every card single, 1000, Weis and Stöck; Belote 1000; Coinche 2000; Schafkopf 8 deals, Bavarian cards), no full
 // screen, whatever an older save chose (a game in hand keeps its own rules, in its state). The computer's strength is the
 // hidden ramp, one for each game, its first step the old saved choice; the coach is on or off.
 const OLD_LEVEL = opts.level;
-Object.assign(opts, { full: false, look: "drawn", jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 } });
+// 7 Nov 2026 (Korbi): Schafkopf's cards are the Bavarian pack, drawn (trumps-deck.js), by default; the German pack is only Schafkopf's.
+Object.assign(opts, { full: false, look: "pictures", jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 } });
 let lesson = null, lessonNext = null;                                // a lesson's game names its own level, once
 const saveOpts = () => write(OPTS, opts);
 
@@ -195,6 +196,7 @@ function draw() {
   if (!page) return;
   if (coach() !== coachWas) { coachWas = coach(); advice = said = null; }   // the table's coach changed: its words go
   const v = V;
+  $("table").classList.toggle("tk-mahogany", tileNow() === "schafkopf");   // wave 2 (7 Nov 2026): Schafkopf's table is mahogany under brass, the shared frame (table3d.css)
   placeFull();
   wearTile();
   if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren(); $("centre").innerHTML = ""; $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }

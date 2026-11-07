@@ -17,8 +17,8 @@ Source: Korbi's doc "Tuesday plan: app todo and Settle foundry" (6 Nov 2026), wh
 - **Sound-audit test:** DONE 7 Nov (`tests/sound-mute.mjs`, static). It found Dujiang with no Sound setting (added). Open: Calibre's repeater gong has no Sound setting; Korbi decides (named in the test's EXEMPT).
 
 ## Wave 2: shared mahogany card table
-- **Table frame, Guandan (`tribute`) and Schafkopf first:** one `style.css`/module frame (felt-less mahogany table, brass rail) the card games draw inside; `trumps`, `tribute`, `landlord`, `bigtwo`, `hearts` later. 3D kit precedent: `table3d` code (`git show e2c62ef8:docs/table3d.md`).
-- **Bavarian cards restored from git history, default:** find the deleted Bavarian deck art with `git log --diff-filter=D --name-only -S"Bavarian"`; restore it as an option of the card kit (`deck.*`, shared) and make it the default for Schafkopf.
+- **DONE (7 Nov):** `tk-mahogany` / `--tk-wood` in `table3d.css` (felt-less mahogany top under a brass rail; Codex day, night, Office). Schafkopf (`trumps`, flat and 3D) and Guandan (`tribute`, flat and its 3D cloth) wear it. Schafkopf's cards are the drawn Bavarian pack by default (`trumps-deck.js`; the 1826 scans stay gone, public-domain rule).
+- **Later:** `landlord`, `bigtwo`, `hearts` (and Jass, Belote, Coinche in `trumps`): put `tk-mahogany` on the table's box, or paint their 3D cloth with `var(--tk-wood)`. Ask Korbi which.
 
 ## Wave 3: board frame and 3D
 - **Board frame shared by board games:** same idea as the card table for `chess`/`gambit`, `river`, `go`, `flank`, `crown`, `silo`, `morris`, `gammon`.
