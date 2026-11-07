@@ -43,6 +43,8 @@ for (const [letter, kinds] of [["c", ["country"]], ["m", ["commodity"]], ["t", [
   check(p.length >= 8 && p.every(c => kinds.includes(c.kind)), `source ${letter} alone: ${p.length} candidates, all of one kind (${kinds[0]})`);
 }
 check(by.f.every(c => /flag/i.test(c.clue.prompt)) && by.t.every(c => /capital/i.test(c.clue.prompt)), "flags ask whose flag, cities the capital");
+// Korbi, 7 Nov 2026: the answer is typed, a word of 4 to 9 letters
+check(all.length > 20 && all.every(c => c.word.length >= 4 && c.word.length <= 9) && all.some(c => c.word.length === 9), "answers are words of 4 to 9 letters");
 check(all.filter(c => c.word.length <= 5).length > 0 && (await C.cluePool(5, { src: "t", max: 5 })).every(c => c.word.length <= 5), "a small grid takes only short words");
 const excl = await C.cluePool(5, { inc: false }), incl = await C.cluePool(5, { inc: true });
 check(excl.every(c => !c.clue.mk) && incl.some(c => c.clue.mk), "marked content is out unless Settings includes it, and the star is on what is marked");
@@ -58,12 +60,12 @@ check(p && unpack(roundTrip(pack(p))).clue.a === p.clue.a && unpack({ ...pack(p)
 
 // ---------- the rules of the question ----------
 {
-  const run = newRun(), g0 = p.givens[0], free = [...Array(26).keys()].map(i => i + 1).find(n => !p.givens.includes(n)), wrong = [0, 1, 2, 3].filter(i => i !== p.clue.a);
+  const run = newRun(), g0 = p.givens[0], free = [...Array(26).keys()].map(i => i + 1).find(n => !p.givens.includes(n)), right = p.mystery.word, wrong = [right.split("").reverse().join("") === right ? "zzzz" : right.split("").reverse().join(""), "qqqq"];
   check(clueOpen(p, run) && !letterOf(p, run, g0) && !isFixed(p, run, g0), "the question is open: the givens don't show");
-  check(answerClue(p, run, wrong[0]).wrong && run.miss === 1 && clueOpen(p, run) && !answerClue(p, run, wrong[0]).ok && run.miss === 1, "a wrong pick is struck out and costs; the same one again does nothing");
-  check(answerClue(p, run, p.clue.a).ok && !clueOpen(p, run) && letterOf(p, run, g0) === p.letters[g0] && isFixed(p, run, g0), "the answer opens the grid: the givens show, fixed");
-  check(score({ ...run, ms: 10000 }) === 10 + MISS, `the score has ${MISS} seconds for the wrong pick`);
-  check(!answerClue(p, run, wrong[1]).ok && run.miss === 1 && !skipClue(p, run), "once answered, nothing more to pick or skip");
+  check(answerClue(p, run, wrong[0]).wrong && run.miss === 1 && clueOpen(p, run) && answerClue(p, run, wrong[1]).wrong && run.miss === 2, "a wrong answer costs, each time it is tried");
+  check(answerClue(p, run, right).ok && !clueOpen(p, run) && letterOf(p, run, g0) === p.letters[g0] && isFixed(p, run, g0), "the answer opens the grid: the givens show, fixed");
+  check(score({ ...run, ms: 10000 }) === 10 + 2 * MISS, `the score has ${MISS} seconds for each wrong answer`);
+  check(!answerClue(p, run, wrong[1]).ok && run.miss === 2 && !skipClue(p, run), "once answered, nothing more to answer or skip");
   const run2 = newRun();
   check(skipClue(p, run2) && !clueOpen(p, run2) && run2.hints === 1 && score({ ...run2, ms: 0 }) === HINT, "a skip shows the answer at a hint's price");
   const old = { ...p, clue: null };
@@ -76,12 +78,12 @@ check(p && unpack(roundTrip(pack(p))).clue.a === p.clue.a && unpack({ ...pack(p)
   const players = { u0: { name: "Korbi", slot: 0 }, u1: { name: "Ana", slot: 1 } };
   let g = roundTrip(freshTable(players, { app: 1, puzzle: pack(p), now: 1000 }));
   const act = fn => { const copy = structuredClone(g), ok = fn(copy); if (ok) g = roundTrip(copy); return ok; };
-  const P = puzzleOf(g), wrong = [0, 1, 2, 3].find(i => i !== P.clue.a), g0 = P.givens[0];
+  const P = puzzleOf(g), wrong = "qqqq", g0 = P.givens[0];
   check(clueOpenAt(g, P) && !letterAt(g, P, g0) && whyNot(g, 0, 1, "q") === "clue", "at a table the question is open, the givens hidden, nothing written in");
-  check(act(t => answerAt(t, wrong)) && g.miss === 1 && g.struck === 1 << wrong && !act(t => answerAt(t, wrong)), "a wrong pick by either is struck out for both");
+  check(act(t => answerAt(t, wrong)) && g.miss === 1 && clueOpenAt(g, P), "a wrong answer by either costs the team");
   check(act(t => skipAt(t)) && !clueOpenAt(g, P) && g.hints === 1 && letterAt(g, P, g0) === P.letters[g0] && !act(t => skipAt(t)), "a skip is the team's, at a hint's price");
   g.done = 1000 + 60000;
-  check(tableScore(g) === 60 + HINT + MISS, "the team's score has the wrong pick");
+  check(tableScore(g) === 60 + HINT + MISS, "the team's score has the wrong answer");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

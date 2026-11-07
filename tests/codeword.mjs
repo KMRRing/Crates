@@ -176,7 +176,7 @@ const dealt = performance.now() - t0;
   check(isTable(g) && !isTable(marker("split", 77)) && marker("race", 77).mode === "race" && BRANCH === "codeword-split", "a table is told from a request's marker");
   const P = puzzleOf(g), mine0 = NUMBERS.filter(n => holderOf(n) === 0 && !p.givens.includes(n)), mine1 = NUMBERS.filter(n => holderOf(n) === 1 && !p.givens.includes(n));
   const [a, b, c] = mine0, [x, y] = mine1;
-  check(whyNot(g, 0, a, p.letters[a]) === "clue" && act(t => answerAt(t, P.clue.a)) && g.clue === 1, "nothing is written in until the question is answered, by either of the pair");
+  check(whyNot(g, 0, a, p.letters[a]) === "clue" && act(t => answerAt(t, P.mystery.word)) && g.clue === 1, "nothing is written in until the question is answered, by either of the pair");
   check(P && P.letters.join() === p.letters.join(), "the table's puzzle unpacks to the one dealt");
   check(whyNot(g, 1, a, p.letters[a]) === "theirs" && !act(t => writeIn(t, 1, a, p.letters[a], 2000)), "a player can't write in the other's numbers");
   check(act(t => writeIn(t, 0, a, p.letters[b], 2000)) && letterAt(g, P, a) === p.letters[b] && holdingAt(g, P, p.letters[b]) === a, "a player writes in their own");

@@ -7,7 +7,7 @@
 //
 //   { v: 1, mode: "split", app, created, asked, puzzle (packed: codeword-engine.js), put: { n7: { l, by } },
 //     sug: { n7: { l, by, at } }, shown: { n7: 1 }, hints, checks, marks: { n7: 1 }, log: { s0: [{ n, b, a, m }] },
-//     clue (0 to answer, 1 answered, 2 skipped), struck (the options picked wrong, a bit each), miss (how many),
+//     clue (0 to answer, 1 answered, 2 skipped), miss (wrong answers),
 //     done, players: { uid: { name, slot, pid, online } } }
 // Numbers are keyed n1 to n26, never 1 to 26, which the database would hand back as a list with holes; and nothing
 // empty is relied on (the database keeps no empty object).
@@ -19,7 +19,7 @@ const LOG = 40;                       // undo steps kept for each player
 
 /** A new table for the pair: this puzzle (packed), dealt now, for the request asked (its time) or none. */
 export function freshTable(players, { app = 1, puzzle, asked = 0, now = Date.now() }) {
-  return { v: 1, mode: "split", app, created: now, asked: asked || 0, puzzle, hints: 0, checks: 0, clue: 0, struck: 0, miss: 0, done: 0, players };
+  return { v: 1, mode: "split", app, created: now, asked: asked || 0, puzzle, hints: 0, checks: 0, clue: 0, miss: 0, done: 0, players };
 }
 export const isTable = g => g?.v === 1 && g.mode === "split" && !!g.puzzle && Number.isFinite(g.created);
 /** The marker a request leaves before its table is dealt: which match it's for (README: a request is routed). */
@@ -52,7 +52,7 @@ export function asRun(g) {
   const put = {}, shown = {};
   for (const [k, v] of Object.entries(g.put || {})) if (v?.l) put[Number(k.slice(1))] = v.l;
   for (const k of Object.keys(g.shown || {})) shown[Number(k.slice(1))] = 1;
-  return { put, shown, log: [], marks: Object.keys(g.marks || {}).map(k => Number(k.slice(1))), hints: g.hints || 0, checks: g.checks || 0, clue: g.clue || 0, struck: g.struck || 0, miss: g.miss || 0, ms: 0, done: !!g.done };
+  return { put, shown, log: [], marks: Object.keys(g.marks || {}).map(k => Number(k.slice(1))), hints: g.hints || 0, checks: g.checks || 0, clue: g.clue || 0, miss: g.miss || 0, ms: 0, done: !!g.done };
 }
 /** The team's score once it's done: seconds from the deal to the last right letter, and the hints' and checks'. */
 export const tableScore = g => (g.done ? Math.round((g.done - g.created) / 1000) + HINT * (g.hints || 0) + CHECK * (g.checks || 0) + MISS * (g.miss || 0) : null);
@@ -168,12 +168,12 @@ export function hintAt(g, n, now = Date.now()) {
   settle(g, now);
   return true;
 }
-/** The pair picks an option of the question (either of them; it is the team's): the answer opens the grid, a wrong pick is struck out for both and costs MISS seconds. */
-export function answerAt(g, i) {
+/** The pair tries a typed answer to the question (either of them; it is the team's): the word opens the grid, a wrong one costs MISS seconds. */
+export function answerAt(g, guess) {
   const p = puzzleOf(g);
-  if (!p || g.done || !clueOpenAt(g, p) || !(i >= 0 && i < 4) || ((g.struck || 0) >> i) & 1) return false;
-  if (i === p.clue.a) g.clue = 1;
-  else { g.struck = (g.struck || 0) | (1 << i); g.miss = (g.miss || 0) + 1; }
+  if (!p || g.done || !clueOpenAt(g, p) || !p.mystery) return false;
+  if (guess === p.mystery.word) g.clue = 1;
+  else g.miss = (g.miss || 0) + 1;
   return true;
 }
 /** Gives the question up for the team: the answer shows, at a hint's price. */
@@ -187,7 +187,7 @@ export function skipAt(g) {
 /** A new grid at the same table (the pair stays seated): every letter, suggestion and penalty goes. */
 export function newGrid(g, puzzle, now = Date.now()) {
   for (const k of ["put", "sug", "shown", "marks", "log"]) delete g[k];
-  Object.assign(g, { puzzle, created: now, hints: 0, checks: 0, clue: 0, struck: 0, miss: 0, done: 0 });
+  Object.assign(g, { puzzle, created: now, hints: 0, checks: 0, clue: 0, miss: 0, done: 0 });
   return true;
 }
 /** The match as this player saw it, once solved, for the pair's record: a team result, lower better. */

@@ -60,7 +60,7 @@ const PER_SOURCE = 14;
  * note, mk } }], in the order the seed shuffles them, one for each word. `src` the sources' link letters, `inc` whether
  * what is marked for removal is in, `max` the longest word the grid takes.
  */
-export async function cluePool(seed, { src = ALL_SOURCES, inc = false, max = 11 } = {}) {
+export async function cluePool(seed, { src = ALL_SOURCES, inc = false, max = 9 } = {}) {
   await bankReady();
   const letters = cleanSources(src), want = SOURCES.filter(s => letters.includes(s.ch));
   const { mixQuestions } = await import("./punt-gen.js");

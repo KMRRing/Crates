@@ -18,7 +18,7 @@ export const SIZES = { small: { label: "Small", n: 11 }, medium: { label: "Mediu
 export const LEVEL_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard", expert: "Expert" };
 /** Today's grid is the same for everyone, so its options are fixed. */
 export const DAILY = { level: "medium", size: "medium" };
-/** Seconds a hint and a check add to the time; a wrong pick of the clue's answer; skipping the clue is a hint. */
+/** Seconds a hint and a check add to the time; a wrong answer to the clue; skipping the clue is a hint. */
 export const HINT = 30, CHECK = 20, MISS = 10;
 /** The split key: who holds a number (seat 0 the numbers 1 to 13, seat 1 the rest). */
 export const holderOf = n => (n <= 13 ? 0 : 1);
@@ -85,20 +85,20 @@ export const mysteryNums = p => (p.mystery ? [...p.mystery.word].map(ch => p.let
  * log (what undo takes back: [number, its letter before, its letter after, the number the letter moved from]), hints,
  * checks, marks (the numbers the last check found wrong, until they change), ms (time on the clock), done }.
  */
-export const newRun = () => ({ put: {}, shown: {}, log: [], hints: 0, checks: 0, marks: [], ms: 0, done: false, clue: 0, struck: 0, miss: 0 });
+export const newRun = () => ({ put: {}, shown: {}, log: [], hints: 0, checks: 0, marks: [], ms: 0, done: false, clue: 0, miss: 0 });
 // ---------- the clue: the question the grid opens on ----------
-// run.clue: 0 while it is to answer, 1 once answered, 2 once skipped; run.struck the options picked wrong (a bit each),
-// run.miss how many wrong picks. The givens are the answer's letters and show only when it is no longer open; a grid with
+// run.clue: 0 while it is to answer, 1 once answered, 2 once skipped; run.miss how many wrong answers. The answer is typed
+// (Korbi, 7 November 2026: not multiple choice), its letters under the grid; the puzzle still carries the four options it was
+// made with, which only keep old links and saved grids whole. The givens are the answer's letters and show only when it is no longer open; a grid with
 // no clue (one made before there were) shows them from the start.
 /** Whether the question is still to answer (nothing can be written in until it is). */
 export const clueOpen = (p, run) => !!p.clue && !run.clue;
-/** Picks an option: { ok } if it is the answer; else it is struck out and costs MISS seconds ({ ok: false, wrong: true }). */
-export function answerClue(p, run, i) {
-  if (!clueOpen(p, run) || !(i >= 0 && i < 4) || (run.struck >> i) & 1) return { ok: false };
-  if (i === p.clue.a) { run.clue = 1; return { ok: true }; }
-  run.struck |= 1 << i;
-  run.miss++;
-  return { ok: false, wrong: true };
+/** Tries a typed answer: { ok } if it is the word; else it costs MISS seconds ({ ok: false, wrong: true }). */
+export function answerClue(p, run, guess) {
+  if (!clueOpen(p, run) || !p.mystery) return { ok: false };
+  if (guess !== p.mystery.word) { run.miss++; return { ok: false, wrong: true }; }
+  run.clue = 1;
+  return { ok: true };
 }
 /** Gives the question up: the answer shows, at a hint's price. */
 export function skipClue(p, run) {

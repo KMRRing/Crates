@@ -92,7 +92,7 @@ const optKey = o => `${o.level}/${o.size}/${o.src}/${o.inc ? 1 : 0}/${o.split ? 
 /** The make message for a grid: its candidate questions come from the knowledge Settings has on (they need Crates' bank, so
  *  they're made here, not in the worker). */
 async function makeMsg(o, seed) {
-  const clues = await cluePool(seed, { src: o.src, inc: !!o.inc, max: SIZES[o.size].n });
+  const clues = await cluePool(seed, { src: o.src, inc: !!o.inc, max: Math.min(9, SIZES[o.size].n) });
   return { make: { seed, level: o.level, size: o.size, split: !!o.split, clues } };
 }
 async function makeGrid(o, seed, words = "Setting the grid") {
@@ -262,8 +262,8 @@ function remember() {                                // the cursor is kept with 
 function say(text, tone = "") { message = text ? { text, tone } : null; drawLine(); }
 /** A letter key: the cursor's number takes it (in the split key, a suggestion when the number is the other's). */
 function key(ch) {
+  if (P && !B.done() && !IN_FRAME && !paused && B.clueOpen()) { typeAnswer(ch); return; }
   if (!P || B.done() || IN_FRAME || paused || at.k < 0) return;
-  if (B.clueOpen()) { say("Answer the question first, or skip it.", "bad"); return; }
   const n = P.num[at.k];
   if (T) { tableKey(n, ch); return; }
   const r = place(P, S.run, n, ch);
@@ -277,6 +277,7 @@ function key(ch) {
   changed();
 }
 function del() {
+  if (P && !B.done() && !IN_FRAME && !paused && B.clueOpen()) { typed = typed.slice(0, -1); render(); return; }
   if (!P || B.done() || IN_FRAME || paused || at.k < 0) return;
   const n = P.num[at.k];
   if (T) { tableDel(n); return; }
@@ -318,17 +319,23 @@ function useCheck() {
   sayChecked(S.run.marks.length);
   changed();
 }
-/** An option of the question: the answer opens the grid; a wrong one is struck out and costs MISS seconds. */
-function pickOption(i) {
-  if (!P || IN_FRAME || paused || !B.clueOpen()) return;
+/** The answer as typed so far, in the mystery word's boxes; judged the moment it has the word's length. */
+let typed = "";
+function typeAnswer(ch) {
+  const want = P.mystery.word;
+  if (typed.length >= want.length) return;
+  typed += ch;
+  if (typed.length < want.length) { render(); return; }
+  const guess = typed;
+  typed = "";
   if (T) {
-    const wrong = i !== P.clue.a;
-    together.act(g => answerAt(g, i));
-    if (wrong) say(`Not ${P.clue.options[i]}: +${MISS} s.`, "bad"); else openedBy();
+    const wrong = guess !== want;
+    together.act(g => answerAt(g, guess));
+    if (wrong) say(`Not ${guess.toUpperCase()}: +${MISS} s.`, "bad"); else openedBy();
     return;
   }
-  const r = answerClue(P, S.run, i);
-  if (r.wrong) { say(`Not ${P.clue.options[i]}: +${MISS} s.`, "bad"); navigator.vibrate?.(12); save(); render(); }
+  const r = answerClue(P, S.run, guess);
+  if (r.wrong) { say(`Not ${guess.toUpperCase()}: +${MISS} s.`, "bad"); navigator.vibrate?.(12); save(); render(); }
   else if (r.ok) { openedBy(); changed(); }
 }
 async function skipOption() {
@@ -455,8 +462,8 @@ function drawBoard() {
   }
 }
 function drawKeys() {
-  const n0 = at.k >= 0 ? P?.num[at.k] : 0, sug = n0 && B.mine(n0) ? B.sug(n0) : null, off = !P || B.done() || IN_FRAME || B.clueOpen();
-  $("kbd").classList.toggle("off", !!P && (B.done() || B.clueOpen()));
+  const n0 = at.k >= 0 ? P?.num[at.k] : 0, sug = n0 && B.mine(n0) ? B.sug(n0) : null, off = !P || B.done() || IN_FRAME;
+  $("kbd").classList.toggle("off", !!P && B.done());
   for (const b of $("kbd").querySelectorAll("button[data-ch]")) {
     const ch = b.dataset.ch, on = P ? B.holding(ch) : 0;
     const cls = `${on ? "used" : ""}${on && B.fixed(on) ? " fixed" : ""}${on && on === n0 ? " on" : ""}${sug?.l === ch ? " sug" : ""}`.trim();
@@ -468,7 +475,7 @@ function drawKeys() {
   }
   for (const b of $("kbd").querySelectorAll("button.wide")) b.disabled = off;
 }
-/** The question under the grid, in the keys' room while it is to answer. */
+/** The question, over the grid while it is to answer (the answer is typed into the mystery word's boxes below). */
 let clueFor = "";
 function drawClue() {
   const box = $("clue"), open = B.clueOpen();
@@ -477,18 +484,10 @@ function drawClue() {
   const c = P.clue, key = `${P.seed}/${P.mystery.word}`;
   if (clueFor !== key) {
     clueFor = key;
+    typed = "";
     const esc = t => String(t).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
     $("clueAsk").innerHTML = `${c.ask ? `<span>${esc(c.ask)}</span> ` : ""}<b>${esc(c.prompt)}</b>${starOf(c)}`;
-    $("clueOpts").replaceChildren(...c.options.map((label, i) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = label;
-      b.addEventListener("click", () => pickOption(i));
-      return b;
-    }));
   }
-  const struck = (T ? T.struck : S.run.struck) || 0;
-  [...$("clueOpts").children].forEach((b, i) => { const on = !!((struck >> i) & 1); b.disabled = on; b.classList.toggle("struck", on); });
 }
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
@@ -507,7 +506,7 @@ function drawLine() {
   let text, tone = message?.tone || "";
   if (message) text = message.text;
   else if (!P) text = duel.on ? "The same grid for everyone at the table." : "";
-  else if (B.clueOpen()) text = `No letters yet: name the answer, or skip it for +${HINT} s.`;
+  else if (B.clueOpen()) text = `Type the answer (${P.mystery.word.length} letters), or skip it for +${HINT} s.`;
   else if (B.done()) text = mysteryLine() || `${LEVEL_NAMES[P.level]}, ${P.grid.length} by ${P.grid.length}${!T && S.mode === "daily" ? ": today's grid" : ""}.`;
   else if (T) {
     const n = at.k >= 0 ? P.num[at.k] : 0, partner = first(together.partner()?.name), s = n && B.mine(n) ? B.sug(n) : null;
@@ -535,7 +534,6 @@ function drawMystery() {
   const box = $("mystery");
   if (!P?.mystery) { box.hidden = true; return; }
   box.hidden = false;
-  box.classList.toggle("wait", B.clueOpen());   // its room is kept while the question is open, so nothing moves when it is answered
   const nums = mysteryNums(P), key = `${P.seed}/${P.mystery.word}/${T ? mySlot() : ""}`;
   if (box.dataset.key !== key) {
     box.dataset.key = key;
@@ -544,7 +542,7 @@ function drawMystery() {
   }
   const ems = box.querySelectorAll("em");
   nums.forEach((n, j) => {
-    const [i, b] = ems[j].children, num = B.mine(n) ? String(n) : "", l = B.letter(n) || "";
+    const [i, b] = ems[j].children, open = B.clueOpen(), num = !open && B.mine(n) ? String(n) : "", l = open ? typed[j] || "" : B.letter(n) || "";
     if (i.textContent !== num) i.textContent = num;
     if (b.textContent !== l) b.textContent = l;
   });
@@ -556,13 +554,13 @@ function drawResult() {
   if (!done) return;
   const v = $("verdict");
   if (T) {
-    v.textContent = `Cracked together in ${fmt(tableScore(T))}.${T.hints || T.checks || T.miss ? ` (${[T.hints ? plural(T.hints, "hint") : "", T.checks ? plural(T.checks, "check") : "", T.miss ? plural(T.miss, "wrong pick") : ""].filter(Boolean).join(", ")} in that.)` : ""}`;
+    v.textContent = `Cracked together in ${fmt(tableScore(T))}.${T.hints || T.checks || T.miss ? ` (${[T.hints ? plural(T.hints, "hint") : "", T.checks ? plural(T.checks, "check") : "", T.miss ? plural(T.miss, "wrong answer") : ""].filter(Boolean).join(", ")} in that.)` : ""}`;
     $("nextBtn").textContent = "A new grid";
   } else {
     const r = S.run, sc = score(r), bits = [];
     if (r.hints) bits.push(plural(r.hints, "hint"));
     if (r.checks) bits.push(plural(r.checks, "check"));
-    if (r.miss) bits.push(plural(r.miss, "wrong pick"));
+    if (r.miss) bits.push(plural(r.miss, "wrong answer"));
     const best = read(TIMES, {})[bestKey(S.opts)];
     v.textContent = `Cracked: ${fmt(sc)}${bits.length ? ` (${bits.join(", ")})` : ""}.${S.duel ? "" : S.fresh ? " A new best." : best != null ? ` Your best: ${fmt(best)}.` : ""}`;
     $("nextBtn").textContent = S.duel ? "The result" : S.mode === "daily" ? "A random grid" : "Another grid";
@@ -749,11 +747,11 @@ function showRules() {
   const sizes = Object.values(SIZES).map(s => `${s.label} ${s.n} by ${s.n}`).join(", "), day = SIZES[DAILY.size].n;
   $("rulesBody").innerHTML = `
     <p>A crossword with no clues. Every white cell holds a number from 1 to 26: the same number is always the same letter, two numbers are never the same letter, and every letter of the alphabet is somewhere in the grid. You crack the letters from the shapes of the words.</p>
-    <p><b>The question.</b> A grid opens on a question with one easy word for its answer, a country, a capital, a flag, a commodity, drawn from the topics you have on in Settings. Pick the answer from the four: its letters are the ones given, and its word shows under the grid in its numbers. A wrong pick is struck out and adds ${MISS} seconds. Skip it and the answer shows, at a hint's price. Nothing can be written in until it is answered.</p>
+    <p><b>The question.</b> A grid opens on a question with one easy word for its answer, a country, a capital, a flag, a commodity, drawn from the topics you have on in Settings. Type the answer on the keys, into the boxes under the grid; its letters are then the ones given, and it shows there in its numbers. A wrong answer adds ${MISS} seconds. Skip it and the answer shows, at a hint's price. Nothing can be written in until it is answered.</p>
     <p><b>For example.</b> Say 12 is T and 7 is E, and a word of three cells reads 12, 3, 7. T?E is THE, TIE or TOE, never TEE, since 3 isn't 7. Find a 3 in a word that only one of H, I and O fits, and every 3 in the grid takes that letter.</p>
     <p><b>Playing.</b> Tap a cell, then a letter: every cell of that number takes it, and the cursor moves on to the word's next empty cell. Tap the cell again, or ↔, to turn between across and down. A letter already on another number moves to this one, and that number goes blank, unless the letter is fixed there. ⌫ takes the cursor's letter out, and Undo takes back the last change. The keys show each letter in use with its number; where there's room (a tall phone, or held sideways) the key table lists 1 to 26 with their letters, and a tap on a number goes to it. On a keyboard: letters, Backspace, the arrows, and Space to turn.</p>
     <p><b>Hint and Check.</b> Hint shows the letter a strong solver would find next, for good: it's fixed like a given, marked with a corner, and the cursor goes to its word. It adds ${HINT} seconds, and nothing before it can be undone. Check strikes through, in red, every letter written in wrong, until it changes, and adds ${CHECK} seconds.</p>
-    <p><b>Score.</b> The time plus the hints', checks' and wrong picks' seconds, lower being better; the clock shows it as it stands, and on a grid of your own it stands still while the menu or these rules are open. A grid counts the moment its last letter is right, and bests are kept for each level and size.</p>
+    <p><b>Score.</b> The time plus the hints', checks' and wrong answers' seconds, lower being better; the clock shows it as it stands, and on a grid of your own it stands still while the menu or these rules are open. A grid counts the moment its last letter is right, and bests are kept for each level and size.</p>
     <p><b>Levels.</b> In the menu: how much a grid asks of you once the answer's letters are in. Easy never asks you to weigh more than four words at once; Medium up to eight; Hard sixteen or more somewhere; Expert thirty or more. Size: ${sizes}. Every grid has exactly one answer.</p>
     <p><b>Today's grid.</b> ${LEVEL_NAMES[DAILY.level]}, ${day} by ${day}, the same for everyone with the same question, whatever your topics, and a new one at midnight UTC. It counts the moment its last letter is right.</p>
     <p><b>Together.</b> The split key: one of you holds the numbers 1 to 13, the other 14 to 26. Each sees only their own numbers and writes letters in only for them; tap one of your partner's cells and a letter to suggest it, and they tap it to write it in. The question, hints and checks are the team's. In a party, a race: the same grid for everyone, the lowest score winning.</p>`;
@@ -802,8 +800,7 @@ $("board").addEventListener("click", e => {
 addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || !P) return;
   const k = e.key;
-  if (B.clueOpen() && /^[1-4]$/.test(k)) { e.preventDefault(); pickOption(Number(k) - 1); }
-  else if (/^[a-z]$/i.test(k)) { e.preventDefault(); key(k.toLowerCase()); }
+  if (/^[a-z]$/i.test(k)) { e.preventDefault(); key(k.toLowerCase()); }
   else if (k === "Backspace" || k === "Delete") { e.preventDefault(); del(); }
   else if (k === "ArrowLeft") { e.preventDefault(); step([0, -1]); }
   else if (k === "ArrowRight") { e.preventDefault(); step([0, 1]); }
