@@ -23,6 +23,7 @@ Source: Korbi's doc "Tuesday plan: app todo and Settle foundry" (6 Nov 2026), wh
 ## Wave 3: board frame and 3D
 - **Board frame shared by board games:** same idea as the card table for `chess`/`gambit`, `river`, `go`, `flank`, `crown`, `silo`, `morris`, `gammon`.
 - **3D for Mahjong, Xiangqi (`river`), Rack, Liar's dice (`boast`):** Mahjong already has a 3D view (`hong-3d.js`, `hong-gl.js`), do the other three with the camera kit.
+- **Lode 3D mode (Korbi, 7 Nov):** like Mines' 3D: the 48 letters on a rounded cube, so it reads as a planet, against a space background; `lode*.js` (the board is drawn by `lode-board.js`, traced by finger). Wave 0's Lode fix (title card shows item, topic, description) is done.
 - **Chess and Go strength settings:** a strength choice in the menu's settings part mapped to engine depth/time (`gambit` Arasan engine under `vendor/`, Go engine in `go*.js`); keep the licence rule.
 - **Reversi (`flank`) and Nine Men's Morris (`morris`) "looked at":** **ask** what Korbi wants changed.
 
