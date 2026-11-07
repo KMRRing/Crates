@@ -103,7 +103,7 @@ export function createView(host, opts = {}) {
   let four = false, won = false, wonAt = 0;
   const cards = new Map();                 // uid → { mesh, shadow, rank, suit, tgt, cur, delay, ring }
   const slotMeshes = [], dropMeshes = [], hintMeshes = [], rings = new Map();
-  let badge = null, badgeKey = "", sparks = null, spark = [], sheen = null, table = null;
+  let badge = null, badgeKey = "", sparks = null, spark = [], table = null; const edge = [];
   const tex = new Map();                   // key → { tex, canvas, paint }
   const mats = new Map();
   let fam = FAMILY(), col = null;
@@ -275,38 +275,40 @@ export function createView(host, opts = {}) {
       c.fillText(String(n), w / 2, h / 2 + 0.03 * e);
     });
   }
-  function sheenMat() {
-    return pictureMat("sheen", 256, 256, (c, w, h) => {
-      const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
-      const night = document.documentElement.dataset.mode === "night" || (document.documentElement.dataset.mode !== "day" && matchMedia?.("(prefers-color-scheme: dark)").matches);
-      g.addColorStop(0, `rgba(255,248,214,${night ? 0.07 : 0.13})`); g.addColorStop(1, "rgba(255,248,214,0)");
-      c.clearRect(0, 0, w, h); c.fillStyle = g; c.fillRect(0, 0, w, h);
-    });
-  }
-
-  // Korbi, 7 Nov 2026: the table is drawn here, not left to the page: mahogany with long grain under a brass rule, so tipped away it is a table
-  // seen from a seat and not a flat baize with cards floating over it. (The page's own baize steps aside while this view is on.)
+  // Korbi, 7 Nov 2026: "copy the Guandan table EXACTLY except for the cards". Tribute's top, painted here from the same tokens
+  // (table3d.css: --tk-top's three stops, the shade at the far end, the diagonal sheen, the lamp's pool, the grain, the brass rule on a
+  // dark hairline) on a table larger than the layout, standing on a brass edge and dark wood like its `.tk-mat`.
+  const tk = () => {
+    const css = getComputedStyle(document.documentElement), stops = (css.getPropertyValue("--tk-top").match(/#[0-9a-f]{6}/gi) || ["#7C4025", "#5C2D19", "#43200F"]);
+    return { stops, brass: (css.getPropertyValue("--tk-brass") || "#CFA24E").trim() };
+  };
   function tableMat() {
-    const ratio = H / Math.max(1, W), tw = 512, th = Math.max(128, Math.round(512 * ratio));
-    return pictureMat(`table${ratio.toFixed(2)}`, tw, th, (c, w, h) => {
+    const { stops, brass } = tk(), ratio = (H + 0.1 * W) / Math.max(1, 1.1 * W), tw = 640, th = Math.max(160, Math.round(640 * ratio));
+    return pictureMat(`table${ratio.toFixed(2)}:${stops.join("")}:${brass}`, tw, th, (c, w, h) => {
       const g = c.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, "#6B2F1B"); g.addColorStop(0.5, "#7A3822"); g.addColorStop(1, "#4F2013");
+      g.addColorStop(0, stops[0]); g.addColorStop(0.56, stops[1]); g.addColorStop(1, stops[2]);
       c.fillStyle = g; c.fillRect(0, 0, w, h);
       let a = 0x51A3, rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      for (let i = 0; i < 160; i++) {                       // the grain: long thin streaks, light and dark
+      for (let i = 0; i < 220; i++) {                       // the grain: long thin streaks, light and dark
         const y = rnd() * h, len = w * (0.25 + rnd() * 0.75), x = rnd() * (w - len);
-        c.strokeStyle = rnd() < 0.5 ? `rgba(30,10,4,${0.1 + rnd() * 0.16})` : `rgba(255,190,140,${0.04 + rnd() * 0.07})`;
+        c.strokeStyle = rnd() < 0.5 ? `rgba(30,10,4,${0.08 + rnd() * 0.14})` : `rgba(255,190,140,${0.03 + rnd() * 0.06})`;
         c.lineWidth = 0.5 + rnd() * 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y + (rnd() - 0.5) * 3); c.stroke();
       }
-      const gl = c.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, w * 0.7);   // a pool of light in the middle
-      gl.addColorStop(0, "rgba(255,200,150,.2)"); gl.addColorStop(1, "rgba(255,200,150,0)");
-      c.fillStyle = gl; c.fillRect(0, 0, w, h);
-      const m = Math.round(w * 0.012);                      // the rim: a brass rule and a hairline inside it
-      c.strokeStyle = col.gilt; c.lineWidth = Math.max(3, w * 0.007); c.strokeRect(m, m, w - 2 * m, h - 2 * m);
-      c.strokeStyle = "rgba(226,184,101,.4)"; c.lineWidth = 1; c.strokeRect(m * 2.4, m * 2.4, w - 4.8 * m, h - 4.8 * m);
-      c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = Math.max(4, w * 0.012); c.strokeRect(0, 0, w, h);
+      const sh = c.createLinearGradient(0, 0, 0, h * 0.46); sh.addColorStop(0, "rgba(8,3,1,.55)"); sh.addColorStop(1, "rgba(8,3,1,0)");
+      c.fillStyle = sh; c.fillRect(0, 0, w, h * 0.46);                                              // dark at the far end
+      const di = c.createLinearGradient(w * 0.2, 0, w * 0.8, h);                                    // the diagonal sheen
+      di.addColorStop(0.38, "rgba(255,226,180,0)"); di.addColorStop(0.47, "rgba(255,226,180,.12)"); di.addColorStop(0.56, "rgba(255,226,180,0)");
+      c.fillStyle = di; c.fillRect(0, 0, w, h);
+      c.save(); c.translate(w / 2, h * 0.56); c.scale(1, (h * 0.46) / (w * 0.66));                  // the lamp's pool, an ellipse
+      const gl = c.createRadialGradient(0, 0, 0, 0, 0, w * 0.66); gl.addColorStop(0, "rgba(255,208,150,.2)"); gl.addColorStop(0.78, "rgba(255,208,150,0)");
+      c.fillStyle = gl; c.fillRect(-w, -w, 2 * w, 2 * w); c.restore();
+      const m = Math.max(3, Math.round(w * 0.006));                                                 // the brass rule on its dark hairline
+      c.strokeStyle = "#150C06"; c.lineWidth = m * 2; c.strokeRect(m, m, w - 2 * m, h - 2 * m);
+      c.strokeStyle = brass; c.lineWidth = m; c.strokeRect(m * 2, m * 2, w - 4 * m, h - 4 * m);
     });
   }
+  /** The table's margin round the layout, in board pixels: none seen straight down (the 2D table exactly), a card's width tipped away. */
+  const margin = () => W * 0.05 * Math.min(1, tilt / ANGLED);
 
   // ---------- the cards ----------
   let faces = [], texSize = 0;
@@ -329,7 +331,8 @@ export function createView(host, opts = {}) {
       cards.set(uid, { mesh, shadow, rank, suit, tgt: null, cur: null, delay: 0, t0: 0, lift: 0 });
     }
     table = new THREE.Mesh(quad, tableMat()); table.renderOrder = -6; table.frustumCulled = false; scene.add(table);
-    sheen = new THREE.Mesh(quad, sheenMat()); sheen.renderOrder = -3; sheen.frustumCulled = false; scene.add(sheen);
+    const { brass } = tk(), box = new THREE.BoxGeometry(1, 1, 1);                      // the table's edge: brass over dark wood, standing under the top
+    for (const [key, color] of [["edge-brass", brass], ["edge-wood", "#2A1208"]]) { const m = new THREE.Mesh(box, plainMat(key, color)); m.frustumCulled = false; m.renderOrder = -7; scene.add(m); edge.push(m); }
     sparks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: col.gilt, toneMapped: false }), 56);
     sparks.frustumCulled = false; sparks.renderOrder = 5; sparks.count = 0;
     scene.add(sparks);
@@ -338,10 +341,10 @@ export function createView(host, opts = {}) {
   /** Everything made from a picture or a card goes (a new variant, or cards that need a larger picture). */
   function purge() {
     for (const c of cards.values()) scene.remove(c.mesh, c.shadow);
-    for (const m of [...slotMeshes, ...dropMeshes, ...hintMeshes, badge, sheen, table, sparks]) if (m) scene.remove(m);
+    for (const m of [...slotMeshes, ...dropMeshes, ...hintMeshes, badge, table, sparks, ...edge]) if (m) scene.remove(m);
     for (const r of rings.values()) scene.remove(r.mesh);
     cards.clear(); rings.clear(); slotMeshes.length = dropMeshes.length = hintMeshes.length = 0;
-    badge = sheen = table = sparks = null; badgeKey = ""; spark = [];
+    badge = table = sparks = null; edge.length = 0; badgeKey = ""; spark = [];
     for (const t of tex.values()) t.texture.dispose();
     for (const m of mats.values()) m.dispose();
     for (const m of shadowMats) m.dispose();
@@ -417,7 +420,7 @@ export function createView(host, opts = {}) {
     if (Math.abs(tYaw - yaw) < 0.03) yaw = tYaw;
     camBusy = tilt !== tTilt || yaw !== tYaw;
     const aspect = W / H;
-    dist = fitDistance(W, H, tilt, yaw, aspect, headroom);
+    dist = fitDistance(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom);
     pose = poseOf(tilt, yaw, dist);
     const near = dist * 0.1, top = near * Math.tan(FOV / 2), right = top * aspect;
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, dist * 4);
@@ -427,8 +430,11 @@ export function createView(host, opts = {}) {
     camera.lookAt(0, 0, 0);
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-    if (table) { table.position.set(0, -0.4, 0); table.scale.set(W, 1, H); }
-    if (sheen) { sheen.position.set(0, 0.05, 0); sheen.scale.set(W * 1.5, 1, H * 1.3); }
+    if (table) {
+      const mg = margin(), tw = W + 2 * mg, th = H + 2 * mg;
+      table.position.set(0, -0.4, 0); table.scale.set(tw, 1, th);
+      if (edge.length) { const [brassBand, wood] = edge; brassBand.position.set(0, -3.6, 0); brassBand.scale.set(tw, 6, th); wood.position.set(0, -15.6, 0); wood.scale.set(tw - 4, 18, th - 4); }
+    }
   }
   const clampTilt = t => Math.max(0, Math.min(TILT_MAX, t));
   const clampYaw = y => Math.max(-YAW_MAX, Math.min(YAW_MAX, y));

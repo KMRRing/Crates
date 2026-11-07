@@ -1,4 +1,4 @@
-// Beacon, the word-association game of two crews and one board (in the manner of the Czech designer Vlaada Chvátil's
+// Beacon (on screen: Cryptic, renamed 7 Nov 2026 by Korbi; the ids and saved keys stay), the word-association game of two crews and one board (in the manner of the Czech designer Vlaada Chvátil's
 // word-team game of 2015, with its rules and none of its words). Twenty-five words lie face down in a five by five
 // board, and a secret key says whose each is: nine for the crew that goes first, eight for the other, seven open water
 // (nobody's) and one reef. Each crew has a pilot, who sees the key; the rest of the crew see only the words. In turn the
@@ -97,7 +97,7 @@ export function uncover(s, i) {
 const beacon = {
   id: "beacon",
   css: "party-beacon.css",
-  name: "Beacon",
+  name: "Cryptic",
   min: 2,
   max: 10,
   blurb: "Two crews, 25 words. Your pilot signals one word and a number; find your words, dodge the reef.",

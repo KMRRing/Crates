@@ -1,4 +1,4 @@
-// Pewter, the bluffing game of coins, at Party's table: the bidding game Skull (Alex Randolph's, 2011) with its rules and
+// Pewter, the bluffing game of coins, at Party's table: the bidding game Skull (Hervé Marly's, 2011; its name, Skull, is Asmodee's registered mark (USPTO 7734262, 2025), so this one is Pewter) with its rules and
 // none of its pictures or words (README, Pewter). Everyone has four coins, three silver and one pewter, a bad one. Each
 // round everyone lays one face down; then in turn they add another of their own on top of their stack or open the bidding:
 // a bid names how many coins the bidder will turn without finding a pewter, all of their own stack first, then others'
