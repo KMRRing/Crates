@@ -114,7 +114,7 @@ async function setView(v, remember = true) {
   if (!started() || await sure(`Switch to ${v === "planet" ? "the planet" : "the flat board"} now? The board in hand is left.`)) start("random");
 }
 onDefaultChange(is3D => { if (!settings.view) setView(is3D ? "planet" : "flat", false); });   // Settings' 2D mode, live
-const viewChoice = () => choice("Board", [["planet", "Planet"], ["flat", "Flat"]], settings.shape === "cube" ? "planet" : "flat", v => setView(v));
+const viewChoice = () => choice("View", [["planet", "Planet"], ["flat", "Flat"]], settings.shape === "cube" ? "planet" : "flat", v => setView(v));
 
 const validS = s => !!s && !!s.board?.letters && s.board.letters.length === geometry(SHAPES[s.board.shape] ? s.board.shape : "square").n && Array.isArray(s.board.words) && !!s.run && !!s.deal;
 function save() {

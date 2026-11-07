@@ -105,8 +105,9 @@ const CROWN = '<i class="t3-crown"><svg viewBox="0 0 20 15" aria-hidden="true"><
 export function levelHtml({ level, levels, us, declarer, tail = "", cardClass }) {
   const wild = E.HEARTS * 13 + level - 2;
   const side = (team, label) => `<span class="t3-side${declarer === team || declarer < 0 ? " plays" : ""}"><small>${label}</small><b>${FACE[levels[team]]}</b></span>`;
-  return `<span class="t3-lvplate"><span class="t3-lv"><small>Level</small><b>${FACE[level]}</b></span>`
-    + `<span class="t3-wild"><span class="${cardClass(wild, level)} t3f t3-mini" aria-label="the wild card, ${E.cardName(wild)}">${cardFace(wild, level)}</span><small>wild</small></span>`
+  return `<span class="t3-lvplate">`
+    // the level is the card's own rank (a numeral beside it said it twice: Korbi, 7 Nov 2026)
+    + `<span class="t3-wild"><span class="${cardClass(wild, level)} t3f t3-mini" aria-label="the level card, the wild card, ${E.cardName(wild)}">${cardFace(wild, level)}</span><small>Level card<br>hearts wild</small></span>`
     + `<span class="t3-sides">${side(us, "Us")}${side(1 - us, "Them")}</span>${tail}</span>`;
 }
 
