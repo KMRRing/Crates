@@ -193,13 +193,13 @@ html[data-theme="office"][data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-w1
    are lightened inside .tk-mahogany. Codex day is a warm red-brown, night darker; Office a graphite top under a steel rail. */
 :root { --tk-brass: #CFA24E; --tk-top: linear-gradient(180deg, #7C4025, #5C2D19 56%, #43200F);
   --tk-wood: var(--tk-grain) 0 0 / 260px 260px, radial-gradient(ellipse 72% 52% at calc(50% + var(--tk-px, 0) * 11%) 46%, rgba(255, 208, 150, .22), transparent 76%),
-    repeating-linear-gradient(90deg, transparent 0 2.2rem, rgba(30, 8, 0, .12) 2.2rem 2.3rem), var(--tk-top); }
+    var(--tk-top); }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tk-brass: #B08A3E; --tk-top: linear-gradient(180deg, #5A2D1A, #411F10 56%, #2D150A);
   --tk-wood: var(--tk-grain) 0 0 / 260px 260px, radial-gradient(ellipse 72% 52% at calc(50% + var(--tk-px, 0) * 11%) 46%, rgba(255, 208, 150, .14), transparent 76%),
-    repeating-linear-gradient(90deg, transparent 0 2.2rem, rgba(30, 8, 0, .14) 2.2rem 2.3rem), var(--tk-top); } }
+    var(--tk-top); } }
 html[data-mode="night"] { --tk-brass: #B08A3E; --tk-top: linear-gradient(180deg, #5A2D1A, #411F10 56%, #2D150A);
   --tk-wood: var(--tk-grain) 0 0 / 260px 260px, radial-gradient(ellipse 72% 52% at calc(50% + var(--tk-px, 0) * 11%) 46%, rgba(255, 208, 150, .14), transparent 76%),
-    repeating-linear-gradient(90deg, transparent 0 2.2rem, rgba(30, 8, 0, .14) 2.2rem 2.3rem), var(--tk-top); }
+    var(--tk-top); }
 html[data-theme="office"] { --tk-brass: #9BA3AD; --tk-top: linear-gradient(180deg, #3A4048, #272C33 56%, #181B20); --tk-wood: var(--tk-grain) 0 0 / 260px 260px, var(--tk-top); }
 #app:not(.tb3) .tk-mahogany { --ink: #F6EBD3; --ink-soft: #D8C6A3; color: var(--ink);
   border: .26rem solid var(--tk-brass); border-radius: .6rem; background: var(--tk-wood);
