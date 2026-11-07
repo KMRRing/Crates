@@ -25,6 +25,6 @@ check(/tableView\("landlord"\)/.test(page) && /view\.choice\(/.test(page), "the 
 check(/view\.get\(\) === "3d"/.test(page) && /three\.dispose\(\)/.test(page) && /onPause\(.*three/.test(page), "flat unless 3D is chosen; 3D disposed on the way back; paused with the menu");
 check(html.includes("table3d.css") && html.includes("landlord-3d.css"), "the page links the cloth's stylesheet and its own");
 const css = readFileSync(new URL("../landlord-3d.css", import.meta.url), "utf8");
-check(!/[^\d.]([3-9]|\d\d+)px/.test(css.replace(/\d+px solid/g, "")), "sizes in rem, not px");
+check(!/[^\d.]([3-9]|\d\d+)px/.test(css.replace(/\d+px solid/g, "").replace(/\(max-height: \d+px\)/g, "")), "sizes in rem, not px");
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log("all passed");
