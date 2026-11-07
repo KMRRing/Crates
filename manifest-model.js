@@ -43,13 +43,22 @@ export const planeOf = ([wx, wy, wz]) => [(wx - wz) / Math.SQRT2, (-wx + 2 * wy 
  * the stack on its quay, as a view box in units of PX per engine unit, 10 of margin round it and `room` above for
  * packages coming down. `to` takes an engine screen point to a view box point.
  */
-export function frameOf(X, Y, Z, b, { blank = false, drop = false, pad = 0 } = {}) {
+export function frameOf(X, Y, Z, b, { blank = false, drop = false, pad = 0, fit = 0 } = {}) {
   const pts = [], top = blank ? 0 : Z;                              // the quay alone is framed to its own size
   for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= top; z++) pts.push(isoPoint(x, y, z, b));
   for (const [x, y] of [[0, Y], [X, Y], [X, 0]]) pts.push(isoPoint(x, y, -QUAY_DEPTH, b));
   const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
-  const s = PX, margin = 10 + pad, W = (maxX - minX) * s + margin * 2, H = (maxY - minY) * s + margin * 2, room = drop ? s * 1.6 : s * 0.25;
-  return { W, H, room, s, minX, minY, margin, aspect: W / (H + room), to: ([sx, sy]) => [(sx - minX) * s + margin, (sy - minY) * s + margin] };
+  const s = PX, margin = 10 + pad, room = drop ? s * 1.6 : s * 0.25;
+  let W = (maxX - minX) * s + margin * 2, H = (maxY - minY) * s + margin * 2, marginX = margin, marginY = margin;
+  // `fit`: the width over the height of the box the picture will fill. The frame grows to that shape round the stack (more of the harbour
+  // at the sides, or above and below), so the picture covers its whole box (Korbi, 8 November 2026) and every drawing and tap still
+  // runs on the one frame.
+  if (fit > 0) {
+    const have = W / (H + room);
+    if (fit > have) { const extra = (fit * (H + room) - W) / 2; marginX += extra; W += 2 * extra; }
+    else { const extra = (W / fit - (H + room)) / 2; marginY += extra; H += 2 * extra; }
+  }
+  return { W, H, room, s, minX, minY, margin, marginX, marginY, aspect: W / (H + room), to: ([sx, sy]) => [(sx - minX) * s + marginX, (sy - minY) * s + marginY] };
 }
 /** A square frame round one package alone, for the small picture beside an answer (the view box is 44 units, the package 40). */
 export function iconFrame(b, long = false) {
@@ -66,7 +75,7 @@ export function iconFrame(b, long = false) {
 export function cameraOf(frame, X, Y, Z, b) {
   const at = [X * b.X / 2, Z * b.H / 2, Y * b.Y / 2], k = ISO_K;
   const [ax, ay] = screenOf(at);                                      // where the centre falls on the engine screen
-  const viewX = vx => (vx - frame.margin) / frame.s + frame.minX, viewY = vy => (vy - frame.margin) / frame.s + frame.minY;
+  const viewX = vx => (vx - (frame.marginX ?? frame.margin)) / frame.s + frame.minX, viewY = vy => (vy - (frame.marginY ?? frame.margin)) / frame.s + frame.minY;
   return { at, dir: [1, 1, 1],
     left: (viewX(0) - ax) / k, right: (viewX(frame.W) - ax) / k,
     top: -(viewY(-frame.room) - ay) / k, bottom: -(viewY(frame.H) - ay) / k };

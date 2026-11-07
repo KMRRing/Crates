@@ -239,7 +239,8 @@ function itemsOf(cubes, o) {
 /** The picture for manifest-art.js's stage(cells, opts): { panel, drops }. */
 export function stage3d(cells, opts) {
   const turns = opts.turns || 0, b = boxFor(turns), X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
-  const frame = frameOf(X, Y, Z, b, { ...opts, pad: opts.drop || opts.tap ? PAD : 0 }), tk = tokensNow();
+  const box = opts.small ? null : document.querySelector(".mf-view"), fit = box && box.clientWidth > 80 && box.clientHeight > 80 ? box.clientWidth / box.clientHeight : opts.small ? 0 : 1.15;
+  const frame = frameOf(X, Y, Z, b, { ...opts, pad: opts.drop || opts.tap ? PAD : 0, fit }), tk = tokensNow();
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
   const lens = lensOf(frame, X, Y, Z, b), proj = projector(lens);

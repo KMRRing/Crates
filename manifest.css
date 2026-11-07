@@ -235,3 +235,10 @@ html[data-theme="office"] .mf-view { border-radius: 14px; }
 .mf-key-text small { font-size: .6rem; font-weight: 700; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mf-key-text b { font-size: .95rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .mf-key-text b i { font-style: normal; font-size: .62rem; font-weight: 700; color: var(--ink-soft); margin-left: .25rem; }
+
+/* the 3D harbour covers the whole inside of its box (Korbi, 8 November 2026): the picture is framed to the box's own shape, no flat sky, sea
+   or skyline behind it, no cap on its size and no melting edges */
+.mf-view:has(canvas.scene) { --mf-horizon: 100%; background: var(--mf-sea); }
+.mf-view:has(canvas.scene)::before, .mf-view:has(canvas.scene)::after { display: none; }
+.mf-view canvas.scene { width: min(100cqw, calc(100cqh * var(--aspect, 1.3))); -webkit-mask-image: none; mask-image: none; }
+@media (orientation: landscape) and (min-width: 700px) { .mf-view canvas.scene { width: min(100cqw, calc(100cqh * var(--aspect, 1.3))); } }
