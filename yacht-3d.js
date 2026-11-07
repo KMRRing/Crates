@@ -7,6 +7,7 @@
 // Held dice stand in a row near you; tap one to hold it or let it go. It draws only while something moves, 30 frames a
 // second at the most, and the pixel ratio is capped at 2.
 import * as THREE from "./vendor/three.js";
+import { CanvasTexture } from "./vendor/three-tex.js";
 import { DIE, ROW_Z, SCATTER, GAP, heldSpot, scatterSpots, keyNumber, FACES, PIP_AT } from "./yacht-3d-geo.js";
 
 const PCF = 1;                                                              // THREE.PCFShadowMap (the soft one is not in the bundle)
@@ -104,8 +105,13 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
   // There is no table drawn here: the page's own mahogany shows through the clear canvas (Korbi, 7 Nov 2026: "a table within a
   // table"), and a plane that draws nothing but shadows lays the dice's on it.
   const mesh = (g, m, cast = true, receive = true) => { const o = new THREE.Mesh(g, m); o.castShadow = cast; o.receiveShadow = receive; o.frustumCulled = false; scene.add(o); return o; };
-  const shade = track(new THREE.ShadowMaterial({ opacity: 0.5 }));
-  mesh(track(new THREE.PlaneGeometry(40, 40)), shade, false, true).rotation.x = -Math.PI / 2;
+  // (the vendored three leaves ShadowMaterial out, which stopped the 3D dice altogether: each die lays a soft blob of its own instead,
+  // fainter and wider the higher it is)
+  const blobTex = track((() => { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+    g.addColorStop(0, "rgba(0,0,0,.85)"); g.addColorStop(.55, "rgba(0,0,0,.4)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new CanvasTexture(c); })());
+  const blobMat = track(new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+  const blobGeo = track(new THREE.BoxGeometry(1, 0.002, 1));      // (a thin slab: the vendored three has no PlaneGeometry either)
+  const blobs = Array.from({ length: 5 }, () => { const o = new THREE.Mesh(blobGeo, blobMat.clone()); o.frustumCulled = false; o.renderOrder = -1; scene.add(o); return o; });
 
   // ---------- the dice ----------
   const bodyGeo = track(roundedBox(DIE, 0.085)), pipGeo = track(pipGeometry(false)), redGeo = track(pipGeometry(true));
@@ -166,6 +172,7 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
     lastDraw = t;
     const now = performance.now();
     for (let i = anims.length - 1; i >= 0; i--) if (!anims[i](now)) anims.splice(i, 1);
+    dice.forEach((d, k) => { const h = Math.max(0, d.p.y - DIE / 2), b = blobs[k]; b.position.set(d.p.x + h * 0.25, 0.02, d.p.z + h * 0.3); b.scale.setScalar(DIE * (2.1 + h * 0.5)); b.material.opacity = 0.62 / (1 + h * 0.8); });
     dice.forEach((d, k) => { M4.compose(d.p, d.q, ONE); body.setMatrixAt(k, M4); pips.setMatrixAt(k, M4); reds.setMatrixAt(k, M4); });
     body.instanceMatrix.needsUpdate = pips.instanceMatrix.needsUpdate = reds.instanceMatrix.needsUpdate = true;
     dirty = false;
