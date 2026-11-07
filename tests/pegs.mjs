@@ -240,6 +240,6 @@ function playOut(seed, levels, { record = false } = {}) {
 const apps = fs.readFileSync(root + "apps.js", "utf8"), page = fs.readFileSync(root + "pegs.js", "utf8"), html = fs.readFileSync(root + "pegs.html", "utf8");
 check(/id: "pegs",[^\n]*href: "\.\/pegs\.html"[^\n]*logo: LOGO\("pegs", PEGS_LOGO\)/.test(apps) && !/id: "pegs"[^\n]*soon: true/.test(apps), "the tile opens the game, not the placeholder");
 check(/seatRounds\("pegs", \["show"\]\)/.test(page) && /noteStreak\("pegs"/.test(page) && /seatPage\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "pegs"\)/.test(page), "the page counts a deal as Random's round, notes the streak and sits on seats.js");
-check(/pegs\.css/.test(html) && /cards\.css/.test(html) && /pegs\.js/.test(html) && /class="pegs (full )?fit-screen beside"/.test(html), "the page links its styles and script");
+check(/pegs\.css/.test(html) && /cards\.css/.test(html) && /pegs\.js/.test(html) && /class="pegs (full )?(titled )?fit-screen beside"/.test(html), "the page links its styles and script");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("pegs: counting, the play, go, 31, heels, the show, the win in play and in count, whole games and the database");

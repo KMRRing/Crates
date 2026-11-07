@@ -17,7 +17,7 @@ import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, choice, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { KEYS, RUN_KEY, keeper, migrate, readMode, readDiff, readCoach, readSeen, readDaily, readSel, readCam, readCamp, savedRun as savedRunOf } from "./shunt-keep.js";
@@ -410,7 +410,7 @@ async function setView(want3d, remember = false) {
   let next = null;
   if (want3d) {
     const finish = busy("Setting up the movement");
-    try { next = (await import("./shunt-view-3d.js")).createView({ board: $("board"), tray: $("tray"), onGesture: () => { touch = null; }, onLost: lostGl, cam: readCam(kp), onCam: c => write(CAM, c) }); }
+    try { next = (await load3d(import("./shunt-view-3d.js"))).createView({ board: $("board"), tray: $("tray"), onGesture: () => { touch = null; }, onLost: lostGl, cam: readCam(kp), onCam: c => write(CAM, c) }); }
     catch (err) { console.warn("Shunt: no 3D here.", err); toast("This browser can't draw 3D."); } finally { finish(); }
     if (!next) return;
     if (read(TILT, false, v => typeof v === "boolean")) next.deviceTilt(true, true);       // asked for before: only listen (iOS keeps its permission for the visit)

@@ -19,6 +19,7 @@ import { createRush } from "./bones-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
 import "./pwa.js";
 import { ramp } from "./ramp.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "bones:opts", RECORD = "bones:record";
@@ -69,7 +70,7 @@ function drop3d(why) {
 function raise3d() {
   if (table3 || loading3) return;
   loading3 = true;
-  import("./bones-3d.js").then(m => {
+  load3d(import("./bones-3d.js")).then(m => {
     if (view.get() !== "3d") return;
     table3 = m.createTable($("table"), {
       covered: () => $("others").getBoundingClientRect().bottom - $("table").getBoundingClientRect().top + 4,

@@ -7,7 +7,7 @@
 // rules of touch below are the same for both drawings, which differ only in where a finger is read to be (the scene's `local`).
 import { Chess } from "./vendor/chess.js";
 import { PIECES } from "./chess-pieces.js";
-import { waitMark } from "./loading.js";
+import { waitMark, load3d } from "./loading.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const FILES = "abcdefgh";
@@ -15,7 +15,7 @@ const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); 
 
 // ---------- the 3D drawing (gambit-3d.js): loaded the first time it's wanted, kept for the page, let go when the flat board is chosen ----------
 const three = { load: null, scene: null, host: null, active: null, failed: false };    // active: the touch rules of the mount drawing in it now
-const loadScene = () => (three.load ||= import("./gambit-3d.js").catch(err => { three.load = null; throw err; }));
+const loadScene = () => (three.load ||= load3d(import("./gambit-3d.js")).catch(err => { three.load = null; throw err; }));
 function dropScene() { three.scene?.dispose(); three.scene = three.host = null; }
 /** Holds the 3D scene still (the menu is open) or lets it go on. */
 export const holdScene = on => three.scene?.hold(on);

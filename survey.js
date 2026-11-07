@@ -21,6 +21,7 @@ import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
+import { load3d } from "./loading.js";
 
 
 const $ = id => document.getElementById(id);
@@ -70,7 +71,7 @@ const want3D = () => wants3D(look, "3d");
 /** The block in the view asked for; where the 3D one can't be made (no WebGL) the flat one stands in. */
 async function makeView(three) {
   if (three) {
-    try { return { v: (await import("./survey-3d.js")).createBlock(stage), three: true }; }
+    try { return { v: (await load3d(import("./survey-3d.js"))).createBlock(stage), three: true }; }
     catch (err) { console.warn("Survey: no WebGL here, drawing it flat.", err); }
   }
   try { return { v: createFlat(stage), three: false }; }

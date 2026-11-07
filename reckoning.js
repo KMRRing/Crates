@@ -18,7 +18,7 @@ import { scale } from "./wide.js";
 import { typed } from "./sure.js";
 import { T, setTune, resetTune } from "./reckoning-tune.js";
 import { createLab } from "./reckoning-labui.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 import { createFlatRunner } from "./reckoning-2d.js";   // the quay from above, for 2D mode and where there is no WebGL
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import * as sound from "./reckoning-sound.js";
@@ -516,7 +516,7 @@ function restoreLog() {
 /** The 3D quay (three.js is fetched only now) or the flat one; where the 3D one can't be made, flat. */
 async function makeView(three) {
   if (three) {
-    try { view = (await import("./reckoning-3d.js")).createRunner($("stage")); viewIs3D = true; return; }
+    try { view = (await load3d(import("./reckoning-3d.js"))).createRunner($("stage")); viewIs3D = true; return; }
     catch (err) { console.warn("courier: no WebGL, drawing the quay flat.", err); }
   }
   view = createFlatRunner($("stage")); viewIs3D = false;

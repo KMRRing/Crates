@@ -18,11 +18,12 @@ const TITLED = new Set(`crates lots punt quote origin order chart ledger nexus i
   slate delta spot speedmaths pipes survey stow shunt
   sudoku calcudoku kakuro hitori masyu nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls codeword assay yield
   calibre parley arthistory wine firmament trade constitutions statecraft music maths speedfuels blend refinery rack cartel deck rush
-  party quest cue tribute`.split(/\s+/).map(n => n + ".html"));
+  party quest cue tribute
+  contract trumps landlord bigtwo hearts meld pegs boast yacht solitaire holdem blackjack baccarat tarot`.split(/\s+/).map(n => n + ".html"));
 // (tribute: Guandan became titled on 7 Nov 2026, Korbi: it should state its name and logo, which go back to the games)
-// FULL alone: card and dice games, board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
-const FULL = new Set(`contract trumps landlord bigtwo hearts shoe carrack meld pegs hong bones boast yacht solitaire banquet holdem blackjack baccarat
-  tarot craps roulette sicbo factor gambit flank morris crown go river silo gammon carrom
+// (the card and dice games became titled on 7 Nov 2026, Korbi: "implement it across the board"; Craps, Sic Bo, Roulette and Shoe stay full)
+// FULL alone: board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
+const FULL = new Set(`shoe carrack hong bones banquet   craps roulette sicbo factor gambit flank morris crown go river silo gammon carrom
   avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle slipway topple harbour ingot
   almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));
 
@@ -56,7 +57,7 @@ const css = fs.readFileSync(root + "style.css", "utf8");
 check(/#app\.full\.titled > \.top > \.mark \{[^}]*display: block !important/.test(css) && /#app\.full\.titled > \.top :is\(\.mark-icon, \.partner-pill/.test(css), "style.css shows a titled page's name in the band, without the logo or the pill");
 // the title's logo (menu.js, titleLogo): menu.js finds a titled page's tile in apps.js by its file name, so every titled page must have one,
 // and it shows only on titled pages (menu.js asks for `#app.full.titled`; a FULL page never has the class, checked above)
-const tiles = new Set([...fs.readFileSync(root + "apps.js", "utf8").matchAll(/href: "\.\/([^"]+\.html)"/g)].map(m => m[1]));
+const tiles = new Set([...fs.readFileSync(root + "apps.js", "utf8").matchAll(/href: "\.\/([^"?]+\.html)/g)].map(m => m[1]));
 const noLogo = [...TITLED].filter(p => !tiles.has(p));
 check(!noLogo.length, `every titled page has a tile in apps.js, so a logo above its title${noLogo.length ? `: ${noLogo.join(", ")}` : ""}`);
 const menu = fs.readFileSync(root + "menu.js", "utf8");

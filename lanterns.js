@@ -16,7 +16,7 @@ import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
@@ -512,7 +512,7 @@ async function setView(v, remember = true) {
   if (v === "model" && modelBlocked()) { toast("3D doesn't draw this twist yet."); v = "flat"; }
   if (v === "model" && !model) {
     try {
-      model = (await import("./lanterns-3d.js")).createModel($("model"), { press, playable: () => !!S && !S.done && !IN_FRAME && !paused });
+      model = (await load3d(import("./lanterns-3d.js"))).createModel($("model"), { press, playable: () => !!S && !S.done && !IN_FRAME && !paused });
     } catch (err) { console.warn("Lanterns: no 3D here.", err); toast("This browser can't draw 3D."); v = "flat"; }
   }
   viewShown = v;

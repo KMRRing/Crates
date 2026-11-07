@@ -16,7 +16,7 @@ import { part, choice, toggle, action, line, mirror, onPause, isPaused, todayPar
 import { statsOf as statsIn, addStats as addIn, totalWins, life } from "./solitaire-record.js";
 import { today, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
-import { busy, progress } from "./loading.js";
+import { busy, progress, load3d } from "./loading.js";
 import { sure } from "./sure.js";
 import * as sound from "./solitaire-sound.js";
 import { defaultIs3D } from "./mode3d.js";
@@ -409,7 +409,7 @@ async function applyView() {
   const my = ++viewing, want = wants3D();
   if (want && !board.view) {
     try {
-      const m = await import("./solitaire-3d.js");
+      const m = await load3d(import("./solitaire-3d.js"));
       if (my !== viewing || board.view) return;
       const v = m.createView($("table"), {
         onCamera: (tilt, yaw) => { prefs.tilt = Math.round(tilt); prefs.yaw = Math.round(yaw); savePrefs(); showTilt(); },

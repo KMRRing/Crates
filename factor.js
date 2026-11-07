@@ -24,6 +24,7 @@ import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import "./pwa.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "factor:opts", RECORD = "factor:record";
@@ -263,7 +264,7 @@ function drawBoard(v) {
 async function useView() {
   if (island && flatNow()) { island.dispose(); island = null; }
   if (!island && !flatNow()) {
-    try { island = (await import("./factor-3d.js")).createIsland($("board"), { view: keptView(), onView: keepView }); }
+    try { island = (await load3d(import("./factor-3d.js"))).createIsland($("board"), { view: keptView(), onView: keepView }); }
     catch (err) { console.warn("Factor: no 3D here, so the island is drawn flat.", err); island = null; }
   }
   $("app").classList.toggle("three", !!island);

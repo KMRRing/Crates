@@ -25,7 +25,7 @@ import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 // RUN: the free puzzle in play. TRACK: "levels" or "free", the way played. CAMP: the level being played and the stars won in
@@ -588,7 +588,7 @@ function feedModel(br) {
 async function setView(v, remember = true) {
   if (v === "model" && !model) {
     try {
-      model = (await import("./bridges-3d.js")).createModel($("model"), {
+      model = (await load3d(import("./bridges-3d.js"))).createModel($("model"), {
         press, island: i => pointAt(i), playable: () => !!S && !S.done && !IN_FRAME && !paused, blocked: l => S.marks[l] === "0" && crossed(P, S.marks, l),
       });
     }

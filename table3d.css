@@ -206,3 +206,17 @@ html[data-theme="office"] { --tk-brass: #9BA3AD; --tk-top: linear-gradient(180de
   box-shadow: inset 0 0 0 1px #140A04, inset 0 .5rem 1.4rem rgba(0, 0, 0, .5), inset 0 0 0 .32rem rgba(20, 8, 2, .55), 0 .9rem 1.1rem -.9rem rgba(0, 0, 0, .6); }
 @keyframes tk-go { 0%, 10% { box-shadow: inset 0 0 0 1px #140A04, inset 0 0 1.6rem .25rem rgba(127, 194, 168, .55), inset 0 0 0 .32rem rgba(20, 8, 2, .55); } 100% { box-shadow: inset 0 0 0 1px #140A04, inset 0 .5rem 1.4rem rgba(0, 0, 0, .5), inset 0 0 0 .32rem rgba(20, 8, 2, .55); } }
 #app:not(.tb3) .tk-mahogany.go { animation: tk-go 1.6s ease-out; }
+
+/* ---------- 7 Nov 2026, Korbi: "implement it across the board": every kit table is Guandan's ----------
+   The cloth is gone: under the brass line the top is polished mahogany (the same --tk-top and grain as Tribute's), shaded dark at the
+   far end and lit in the middle, and the tipped plane has height, a stack of brass and dark-wood edges standing on a shadow. The
+   felt a game asked for with --tk-felt no longer shows; one look for the whole card room. */
+:is(.tk-mat, .tk-surface)::before {
+  background:
+    linear-gradient(180deg, rgba(8, 3, 1, .55), rgba(8, 3, 1, 0) 46%),
+    linear-gradient(115deg, transparent 38%, rgba(255, 226, 180, .12) 47%, transparent 56%),
+    radial-gradient(ellipse 66% 46% at 50% 56%, rgba(255, 208, 150, .2), transparent 78%),
+    var(--tk-grain) 0 0 / 260px 260px, var(--tk-top);
+  box-shadow: inset 0 .22rem .55rem rgba(0, 0, 0, .5), 0 0 0 .1rem #150C06, 0 0 0 calc(.1rem + 1px) var(--tk-brass); }
+.tk-mat { box-shadow: inset 0 1px 0 rgba(255, 235, 200, .32), 0 .22rem 0 color-mix(in srgb, var(--tk-brass) 70%, #000), 0 .44rem 0 #2A1208, 0 .66rem 0 #1E0D05, 0 .88rem 0 #150903, 0 1.5rem 1.4rem -.2rem rgba(0, 0, 0, .65); }
+html[data-theme="office"] .tk-mat { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 .22rem 0 #1A1D22, 0 .44rem 0 #111317, 0 1.5rem 1.4rem -.2rem rgba(0, 0, 0, .6); }

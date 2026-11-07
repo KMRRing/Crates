@@ -14,7 +14,7 @@ import { COURSE, boardStage } from "./go-course.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
-import { waitMark } from "./loading.js";
+import { waitMark, load3d } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -289,7 +289,7 @@ async function applyView() {
     making3d = true;
     $("stage").classList.add("is3d", "wait3d");                 // no flash of the flat board while three.js loads
     try {
-      board3d = (await import("./go-3d.js")).createBoard3d($("board3d"), { onTap: tap, click: () => opts.click, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); applyView(); } });
+      board3d = (await load3d(import("./go-3d.js"))).createBoard3d($("board3d"), { onTap: tap, click: () => opts.click, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); applyView(); } });
       if (paused) board3d.hold(true);
     } catch (e) { console.warn("Go: no 3D here.", e); lost3d = true; toast("This browser can't draw 3D: the flat board."); }
     making3d = false;

@@ -22,6 +22,7 @@ import { h, button, pickPlayer, waitingFor, countdown } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
 import { play } from "./party-coup-solo.js";
 import { wants3D, pick3D, sceneOf, signature } from "./party-coup-table.js";
+import { load3d } from "./loading.js";
 
 export const CARDS = ["duke", "assassin", "captain", "ambassador", "contessa"];
 export const COPIES = 3;
@@ -386,7 +387,7 @@ function box3D() {
   if (!three.table && !three.loading) {
     three.loading = true;
     const host = three.host;
-    import("./party-coup-3d.js").then(m => {
+    load3d(import("./party-coup-3d.js")).then(m => {
       if (three.host !== host) return;
       const table = m.createTable(host, {
         onLost: () => { three.lostAt = Date.now(); release(); redrawLast(); },

@@ -22,6 +22,7 @@ import { part, choice, action, line, toggle } from "./menu.js";
 import * as sfx from "./heliograph-sound.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 // RUN: the endless game; BEST: its best, which the games screen shows. MODE: "classic" or "levels"; CAMP: the level in hand
@@ -116,7 +117,7 @@ let scene, sceneIs3D = false;
 async function makeScene(three) {
   try {
     if (!three) throw new Error("the flat tube");
-    scene = (await import("./heliograph-3d.js")).createScene($("stage"), view);
+    scene = (await load3d(import("./heliograph-3d.js"))).createScene($("stage"), view);
     sceneIs3D = true;
   } catch {
     scene = createFlat($("stage"), view);

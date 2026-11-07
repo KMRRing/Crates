@@ -14,7 +14,7 @@ import { part, action, line, choice, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
 import { noteStars, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -471,7 +471,7 @@ async function showFarm(want3d, quiet = false) {
   if (!want3d) { V3?.dispose(); V3 = null; $("board").style.display = ""; render(); return; }
   const done = busy("Building the tank farm");
   try {
-    const mod = await import("./settle-3d.js");
+    const mod = await load3d(import("./settle-3d.js"));
     V3 = mod.create3D($("farm"), { tap: tapBoard, hover: hoverBoard, lost: () => { toast("The 3D farm lost its graphics: drawing the flat farm"); showFarm(false); } });
     $("board").style.display = "none";
     render();

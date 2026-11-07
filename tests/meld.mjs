@@ -292,7 +292,7 @@ function playOut(seed, levels, { record = false } = {}) {
 const apps = fs.readFileSync(root + "apps.js", "utf8"), page = fs.readFileSync(root + "meld.js", "utf8"), html = fs.readFileSync(root + "meld.html", "utf8");
 check(/id: "meld",[^\n]*href: "\.\/meld\.html"[^\n]*logo: LOGO\("meld", MELD_LOGO\)/.test(apps) && !/id: "meld"[^\n]*soon: true/.test(apps), "the tile opens the game, not the placeholder");
 check(/seatRounds\("meld", \["shown"\]\)/.test(page) && /noteStreak\("meld"/.test(page) && /seatPage\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "meld"\)/.test(page), "the page counts a hand as Random's round, notes the streak and sits on seats.js");
-check(/meld\.css/.test(html) && /cards\.css/.test(html) && /meld\.js/.test(html) && /class="meld (full )?fit-screen beside"/.test(html), "the page links its styles and script");
+check(/meld\.css/.test(html) && /cards\.css/.test(html) && /meld\.js/.test(html) && /class="meld (full )?(titled )?fit-screen beside"/.test(html), "the page links its styles and script");
 check(!/\bmeld\b/.test(fs.readFileSync(root + "soon-data.js", "utf8").replace(/\/\/[^\n]*/g, "").replace(/line:[^\n]*|todo:[^\n]*|"[^"\n]*"/g, "")), "the placeholder's entry is gone");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("meld: melds, deadwood, laying off, knocks, undercuts, gin, draws, the game's end, whole games and the database");

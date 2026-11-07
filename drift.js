@@ -15,6 +15,7 @@ import { sound } from "./drift-sound.js";
 import { sure, notice } from "./sure.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -593,7 +594,7 @@ async function makeView() {
   view?.dispose();
   view = null;
   if (wants3D(read(VIEW, null), "3d")) {
-    try { view = (await import("./drift-3d.js")).create3D(field); }
+    try { view = (await load3d(import("./drift-3d.js"))).create3D(field); }
     catch (err) { console.warn("Drift: no 3D here, so the quay is drawn flat.", err); }
   }
   view ||= flatView;

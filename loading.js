@@ -91,3 +91,16 @@ export function waitMark() {
 }
 /** The old name, kept until branches written before the rename have merged. */
 export const sextant = waitMark;
+
+/**
+ * A game in its 3D view while the 3D module (and its scene) is still coming: the mark stays up until the view has had its first
+ * frames, so the flat one never shows in its place (Korbi, 7 Nov 2026: "show the loading animation until the 3d appears instead
+ * of showing the 2d"). Wrap the `import()` that fetches it: `(await load3d(import("./x-3d.js"))).create(...)`. A short delay keeps a
+ * module already in the cache from flashing the mark; a failed load lets go too, so the game's own fallback shows.
+ */
+export function load3d(promise, label = "Setting the table") {
+  const done = busy(label, { delay: 60 });
+  const fin = () => requestAnimationFrame(() => requestAnimationFrame(done));
+  promise.then(fin, fin);
+  return promise;
+}

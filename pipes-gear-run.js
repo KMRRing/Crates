@@ -15,6 +15,7 @@ import * as F from "./pipes-gear-frac.js";
 import { dailySpec, randomSpec } from "./pipes-gear-daily.js";
 import { sure } from "./sure.js";
 import { tick as tickSound } from "./pipes-sound.js";
+import { load3d } from "./loading.js";
 
 const STAR = "★", HOLLOW = "☆";
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -84,7 +85,7 @@ export function createPuzzle(deps) {
   }
   /** The movement (3D) or the flat plate. Where WebGL is not there the flat plate stays; returns the view now showing. */
   async function useView(want3d) {
-    if (want3d && mod3d === null) { try { mod3d = await import("./pipes-view-3d.js"); } catch (err) { console.warn("Gears: 3D did not load.", err); mod3d = false; } }
+    if (want3d && mod3d === null) { try { mod3d = await load3d(import("./pipes-view-3d.js")); } catch (err) { console.warn("Gears: 3D did not load.", err); mod3d = false; } }
     const next = want3d && mod3d ? "3d" : "2d";
     if (next === kind && view) return kind;
     kind = next; shownFor = "";

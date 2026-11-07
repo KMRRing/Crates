@@ -19,6 +19,7 @@ import { COURSE, boardStage } from "./gammon-course.js";
 import { createRush } from "./gammon-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
 import "./pwa.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "gammon:opts", RECORD = "gammon:record";
@@ -148,7 +149,7 @@ async function make3d() {
   if (making3d) return;
   making3d = true;
   try {
-    const { createBoard } = await import("./gammon-3d.js");
+    const { createBoard } = await load3d(import("./gammon-3d.js"));
     if (view.get() === "3d" && !board3d) board3d = createBoard($("board"), { view: keptCam(), onView: keepCam, onTap: tapPt, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); drawBoard(); } });
   } catch (err) {
     console.warn("Backgammon: no 3D here, so the board is drawn flat.", err);

@@ -12,6 +12,7 @@
 // cards). This file keeps what can be worked out without a page (the geometry; tests/hong.mjs) apart from the view.
 import * as E from "./hong-engine.js";
 import { slabSvg, SLAB_H, TILE_W } from "./hong-tiles.js";
+import { load3d } from "./loading.js";
 
 // ---------- the geometry (pure) ----------
 // Everything on the plane is laid out in px of the plane from a handful of ratios: a wall stack's width p is the unit
@@ -206,7 +207,7 @@ export function createTable3d(c) {
   function needGL() {
     if (gl || glLoading) return;
     glLoading = true;
-    import("./hong-gl.js").then(m => { gl = m.createGL({ host: field }); draw(); }, e => { console.error(e); glLoading = false; c.glFailed?.(); });
+    load3d(import("./hong-gl.js")).then(m => { gl = m.createGL({ host: field }); draw(); }, e => { console.error(e); glLoading = false; c.glFailed?.(); });
   }
   const flying = new Set();
 

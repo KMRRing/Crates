@@ -16,7 +16,7 @@ import { ramp } from "./ramp.js";
 import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 import { sure } from "./sure.js";
 import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
 import slkCoop from "./slitherlink-coop.js";
@@ -503,7 +503,7 @@ function feedModel(fresh, sets) {
 async function setView(v, remember = true) {
   if (v === "3d" && !model) {
     try {
-      model = (await import("./slitherlink-3d.js")).createChart($("model"));
+      model = (await load3d(import("./slitherlink-3d.js"))).createChart($("model"));
       model.canvas.addEventListener("pointerdown", down);
       model.canvas.addEventListener("contextmenu", e => e.preventDefault());
     } catch (err) { console.warn("Portolan: no 3D here.", err); toast("This browser can't draw 3D."); v = "flat"; }

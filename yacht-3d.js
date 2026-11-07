@@ -98,7 +98,7 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
   const own = [];
   const track = o => { own.push(o); return o; };
   const std = (color, roughness, metalness = 0) => track(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
-  const matFelt = std(0x2f6a56, 0.96), matRim = std(0x5a3b25, 0.5), matBrass = std(0xc8923a, 0.34, 0.55);
+  const matFelt = std(0x55291a, 0.62), matRim = std(0x3a1d0e, 0.5), matBrass = std(0xc8923a, 0.34, 0.55);
   const matDie = std(0xffffff, 0.32), matPip = std(0x1c2a34, 0.5), matRed = std(0xc0262d, 0.5);
 
   // ---------- the table ----------
@@ -155,7 +155,7 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
     night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
     const yard = (css.getPropertyValue("--yard") || "").trim(), hex = /^#[0-9a-f]{6}$/i.test(yard) ? yard : night ? "#10181F" : "#E8DFC9";
     renderer.setClearColor(hex, 1);
-    matFelt.color.set(night ? 0x1f4a3c : 0x2f6a56);
+    matFelt.color.set(night ? 0x3a1c10 : 0x55291a);   // Korbi, 7 Nov 2026: the dice on the card room's mahogany, not felt
     ivory = new THREE.Color(night ? 0xede3cc : 0xfbf4e4);
     sun.intensity = night ? 2.3 : 2.8;
     hemi.intensity = night ? 0.85 : 1.0;

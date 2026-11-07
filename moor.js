@@ -13,7 +13,7 @@ import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
-import { busy } from "./loading.js";
+import { busy, load3d } from "./loading.js";
 import { sure } from "./sure.js";
 import { LEVELS as LADDER, CHAPTERS, COUNT, chapterOf, seedOf, kindOf, starsFor } from "./moor-levels.js";
 
@@ -523,7 +523,7 @@ async function setView(v, remember = true) {
   if (v === "model" && P && !can3D()) { toast("The harbour doesn't draw this board yet."); v = "chart"; remember = false; }
   if (v === "model" && !model) {
     try {
-      model = (await import("./moor-3d.js")).createModel($("model"), { press, stroke: strokeFrom, playable: () => !!S && !S.done && !IN_FRAME && !paused });
+      model = (await load3d(import("./moor-3d.js"))).createModel($("model"), { press, stroke: strokeFrom, playable: () => !!S && !S.done && !IN_FRAME && !paused });
       if (paused) model.hold(true);
     } catch (err) { console.warn("Moor: no 3D here.", err); toast("This browser can't draw 3D."); v = "chart"; }
   }

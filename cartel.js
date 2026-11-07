@@ -17,6 +17,7 @@ import { seatRounds } from "./random.js";
 import { noteStreak, IN_FRAME } from "./suite.js";
 import { scale } from "./wide.js";
 import { tableView } from "./table3d-view.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace", COUNTED = "cartel:counted";
@@ -826,7 +827,7 @@ async function use3D() {
   if (ghost() && !T3 && !T3loading) {
     T3loading = true;
     try {
-      const m = await import("./cartel-3d.js");
+      const m = await load3d(import("./cartel-3d.js"));
       if (ghost() && !T3) {
         T3 = m.createCartel3d($("stage"), { onLost: () => { view.fail(); toast("The 3D table lost its graphics: drawing the flat table"); use3D(); } });
         if (g && mind) render();

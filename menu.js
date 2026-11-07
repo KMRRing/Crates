@@ -315,10 +315,16 @@ function titleLogo() {
   if (!app || !top || !games || IN_PARTY || IN_FRAME) return;
   let btn = null, apps = null;
   const drop = () => { btn?.remove(); btn = null; top.classList.remove("has-logo"); };
+  // a page's tile by its file name; where several tiles share a page (Jass, Belote, Schafkopf on trumps.html) the one for its ?game=
+  const ownTile = () => {
+    const file = location.pathname.split("/").pop() || "index.html", game = new URLSearchParams(location.search).get("game");
+    const own = (apps || []).filter(a => a.href.split("?")[0].split("/").pop() === file);
+    return own.find(a => game && new URLSearchParams(a.href.split("?")[1] || "").get("game") === game) || own[0];
+  };
   const sync = () => {
     if (!app.classList.contains("titled")) return drop();
     const svg = app.querySelector(".pa-mark")?.innerHTML.trim()   // Party's own mark follows the game on its table
-      || apps?.find(a => a.href.split("/").pop() === (location.pathname.split("/").pop() || "index.html"))?.logo;
+      || ownTile()?.logo;
     if (!svg) return drop();
     if (!btn) {
       btn = document.createElement("button");

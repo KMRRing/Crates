@@ -40,8 +40,9 @@ for (const [g, gone] of Object.entries(PLAIN)) {
   check(!left.length, `${g}: none of the cut rows is built${left.length ? ` (still: ${left.join(", ")})` : ""}`);
 }
 for (const g of ["blackjack", "holdem"]) check(!/choice\(\s*["']Coach["']/.test(src(g)), `${g}: the coach is one on/off toggle`);
+// (forger: its Rounds option is shown, 7 Nov 2026, Korbi: "changing the number of rounds wasn't easy"; it has nothing else to hide)
 // a lobby option that went is hidden, not deleted: its default still reaches start()
-for (const g of ["sketch", "gauge", "echo", "decoy", "pewter", "gallery", "undercover", "whoami", "whispers", "forger", "coup", "fuse"])
+for (const g of ["sketch", "gauge", "echo", "decoy", "pewter", "gallery", "undercover", "whoami", "whispers", "coup", "fuse"])
   check(/hidden: true/.test(src(`party-${g}`)), `${g}: some lobby option is hidden`);
 
 // ramp-steps.js: rungs run easiest first, and the old choice finds its nearest rung

@@ -19,6 +19,7 @@ import { IN_FRAME, today, arrivedForToday } from "./suite.js";
 import "./pwa.js";
 import { createFlatBench } from "./slipway-2d.js";   // the timber drawn on a plain canvas, for 2D mode and where there is no WebGL
 import { wants3D, onDefaultChange } from "./mode3d.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts", MODE = "slipway:mode", RAND = "slipway:rand", DAILY = "slipway:daily";
@@ -575,7 +576,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 async function makeBench(three) {
   try {
     if (!three) throw new Error("the flat bench");
-    bench = (await import("./slipway-3d.js")).createBench($("bench"));
+    bench = (await load3d(import("./slipway-3d.js"))).createBench($("bench"));
     benchIs3D = true;
   } catch {
     try { bench = createFlatBench($("bench")); benchIs3D = false; }

@@ -18,6 +18,7 @@ import { sure } from "./sure.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, boardStage, dayCourse, dayStreak, streakNow } from "./crown-course.js";
 import "./pwa.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "crown:opts", RECORD = "crown:record";
@@ -48,7 +49,7 @@ async function make3d(explicit) {
   if (making3d) return;
   making3d = true;
   try {
-    const { createBoard } = await import("./crown-3d.js");
+    const { createBoard } = await load3d(import("./crown-3d.js"));
     if (wants3d() && !board3d) {
       board3d = createBoard($("board"), { onTap: tap3d, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); draw(); } });
       if (isPaused()) board3d.hold(true);

@@ -17,6 +17,7 @@ import { createCourse, progressOf } from "./course.js";
 import { COURSE } from "./yacht-course.js";
 import { yachtStage } from "./yacht-course-stage.js";
 import "./pwa.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "yacht:opts", RECORD = "yacht:record", BEST = "yacht:best", DAILY = "yacht:daily";
@@ -91,7 +92,7 @@ async function make3d() {
   if (making3d) return;
   making3d = true;
   try {
-    const { createYacht3d } = await import("./yacht-3d.js");
+    const { createYacht3d } = await load3d(import("./yacht-3d.js"));
     if (view.get() === "3d" && !three) {
       const host = document.createElement("div");
       host.className = "ya-3d";

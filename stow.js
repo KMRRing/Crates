@@ -18,7 +18,7 @@ import { wants3D, onDefaultChange } from "./mode3d.js";
 import { sure } from "./sure.js";
 import { today, noteStars, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
-import { busy, waitMark } from "./loading.js";
+import { busy, waitMark, load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const LOOK = "stow:look", MODE = "stow:mode", RUN = "stow:plan", PLANS = "stow:plans", DAILY = "stow:daily", DAYPLAN = "stow:dayplan", TURNED = "stow:view";
@@ -56,7 +56,7 @@ const kept = () => { try { return localStorage.getItem(LOOK); } catch { return n
 async function useGL() {
   const want = !IN_FRAME && wants3D(kept(), "3d");
   if (want && gl === null) {
-    try { const m = await import("./stow-gl.js"); gl = m.supported() ? m : false; } catch (e) { console.error(e); gl = false; }
+    try { const m = await load3d(import("./stow-gl.js")); gl = m.supported() ? m : false; } catch (e) { console.error(e); gl = false; }
   }
   deep = want && gl ? { holdScene: (svg, F, cam) => { const s = gl.holdScene3D(svg, F); s.setCam(cam); return s; }, drawPiece: gl.drawPiece3D } : null;
 }

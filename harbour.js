@@ -21,6 +21,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, choice, toggle, onPause } from "./menu.js";
 import { sure } from "./sure.js";
+import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
@@ -986,7 +987,7 @@ async function makeMap() {
   mapView?.dispose();
   mapView = null;
   if (!(flatChosen() ?? !defaultIs3D())) {
-    try { mapView = (await import("./harbour-3d.js")).create3D($("sea")); }
+    try { mapView = (await load3d(import("./harbour-3d.js"))).create3D($("sea")); }
     catch (err) { console.warn("Harbour: no 3D here, so the harbour is drawn flat.", err); }
   }
   mapView ||= createFlat($("sea"));
