@@ -194,7 +194,5 @@ export function lotSheet({ title, lines }) {
 export function modeChoice(current, onPick) {
   return [
     choice("Mode", [["country", "Countries"], ["classic", "Classic"]], current, v => { if (v !== current) onPick(v); }),
-    line("Countries: find four crates of four words, then name the country behind each."),
-    line("Classic: sixteen words, four hidden groups; find them, four mistakes allowed."),
   ];
 }

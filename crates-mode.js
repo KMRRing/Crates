@@ -22,3 +22,12 @@ export function setCratesMode(m) {
   if (!valid(m)) return;
   try { localStorage.setItem(CRATES_KEY, m); } catch { /* private mode */ }
 }
+/** Forgets Crates' cards and the clues it has seen (the games screen's Reset learning progress; Crates' menu has none). Written into its
+ *  run, and an open Crates is told so it doesn't write its own copy back. */
+export function resetCratesLearning() {
+  try {
+    const run = JSON.parse(localStorage.getItem("crates:v2"));
+    if (run && typeof run === "object") { run.deck = { t: 0, cards: {} }; run.seen = {}; localStorage.setItem("crates:v2", JSON.stringify(run)); }
+  } catch { /* private mode, or no run yet */ }
+  window.dispatchEvent(new Event("crates-learning-reset"));
+}

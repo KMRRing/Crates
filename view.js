@@ -252,7 +252,7 @@ export function askWho(defaultName = "") {
 // ---------- settings sheet ----------
 /** Renders the settings editor into the menu sheet. onChange gets a fresh settings object. */
 export function openSettings(opts) {
-  const { settings, note, onChange, onBack, learning = null } = opts;
+  const { settings, note, onChange, onBack } = opts;
   // editable: true, or { words, groups } when only part is yours to change (hidden mode)
   const canGroups = opts.editable === true || !!opts.editable?.groups;
   openMenu(body => {
@@ -272,14 +272,7 @@ export function openSettings(opts) {
     h.textContent = "Settings";
     head.append(back, h);
 
-    if (learning) {
-      add("h4", null, `Learning: ${learning.label}`);
-      add("p", "stats set-note", "Set on the games screen, under Choose.");
-      learning.lines.forEach(line => add("p", "stats set-note", line));
-      if (learning.reset) add("button", "link", learning.reset.label).addEventListener("click", learning.reset.run);
-    }
-
-    if (note) add("p", `stats set-note${learning ? " sep" : ""}`, note);
+    if (note) add("p", "stats set-note", note);
     const s = structuredClone(settings);
     const change = mutate => { mutate(s); onChange(structuredClone(s)); };
 

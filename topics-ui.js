@@ -2,7 +2,7 @@
 // keeps them). Settings (apps.js) has it in its sheet; a game's menu has a line saying where the topics stand and a link
 // that opens the same control in a sheet of its own, so a game never has a topics control of its own.
 import { choice, ticks, line, action, CLOSE } from "./menu.js";
-import { SUBJECTS, SUBJECT_LIST, SUBJECT_PRESETS, subjectPreset, subjectsIn, subjectsSay } from "./topics.js";
+import { SUBJECTS, SUBJECT_LIST, SUBJECT_PRESETS, subjectPreset, subjectsIn } from "./topics.js";
 import { subjectsOn, setSubjects, markedIn, setMarkedIn } from "./topics-on.js";
 
 /** The control, as an element. onChange(on) after every change (the sheet and Settings need nothing more: games read the
@@ -62,9 +62,8 @@ export function openTopics() {
   sheet.showModal();
 }
 
-/** What a game's menu shows in place of a topics control: where the topics stand, and a link to change them. Put it in
- *  the `content` part. `say` may add what it means for this game ("Today's board deals every topic"). */
-export function topicsPart(body, extra = "") {
-  const on = subjectsOn();
-  return [line(`${subjectsSay(on)}${extra ? `. ${extra}` : ""}${markedIn() ? ". Marked content is in" : ""}`), action("Change topics", openTopics, "link")];
+/** What a game's menu shows in place of a topics control: one button that opens it (Korbi, 7 Nov 2026: "this should be a button
+ *  instead", in every app; the line saying where the topics stand went). Put it in the `content` part. */
+export function topicsPart() {
+  return [action("Topics", openTopics)];
 }

@@ -1,35 +1,28 @@
 // Solo play: generated boards, progress in this browser's localStorage, and optionally synced to a run
 // that other devices follow (run.js).
-import { APP_VERSION, BANK, BANK_SIZE, POOL_CATS, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, dealTopics, formatTime } from "./core.js";
+import { APP_VERSION, BANK, BANK_SIZE, POOL_CATS, GROUPS, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, dealTopics, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import {
-  MODES, REVIEW_GAP, emptyDeck, cleanDeck, learnFromBoard, learnFromClues, deckStats, clueStats,
+  MODES, emptyDeck, cleanDeck, learnFromBoard, learnFromClues, deckStats, clueStats,
   cleanSeen, markSeen, seenTexts, forgetSeen, seenStats,
 } from "./learn.js";
 import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
-import { part, action, line, isPaused, onPause, todayPart } from "./menu.js";
+import { part, action, line, choice, ticks, isPaused, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { modeChoice } from "./crates-board.js";
 import { topicsPart } from "./topics-ui.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
-import { cratesMode } from "./crates-mode.js";
+import { CRATES_MODES, cratesMode, setCratesMode } from "./crates-mode.js";
 import { roundOver } from "./random.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
 const STORE_KEY = "crates:v2";
 const RECENT_ANSWERS = 16, RECENT_WORDS = 120, HISTORY = 60;
-const GAP = `${REVIEW_GAP[0]} to ${REVIEW_GAP[1]} boards later`;
-const MODE = {
-  off: { label: "Off", about: "Boards are dealt at random, so a clue can come back." },
-  learn: { label: "Learn", about: `Missed words come back ${GAP}, in a new crate with new companions. Words you get right retire to the bottom of the deck.` },
-  norepeat: { label: "No repeats", about: "No clue comes back until you've seen every clue your settings allow. Then they start over." },
-  clues: { label: "Clue learn", about: `Only tiles you open with ? come back, ${GAP} in a new crate. Solve one without opening it and it's learned.` },
-};
 
 /** Fills in anything missing from a stored run (old saves, or a run arriving from another device). */
 function normalise(raw) {
@@ -272,23 +265,6 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     return null;
   }
 
-  /** The mode's progress, for the menu and settings. */
-  function modeSummary() {
-    if (store.mode === "learn") {
-      const s = deckStats(store.deck);
-      return `${count(s.review)} to review · ${count(s.learned)} learned · ${count(s.seen + s.unseen)} still to learn`;
-    }
-    if (store.mode === "clues") {
-      const s = clueStats(store.deck);
-      return `${count(s.review)} to review · ${count(s.learned)} learned`;
-    }
-    if (store.mode === "norepeat") {
-      const s = seenStats(store.seen);
-      return POOL_CATS[store.pool].map(c => `${count(s[c].seen)} of ${count(s[c].total)} ${c} clues seen`).join(" · ");
-    }
-    return null;
-  }
-
   /** The mode set on the games screen's Choose sheet (learning-mode.js) becomes the run's. A board not yet touched is
    *  dealt again under it; one begun finishes as it was dealt. */
   function takeMode() {
@@ -300,30 +276,8 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     return !!g && mode !== "off" && !g.done && !g.guesses.length && !g.revealed.length && !g.daily;
   }
 
-  async function resetMode(question, forget) {
-    if (!(await sure(question, { yes: "Forget it" }))) return;
-    forget();
-    save();
-    draw();
-    settingsSheet();
-  }
-
-  function settingsSheet() {
-    view.openSettings({
-      settings: store.settings, editable: true,
-      note: "Everything below applies from the next board.",
-      onChange: s => { store.settings = cleanSettings(s); save(); },
-      onBack: () => handlers.menu(),
-      learning: {
-        mode: store.mode,
-        label: MODE[store.mode].label,
-        lines: [MODE[store.mode].about, modeSummary()].filter(Boolean),
-        reset: store.mode === "norepeat" ? { label: "Start the clues over", run: () => resetMode("Forget which clues you've seen?", () => { store.seen = {}; }) }
-          : store.mode !== "off" ? { label: "Reset learning progress", run: () => resetMode("Forget everything learning mode knows about you?", () => { store.deck = emptyDeck(); }) }
-          : null,
-      },
-    });
-  }
+  // Crates' cards and seen clues forgotten from the games screen (crates-mode.js): drop this run's copy too, so it isn't written back
+  addEventListener("crates-learning-reset", () => { store.deck = emptyDeck(); store.seen = {}; save(); draw(); });
 
   const handlers = {
     toggle(w) {
@@ -403,7 +357,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     menu() {
       // the menu: Play (a new board, or skip this one), Content (topics and difficulty, in Settings), About (your stats,
       // learning, recent boards to replay). Your other devices follow this run through the solo code on the games screen.
-      view.openMenu((body, close) => {
+      view.openMenu(body => {
         const g = game();
         part(body, "play").append(action(g.done ? "New board" : "Skip board", async () => {
           if (!g.done && g.guesses.length && !(await sure("Leave this board unfinished?", { yes: "Leave it" }))) return;
@@ -416,27 +370,16 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           done: had && !playing, result: store.daily?.pts != null ? `${store.daily.pts} of 8 in ${formatTime(store.daily.ms)}` : "",   // one go: leaving it unfinished is a go had
           play: () => { daily(); }, playing, busy: !g.done && g.guesses.length > 0,
         });
-        part(body, "content").append(...modeChoice("country", handlers.classic), ...topicsPart(body), action("Countries from", settingsSheet));
+        part(body, "content").append(...modeChoice("country", handlers.classic),
+          // Korbi, 7 Nov 2026: learning and the regions are settings here like the mode, not a sheet of their own
+          choice("Learning", CRATES_MODES, store.mode, v => { setCratesMode(v); if (takeMode()) fresh(); draw(); }),
+          ticks("Countries from", GROUPS.country, GROUPS.country.map(([k]) => k).filter(k => !store.settings.off.includes(k)),
+            on => { store.settings = cleanSettings({ ...store.settings, off: GROUPS.country.map(([k]) => k).filter(k => !on.includes(k)) }); save(); }),
+          ...topicsPart());
         const about = part(body, "about"), done = store.history.length;
         if (done) {
           const total = store.history.reduce((t, r) => t + r.pts, 0), perfect = store.history.filter(r => r.pts === 8).length;
           about.append(line(`${done} played · average ${(total / done).toFixed(1)} of 8 · ${perfect} perfect`));
-        }
-        if (store.mode !== "off") about.append(line(`${MODE[store.mode].label}: ${modeSummary()}`));
-        if (done) {
-          const list = document.createElement("ol");
-          list.className = "pick-list";
-          for (const r of store.history.slice(0, 15)) {
-            const li = document.createElement("li"), b = document.createElement("button");
-            b.innerHTML = "<span></span><span class=\"st\"></span>";
-            b.firstChild.textContent = `No. ${r.n}  ${PLURAL[r.cat]}`;
-            b.lastChild.textContent = `${r.won ? "" : "out · "}${r.pts}/8${r.ms ? ` · ${formatTime(r.ms)}` : ""}`;
-            b.title = "Replay this board";
-            b.addEventListener("click", () => { close(); const d = decode(r.code); if (d) begin(d, r.code); });
-            li.appendChild(b);
-            list.appendChild(li);
-          }
-          about.append(list);
         }
       }, "solo");
     },
