@@ -353,9 +353,9 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 
 /* Korbi, 7 Nov 2026: a slight gap again between the table's near edge and your hand, and the table brought up to the levels plate */
 #app.tb3 #hand { margin-top: .45rem; }
-#app.tb3 .tb-table { margin-top: -2.2rem; }
+#app.tb3 .tb-table { margin-top: -1.95rem; }
 #app.tb3 .t3-mat { bottom: 1.5rem; }
-@media (max-height: 700px) { #app.tb3 .tb-table { margin-top: -1.5rem; } }   /* a short phone: the table's far end would run under the levels plate */
+@media (max-height: 700px) { #app.tb3 .tb-table { margin-top: -1.3rem; } }   /* a short phone: the table's far end would run under the levels plate */
 @media (max-height: 640px) { #app.tb3 .tb-table { margin-top: -1.1rem; } #app.tb3 #hand { margin-top: -.8rem; } }   /* (a short phone gives up some of the gap to the hand for the table's room) */
 
 /* Korbi, 7 Nov 2026: the slight pivot with the pointer (and, on a phone, its tilt), the kit's own */

@@ -282,26 +282,30 @@ export function createTable3d(c) {
   // ---------- motion ----------
   const plateAt = seat => centred((plates[slotOf(seat, me())].querySelector(".t3-fan, .t3-n, .t3-med") || plates[slotOf(seat, me())]).getBoundingClientRect());
   const track = a => { running.add(a); const done = () => running.delete(a); a.addEventListener("finish", done); a.addEventListener("cancel", done); return a; };
+  /** Korbi, 7 Nov 2026: a card played to the middle is the very element that stays on the cloth: it is slid from where it was to
+   *  where it lies, in the cloth's own plane (the screen's distance divided by how much the plane shrinks a pixel there), so it moves
+   *  with the table and looks flat on it until the trick is cleared. No copy flies, so nothing fades out and in. */
+  function flyCard(el, a, b, { delay, ms }) {
+    const r = el.getBoundingClientRect(), kx = r.width / (el.offsetWidth || 1) || 1, ky = r.height / (el.offsetHeight || 1) || 1;
+    const from = { x: (a.x - b.x) / kx, y: (a.y - b.y) / ky }, s0 = Math.max(0.2, Math.min(1.4, a.h / (r.height || 1)));
+    el.classList.remove("t3-coming");
+    track(el.animate([{ translate: `${from.x}px ${from.y}px`, scale: s0 }, { translate: "0 0", scale: 1.06, offset: 0.85 }, { translate: "0 0", scale: 1 }],
+      { duration: ms, delay, easing: EASE, fill: "backwards" }));
+  }
   /** A card flown from one place to another, turning over on the way where it's hidden at one end. */
-  function fly(id, a, b, { up0 = true, up1 = true, delay = 0, el = null, ms = FLY_MS, fade = false } = {}) {
+  function fly(id, a, b, { up0 = true, up1 = true, delay = 0, el = null, ms = FLY_MS, fade = false } = {}) {   // (el: the card that stays, slid itself)
     if (!a || !b) return;
+    if (el) { flyCard(el, a, b, { delay, ms }); return; }
     const g = document.createElement("div"), h = Math.min(b.h, b.w * RATIO), w = h / RATIO, level = G().level;
     g.className = "t3-ghost";
     g.style.cssText = `width:${w}px;height:${h}px;left:${b.x - w / 2}px;top:${b.y - h / 2}px;--cw:${w}px`;
     g.innerHTML = `<div class="t3-gin"><div class="t3-gf">${faceCard(id, level)}</div><div class="t3-gb">${back()}</div></div>`;
     fx.append(g);
-    if (el) { el.classList.add("t3-coming"); setTimeout(() => el.classList.remove("t3-coming"), ms + delay + 150); }
     const s0 = Math.max(0.2, a.h / (h || 1)), dx = a.x - b.x, dy = a.y - b.y;
     const t = { duration: ms, delay, easing: EASE, fill: "both" }, turn = x => `rotateY(${x ? 0 : 180}deg)`;
     g.firstElementChild.animate([{ transform: `${turn(up0)}` }, { transform: `rotateY(${up0 === up1 ? (up0 ? 0 : 180) : 90}deg) scale(1.12)`, offset: 0.5 }, { transform: `${turn(up1)}` }], t);
     const an = track(g.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s0})`, opacity: 1 }, { transform: "none", opacity: fade ? 0 : 1 }], t));
-    an.onfinish = () => {
-      if (!el) { g.remove(); return; }
-      // Korbi, 7 Nov 2026: the card didn't vanish for a moment before it lay down: the one on the cloth fades in as the flown one fades out
-      el.classList.remove("t3-coming");
-      el.animate([{ opacity: 0, scale: 1.05 }, { opacity: 1, scale: 1 }], { duration: 200, easing: "ease-out" });
-      g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out", fill: "forwards" }).onfinish = () => g.remove();
-    };
+    an.onfinish = () => g.remove();
   }
   /** The middle's old cards, swept to whoever took the trick, shrinking as they go. */
   function sweep(was, seat) {
