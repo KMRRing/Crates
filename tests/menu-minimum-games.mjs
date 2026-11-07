@@ -28,7 +28,7 @@ const rowOf = (src, label) => new RegExp(`\\b(?:choice|toggle|ticks)\\(\\s*["'\`
 
 for (const g of ALL) {
   const src = fs.readFileSync(`${root}${g}.js`, "utf8");
-  const left = GONE.filter(l => rowOf(src, l) && !(g === "go" && l === "You play") && !(g === "tarot" && l === "Players"));
+  const left = GONE.filter(l => rowOf(src, l) && !(g === "go" && l === "You play") && !(["gambit", "go"].includes(g) && l === "Strength")   /* 8 November 2026, Korbi: Chess and Go get a visible strength setting ("Adaptive" is the ramp) */ && !(g === "tarot" && l === "Players"));
   check(!left.length, `${g}: none of the cut rows is built${left.length ? ` (still: ${left.join(", ")})` : ""}`);
   // a coach is a switch, never a four-way choice
   check(!/choice\(\s*["']Coach["']/.test(src), `${g}: the coach is one on/off toggle`);

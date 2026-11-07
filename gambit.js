@@ -47,7 +47,9 @@ if (!isCoach(opts.coach)) opts.coach = "hints";
 // kept as gambit:ramp), its first rung the old saved choice; the record stays by level. The coach is on or off.
 const OLD_LEVEL = opts.level;
 Object.assign(opts, { colour: "either", coords: true });
-const levelNow = () => levelById(opts.forceLevel || ramp("gambit", LEVELS.map(l => l.id), { start: OLD_LEVEL })).id;
+// Korbi, 8 November 2026: for Chess and Go the strength is a visible setting too, "Adaptive" (the ramp) or one level to keep.
+const fixed = () => (opts.strength && opts.strength !== "auto" && LEVELS.some(l => l.id === opts.strength) ? opts.strength : null);
+const levelNow = () => levelById(opts.forceLevel || fixed() || ramp("gambit", LEVELS.map(l => l.id), { start: OLD_LEVEL })).id;
 const saveOpts = () => write(OPTS, opts);
 /**
  * the game in play: gambit-rules.js's state and the page's: { v, start, moves, result, white, mode ("engine" or "two"),
@@ -294,7 +296,7 @@ function recordEnd() {
     rec[S.level] = { w: r.w + (won ? 1 : 0), d: r.d + (g.result.winner ? 0 : 1), l: r.l + (lost ? 1 : 0) };
     write(RECORD, rec);
     if (won) write(BEST, Math.max(read(BEST, 0) || 0, levelById(S.level).rating));
-    if (levelNow() === S.level) { won ? ramp.won(true) : lost ? ramp.lost() : ramp.won(false); }   // a lesson's game against another level moves nothing
+    if (!fixed() && levelNow() === S.level) { won ? ramp.won(true) : lost ? ramp.lost() : ramp.won(false); }   // a lesson's game against another level moves nothing
   }
   roundOver("gambit");
 }
@@ -570,7 +572,8 @@ function openMenu() {
     }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; }), action(learnLine(), () => openLessons())]),
     ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     part(body, "content").append(
-      choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }));
+      choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
+      choice("Strength", [["auto", "Adaptive"], ...LEVELS.map(l => [l.id, `${l.name} · ${l.rating}`])], opts.strength || "auto", v => { opts.strength = v; saveOpts(); }));
   }
   const set = part(body, "settings");
   if (!inRoom()) set.append(toggle("Coach", opts.coach !== "off", on => setCoach(on ? "hints" : "off")));

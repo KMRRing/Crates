@@ -36,7 +36,9 @@ opts.level = levelOf(opts.level).id;
 // levels (up a step after a win, down after a loss, kept as go:ramp), its first step the old saved choice.
 const OLD_LEVEL = opts.level;
 Object.assign(opts, { handicap: 0, confirm: true, click: true, estimate: false });
-const levelNow = () => ramp("go", LEVELS.map(l => l.id), { start: OLD_LEVEL });
+// Korbi, 8 November 2026: the strength is a visible setting again: "Adaptive" (the ramp) or one level to keep.
+const fixed = () => (opts.strength && opts.strength !== "auto" && LEVELS.some(l => l.id === opts.strength) ? opts.strength : null);
+const levelNow = () => fixed() || ramp("go", LEVELS.map(l => l.id), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -239,7 +241,7 @@ function finish() {
     const won = res.winner === run.human;
     if (won) rec.won++;
     write(RECORD, rec);
-    if (!run.lesson && levelNow() === run.level) won ? ramp.won(true) : ramp.lost();
+    if (!run.lesson && !fixed() && levelNow() === run.level) won ? ramp.won(true) : ramp.lost();
     noteStreak("go", won);
   }
   draw();
@@ -435,6 +437,7 @@ function openMenu() {
   const cp = progressOf("go", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Go, from the rules", () => course.open()));
   const content = part(body, "content");
+  content.append(choice("Strength", [["auto", "Adaptive"], ...LEVELS.map(l => [l.id, l.name])], opts.strength || "auto", v => { opts.strength = v; saveOpts(); }));
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
   content.append(choice("You play", [["b", "Black"], ["w", "White"], ["two", "Two on this phone"]], opts.side, v => { opts.side = v; saveOpts(); openMenu(); }));
   content.append(choice("Coach", [["off", "Off"], ["hints", "Hint button"], ["always", "Always show"]], opts.coach, v => { opts.coach = v; saveOpts(); hint = null; draw(); wantCoach(); }));
