@@ -12,7 +12,7 @@ Source: Korbi's doc "Tuesday plan: app todo and Settle foundry" (6 Nov 2026), wh
 
 ## Wave 1: shared files (Korbi must say nobody else is in them)
 - **Menu consistency:** DONE 7 Nov (rules are the first page of Learn's map in `course.js`; the 20 games with a course lost the menu's rules button; the Topics sheet has Back to menu and reopens the menu). Games without a course keep their Rules button.
-- **Shared easy/medium/hard control:** Korbi confirmed 7 Nov (reverses 4 Nov "no difficulty picker, use `ramp()`"). One control in `menu.js` and a mapping onto each game's `ramp` start. NOT BUILT yet; record the new ruling as a dated comment where it lands.
+- **Shared easy/medium/hard control:** Korbi confirmed 7 Nov (reverses 4 Nov "no difficulty picker, use `ramp()`"). One control in `menu.js` and a mapping onto each game's `ramp` start. BUILT 7 Nov: `ramp.levels/level/pick` in `ramp.js` and one "Level, from the next game" row that `menu.js` adds to the settings part of any page that has read a ramp (dated ruling in `ramp.js`). Known gaps: the row appears only after the page's first deal (Sudoku, Bulls showed none at load); Hong and Tribute have two steps (Easy/Hard only); Nonogram and Survey ramp a size, so Easy/Hard mean small/large. Wave 5's difficulty tiers can now rely on it.
 - **Shared 3D camera kit:** one module for orbit/zoom/reset used by the 3D views (see `hong-3d.js`, `shunt-view-3d.js`, `bridges-3d.js` for the three current styles); `camera-kit.js` (turn/pinch/wheel maths + `bindOrbit`, `tests/camera-kit.mjs`) is DONE 7 Nov and Mahjong (`hong-gl.js`) uses it. Left: Shunt, Bridges and Go keep their own cameras (they pan, tilt with the phone or snap to a top view), so each needs a step of its own.
 - **Sound-audit test:** DONE 7 Nov (`tests/sound-mute.mjs`, static). It found Dujiang with no Sound setting (added). Open: Calibre's repeater gong has no Sound setting; Korbi decides (named in the test's EXEMPT).
 
@@ -37,7 +37,7 @@ Source: Korbi's doc "Tuesday plan: app todo and Settle foundry" (6 Nov 2026), wh
 
 ## Wave 5: content and polish
 - **Levels:** Bridges (`bridges-levels.js`), Shunt (`shunt-levels.js`; standalone repo KMRRing/shunt).
-- **Difficulty tiers** for Dujiang (`nurikabe`; standalone repo), Moor, Asterism, Delta, Spot: via `ramp()` unless wave 1's shared control has landed.
+- **Difficulty tiers** for Dujiang (`nurikabe`; standalone repo), Moor, Asterism, Delta, Spot: via `ramp()`; wave 1's shared Level row now covers them.
 - **Sound:** **ask** which games.
 - **Lanterns rocks:** `lanterns-3d.js`, `lanterns-model.js` (3D scene must be a port or strait opening to the sea); standalone repo KMRRing/lanterns.
 - **Carrack coach:** menu coach on/off; on = check plus hint (`carrack-coach.js`).

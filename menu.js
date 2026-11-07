@@ -12,6 +12,7 @@
 // Loaded by every page through pwa.js.
 
 import { MARK } from "./mark.js";
+import { ramp } from "./ramp.js";
 import { IN_FRAME, markOf } from "./suite.js";
 import { sure } from "./sure.js";
 import { todayState } from "./today-core.js";
@@ -230,6 +231,12 @@ function shape(body) {
     }
     if (partyPart && !body.querySelector(":scope > [data-party]")) body.prepend(partyPart());
     if (!body.querySelector(":scope > [data-full]")) { const head = fullHead(body); if (head) body.prepend(head); }   // first of all
+    // the shared level row (Korbi, 7 Nov 2026), for a page that has a ramp: it moves the ramp and the next deal uses it
+    if (!IN_FRAME && !body.querySelector(":scope > [data-level]") && ramp.levels().length) {
+      const row = choice("Level, from the next game", ramp.levels().map(b => [b, b[0].toUpperCase() + b.slice(1)]), ramp.level(), v => ramp.pick(v));
+      row.dataset.level = "1";
+      part(body, "settings").append(row);
+    }
     // parts in the standard order, each with its heading (Play needs none: it's the top), after anything unmarked
     for (const box of body.querySelectorAll(":scope > [data-part]")) {
       const name = box.dataset.part;
