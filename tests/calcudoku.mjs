@@ -1,7 +1,7 @@
 // Calcudoku (calcudoku-engine.js and its pieces): the rules as units (a cage's ways, repeats where cells share no
 // line, − and ÷ on two cells, a hidden operation's ways), the exact solver, grids generated with exactly one solution
 // for every rules, size and level, graded by the hardest technique a person needs, every step of the human-style solver
-// sound, hints that name a step, the computer player, grids and runs through JSON and the database, the clues split
+// sound, hints that name a step, grids and runs through JSON and the database, the clues split
 // for playing together (the parts make the whole, neither alone does, the relay finishes), the table through the
 // database's round trip, and today's grid the same on every device.
 import fs from "fs";
@@ -10,7 +10,6 @@ import { shapeOf, rng, bit, nearOf, connected } from "../calcudoku-grid.js";
 import { waysOf, holds, targetOf, labelOf, opsFor, cagesFor, readCage } from "../calcudoku-cage.js";
 import { solver, latinSquare } from "../calcudoku-solve.js";
 import { TECHNIQUES, viewFor, stateOf, nextStep, apply, grade, say, BEYOND } from "../calcudoku-logic.js";
-import { partnerMove, PACES, thinkMs } from "../calcudoku-bot.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "../calcudoku-room.js";
 import { freshDuel, sayReady, runOf } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -114,17 +113,6 @@ const made = [];
   check(/^(The|Of the ways to make the) cage of \d+/.test(words) && hv.cages.every(c => c.cells.length === 1 || c.op === "?"), `with the operations hidden, the solver doesn't know them either: "${words}"`);
 }
 
-// ---------- the computer ----------
-{
-  const p = made.find(x => x.rules === "classic" && x.n === 6 && x.level === "medium"), view = viewOf(p, null, null).view;
-  check(thinkMs({ tech: "hidden" }, "keen", rng(1), 10) < thinkMs({ tech: "hidden" }, "keen", rng(1), 1) && thinkMs({ tech: "cage", alive: 60 }, "keen", rng(1)) > thinkMs({ tech: "cage", alive: 1 }, "keen", rng(1))
-    && thinkMs({ tech: "forcing", cells: [1, 2, 3] }, "keen", rng(1)) > thinkMs({ tech: "naked" }, "keen", rng(1)),
-    "a single is quicker with many on offer, a cage slower the more ways it has, a contradiction slowest");
-  const split = splitFor(p, 2, p.seed), mine = viewOf(p, split, 1).view;
-  const move = partnerMove(mine, new Uint8Array(36), "keen", rng(2), () => true);
-  check(move && p.solution[move.cell] === move.digit && move.ms > 0, "a partner's next digit, from its own share of the clues, is right and takes time");
-}
-
 // ---------- grids and runs through JSON ----------
 {
   const back = made.map(p => decode(JSON.parse(JSON.stringify(encode(p)))));
@@ -194,7 +182,7 @@ const made = [];
   const day = today(), a = encode(generate({ seed: day, ...DAILY })), b = encode(generate({ seed: day, ...DAILY }));
   check(JSON.stringify(a) === JSON.stringify(b) && a.rules === "classic" && a.n === 6 && a.level === "medium", "today's grid: a classic 6×6 at Medium, the same each time it's made");
   check(encode(generate({ seed: today(new Date(Date.UTC(2026, 9, 21))), ...DAILY })).s !== encode(generate({ seed: today(new Date(Date.UTC(2026, 9, 22))), ...DAILY })).s, "a new day, a new grid");
-  const engine = ["calcudoku-grid.js", "calcudoku-cage.js", "calcudoku-solve.js", "calcudoku-logic.js", "calcudoku-engine.js", "calcudoku-bot.js", "calcudoku-room.js"].map(f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8"));
+  const engine = ["calcudoku-grid.js", "calcudoku-cage.js", "calcudoku-solve.js", "calcudoku-logic.js", "calcudoku-engine.js", "calcudoku-room.js"].map(f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8"));
   check(engine.every(src => !/Math\.random|Date\.now|performance\.now/.test(src)), "the engine draws on nothing but its seed (no Math.random, no clock), so every phone makes the same grids");
 }
 
@@ -207,4 +195,4 @@ check(nearOf(6, 0).sort().join() === "1,6" && nearOf(6, 35).sort().join() === "2
 
 console.log(`(${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("calcudoku: the rules, the grids, the grading, the computer, the split and the table all hold");
+else console.log("calcudoku: the rules, the grids, the grading, the split and the table all hold");

@@ -1,6 +1,6 @@
 // Tally (kakuro-engine.js and its pieces): the rules as runs, the combinations, the exact solver, grids generated with
 // exactly one solution for every rules, size and level, graded by how much a person has to work out, every step of
-// the human-style solver sound and named, the computer player, grids and runs through JSON, the clues split for
+// the human-style solver sound and named, grids and runs through JSON, the clues split for
 // playing together (the parts make the whole, neither alone has one solution, and the relay finishes), the table
 // through the database's round trip, and today's grid the same on every device.
 import fs from "fs";
@@ -9,7 +9,6 @@ import { RULES, SIZES, LEVELS, DAILY, MOST, levelsOf, levelFor, levelOf, generat
 import { shapeOf, patternOk, combosOf, combosLeft, total, bit, rng, mix } from "../kakuro-grid.js";
 import { solver, fitRun } from "../kakuro-solve.js";
 import { TECHNIQUES, BEYOND, stateOf, nextStep, apply, grade, say, runName } from "../kakuro-logic.js";
-import { partnerMove, PACES, thinkMs } from "../kakuro-bot.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "../kakuro-room.js";
 import { freshDuel, sayReady, runOf } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -135,16 +134,6 @@ const made = [];
     "levels by work a cell and the hardest technique");
 }
 
-// ---------- the computer ----------
-{
-  const p = made.find(x => x.rules === "sums" && x.rows === 10 && x.level === "medium"), view = { shape: p.shape, clues: p.clues, op: p.op };
-  check(thinkMs({ tech: "single", runs: [0] }, view, "keen", rng(1), 10) < thinkMs({ tech: "single", runs: [0] }, view, "keen", rng(1), 1) && thinkMs({ tech: "chain", length: 6, runs: [] }, view, "keen", rng(2)) > thinkMs({ tech: "last", runs: [0] }, view, "keen", rng(2)),
-    "a crossing is quicker to spot with many on offer; a chain takes longer than a run's last cell");
-  const split = splitFor(p, 2, p.seed), mine = viewOf(p, split, 1);
-  const move = partnerMove(mine, new Uint8Array(p.rows * p.cols), "keen", rng(2), () => true);
-  check(move && p.solution[move.cell] === move.digit && move.ms > 0, "a partner's next digit, from its own share of the clues, is right and takes time");
-}
-
 // ---------- grids and runs through JSON ----------
 {
   const back = made.map(p => decode(JSON.parse(JSON.stringify(encode(p)))));
@@ -178,7 +167,7 @@ const made = [];
     const rel = relay(p, split, 2);
     if (!rel.done) problems.push(`${at}: the pair can't finish it between them`);
     else if (p.shape.white.some(c => rel.placed[c] !== p.solution[c])) problems.push(`${at}: the relay placed a wrong digit`);
-    // from what each player sees, halfway through, every step the solver (a hint, the computer partner) takes is sound
+    // from what each player sees, halfway through, every step the solver (a hint) takes is sound
     const half = Uint8Array.from(rel.placed, (d, i) => (i % 2 ? d : 0));
     for (const q of [0, 1]) {
       const v = viewOf(p, split, q), st = stateOf(v, half);
@@ -228,7 +217,7 @@ const made = [];
   const day = today(), a = encode(generate({ seed: day, ...DAILY })), b = encode(generate({ seed: day, ...DAILY }));
   check(JSON.stringify(a) === JSON.stringify(b) && a.rules === "sums" && a.r === 10 && a.level === "medium", "today's grid: Sums, 10×10, at Medium, the same each time it's made");
   check(encode(generate({ seed: today(new Date(Date.UTC(2026, 9, 21))), ...DAILY })).s !== encode(generate({ seed: today(new Date(Date.UTC(2026, 9, 22))), ...DAILY })).s, "a new day, a new grid");
-  const engine = ["kakuro-grid.js", "kakuro-solve.js", "kakuro-logic.js", "kakuro-engine.js", "kakuro-bot.js", "kakuro-room.js"].map(f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8"));
+  const engine = ["kakuro-grid.js", "kakuro-solve.js", "kakuro-logic.js", "kakuro-engine.js", "kakuro-room.js"].map(f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8"));
   check(engine.every(src => !/Math\.random|Date\.now|performance\.now/.test(src)), "the engine draws on nothing but its seed (no Math.random, no clock)");
   check(engine.every(src => !/Math\.(log|log2|log10|pow|exp|sqrt|sin|cos|atan|hypot|cbrt)\(|\*\*\s*[^\d(]/.test(src.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, ""))),
     "and on no arithmetic a browser may round its own way (logarithms, powers, roots), so every phone makes the same grids");
@@ -241,4 +230,4 @@ check(Object.keys(SIZES).join() === "8,10,12" && Object.keys(RULES).join() === "
 
 console.log(`(${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("kakuro: the rules, the grids, the grading, the computer, the split and the table all hold");
+else console.log("kakuro: the rules, the grids, the grading, the split and the table all hold");

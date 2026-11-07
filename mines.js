@@ -2,14 +2,13 @@
 // by its solver (mines-solve.js) to clear from its marked start by reasoning alone, at the level asked; squares and
 // hexes (mines-grid.js), or a shape on a sphere (mines-solid.js: a cube, a rhombicuboctahedron, a football); drawn on a
 // canvas by mines-draw.js, or turned on the Moon, in space, by mines-3d.js. This file keeps the run, the clock, the
-// fingers and the company: a computer partner (mines-bot.js), and at a table (duel.js) a race on one field
+// fingers and the company: at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
 import { SHAPES, SIZES, LEVELS, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
   chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
 import { createSolidView } from "./mines-3d.js";
-import { PACES, paceOf, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "./mines-bot.js";
-import { teamMove, teamField, teamScore, readers, PING_MS } from "./mines-team.js";
+import { teamMove, teamField, teamScore, readers } from "./mines-team.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -28,7 +27,6 @@ const DAYLOST = "mines:daylost";    // today's field, lost to a mine: its run is
 const RUN = "mines:run", PREFS = "mines:prefs", TIMES = "mines:times", VIEW = "mines:view";
 const SAVE_EVERY = 5000;            // ms between saves of a field in play (a partner watching sees it that often)
 const HOLD = 420;                   // ms a finger stays down for the other tool (or, on a number, to light its neighbours)
-const TELL_MS = 1200;               // the computer partner's moment before it shows a number you asked for
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -40,12 +38,12 @@ const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s 
 // ---------- what the player chose ----------
 // Korbi, 4 November 2026: "the menu is the minimum it needs to be". The Shape choice lists the flat tilings and then the solids
 // labelled 3D (his words: "instead of having a 3D toggle just add two more options in the previous setting and label them
-// '3D'"); size and level are one hidden ramp; the computer is one partner toggle at a fixed pace.
+// '3D'"); size and level are one hidden ramp. (Korbi, 7 November 2026: no computer partner.)
 const MODES = { race: "Race", team: "One team" };
 const MENU_SHAPES = ["square", "hex", "cube", "football"];     // the rhombicuboctahedron is played from a link or a kept field, not chosen
 const SHAPE_NAMES = { square: "Squares", hex: "Hexes", cube: "Cube 3D", football: "Football 3D" };
 const kept = read(PREFS, {});
-const prefs = { tool: ["dig", "flag", "point"].includes(kept.tool) ? kept.tool : "dig", computer: kept.computer === "partner" ? "partner" : "off", pace: "quick",
+const prefs = { tool: ["dig", "flag", "point"].includes(kept.tool) ? kept.tool : "dig",
   together: MODES[kept.together] ? kept.together : "team",
   // the old choice: a flat tiling, or with 3D on the body (the rhombicuboctahedron went with the menu, to the cube)
   shape: (() => { const f = kept.solid === true ? (kept.body === "football" ? "football" : "cube") : kept.shape; return MENU_SHAPES.includes(f) ? f : "square"; })() };
@@ -58,8 +56,8 @@ const stepNow = () => { const [size, level] = ramp("mines", STEPS, { start: STAR
 
 // ---------- the game on screen ----------
 // G: { kind ("solo", "race" or "team"), f (the field), run ({ cells, hints, ms, done, won, lost }), seed,
-// mode ("random" or "daily", solo), shape, size, level, computer, pace, told (string), pings ([{ cell, at,
-// seat }]), asked ([…] the partner's), fresh (a new best), begun (a match's start), n (its number) }
+// mode ("random" or "daily", solo), shape, size, level, told (string), pings ([{ cell, at, seat }]) (a team's),
+// fresh (a new best), begun (a match's start), n (its number) }
 let G = null;
 let message = null;                 // { text, tone } until the next tap; else the line says how to play
 let shownHint = null;               // the hint on the field, until the next move
@@ -120,20 +118,21 @@ function elapsed() {
   return G.run.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
 }
 const penalty = r => HINT * r.hints;
-onPause(() => { paused = true; clockPause(); bot.stop(); dropFingers(); }, () => { paused = false; clockRun(); bot.plan(); render(); });
+onPause(() => { paused = true; clockPause(); dropFingers(); }, () => { paused = false; clockRun(); render(); });
 
 // ---------- keeping ----------
-const keyOf = g => `${g.shape}:${g.size}:${g.level}${g.computer === "partner" ? ":partner" : ""}`;
-const snapshot = () => ({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, computer: G.computer, pace: G.pace,
-  run: G.run, told: G.told, pings: G.pings.filter(p => Date.now() - p.at < PING_MS), asked: G.asked, fresh: G.fresh });
+const keyOf = g => `${g.shape}:${g.size}:${g.level}`;
+const snapshot = () => ({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level,
+  run: G.run, fresh: G.fresh });
 function save() {
   if (IN_FRAME || !G) return;
   const keep = snapshot();
   if (G.kind === "race") duel.keep(keep); else if (G.kind === "solo") write(RUN, keep);
   savedAt = performance.now();
 }
+// a field saved with the computer as partner (removed 7 November 2026) was dealt for two readers: it is no field of this game now
 const valid = s => !!s && Number.isInteger(s.seed) && !!SHAPES[s.shape] && !!SIZES[s.size] && !!LEVELS[s.level] && !!s.run
-  && typeof s.run.cells === "string" && Number.isFinite(s.run.ms);
+  && typeof s.run.cells === "string" && Number.isFinite(s.run.ms) && s.computer !== "partner";
 const begunHere = () => !!G && G.kind === "solo" && !G.run.done && started(G.f, G.run.cells);
 function recordBest(sc) {
   const times = read(TIMES, {}), k = keyOf(G), fresh = times[k] == null || sc < times[k];
@@ -143,20 +142,17 @@ function recordBest(sc) {
 
 // ---------- starting a field ----------
 const hashFor = g => (g.mode === "daily" ? `#d=${g.seed}` : `#s=${g.seed}&f=${g.shape}.${g.size}.${g.level}`);
-/** Puts a field on the table: `s` its settings and seed, `kept` what was saved of it (its run, the partner's tells…). */
+/** Puts a field on the table: `s` its settings and seed, `kept` what was saved of it (its run). */
 async function begin(s, kept = null, { kind = "solo", begun = null, n = null } = {}) {
-  const team = kind === "team" || (kind === "solo" && s.computer === "partner" && s.mode !== "daily");
+  const team = kind === "team";
   // today's field, once lost, stays lost: asking for it again shows the lost run, never a fresh one
   if (!kept && kind === "solo" && s.mode === "daily") { const lost = read(DAYLOST, null); if (valid(lost) && lost.mode === "daily" && lost.seed === s.seed && lost.run.lost) kept = lost; }
   const f = await fieldFor({ seed: s.seed, shape: s.shape, size: s.size, level: s.level, team });
-  bot.stop();
   clockFrom = null;
   G = {
     kind, f, seed: s.seed, mode: s.mode || "random", shape: s.shape, size: s.size, level: s.level,
-    computer: kind === "solo" && s.mode !== "daily" && s.computer === "partner" ? "partner" : "off",
-    pace: paceOf(s.pace), run: kept?.run && kept.run.cells?.length === f.n ? kept.run : newRun(f),
-    told: typeof kept?.told === "string" && kept.told.length === f.n ? kept.told : ".".repeat(f.n),
-    pings: Array.isArray(kept?.pings) ? kept.pings : [], asked: Array.isArray(kept?.asked) ? kept.asked : [], fresh: !!kept?.fresh,
+    run: kept?.run && kept.run.cells?.length === f.n ? kept.run : newRun(f),
+    told: ".".repeat(f.n), pings: [], fresh: !!kept?.fresh,
     begun, n, table: null,
   };
   // a field kept from before a mine ended it (it was struck and went on): it's lost now
@@ -170,21 +166,18 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
   setTools();
   save();
   clockRun();
-  bot.plan();
   render();
 }
 const fieldKey = () => (G ? `${G.kind}|${G.seed}|${G.shape}|${G.size}|${G.level}` : "");
 function start(mode, o = {}) {
   const d = mode === "daily" ? { ...daily(today()), seed: today() } : { shape: prefs.shape, ...stepNow(), seed: randomSeed() };
-  return begin({ ...d, mode, computer: prefs.computer, pace: prefs.pace, ...o });
+  return begin({ ...d, mode, ...o });
 }
 
 // ---------- who reads which numbers ----------
 const solo = () => G?.kind === "solo";
-const partnered = () => solo() && G.computer === "partner";
 /** The seats reading the numbers now, in order (a team's), or null when this player reads them all. */
 function readerSeats() {
-  if (partnered()) return [0, 1];
   if (G?.kind !== "team" || !G.table) return null;
   const me = duel.together.slot, others = duel.together.others(), now = Date.now();
   for (const o of others) { if (o.here) delete awaySince[o.slot]; else awaySince[o.slot] ??= now; }
@@ -205,7 +198,6 @@ function reads(i, seats = readerSeats()) {
   return r == null || r === mySeat() || G.told[i] === "1" || G.f.nums[i] === 0;
 }
 const nameOf = seat => {
-  if (partnered()) return seat === 0 ? "You" : "The computer";
   if (seat === mySeat()) return "You";
   return duel.together.others().find(o => o.slot === seat)?.name?.split(" ")[0] || "Your partner";
 };
@@ -262,7 +254,6 @@ function after(before, opened, from, struck) {
   } else if (message?.tone !== "good") note(null);
   view.set({ cells: G.run.cells }, opened, from);
   if (!before.includes(OPEN) && G.run.cells.includes(OPEN)) clockRun();
-  bot.moved();
   if (G.run.done) finish(); else { save(); tellSoon(); }
   render();
 }
@@ -274,24 +265,11 @@ function flash(i) {
 }
 
 // ---------- pointing: showing the others a cell, or one of your numbers ----------
-const pointing = () => partnered() || G?.kind === "team";
+const pointing = () => G?.kind === "team";
 function pointAt(i) {
-  const seat = mySeat(), told = G.run.cells[i] === OPEN && G.f.nums[i] > 0 && readerOfCell(i) === seat && G.told[i] !== "1";
-  if (G.kind === "team") { teamAct({ kind: told ? "tell" : "ping", cell: i }); return; }
-  ping(i, seat);
-  if (told) tellCell(i);
-  if (partnered() && G.run.cells[i] === OPEN && G.f.nums[i] > 0 && readerOfCell(i) === 1 && G.told[i] !== "1") {
-    note("The computer will show you that one.");
-    setTimeout(() => { if (G && partnered() && G.told[i] !== "1") { tellCell(i); ping(i, 1); note("The computer shows you its number there."); render(); } }, TELL_MS);
-  } else if (told) note("Your number there is shown to the computer now.");
-  bot.moved();
-  save();
-  render();
+  const told = G.run.cells[i] === OPEN && G.f.nums[i] > 0 && readerOfCell(i) === mySeat() && G.told[i] !== "1";
+  teamAct({ kind: told ? "tell" : "ping", cell: i });
 }
-function ping(cell, seat) {
-  G.pings = [...G.pings.filter(p => p.seat !== seat && Date.now() - p.at < PING_MS), { cell, seat, at: Date.now() }];
-}
-function tellCell(i) { G.told = G.told.slice(0, i) + "1" + G.told.slice(i + 1); }
 
 // ---------- hints ----------
 function useHint() {
@@ -317,9 +295,8 @@ function finish() {
   const r = G.run;
   if (G.kind === "race") r.ms = Math.max(0, duel.now() - G.begun);
   else if (clockFrom != null) { r.ms += performance.now() - clockFrom; clockFrom = null; }
-  bot.stop();
   if (G.kind === "race") { tell(true); save(); return; }
-  if (G.mode === "random" && G.computer === "off" && `${G.size}.${G.level}` === Object.values(stepNow()).join(".")) {   // the ramp: up after a clean clear, down after a mine
+  if (G.mode === "random" && `${G.size}.${G.level}` === Object.values(stepNow()).join(".")) {   // the ramp: up after a clean clear, down after a mine
     if (r.won) ramp.won(r.hints === 0); else if (r.lost) ramp.lost();
   }
   if (r.won) {
@@ -330,48 +307,6 @@ function finish() {
   save();
   roundOver("mines");
 }
-
-// ---------- the computer partner: it reads the other half of the numbers ----------
-const bot = (() => {
-  let timer = 0, lastMove = performance.now();
-  const live = () => partnered() && !G.run.done && started(G.f, G.run.cells) && !IN_FRAME && !paused && !document.hidden;
-  function stop() { clearTimeout(timer); timer = 0; }
-  /** Works out its next move on the field as it stands, and sets it going after a person's pause. */
-  function plan() {
-    stop();
-    if (!live()) return;
-    const stuckMs = performance.now() - lastMove, asked = new Set(G.asked);
-    const m = partnerMove(G.f, { cells: G.run.cells, told: new Set([...G.told].flatMap((c, i) => (c === "1" ? [i] : []))) },
-      { me: 1, people: 2, pace: G.pace, stuckMs, asked, seed: G.seed });
-    if (!m) {           // nothing yet: look again when it would speak up, and again when it would press
-      const next = stuckMs < SPEAK_AFTER ? SPEAK_AFTER : stuckMs < PRESS_AFTER ? PRESS_AFTER : null;
-      if (next != null) timer = setTimeout(plan, next - stuckMs + 50);
-      return;
-    }
-    timer = setTimeout(() => play(m), m.wait);
-  }
-  function play(m) {
-    timer = 0;
-    if (!live()) return;
-    const before = G.run.cells;
-    if (m.kind === "dig") {
-      const r = dig(G.f, G.run, m.cell);
-      if (!r.ok) { plan(); return; }
-      after(before, r.opened, m.cell, r.struck >= 0 ? 1 : 0);
-      return;
-    }
-    if (m.kind === "flag") { if (!flag(G.f, G.run, m.cell, 1)) { plan(); return; } after(before, [], m.cell, 0); return; }
-    G.asked = [...G.asked, `${m.why}:${m.cell}`];
-    ping(m.cell, 1);
-    if (m.why === "tell") { tellCell(m.cell); note("The computer shows you one of its numbers, ringed: it should help."); lastMove = performance.now(); }
-    else if (m.why === "ask") note("The computer points at one of your numbers it needs: Point at it to show it.");
-    else note("The computer thinks the flag it points at is wrong.");
-    save();
-    render();
-    plan();
-  }
-  return { stop, plan, moved() { lastMove = performance.now(); plan(); } };
-})();
 
 // ---------- together: a race on one field, or one field for a team (duel.js's table) ----------
 // Race: everyone gets the match's field, the same start, and digs it on their own phone; the others' progress shows
@@ -398,7 +333,7 @@ const duel = createDuel({
     const same = valid(kept) && kept.seed === s.seed && kept.shape === s.shape && kept.size === s.size && kept.level === s.level;
     begin(s, same ? kept : null, { kind: "race", begun, n }).then(() => tell(G.run.done));
   },
-  onLobby: () => { unwatchTable(); G = null; bot.stop(); render(); },
+  onLobby: () => { unwatchTable(); G = null; render(); },
   onLeave: () => { unwatchTable(); soloAgain(); },
 });
 
@@ -485,7 +420,6 @@ function drawStrip() {
   put("what", whatLine());
 }
 function whatLine() {
-  if (partnered()) return `With the computer (${PACES[G.pace].label.toLowerCase()})`;
   if (G.mode === "daily" && solo()) return `Today's: ${weekdayOf(G.seed)}'s`;
   return describe(G);
 }
@@ -509,7 +443,6 @@ function drawField() {
   view.set({
     cells: G.run.cells, me: mySeat(), told: G.told, reader: seats ? i => readerOfCell(i, seats) : null,
     end: G.run.done ? { won: G.run.won } : null, hint: shownHint, focus, pings: G.pings,
-    asks: partnered() ? G.asked.filter(k => k.startsWith("ask:")).map(k => ({ cell: Number(k.slice(4)), seat: 1 })) : [],
   });
   view.label(`${describe(G)}: ${minesLeft(G.f, G.run.cells)} mines left${G.run.done ? (G.run.won ? ", cleared" : ", lost") : ""}`);
   drawZoom();
@@ -589,27 +522,16 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-// Play (a new field, today's), Content (the shape), Together (a match's own), Settings (the computer partner), About (your best here, a link)
-let menuNote = "";                  // what a setting just changed says (that it waits for the next field)
+// Play (a new field, today's), Content (the shape), Together (a match's own), About (your best here, a link)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  // the shape deals a new field at once (a match: the next one, for everyone); the partner takes a field not yet begun at once, else the next
+  // the shape deals a new field at once (a match: the next one, for everyone)
   const chooseShape = v => {
     prefs.shape = v; savePrefs();
     $("menuDlg").close();
     if (duel.on) duel.newMatch(); else confirmStart("random");
   };
-  const setPartner = on => {
-    prefs.computer = on ? "partner" : "off"; savePrefs();
-    if (G && solo() && !started(G.f, G.run.cells)) {
-      begin({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, computer: prefs.computer, pace: prefs.pace });
-      menuNote = "";
-    } else if (!duel.on) menuNote = "From the next field.";
-    openMenu();
-  };
-  const settingsNote = line(menuNote);
-  settingsNote.hidden = !menuNote;
   // the field's shape: a flat tiling, or a solid on the Moon, in space (labelled 3D)
   const shapeChoice = () => choice("Shape", MENU_SHAPES.map(k => [k, SHAPE_NAMES[k]]), prefs.shape, chooseShape);
   if (duel.on) {                    // a match: the table's own, and what the next one deals
@@ -631,10 +553,9 @@ function openMenu() {
   part(body, "play").append(action("New field", () => confirmStart("random"), daily0 || markDone(markOf("mines")) ? "primary" : ""), action("The rules", showRules, "link"));
   todayPart(body, { app: "mines", play: () => start("daily"), playing: daily0, busy: begunHere() && G.mode !== "daily" });
   part(body, "content").append(shapeChoice());
-  part(body, "settings").append(toggle("Computer partner", prefs.computer === "partner", setPartner), settingsNote);
   const best = G ? read(TIMES, {})[keyOf(G)] : null;
   part(body, "about").append(
-    line(G ? `${describe(G)}${G.computer === "partner" ? ", with the computer" : ""}: ${best != null ? `best ${fmt(best)}` : "not cleared yet"}. A mine ends the field; a hint costs ${HINT} s.` : ""),
+    line(G ? `${describe(G)}: ${best != null ? `best ${fmt(best)}` : "not cleared yet"}. A mine ends the field; a hint costs ${HINT} s.` : ""),
     action("Copy a link to this field", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -767,7 +688,7 @@ $("zoomBtn").addEventListener("click", () => { view.toggleZoom(); keepView(); })
 bindSwitcher($("appsBtn"), "mines");
 const logo = APPS.find(a => a.id === "mines")?.logo;
 if (logo) document.querySelector(".mn-mark").innerHTML = logo;
-$("menuBtn").addEventListener("click", () => { menuNote = ""; openMenu(); });
+$("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
@@ -779,8 +700,8 @@ $("nextBtn").addEventListener("click", () => {
 for (const b of $("tools").querySelectorAll("[data-tool]")) b.addEventListener("click", () => { prefs.tool = b.dataset.tool; savePrefs(); message = null; render(); });
 $("hintBtn").addEventListener("click", useHint);
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { clockPause(); bot.stop(); dropFingers(); }
-  else { clockRun(); bot.plan(); view.draw(); duel.resync(); }
+  if (document.hidden) { clockPause(); dropFingers(); }
+  else { clockRun(); view.draw(); duel.resync(); }
 });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
@@ -795,10 +716,10 @@ setInterval(() => {
 /** The field a link names (#s=SEED&f=SHAPE.SIZE.LEVEL, or #d=DAY for a day's), or null. */
 function hashField() {
   const h = new URLSearchParams(location.hash.slice(1)), dayLink = Number(h.get("d")), seed = Number(h.get("s"));
-  if (dayLink) return { ...daily(dayLink), seed: dayLink, mode: "daily", computer: "off", pace: prefs.pace };
+  if (dayLink) return { ...daily(dayLink), seed: dayLink, mode: "daily" };
   if (!seed) return null;
   const [shape, size, level] = String(h.get("f") || "").split(".");
-  return { ...settingsOf({ shape, size, level }), seed, mode: "random", computer: prefs.computer, pace: prefs.pace };
+  return { ...settingsOf({ shape, size, level }), seed, mode: "random" };
 }
 const same = (a, b) => !!a && a.seed === b.seed && a.mode === b.mode && a.shape === b.shape && a.size === b.size && a.level === b.level;
 

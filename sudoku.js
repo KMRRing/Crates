@@ -1,12 +1,10 @@
 // Nonet (October 2026): fill the grid so every row, column and region holds each digit once. The rules, the grids
 // and the solvers are sudoku-engine.js and its pieces (every grid is generated, has one solution, and is graded by the
 // hardest technique a person needs); the board is the digit grid (digits.js), which Calcudoku and Tally share. This
-// file keeps the run (your entries, the clock, hints), the computer (a partner holding half the
-// givens), and the table: a race on one grid, or Together, the givens shared out so nobody can finish alone.
+// file keeps the run (your entries, the clock, hints) and the table: a race on one grid, or Together, the givens shared out so nobody can finish alone.
 import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, decode, validGrid, shapeFor, viewOf } from "./sudoku-engine.js";
 import { stateOf, nextStep, say } from "./sudoku-logic.js";
-import { partnerMove, PACES } from "./sudoku-bot.js";
-import { boxRegions, rng, mix, bit } from "./sudoku-grid.js";
+import { boxRegions, bit } from "./sudoku-grid.js";
 import { createBoard } from "./digits.js";
 import { desk3d, deskView } from "./desk3d.js";
 import { freshEntries, validEntries, write as writeDigit, pencil, rub, fill, set, undo, redo, repeats } from "./digits-edit.js";
@@ -58,18 +56,17 @@ const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s 
 const first = name => String(name || "Player").split(" ")[0];
 
 // ---------- settings: what the next grid deals, and how play goes ----------
-const DEFAULTS = { rules: "classic", size: 9, level: "medium", computer: "off", pace: "keen", repeats: true, tidy: true };
+const DEFAULTS = { rules: "classic", size: 9, level: "medium", repeats: true, tidy: true };
 let settings = { ...DEFAULTS, ...read(SETTINGS, {}) };
 if (!RULES[settings.rules]) settings.rules = "classic";
 if (!SIZES[settings.size]) settings.size = 9;
 settings.level = levelFor(settings.rules, settings.size, LEVELS[settings.level] ? settings.level : "medium");
-if (!PACES[settings.pace]) settings.pace = "keen";
-if (settings.computer !== "partner") settings.computer = "off";          // "rival" (racing you) was dropped
 const saveSettings = () => write(SETTINGS, settings);
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp for each kind of grid, its
-// first rung the old saved choice; the ladder steps up after a grid solved without a hint. Pace and tidy notes are fixed.
+// first rung the old saved choice; the ladder steps up after a grid solved without a hint. Tidy notes are fixed.
 settings.tidy = true;
-settings.pace = "keen";
+delete settings.computer;      // the computer partner was removed (Korbi, 7 November 2026); its saved choices go with it
+delete settings.pace;
 const OLD = { size: settings.size, level: settings.level };
 const RUNGS = Object.fromEntries(Object.keys(RULES).map(r => [r, rungs([6, 9], Object.keys(LEVELS), (n, l) => !!levelsOf(r, n)[l])]));
 /** The size and level the next grid of these rules deals. */
@@ -125,10 +122,8 @@ async function dealGrid(kind, words = "Setting the grid") {
 }
 
 // ---------- the run (solo) ----------
-// S: { v, mode ("random", "daily", "pair"), grid (encoded), entries (digits-edit.js), sel, notes (the Notes
-// switch), ms (time on screen), hints, wrong (cells a hint marked wrong), done ({ ms, score, at, fresh }), pace (the
-// computer's), split (pair: the givens shared with the computer), by (pair: who placed each digit, "0" you, "1" it),
-// bot (pair: { cell, digit, due } its next digit, due on your clock) }
+// S: { v, mode ("random", "daily"), grid (encoded), entries (digits-edit.js), sel, notes (the Notes
+// switch), ms (time on screen), hints, wrong (cells a hint marked wrong), done ({ ms, score, at, fresh }) }
 let S = null, P = null, SH = null, board = null, boardFor = "";
 let clockFrom = null, savedAt = 0, message = null, hintShown = null, highlight = 0, flash = null;
 const solo = () => !M;
@@ -139,19 +134,18 @@ function setGrid(grid) {
 }
 function begin(s) {
   S = s;
-  if (S.mode === "rival") S.mode = "random";         // a run saved when the computer could race you
+  if (S.mode === "rival" || S.mode === "pair") S.mode = "random";         // a run saved when the computer could race you or hold half the givens (Korbi, 7 November 2026: no computer partner); its digits are now yours
   setGrid(S.grid);
   message = null; hintShown = null; highlight = 0; flash = null;
   clockFrom = null;
   if (!IN_FRAME) history.replaceState(null, "", `${location.search}${hashFor(S)}`);
   soloBoard();
-  if (S.mode === "pair" && !S.done) botPlan();
   save();
   clockRun();
   render();
 }
 const fresh = (grid, mode, extra = {}) => ({ v: 1, mode, grid, entries: freshEntries(grid.n * grid.n), sel: -1, notes: false, ms: 0, hints: 0, wrong: [], done: null, ...extra });
-/** A new solo grid: today's, or a random one of the settings' kind, with the computer if it's switched on. */
+/** A new solo grid: today's, or a random one of the settings' kind. */
 async function start(mode = "random") {
   if (COOP) {       // another grid for both of you
     if (!coop) return;
@@ -167,14 +161,7 @@ async function start(mode = "random") {
   try { grid = await dealGrid(kind, daily ? "Setting today's grid" : "Setting the grid"); }
   catch (e) { console.error(e); toast("Couldn't make a grid, try again"); return; }
   if (M) return;                                     // sat down at a table meanwhile
-  const computer = daily ? "off" : settings.computer;
-  const s = fresh(grid, daily ? "daily" : computer === "partner" ? "pair" : "random", computer !== "off" && !daily ? { pace: settings.pace } : {});
-  if (s.mode === "pair") {
-    const done = busy("Sharing out the givens", { delay: 300 });
-    try { s.split = (await ask({ kind: "split", grid, k: 2, seed: grid.seed })).split; } finally { done(); }
-    s.by = ".".repeat(grid.n * grid.n);
-  }
-  begin(s);
+  begin(fresh(grid, daily ? "daily" : "random"));
 }
 /** The shared board for a grid (what the host's run becomes when a partner joins). */
 const coopShare = run => sudokuCoop.share({ [RUN]: JSON.stringify(run) });
@@ -194,8 +181,7 @@ function save() {
   write(RUN, S);
   savedAt = performance.now();
 }
-const validRun = s => !!s && s.v === 1 && validGrid(s.grid) && validEntries(s.entries, s.grid.n * s.grid.n) && Number.isFinite(s.ms)
-  && (s.mode !== "pair" || (typeof s.split === "string" && typeof s.by === "string"));
+const validRun = s => !!s && s.v === 1 && validGrid(s.grid) && validEntries(s.entries, s.grid.n * s.grid.n) && Number.isFinite(s.ms);
 const hashFor = s => (s.mode === "daily" ? `#d=${s.grid.seed}` : `#s=${s.grid.seed}&r=${s.grid.rules}&z=${s.grid.n}&l=${s.grid.level}`);
 function hashKind() {
   const h = new URLSearchParams(location.hash.slice(1));
@@ -247,14 +233,11 @@ function viewFrom({ placed, notes, split, mine, lent, owners }) {
 const unitsForRepeats = () => [...SH.units, ...(P.cages || []).map(c => c.cells)];
 const writable = (view, i) => !view.fixed[i] && !view.sealed.has(i);
 
-function soloView() {
-  const v = viewFrom({ placed: S.entries.v, notes: S.entries.n, split: S.mode === "pair" ? S.split : null, mine: 0, owners: S.mode === "pair" ? [...S.by].map(ch => (ch === "." ? null : Number(ch))) : null });
-  return v;
-}
+const soloView = () => viewFrom({ placed: S.entries.v, notes: S.entries.n, split: null, mine: 0, owners: null });
 
 // ---------- the board ----------
-/** The board for your own grid: with the computer as partner, a Killer's sums are only those you hold. */
-const soloBoard = () => makeBoard(S.mode === "pair" && P.cages && !S.done ? sumsSeen(S.split, 0) : null, S.mode === "pair" && !S.done ? "pair" : "");
+/** The board for your own grid. */
+const soloBoard = () => makeBoard();
 function makeBoard(sumsVisible = null, key = "") {
   const id = `${P.seed}/${P.rules}/${P.n}/${key}`;
   if (board && boardFor === id) return;
@@ -289,13 +272,12 @@ function onInput(a) {
       if (i < 0 || !writable(view, i)) { highlight = highlight === a.value ? 0 : a.value; break; }
       const changed = a.note ? pencil(S.entries, i, a.value) : writeDigit(S.entries, i, a.value, { clear: settings.tidy ? [...SH.peers[i]] : [] });
       if (changed && !a.note && S.entries.v[i]) { S.wrong = S.wrong.filter(c => c !== i); unitsDone(i); }
-      if (S.mode === "pair") { S.by = setAt(S.by, i, S.entries.v[i] ? "0" : "."); botAfterYou(); }
       if (changed) sendMove();
       break;
     }
-    case "erase": if (S.sel >= 0 && writable(view, S.sel)) { if (rub(S.entries, S.sel)) sendMove(); if (S.mode === "pair") { S.by = setAt(S.by, S.sel, S.entries.v[S.sel] ? S.by[S.sel] : "."); botAfterYou(); } } break;
-    case "undo": if (coop) stepCoop(-1); else { undo(S.entries); afterHistory(); } break;
-    case "redo": if (coop) stepCoop(1); else { redo(S.entries); afterHistory(); } break;
+    case "erase": if (S.sel >= 0 && writable(view, S.sel)) { if (rub(S.entries, S.sel)) sendMove(); } break;
+    case "undo": if (coop) stepCoop(-1); else undo(S.entries); break;
+    case "redo": if (coop) stepCoop(1); else redo(S.entries); break;
     case "tool": if (a.id === "hint") soloHint(); break;
   }
   checkDone();
@@ -314,13 +296,6 @@ function stepCoop(dir) {
   if (!rec) return;
   (dir < 0 ? e.future : e.past).push(rec);
   coop.edit(recordEdits(rec, P.n, { back: dir < 0, weak: dir < 0 }));
-}
-const setAt = (s, i, ch) => s.slice(0, i) + ch + s.slice(i + 1);
-/** After an undo or redo: who placed each digit follows the cells (an undone digit of yours is nobody's). */
-function afterHistory() {
-  if (S.mode !== "pair") return;
-  S.by = [...S.by].map((ch, i) => (S.entries.v[i] ? (ch === "." ? "0" : ch) : ".")).join("");
-  botAfterYou();
 }
 /** A unit that's just been filled sweeps with light (whether it's right or not: the sweep tells nothing). */
 function unitsDone(i) {
@@ -348,13 +323,10 @@ function finishSolo() {
   if (clockFrom != null) { S.ms += performance.now() - clockFrom; clockFrom = null; }
   const score = Math.round(S.ms / 1000) + HINT * S.hints;
   S.done = { ms: Math.round(S.ms), score, at: Date.now() };
-  S.bot = null;
-  if (S.mode !== "pair") {
-    const times = read(TIMES, {}), key = kindKey({ rules: P.rules, size: P.n, level: P.level });
-    S.done.fresh = times[key] == null || score < times[key];
-    if (S.done.fresh) { times[key] = score; write(TIMES, times); }
-    if (S.mode === "random") { rungNow(); ramp.won(!S.hints); }
-  }
+  const times = read(TIMES, {}), key = kindKey({ rules: P.rules, size: P.n, level: P.level });
+  S.done.fresh = times[key] == null || score < times[key];
+  if (S.done.fresh) { times[key] = score; write(TIMES, times); }
+  if (S.mode === "random") { rungNow(); ramp.won(!S.hints); }
   if (S.mode === "daily") noteDayTime("sudoku", score, P.seed);       // today's grid: the first solve, time and hints
   flash = { key: `done:${S.done.at}`, cells: [...Array(P.n * P.n).keys()] };
   hintShown = null;
@@ -383,9 +355,9 @@ function hintFor({ view, placed, notes, solutionAt }) {
   return { cells: step.cells || focus, focus, step, text: `${say(view.shape, step)}` };
 }
 function soloHint() {
-  const view = soloView(), shape = S.mode === "pair" ? viewOf(P, S.split, 0).shape : SH;
-  const h = hintFor({ view: { ...view, shape }, placed: S.entries.v, notes: S.entries.n, solutionAt: i => P.solution[i] });
-  if (!h) { message = { text: S.mode === "pair" ? "Nothing more follows from what you can see: Codex's digits will." : "Nothing more to find here.", tone: "" }; return; }
+  const view = soloView();
+  const h = hintFor({ view: { ...view, shape: SH }, placed: S.entries.v, notes: S.entries.n, solutionAt: i => P.solution[i] });
+  if (!h) { message = { text: "Nothing more to find here.", tone: "" }; return; }
   // in a co-op the hint is counted once for both of you (a tally, whoever asked), with the pencil marks it struck, in one change
   const edits = [];
   if (coop) edits.push(tallyEdit("hints", hintId())); else S.hints++;
@@ -405,36 +377,6 @@ function showHint(h, run, view, strikeNotes) {
   message = { text: h.text, tone: "teach" };
 }
 
-// ---------- the computer ----------
-/** A partner's next digit, from what it sees, due on your clock; null while what it sees isn't enough. */
-function botPlan() {
-  if (!S || S.mode !== "pair" || S.done) return;
-  const view = viewOf(P, S.split, 1, S.entries.v), moves = [...S.by].filter(ch => ch === "1").length;
-  const free = i => !P.givens[i] && !S.entries.v[i];
-  const move = partnerMove(view.shape, view.givens, S.pace, rng(mix(P.seed, "partner", moves)), free);
-  S.bot = move ? { cell: move.cell, digit: move.digit, due: Math.round(soloMs() + move.ms) } : null;
-}
-/** You changed the grid: the partner thinks again if its cell is taken, or if it was waiting on you. */
-function botAfterYou() {
-  if (S.mode !== "pair") return;
-  if (!S.bot || S.entries.v[S.bot.cell]) botPlan();
-}
-function botTick() {
-  if (!S || S.mode !== "pair" || S.done || IN_FRAME || !S.bot || clockFrom == null || soloMs() < S.bot.due) return;
-  const { cell, digit } = S.bot;
-  if (!S.entries.v[cell] && !P.givens[cell]) {
-    S.entries.v[cell] = digit;
-    S.entries.n[cell] = 0;
-    if (settings.tidy) for (const p of SH.peers[cell]) S.entries.n[p] &= ~bit(digit);
-    S.by = setAt(S.by, cell, "1");
-    unitsDone(cell);
-  }
-  botPlan();
-  checkDone();
-  save();
-  render();
-}
-
 // ---------- drawing ----------
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
@@ -448,7 +390,7 @@ function render() {
   if (hintShown) { marks.lit = new Set(hintShown.cells); marks.focus = new Set(hintShown.focus); }
   board.draw({
     values: view.values, fixed: view.fixed, notes: S.entries.n, colours: view.owners, marks, cursors: coop && !done ? partnerAt() : undefined,
-    selected: done ? -1 : S.sel, highlight, notesMode: S.notes, counts: S.mode === "pair" ? null : countsOf(view.values),
+    selected: done ? -1 : S.sel, highlight, notesMode: S.notes, counts: countsOf(view.values),
     off: { undo: done || !S.entries.past.length, redo: done || !S.entries.future.length, erase: done, notes: done, hint: done },
     veiled: !IN_FRAME && !COOP && !done && isPaused(), flash,       // a shared clock doesn't stand still, so there is nothing to hide
   });
@@ -468,19 +410,10 @@ function drawStrip() {
   put("clock", fmt(secs + pen));
   put("penalty", pen ? `+${pen} s` : "");
   put("kind", S.mode === "daily" ? `Today's · ${kindName({ rules: P.rules, size: P.n, level: P.level })}` : kindName({ rules: P.rules, size: P.n, level: P.level }));
-  const r = $("rival"), pace = PACES[S.pace]?.label.toLowerCase();
-  let text = "";
-  if (S.mode === "pair") {
-    const its = [...S.by].filter(ch => ch === "1").length;
-    text = `With Codex (${pace}): ${plural(its, "digit")} of its${S.bot || S.done ? "" : ", waiting on you"}`;
-  }
-  r.hidden = !text;
-  if (r.textContent !== text) r.textContent = text;
 }
 function drawLine(done) {
   const l = $("line");
   const text = done ? "" : message ? message.text
-    : S.mode === "pair" ? (P.cages ? "A ? is a sum only Codex can see, as it can't see some of yours. Its digits are in copper." : "You and Codex each see some givens the other can't (hatched). Its digits are in copper.")
     : P.cages ? "Each cage adds up to its sum, with no digit twice. Tap a cell, then a digit." : "Tap a cell, then a digit. Notes writes in pencil.";
   if (l.textContent !== text) l.textContent = text;
   l.className = `su-line${message?.tone ? ` ${message.tone}` : ""}`;
@@ -496,8 +429,7 @@ function drawResult() {
   const bits = [`${fmt(S.done.ms / 1000)} on the clock`];
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${HINT * S.hints} s)`);
   let tail = "";
-  if (S.mode === "pair") tail = `Codex placed ${[...S.by].filter(ch => ch === "1").length}, you ${[...S.by].filter(ch => ch === "0").length}.`;
-  else if (COOP) tail = "";                    // a shared solve is nobody's best
+  if (COOP) tail = "";                    // a shared solve is nobody's best
   else {
     const best = read(TIMES, {})[kindKey({ rules: P.rules, size: P.n, level: P.level })];
     tail = S.done.fresh ? "A new best." : best != null ? `Your best: ${fmt(best)}.` : "";
@@ -804,7 +736,7 @@ function showRules() {
     <p>A grid's level is the hardest technique it needs, never how many digits it gives. On a 9×9: <b>Easy</b>, singles only (a cell with one digit left, or a digit with one place left in its row, column or region), with at least 36 digits given; <b>Medium</b>, locked candidates (a digit that within a box can only go in one row, so it leaves the rest of that row) and pairs and triples (two cells of a row that can only hold the same two digits keep them to themselves); <b>Hard</b>, quads, fish (the X-wing: a digit with two places in each of two rows, in the same two columns, so it leaves the rest of those columns), wings and short chains; <b>Expert</b>, long chains, a digit in one cell forcing another's, link by link.</p>
     <p>A 6×6 has Easy (singles, at least 16 digits given), Medium (singles, with none to spare) and Hard. Killer has Easy (the cages' sums and singles), Medium (the rule of 45: a row, column or box adds up to 45, 21 on a 6×6, so what its whole cages leave over is known) and Hard (several rows at once, fish and wings).</p>
     <h4>Time</h4>
-    <p>The clock stops while the menu, these rules or the games screen is open, the grid hidden meanwhile. A hint adds ${HINT} seconds. Your best is the lowest time for each rule set, size and level; a grid solved with the computer is a team's time, not your best.</p>
+    <p>The clock stops while the menu, these rules or the games screen is open, the grid hidden meanwhile. A hint adds ${HINT} seconds. Your best is the lowest time for each rule set, size and level.</p>
     <h4>Today's grid</h4>
     <p>A classic 9×9 at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Nonet's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
@@ -824,7 +756,7 @@ function openMenu() {
       action("The match", () => duel.open()),
       action("Back to solo", () => duel.leave(), "link"));
     contentPart(body, true);
-    settingsPart(body, true);
+    settingsPart(body);
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -836,7 +768,7 @@ function openMenu() {
   }
   play.append(action("The rules", showRules, "link"));
   contentPart(body, COOP);
-  settingsPart(body, COOP);
+  settingsPart(body);
   if (!COOP) todayPart(body, { app: "sudoku", play: () => start("daily"), playing: S?.mode === "daily" && S.grid.seed === today(), busy: startedSolo() });
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? read(TIMES, {})[kindKey({ rules: P.rules, size: P.n, level: P.level })] : null;
@@ -849,12 +781,8 @@ function openMenu() {
 function contentPart(body) {
   part(body, "content").append(choice("Kind", Object.entries(RULES).map(([k, r]) => [k, r.label]), settings.rules, v => { settings.rules = v; saveSettings(); openMenu(); }));
 }
-function settingsPart(body, atTable) {
+function settingsPart(body) {
   const s = part(body, "settings");
-  if (!atTable) {
-    s.append(toggle("Computer partner", settings.computer === "partner", on => { settings.computer = on ? "partner" : "off"; saveSettings(); openMenu(); }));
-    if (settings.computer !== "off") s.append(line("You and Codex each see part of the givens; its digits show as it finds them. From the next grid."));
-  }
   s.append(choice("View", deskChoice.options, deskChoice.get(), v => { deskChoice.set(v); showDesk(); }),
     toggle("Mark repeats", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }));
 }
@@ -862,7 +790,7 @@ async function fillNotes() {
   if (!S || S.done) return;
   // in a co-op the marks are the grid's: filling them in replaces the ones your partner has made too
   if (coop && S.entries.n.some(Boolean) && !(await sure("Fill in every pencil mark? It replaces the pencil marks for both of you.", { yes: "Fill in" }))) return;
-  const view = soloView(), st = stateOf(S.mode === "pair" ? viewOf(P, S.split, 0).shape : SH, Uint8Array.from(view.values)), notes = {};
+  const view = soloView(), st = stateOf(SH, Uint8Array.from(view.values)), notes = {};
   for (let i = 0; i < P.n * P.n; i++) if (!view.values[i] && !view.sealed.has(i)) notes[i] = st.cand[i];
   if (fill(S.entries, notes)) sendMove();
   save();
@@ -873,9 +801,7 @@ async function giveUp() {
   clockPause();
   const cells = P.n * P.n;
   set(S.entries, [...Array(cells).keys()].filter(i => !P.givens[i]).map(i => [i, P.solution[i], 0]));
-  if (S.mode === "pair") S.split = S.split.replace(/\d/g, "*");
   S.done = { ms: Math.round(S.ms), score: Math.round(S.ms / 1000) + HINT * S.hints, at: Date.now(), shown: true };
-  S.bot = null;
   message = null;
   save();
   render();
@@ -913,7 +839,6 @@ let partnerKey = "";
 setInterval(() => {
   if (M && !M.lobby) { render(); return; }
   if (!S) return;
-  botTick();
   drawStrip();
   if (coop && !S.done) {            // the partner's cell moves without the grid changing: draw it when it does
     const key = JSON.stringify(partnerAt());

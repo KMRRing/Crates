@@ -1,6 +1,6 @@
 // Mines' solver: what the open numbers prove, found the way a person finds it, cheapest reasoning first. It is how
 // every field is proven to need no guess (mines-engine.js deals only fields it clears from the start), how a field's
-// difficulty is measured, what a hint names, and how the computer players think. Pure, no page.
+// difficulty is measured, and what a hint names. Pure, no page.
 //
 // The reasoning, in four levels (a round uses the lowest level that proves anything, so a field's grade is the
 // hardest level it ever needed):

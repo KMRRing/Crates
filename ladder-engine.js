@@ -255,21 +255,19 @@ export function routeFrom(P, from, to, avoid = []) {
   return sh ? commonest(g, s, e, sh).route : null;
 }
 
-// ---------- a person's search: the grading, and the computer players ----------
+// ---------- a person's search: the grading ----------
 /**
- * Searches as a careful person does: best first by the steps taken plus (weight times) the letters still wrong, only
- * through words no rarer than `vocab`, never back through a word on its ladder. Weight 1 is exact (it finds par when
- * its words allow); a heavier weight rushes at the end word and may take a step or two more. Among equals, the
- * nearer the end and the commoner word first; `rng` jitters that order, so two computer players don't think alike.
- * Returns the route found and how many words it tried, or null.
+ * Searches as a careful person does: best first by the steps taken plus the letters still wrong (exact: it finds par
+ * when its words allow), only through words no rarer than `vocab`, never back through a word on its ladder. Among
+ * equals, the nearer the end and the commoner word first. Returns the route found and how many words it tried, or null.
  */
-export function search(P, { from = P.start, to = P.end, vocab = COMMON, weight = 1, rng = null, cap = 20000, avoid = [] } = {}) {
+export function search(P, { from = P.start, to = P.end, vocab = COMMON, cap = 20000, avoid = [] } = {}) {
   const g = graphOf(P), s = idOf(g, from), e = idOf(g, to);
   if (s < 0 || e < 0) return null;
   if (s === e) return { route: [from], tries: 0 };
   const banned = new Set(avoid.map(w => g.at.get(w)).filter(i => i != null && i !== s && i !== e));
   const target = g.words[e], best = new Map([[s, 0]]), back = new Map(), heap = [], done = new Set();
-  const key = (v, d) => { const h = apart(g.words[v], target, P.rules); return [d + weight * h, h, g.cost[v] + (rng ? rng() * 1.5 : 0), v]; };
+  const key = (v, d) => { const h = apart(g.words[v], target, P.rules); return [d + h, h, g.cost[v], v]; };
   const less = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3];
   const push = x => { heap.push(x); for (let i = heap.length - 1; i > 0;) { const p = (i - 1) >> 1; if (less(heap[p], heap[i]) <= 0) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
   const pop = () => {
@@ -316,7 +314,7 @@ export function search(P, { from = P.start, to = P.end, vocab = COMMON, weight =
 // What makes a ladder hard is the search it takes, not its length alone: one whose letters can be changed one by one
 // into the end's, in some order (no detours), is found by trying the obvious change at each rung; one that needs a
 // letter changed to a go-between and changed again later (a detour) hides par from that; and one with a single route
-// at par hides it best. `effort` is how many words a careful person's search (search() above, weight 1, common words)
+// at par hides it best. `effort` is how many words a careful person's search (search() above, common words)
 // tries before it holds a ladder at par. Measured on 1,800 ladders (October 2026): with no detours it tries par + 1
 // words (straight there); one detour at par 5, about 9; two at par 6, 23; three at par 7 or 8, 56 to 113.
 export const LEVELS = {
@@ -463,40 +461,3 @@ export function hintFor(P, run, side) {
 }
 /** A finished run's score in seconds (lower is better): the time, and OVER for every step over par, HINT a hint. */
 export const score = (P, run) => Math.round(run.ms / 1000) + OVER * Math.max(0, steps(run) - P.par) + HINT * run.hints;
-
-// ---------- the computer players ----------
-// A computer player searches as a person does (search() above), at a level: a novice knows fewer words and rushes for
-// the end, so it often takes a step or two more than par; a club player rushes less; a master searches exactly and
-// finds par. Each thinks before every rung, longer the more words it tried, and the timing has a person's unevenness.
-export const PARTNERS = {
-  novice: { label: "Novice", vocab: 1, weight: 3, think: 7000, per: 420 },
-  club: { label: "Club", vocab: 2, weight: 1.5, think: 4800, per: 260 },
-  master: { label: "Master", vocab: 2, weight: 1, think: 3200, per: 140 },
-};
-/**
- * A computer partner's move in a shared ladder, where it may change only the letters it holds (`mine(p)`): the next
- * rung it would make from the last of `words`, and how long it thinks first; or null when the way on it sees starts
- * with someone else's letter, and it waits for them. A master takes a step of a shortest route with its own letter
- * whenever there is one; a club player or a novice follows the route its own search finds (weightier, fewer words),
- * which may be longer, and acts only when that route's next letter is its own.
- */
-export function partnerMove(P, words, mine, level = "club", seed = 1) {
-  const R = PARTNERS[level] || PARTNERS.club, r = rng(seed), g = graphOf(P), from = words.at(-1);
-  const changedAt = (a, b) => [...a].findIndex((c, i) => c !== b[i]);
-  const think = Math.round(R.think * (0.6 + r() * 0.8));
-  if (level === "master") {
-    const s = idOf(g, from), e = idOf(g, P.end), used = new Set(words.map(w => g.at.get(w)));
-    if (s < 0 || e < 0) return null;
-    const de = reach(g, e, { ends: [s, e], avoid: new Set([...used].filter(i => i !== s && i !== e)) });
-    let best = -1;
-    for (const v of g.adj[s]) {
-      if (de[v] !== de[s] - 1 || used.has(v) || (v >= g.base && v !== e) || !mine(changedAt(from, g.words[v]))) continue;
-      if (best < 0 || g.cost[v] < g.cost[best] || (g.cost[v] === g.cost[best] && g.words[v] < g.words[best])) best = v;
-    }
-    return best < 0 ? null : { word: g.words[best], think };
-  }
-  const found = search(P, { from, vocab: R.vocab, weight: R.weight, rng: r, avoid: words }) || search(P, { from, vocab: COMMON, avoid: words });
-  if (!found || found.route.length < 2) return null;
-  const next = found.route[1];
-  return next.length === from.length && mine(changedAt(from, next)) ? { word: next, think: think + R.per * Math.min(found.tries, 20) } : null;
-}

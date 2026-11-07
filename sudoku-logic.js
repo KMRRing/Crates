@@ -1,8 +1,7 @@
 // Nonet's human-style solver, pure: the techniques a person uses, from the plainest to the hardest, each a function
-// that finds one step on the grid as it stands (a digit placed, or candidates struck out) and says why. It does three
-// jobs: it grades a grid by the hardest technique it needs (Easy needs singles only, Expert needs chains), it gives
-// hints (the easiest next step, named, with the cells that prove it), and it is the computer player, which works
-// through the same steps at a person's pace (sudoku-bot.js). Every step is sound: tests/sudoku.mjs runs the solver on
+// that finds one step on the grid as it stands (a digit placed, or candidates struck out) and says why. It does two
+// jobs: it grades a grid by the hardest technique it needs (Easy needs singles only, Expert needs chains) and it gives
+// hints (the easiest next step, named, with the cells that prove it). Every step is sound: tests/sudoku.mjs runs the solver on
 // hundreds of grids and checks that no step ever strikes out or places anything the solution contradicts.
 //
 // A state is { val, cand, virt }: each cell's digit (0 while empty), its candidates as a bit mask (sudoku-grid.js),

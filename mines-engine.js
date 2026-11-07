@@ -323,15 +323,14 @@ export const score = run => Math.round(run.ms / 1000) + HINT * run.hints;
 // ---------- what a player knows, and hints ----------
 /**
  * A solver loaded with what a player knows of a run: every open cell, every struck mine, and the numbers this player
- * reads (sees(i), all of them alone). Flags are never trusted: a flag may be wrong. trust: flags by these seats are
- * taken as mines all the same (a computer player trusts its own).
+ * reads (sees(i), all of them alone). Flags are never trusted: a flag may be wrong.
  */
-export function knowing(f, cells, { sees = null, trust = [] } = {}) {
+export function knowing(f, cells, { sees = null } = {}) {
   const s = createSolver(f, { sees });
   for (let i = 0; i < f.n; i++) {
     const ch = cells[i];
     if (ch === OPEN) s.st[i] = 0;
-    else if (ch === STRUCK || (isFlag(ch) && trust.includes(Number(ch)) && f.mine[i])) s.st[i] = 1;
+    else if (ch === STRUCK) s.st[i] = 1;
   }
   s.sync();
   return s;

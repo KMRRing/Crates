@@ -1,6 +1,6 @@
 // Nonet (sudoku-engine.js and its pieces): the rules as units, the exact solver, grids generated with exactly one
 // solution for every kind and level, graded by the hardest technique a person needs, every step of the human-style
-// solver sound, hints that name a step, the computer player, grids and runs through JSON, the givens split for playing
+// solver sound, hints that name a step, grids and runs through JSON, the givens split for playing
 // together (the parts make the whole, neither alone does, and the relay finishes), the table through the database's
 // round trip, and today's grid the same on every device.
 import fs from "fs";
@@ -8,7 +8,6 @@ import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, generate, encode, deco
 import { shapeOf, boxRegions, rng, bit, POP } from "../sudoku-grid.js";
 import { solver, combosOf } from "../sudoku-solve.js";
 import { TECHNIQUES, stateOf, nextStep, apply, grade, say, BEYOND } from "../sudoku-logic.js";
-import { partnerMove, PACES, thinkMs } from "../sudoku-bot.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "../sudoku-room.js";
 import { freshDuel, sayReady, startAll, runOf } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -128,18 +127,6 @@ const made = [];
   check(grade(sh, thin).rank === BEYOND, "a grid beyond every technique grades as beyond, and isn't dealt");
 }
 
-// ---------- the computer ----------
-{
-  const p = made.find(x => x.rules === "classic" && x.n === 9 && x.level === "medium"), sh = shapeFor(p), empty = p.givens.filter(d => !d).length;
-  check(thinkMs({ tech: "xwing" }, "steady", rng(3)) > thinkMs({ tech: "xwing" }, "keen", rng(3)) && thinkMs({ tech: "xwing" }, "keen", rng(3)) > thinkMs({ tech: "xwing" }, "sharp", rng(3)), "steady, keen and sharp take longer, then less, on the same step");
-  const r = rng(1);
-  check(thinkMs({ tech: "hidden" }, "keen", rng(1), 10) < thinkMs({ tech: "hidden" }, "keen", rng(1), 1) && thinkMs({ tech: "xychain" }, "keen", r) > thinkMs({ tech: "full" }, "keen", r),
-    "a single is quicker to find with many on offer; a chain takes longer than a last cell");
-  const split = splitFor(p, 2, p.seed), view = viewOf(p, split, 1);
-  const move = partnerMove(view.shape, view.givens, "keen", rng(2), i => !p.givens[i]);
-  check(move && p.solution[move.cell] === move.digit && !p.givens[move.cell] && move.ms > 0, "a partner's next digit, from its own share of the givens, is right and takes time");
-}
-
 // ---------- grids and runs through JSON ----------
 {
   const back = made.map(p => decode(JSON.parse(JSON.stringify(encode(p)))));
@@ -204,7 +191,7 @@ const made = [];
   const day = today(), a = encode(generate({ seed: day, ...DAILY })), b = encode(generate({ seed: day, ...DAILY }));
   check(a.g === b.g && a.s === b.s && a.rules === "classic" && a.n === 9 && a.level === "medium", "today's grid: a classic 9×9 at Medium, the same each time it's made");
   check(encode(generate({ seed: today(new Date(Date.UTC(2026, 9, 21))), ...DAILY })).g !== encode(generate({ seed: today(new Date(Date.UTC(2026, 9, 22))), ...DAILY })).g, "a new day, a new grid");
-  const engine = ["sudoku-grid.js", "sudoku-solve.js", "sudoku-logic.js", "sudoku-engine.js", "sudoku-bot.js", "sudoku-room.js"].map(f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8"));
+  const engine = ["sudoku-grid.js", "sudoku-solve.js", "sudoku-logic.js", "sudoku-engine.js", "sudoku-room.js"].map(f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8"));
   check(engine.every(src => !/Math\.random|Date\.now|performance\.now/.test(src)), "the engine draws on nothing but its seed (no Math.random, no clock), so every phone makes the same grids");
 }
 
@@ -215,4 +202,4 @@ check(Object.keys(SIZES).join() === "6,9" && Object.keys(RULES).length === 4 && 
 
 console.log(`(${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("sudoku: the rules, the grids, the grading, the computer, the split and the table all hold");
+else console.log("sudoku: the rules, the grids, the grading, the split and the table all hold");

@@ -1,6 +1,6 @@
 // Tally's human-style solver, pure: the steps a person takes, each found by a technique that says why, always the
-// easiest step there is. It grades a grid (the hardest technique it needs), gives a hint (the next step, named, with
-// its cells), and paces the computer player (kakuro-bot.js). A grid it can't finish is never dealt.
+// easiest step there is. It grades a grid (the hardest technique it needs) and gives a hint (the next step, named, with
+// its cells). A grid it can't finish is never dealt.
 //
 // Like a person's pencil marks, a cell's candidates come from its two runs: the digits some combination of each run
 // still allows (its clue less the digits already in it, over its empty cells), less the digits already in either run.

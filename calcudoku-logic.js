@@ -1,8 +1,7 @@
 // Calcudoku's human-style solver, pure: the techniques a person uses, from the plainest to the hardest, each a function
-// that finds one step on the grid as it stands (a digit placed, or candidates struck out) and says why. It does three
-// jobs: it grades a grid by the hardest technique it needs, it gives hints (the easiest next step, named, with the
-// cells that prove it), and it is the computer player, which works through the same steps at a person's pace
-// (calcudoku-bot.js). Every step is sound: tests/calcudoku.mjs runs it over many grids and checks that no step ever
+// that finds one step on the grid as it stands (a digit placed, or candidates struck out) and says why. It does two
+// jobs: it grades a grid by the hardest technique it needs and it gives hints (the easiest next step, named, with the
+// cells that prove it). Every step is sound: tests/calcudoku.mjs runs it over many grids and checks that no step ever
 // strikes out or places anything the solution contradicts.
 //
 // A view is the grid as one player sees it: { shape (calcudoku-grid.js), cages (cagesFor in calcudoku-cage.js: a cage

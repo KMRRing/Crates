@@ -1,8 +1,8 @@
-// Mines (mines-grid.js, mines-solid.js, mines-solve.js, mines-engine.js, mines-bot.js, mines-team.js): the three
+// Mines (mines-grid.js, mines-solid.js, mines-solve.js, mines-engine.js, mines-team.js): the three
 // tilings and the three solids, and who touches whom on each (the cube's edges and corners, the rhombicuboctahedron's
 // squares and triangles, the football's twelve pentagons); the rules of a field (digging, the flood, flags, chording, the end: a mine ends it); the solver, every
 // deduction it makes checked against every way the mines could lie, flat and round a solid; fields dealt that clear
-// without a guess, at the reasoning their level asks, on every shape; hints; the computer rival and partner; the
+// without a guess, at the reasoning their level asks, on every shape; hints; the
 // split of a team's numbers (the shares make the whole and neither clears the field alone); the team's field through
 // the database's own round trip; a run kept as JSON; and today's field, the same for everyone.
 import { SHAPES, neighbours, outline, cellAt, shareOf, extent } from "../mines-grid.js";
@@ -11,7 +11,6 @@ import { solve, createSolver, placements } from "../mines-solve.js";
 import { FIELDS, MINES, TARGET, SIZES, LEVELS, HINT, dims, deal, fieldOf, bbbv, newRun, dig, flag, chord, score, minesLeft, safeLeft,
   started, hint, needsBoth, readerOf, daily, WEEK, weekdayOf, describe, settingsOf, rng, graphOf, isSolid, BODIES,
   SHAPES as EVERY } from "../mines-engine.js";
-import { PACES, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "../mines-bot.js";
 import { teamMove, teamField, teamScore, readers, freshField } from "../mines-team.js";
 import { freshDuel, sayReady, startAll, rematch } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -359,7 +358,7 @@ function sure(ways, c, mine) {
   check(named, "a hint never trusts a flag: it can name a flagged cell safe");
 }
 
-// ---------- the split, and the computer partner ----------
+// ---------- the split between a team's readers ----------
 {
   let both = 0, total = 0, alone = 0, whole = 0;
   for (const shape of every) for (const level of ["easy", "hard"]) for (let k = 1; k <= 2; k++) {
@@ -370,30 +369,6 @@ function sure(ways, c, mine) {
     if (solve(f, { sees: i => readerOf(f, i, 2) === 0 || readerOf(f, i, 2) === 1 }).solved) whole++;
   }
   check(both === total && !alone && whole === total, `a team's field, flat or round a solid: the two shares together clear it, neither alone does (${total} fields)`);
-  // two computer partners, each reading its half, clear fields together, asking and telling when stuck
-  let cleared = 0, games = 0, mineDug = 0, talked = 0;
-  for (const [shape, size] of [["square", "small"], ["hex", "small"], ["cube", "small"], ["rhombi", "small"], ["football", "small"]]) for (let k = 1; k <= 2; k++) {
-    const f = deal({ seed: k * 557, shape, size, level: "medium", team: true }), run = newRun(f), told = new Set(), asked = [new Set(), new Set()];
-    dig(f, run, f.start);
-    games++;
-    let t = 0, last = 0;
-    for (let guard = 0; guard < 3000 && !run.done; guard++) {
-      const ms = [0, 1].map(me => partnerMove(f, { cells: run.cells, told }, { me, pace: "sharp", stuckMs: t - last, asked: asked[me], seed: k }));
-      const live = ms.map((m, me) => (m ? { ...m, me } : null)).filter(Boolean);
-      if (!live.length) { if (t - last >= PRESS_AFTER) break; t = last + (t - last < SPEAK_AFTER ? SPEAK_AFTER : PRESS_AFTER); continue; }
-      const m = live.sort((a, b) => a.wait - b.wait || a.me - b.me)[0];
-      t += m.wait;
-      if (m.kind === "dig") { if (dig(f, run, m.cell).struck >= 0) mineDug++; last = t; }
-      else if (m.kind === "flag") { flag(f, run, m.cell, m.me); last = t; }
-      else { asked[m.me].add(`${m.why}:${m.cell}`); told.add(m.cell); talked++; last = t; }
-    }
-    if (run.won) cleared++;
-  }
-  check(cleared === games && !mineDug && talked > 0, `two computer partners, each with half the numbers, clear every field without a mine, by talking (${talked} numbers shown)`);
-  const f = deal({ seed: 9, shape: "square", size: "small", level: "medium", team: true }), run = newRun(f);
-  dig(f, run, f.start);
-  const quiet = partnerMove(f, { cells: run.cells, told: new Set() }, { me: 1, pace: "quick", stuckMs: 0 });
-  check(!quiet || quiet.kind !== "point", "a partner says nothing before the field has stood still a while");
   check(readers({ runs: { s0: { begun: 1 }, s1: { begun: 1 }, s2: {} } }, [0], { 1: 5000 }).join() === "0,1"
     && readers({ runs: { s0: { begun: 1 }, s1: { begun: 1 } } }, [0], { 1: 60000 }).join() === "0", "a player away a moment keeps their share; away long, it goes to the others");
 }
