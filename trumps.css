@@ -74,13 +74,11 @@ html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 
 /* your hand and the bidding: the hand the trick's size, room above it for a card lifted, kept when it's empty */
 .tr-side { position: relative; display: flex; flex-direction: column; gap: .35rem; padding-top: .2rem; }
-.tr-hand { justify-content: center; box-sizing: border-box; min-height: 3.95em; padding-top: .45em; font-size: var(--tr-card, var(--cd-size, 1rem)); }
-.tr-hand .tr-status { font-size: .9rem; align-self: center; }
+.cr-hand .tr-status { font-size: .9rem; align-self: center; }
 /* the play's controls, drawn unseen to measure them (fitTable) */
 .tr-probe { position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; }
-.tr-hand .cd { cursor: pointer; transition: transform .12s; }
-.tr-hand .cd.ok { transform: translateY(-.45em); }
-.tr-hand .cd.dim { opacity: .55; }
+.cr-hand .cd.ok { translate: 0 -.45em; }
+.cr-hand .cd.dim { opacity: .55; }
 .tr-controls { display: grid; gap: .35rem; }
 .tr-status { margin: 0; min-height: 1.25em; text-align: center; color: var(--ink-soft); font-size: .9rem; }
 .tr-bids { display: grid; gap: .35rem; }
@@ -170,7 +168,7 @@ html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4p
 .tr-hint { min-height: 2.2rem; padding: .2rem .8rem; }
 .tr-why-btn { font-size: .78rem; }
 .tr-wait { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .35rem; vertical-align: -.2em; }
-.tr-hand .cd.coach { box-shadow: 0 0 0 2.5px var(--tr-in), 0 0 0 5px color-mix(in srgb, var(--tr-in) 30%, transparent); }
+.cr-hand .cd.coach { box-shadow: 0 0 0 2.5px var(--tr-in), 0 0 0 5px color-mix(in srgb, var(--tr-in) 30%, transparent); }
 .tr-bid.coach { box-shadow: inset 0 0 0 2.5px var(--tr-in); }
 .tr-bids.hint-row { grid-template-columns: auto minmax(0, 1fr); }
 .tr-bids.hint-row .tr-hint { min-height: 2.8rem; }
@@ -193,3 +191,10 @@ html[data-mode="night"] .tr-coach.miss { background: #E8806F; }
    drawn in; the card stays paper at night, as a pack on the table does */
 .tr-cd.pic { padding: 0; background: #FCF9F0; border-color: #B9A88A; }
 .tr-cd.pic img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+
+/* Korbi, 7 Nov 2026: the card room's proportions (Guandan's) */
+#app.trumps { --cr-in: var(--tr-in); }
+.tr-side { padding-top: 0; gap: .15rem; }
+#app.trumps .cr-hand { margin-bottom: 1.2rem; }
+.tr-info { min-height: 0; padding: 0; border: 0; }
+.tr-table { margin-top: .8rem; }

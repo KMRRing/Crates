@@ -74,10 +74,12 @@ const low = () => matchMedia("(max-height: 520px)").matches;
  * @param face     id -> { rank, suit } | { joker }   (cards.js)
  * @param label    id -> the card's name
  * @param classes  id -> extra classes (sel, advised, dim, shade…)
+
+ * @param html     id, { cls, data } -> a card's markup, for a game with a pack of its own (instead of face and label)
  * @param reachRem how far below a card the deepest stack may reach; a game whose stacks are shallow (four suits) takes less
  * @returns the layout, with `.fan`
  */
-export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2 }) {
+export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2, html = null }) {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, room = box.parentElement?.clientWidth || box.clientWidth || 360;
   const row = fan ?? (sideways() && low());
   const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1 : 1.1 }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
@@ -89,7 +91,8 @@ export function drawHandBox(box, { cols, face, label = () => "", classes = () =>
   box.style.setProperty("--cd-size", `${(lay.W / 2.5).toFixed(2)}px`);
   box.innerHTML = lay.at.map(({ id, x, y, z }, i) => {
     const arc = `;--rot:${(t(x) * tilt).toFixed(2)}deg;--ly:${(t(x) * t(x) * drop).toFixed(1)}px`;
-    return cardHtml(face(id), { cls: `cr-card ${classes(id)}`.trim(), data: { id, x: x.toFixed(1), y: y.toFixed(1), z, arc }, label: label(id) });
+    const o = { cls: `cr-card ${classes(id)}`.trim(), data: { id, x: x.toFixed(1), y: y.toFixed(1), z, arc } };
+    return html ? html(id, o) : cardHtml(face(id), { ...o, label: label(id) });
   }).join("");
   // the positions are set as styles on the cards (cardHtml carries data only)
   for (const el of box.children) {

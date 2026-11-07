@@ -13,6 +13,7 @@ import { waitMark } from "./loading.js";
 import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
 import { deckPics } from "./trumps-deck.js";
 import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, drawHandBox } from "./cardroom.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -246,15 +247,6 @@ function fitTable() {
       app.style.setProperty("--tr-card", `${cardPx}px`);
     }
   }
-  spreadHand();
-}
-/** Your cards along their box: as far apart as it lets them be, up to side by side. */
-function spreadHand() {
-  const hand = $("hand"), k = hand.querySelectorAll(".cd").length, cw = 2.5 * cardPx;
-  if (!cardPx) return;
-  const step = k > 1 ? Math.min(cw * 1.04, (hand.clientWidth - cw) / (k - 1)) : 0;
-  hand.style.setProperty("--cd-size", `${cardPx}px`);
-  hand.style.setProperty("--cd-step", `${Math.max(step, cw * 0.28).toFixed(2)}px`);
 }
 /** How tall the controls are in the play (your status, or the coach's line): drawn once, unseen, beside the real ones. */
 function playProbe(s) {
@@ -266,7 +258,7 @@ function playProbe(s) {
     probe.setAttribute("aria-hidden", "true");
     $("controls").after(probe);
   }
-  const html = coaching() ? coachBar(s, "Your card", false) : `<p class="tr-status">Your card</p>`;
+  const html = coaching() ? coachBar(s, "Your card", false) : "";
   if (probe.dataset.html !== html) { probe.innerHTML = html; probe.dataset.html = html; }
   return probe.offsetHeight;
 }
@@ -305,12 +297,17 @@ function drawInfo(s) {
     const who = s.game === "jass" ? c.chooser : s.game === "schafkopf" ? c.declarer : c.taker;
     contract += ` <small>${esc(isMe(who) ? "you" : nameOf(who))}${s.game === "jass" && c.mult > 1 ? ` · ×${c.mult}` : ""}</small>`;
   }
-  let score;
+  // the brass plate across the top (cardroom.js): the game and its contract, each side's score, the target
+  let items, tail;
   if (g.teams === "fixed") {
     const mine = teamOf(me());
-    score = `<span class="tr-score"><b>${s.scores[mine]}</b> us · <b>${s.scores[1 - mine]}</b> them <small class="tr-target">to ${s.opts.target}</small></span>`;
-  } else score = `<span class="tr-score"><b>${s.scores[me()] > 0 ? "+" : ""}${s.scores[me()]}</b> you <small>deal ${s.handNo} of ${s.opts.deals}</small></span>`;
-  $("info").innerHTML = `<span class="tr-game">${esc(g.name)}</span>${contract ? `<span class="tr-contract">${contract}</span>` : ""}${score}`;
+    items = [{ k: "Us", v: s.scores[mine] }, { k: "Them", v: s.scores[1 - mine] }];
+    tail = `to ${s.opts.target}`;
+  } else {
+    items = [{ k: "You", v: `${s.scores[me()] > 0 ? "+" : ""}${s.scores[me()]}` }];
+    tail = `deal ${s.handNo} of ${s.opts.deals}`;
+  }
+  $("info").innerHTML = plateHtml({ lead: contract ? `<span class="tr-contract">${contract}</span>` : "", title: `<small>${esc(g.name)}</small>`, items, tail });
 }
 
 /** What a seat last said this hand, for its bubble. */
@@ -381,22 +378,24 @@ function handResult(s) {
 /** Your hand along the foot: the cards you may play lifted on your turn. */
 function drawHand(s) {
   const box = $("hand"), seat = V.seat;
-  if (seat == null) { box.innerHTML = `<p class="tr-status">Watching: you sit down at the next game.</p>`; return; }
+  if (seat == null) { box.innerHTML = `<p class="tr-status">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
   const g = GAMES[s.game], hand = sortHand(s, s.hands[seat]);
   const mine = s.step === "play" && s.turn === seat, ok = mine ? new Set(g.legal(s, seat)) : null;
   // the coach's card, once asked for (or always)
   const a = mine && coaching() && advice?.shown && advice.kind === "play" && advice.list && advice.key === aheadKey(s, seat, "coach") ? advice : null;
   const best = a?.list?.[0]?.card;
-  box.innerHTML = hand.map(id => card(id, s, { cls: mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "", data: { card: id } })).join("");
-  spreadHand();
+  // Guandan's fan (cardroom.js), in the game's own pack: a run to a suit, the cards you may play lifted on your turn
+  const cols = [];
+  for (const id of hand) { const last = cols.at(-1); if (last && suitOf(last[0]) === suitOf(id)) last.push(id); else cols.push([id]); }
+  drawHandBox(box, { cols, fan: true, html: (id, o) => card(id, s, o), label: id => id, classes: id => (mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "") });
 }
 // a tap on a hand's score puts it away too, and deals the next
 $("centre").addEventListener("click", () => { if (awaitingDeal()) nextHand(); });
 $("hand").addEventListener("click", async e => {
-  const el = e.target.closest("[data-card]");
+  const el = e.target.closest("[data-id]");
   const s = V?.state;
   if (!el || !s || s.step !== "play" || s.turn !== V.seat) return;
-  const id = Number(el.dataset.card);
+  const id = Number(el.dataset.id);
   if (!GAMES[s.game].legal(s, V.seat).includes(id)) { toast(followHint(s)); return; }
   noteMove(s, { t: "card", card: id });
   const why = await page.move({ t: "card", card: id });
@@ -519,7 +518,7 @@ function drawControls(s) {
   if (seat == null) { box.innerHTML = ""; return; }
   if (s.step === "over") {
     const won = s.winners.includes(seat);
-    box.innerHTML = `<p class="tr-status">${won ? "You win" : "You lose"}</p><button class="btn primary tr-go" type="button" data-act="${page.host ? "new" : "result"}">${page.host ? "New game" : "The result"}</button>`;
+    box.innerHTML = `<button class="btn primary tr-go" type="button" data-act="${page.host ? "new" : "result"}">${page.host ? "New game" : "The result"}</button>`;
     return;
   }
   if (s.step === "scored" && awaitingDeal() && !coaching()) {
@@ -528,13 +527,13 @@ function drawControls(s) {
   }
   if (s.step !== "bid") {
     const who = s.step === "play" ? (isMe(s.turn) ? "Your card" : `${nameOf(s.turn)}…`) : s.step === "trick" ? `${isMe(s.tricks.at(-1).winner) ? "You take" : `${nameOf(s.tricks.at(-1).winner)} takes`} it` : "";
-    box.innerHTML = coaching() ? coachBar(s, who) : `<p class="tr-status">${esc(who)}</p>`;
+    box.innerHTML = coaching() ? coachBar(s, who) : "";
     box.querySelector(".tr-wait")?.append(waitMark());
     return;
   }
   if (s.turn !== seat) {
     const status = `${nameOf(s.turn)} ${s.game === "jass" ? "chooses" : "bids"}…`;
-    box.innerHTML = coaching() ? coachBar(s, status) : `<p class="tr-status">${esc(status)}</p>`;
+    box.innerHTML = coaching() ? coachBar(s, status) : "";
     return;
   }
   // the coach's game, once asked for (or always): its button ringed, its words where the question was
@@ -542,25 +541,24 @@ function drawControls(s) {
   const bids = GAMES[s.game].bids(s, seat), btn = (b, text, cls = "") => `<button class="btn tr-bid${cls ? ` ${cls}` : ""}${coachBid && JSON.stringify(b) === JSON.stringify(coachBid) ? " coach" : ""}" type="button" data-bid='${esc(JSON.stringify(b))}'>${text}</button>`;
   let html = "";
   if (s.game === "jass") {
-    html = `<p class="tr-status">${s.pushed ? "Your partner pushed it to you: choose" : "Choose trumps, or push to your partner"}</p><div class="tr-bids six">${bids.filter(b => b.t === "trump").map(b => {
+    html = `<div class="tr-bids six">${bids.filter(b => b.t === "trump").map(b => {
       const mult = s.opts.count === "swiss" ? ` <small>×${multOf(s, b)}</small>` : "";
       return btn(b, b.mode === "trump" ? `${suitMark(s, b.suit).mark}<span>${esc(suitMark(s, b.suit).name)}${mult}</span>` : `<span>${b.mode === "obe" ? "Obenabe ▼" : "Undenufe ▲"}${mult}</span>`);
     }).join("")}</div>${bids.some(b => b.t === "push") ? `<div class="tr-bids one">${btn({ t: "push" }, "Schiebe: push to your partner")}</div>` : ""}`;
   } else if (s.game === "belote") {
-    html = s.round === 1 ? `<p class="tr-status">Take ${suitMark(s, suitOf(s.turned)).name} as trumps, with the turned card?</p><div class="tr-bids two">${btn({ t: "pass" }, "Passe")}${btn({ t: "take" }, `Je prends ${suitMark(s, suitOf(s.turned)).mark}`, "primary")}</div>`
-      : `<p class="tr-status">Name another suit as trumps, or pass</p><div class="tr-bids four">${bids.map(b => btn(b, b.t === "pass" ? "Passe" : suitMark(s, b.suit).mark)).join("")}</div>`;
+    html = s.round === 1 ? `<div class="tr-bids two">${btn({ t: "pass" }, "Passe")}${btn({ t: "take" }, `Je prends ${suitMark(s, suitOf(s.turned)).mark}`, "primary")}</div>`
+      : `<div class="tr-bids four">${bids.map(b => btn(b, b.t === "pass" ? "Passe" : suitMark(s, b.suit).mark)).join("")}</div>`;
   } else if (s.game === "coinche") {
     const values = [...new Set(bids.filter(b => b.t === "bid").map(b => b.value))];
     if (!values.includes(coincheValue)) coincheValue = values[0] ?? 0;
     const special = bids.filter(b => b.t === "coinche" || b.t === "surcoinche");
-    html = `<p class="tr-status">${s.auction.value ? `${s.auction.value} ${PACKS.french.suits[s.auction.suit]} to beat` : "Open the bidding (80 or more), or pass"}</p>
-      ${values.length ? `<div class="tr-coinche"><button class="btn tr-step" type="button" data-act="less" ${values.indexOf(coincheValue) > 0 ? "" : "disabled"}>−</button><b class="tr-value">${coincheValue === 250 ? "Capot" : coincheValue}</b><button class="btn tr-step" type="button" data-act="more" ${values.indexOf(coincheValue) < values.length - 1 ? "" : "disabled"}>+</button></div>
+    html = `      ${values.length ? `<div class="tr-coinche"><button class="btn tr-step" type="button" data-act="less" ${values.indexOf(coincheValue) > 0 ? "" : "disabled"}>−</button><b class="tr-value">${coincheValue === 250 ? "Capot" : coincheValue}</b><button class="btn tr-step" type="button" data-act="more" ${values.indexOf(coincheValue) < values.length - 1 ? "" : "disabled"}>+</button></div>
       <div class="tr-bids four">${[0, 1, 2, 3].map(su => btn({ t: "bid", value: coincheValue, suit: su }, suitMark(s, su).mark)).join("")}</div>` : ""}
       <div class="tr-bids ${special.length ? "two" : "one"}">${btn({ t: "pass" }, "Passe")}${special.map(b => btn(b, b.t === "coinche" ? "Coinche !" : "Surcoinche !", "primary")).join("")}</div>`;
   } else {
     const sau = bids.filter(b => b.type === "sau"), solo = bids.filter(b => b.type === "solo"), wenz = bids.find(b => b.type === "wenz");
     const ask = s.call ? `Over ${s.call.type === "sau" ? "a Sauspiel" : s.call.type === "wenz" ? "a Wenz" : "a Solo"}?` : "Play, or pass (weiter)?";
-    const say = coaching() ? `<p class="tr-say tr-bidsay">${a ? `<b class="tr-coach">Coach</b> ${esc(bidAdvice(s, seat, a.list))} <button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : esc(ask)}</p>` : `<p class="tr-status">${ask}</p>`;
+    const say = coaching() ? `<p class="tr-say tr-bidsay">${a ? `<b class="tr-coach">Coach</b> ${esc(bidAdvice(s, seat, a.list))} <button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : ""}</p>` : ""; void ask;
     html = `${say}
       ${sau.length ? `<div class="tr-bids three">${sau.map(b => btn(b, `Sauspiel ${suitMark(s, b.ace).mark}<small>auf die ${esc(PACKS.german.suits[b.ace])}-Sau</small>`)).join("")}</div>` : ""}
       <div class="tr-bids five">${wenz ? btn(wenz, "Wenz") : ""}${solo.map(b => btn(b, `Solo ${suitMark(s, b.suit).mark}`)).join("")}</div>
