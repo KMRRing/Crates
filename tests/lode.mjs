@@ -39,15 +39,14 @@ const q = (xs, p) => [...xs].sort((a, b) => a - b)[Math.floor(p * (xs.length - 1
 }
 
 // ---------- the generator ----------
-const crosses = (b) => {                 // a square board's two diagonals of one 2×2 block, both drawn
+const crosses = b => {                   // two diagonals of one 2×2 block, both drawn (a planet's blocks are the corners four cells share)
   if (b.shape === "hex") return false;
-  const seen = new Map();
+  const geo = geometry(b.shape), seen = new Set();
   for (const w of b.words) for (let k = 1; k < w.cells.length; k++) {
-    const a = w.cells[k - 1], c = w.cells[k], ra = Math.floor(a / COLS), rc = Math.floor(c / COLS), ca = a % COLS, cc = c % COLS;
-    if (ra === rc || ca === cc) continue;
-    const block = Math.min(ra, rc) * COLS + Math.min(ca, cc);
+    const block = geo.block(w.cells[k - 1], w.cells[k]);
+    if (block < 0) continue;
     if (seen.has(block)) return true;
-    seen.set(block, 1);
+    seen.add(block);
   }
   return false;
 };
@@ -65,12 +64,14 @@ const boards = [], timings = [];
       if (!b) { problems.made.push(`${t.id}/${level}/${shape}`); continue; }
       boards.push(b);
       const geo = geometry(b.shape), cells = b.words.flatMap(w => w.cells);
-      if (cells.length !== CELLS || new Set(cells).size !== CELLS) problems.cover.push(b.theme);
-      if (b.letters.length !== CELLS || b.words.some(w => w.cells.some((c, i) => b.letters[c] !== w.text[i]))) problems.letters.push(b.theme);
+      if (cells.length !== geo.n || new Set(cells).size !== geo.n) problems.cover.push(b.theme);
+      if (b.letters.length !== geo.n || b.words.some(w => w.cells.some((c, i) => b.letters[c] !== w.text[i]))) problems.letters.push(b.theme);
       const span = b.words[0].cells, cols = span.map(c => c % COLS), rows = span.map(c => Math.floor(c / COLS));
-      if (!((cols.includes(0) && cols.includes(COLS - 1)) || (rows.includes(0) && rows.includes(ROWS - 1))) || !Object.values(SPAN[b.theme]).includes(b.words[0].text)) problems.span.push(b.theme);
+      const faces = new Set(span.map(c => geo.face?.(c)));
+      const across = geo.cube ? [...faces].some(f => faces.has(f ^ 1)) : (cols.includes(0) && cols.includes(COLS - 1)) || (rows.includes(0) && rows.includes(ROWS - 1));
+      if (!across || !Object.values(SPAN[b.theme]).includes(b.words[0].text)) problems.span.push(b.theme);
       if (b.words.some(w => w.cells.some((c, i) => i && !geo.touch[w.cells[i - 1]].has(c))) || crosses(b)) problems.steps.push(b.theme);
-      if (b.words.slice(1).some(w => w.text.length < 4 || w.text.length > 10) || b.words.length < 5 || b.words.length > 9) problems.lengths.push(b.theme);
+      if (b.words.slice(1).some(w => w.text.length < 4 || w.text.length > 10) || b.words.length < 5 || b.words.length > 10) problems.lengths.push(b.theme);
       if (new Set(b.words.map(w => w.text)).size !== b.words.length || b.words.some(w => b.words.some(o => o !== w && o.text.includes(w.text)))) problems.holds.push(b.theme);
       const ways = b.words.map(w => tracings(b, w.text, 3).length);
       if (ways.some(n => n < 1)) problems.once.push(b.theme);
@@ -82,7 +83,7 @@ const boards = [], timings = [];
   }
   const say = (k, what) => check(!problems[k].length, `${what}${problems[k].length ? `: ${problems[k].slice(0, 6).join(", ")}` : ""}`);
   // (a few themes cannot make a board for some seeds now that living people's words are never dealt; boardFor takes the next theme)
-  check(problems.made.length <= Math.ceil(tried * 0.02), `a board for the themes, levels and shapes tried (${tried - problems.made.length} of ${tried}: Square and Hex, Easy, Medium and Hard)${problems.made.length ? `; none for ${problems.made.join(", ")}` : ""}`);
+  check(problems.made.length <= Math.ceil(tried * 0.02), `a board for the themes, levels and shapes tried (${tried - problems.made.length} of ${tried}: Square, Hex and Planet, Easy, Medium and Hard)${problems.made.length ? `; none for ${problems.made.join(", ")}` : ""}`);
   say("cover", "the words between them use every letter exactly once");
   say("letters", "each word is written along its own path");
   say("span", "the spanning word is the theme's, and touches two opposite sides");
@@ -203,13 +204,13 @@ const boards = [], timings = [];
     if (txt.length >= 6) return;
     for (const j of geo.nbrs[path[path.length - 1]]) if (!locked[j] && !path.includes(j)) seek([...path, j], txt + b.letters[j]);
   };
-  for (let i = 0; i < CELLS && !other; i++) if (!locked[i]) seek([i], b.letters[i]);
+  for (let i = 0; i < geo.n && !other; i++) if (!locked[i]) seek([i], b.letters[i]);
   check(!!other, "the board holds other English words to find");
   const w1 = submit(b, run, other);
   check(w1.kind === "word" && run.extra.length === 1 && run.meter === 1 && submit(b, run, other).kind === "had", "another word counts towards a hint, once");
   const near = { ...tidyRun(JSON.parse(JSON.stringify(run))), extra: [], meter: PER_HINT - 1 };
   check(submit(b, near, other).earned === true && near.charges === 1 && near.meter === 0, `every ${PER_HINT} other words earn a hint`);
-  const pair = (() => { for (let i = 0; i < CELLS; i++) if (!locked[i]) for (const j of geo.nbrs[i]) if (!locked[j]) return [i, j]; return null; })();
+  const pair = (() => { for (let i = 0; i < geo.n; i++) if (!locked[i]) for (const j of geo.nbrs[i]) if (!locked[j]) return [i, j]; return null; })();
   check(submit(b, tidyRun(JSON.parse(JSON.stringify(run))), pair).kind === "short" && submit(b, run, [pair[0], pair[0]]).kind === "bad", "a trace under four letters is too short, and one through a letter twice is no trace");
   const h = { ...tidyRun(JSON.parse(JSON.stringify(run))), charges: 2 };
   const first = useHint(b, h), second = useHint(b, h);

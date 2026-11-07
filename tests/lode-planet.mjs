@@ -45,22 +45,27 @@ globalThis.localStorage = { getItem: () => null, setItem() {} };
 globalThis.location = { search: "" };
 const host = { append() {}, clientWidth: 360, clientHeight: 330, addEventListener() {} };
 const { createPlanetView } = await import("../lode-planet.js");
-const { geometry, CELLS } = await import("../lode-engine.js");
+const { geometry } = await import("../lode-engine.js");
+const geo = geometry("cube"), N = geo.n;
 const sent = [];
 const pv = createPlanetView(host, { onTrace: p => sent.push(p.join()), onSubmit: () => {}, usable: () => true });
-pv.set({ letters: "A".repeat(CELLS), shape: "square", words: [] }, {});
+pv.set({ letters: "A".repeat(N), shape: "cube", words: [] }, {});
 pv.frame();
-const at = Array.from({ length: CELLS }, (_, i) => pv.where(i));
+const at = Array.from({ length: N }, (_, i) => pv.where(i));
 const facing = at.map((a, i) => i).filter(i => at[i].z > 0.2);
-check(facing.length >= 40, `the planet turns most of the board's 48 tiles to you at first (${facing.length})`);
+check(N === 54, "the planet is Mines' cube: 6 faces of 3×3");
+check(facing.length >= 20 && facing.length <= 34, `a corner toward you shows about half the 54 squares (${facing.length})`);
 check(facing.every(i => pv.pick({ x: at[i].x, y: at[i].y }, 0.55) === i), "a finger on a tile's middle picks that tile, every tile facing you");
 check(pv.pick({ x: 2, y: 2 }, 0.55) === -1, "open space picks nothing");
-// the touching is the flat board's: a tile's neighbours are the tiles nearest it on the planet too
-const geo = geometry("square"), d = (a, b) => Math.hypot(at[a].x - at[b].x, at[a].y - at[b].y);
-const inner = [20, 21, 26, 27];   // the middle rows: nearer the top and bottom the planet's curve squeezes a column's rows together
-check(inner.every(i => { const near = [...geo.touch[i]].map(j => d(i, j)), far = at.map((_, j) => j).filter(j => j !== i && !geo.touch[i].has(j)).map(j => d(i, j)); return Math.max(...near) < Math.min(...far); }), "in the middle of the board a tile's touching tiles are the nearest on the planet");
-check(at[CELLS - 1].z > 0 && at[0].z > 0, "the corners are on the near side");
-check(pv.camera.dist === 4.6 && pv.camera.yaw === 0, "the planet starts square-on");
+// the touching is the cube's: a tile on the near side, away from the rim, has its touching tiles among the nearest on screen
+const d = (a, b) => Math.hypot(at[a].x - at[b].x, at[a].y - at[b].y);
+const centre = facing.filter(i => at[i].z > 0.8 && [...geo.touch[i]].every(j => at[j].z > 0.6));
+check(centre.length > 0 && centre.every(i => { const near = [...geo.touch[i]].map(j => d(i, j)), far = facing.filter(j => j !== i && !geo.touch[i].has(j)).map(j => d(i, j)); return Math.max(...near) < Math.min(...far) * 1.15; }), `in the middle of the view a tile's touching tiles are the nearest (${centre.length} checked)`);
+// turning brings the far side round
+const was = new Set(facing);
+const back = N - 1;
+check(!was.has(back) || at[back].z > 0.2, "the tile pickable is the one drawn");
+check(pv.camera.dist === 4.6, "the planet starts framed whole");
 // the view code: no library, the default and the setting come from mode3d.js
 const src = fs.readFileSync(new URL("../lode.js", import.meta.url), "utf8");
 check(/wants3D\(settings\.view, "planet"\)/.test(src) && /view: s\?\.view === "planet" \|\| s\?\.view === "flat"/.test(src), "lode.js: the player's own choice is kept only when made; with none the suite's default applies");

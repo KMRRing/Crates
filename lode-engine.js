@@ -12,6 +12,7 @@ import { KB_TOPICS, TOPIC_OF, drawWeighted, mixFromSubjects, even, anyIn } from 
 import { isWord } from "./wordlist.js";
 import { SPAN } from "./lode-themes.js";
 import { allowed } from "./topics-on.js";
+import { solidBoard } from "./mines-solid.js";
 
 // What is marked for removal (topics.js) is out of a board unless Settings includes it; a daily never includes it (the same for everyone).
 // STRICT is set while a daily is dealt; the caches below are kept for each choice.
@@ -19,7 +20,7 @@ let STRICT = false;
 const okMk = mk => allowed(mk, STRICT);
 const incKey = () => (STRICT ? "x" : allowed("s") ? "i" : "x");
 
-export const COLS = 6, ROWS = 8, CELLS = COLS * ROWS;
+export const COLS = 6, ROWS = 8, CELLS = COLS * ROWS;     // the flat boards (square, hex); the planet's is geometry("cube").n
 export const MIN_WORD = 4, MAX_WORD = 10;
 export const MAX_TWICE = 2;           // words on a board that may also trace a second way (they're found either way)
 export const PER_HINT = 3;            // other words found for one hint, as in Strands
@@ -50,6 +51,7 @@ export const hashOf = s => { let h = 0x811C9DC5; for (const ch of String(s)) h =
 const geos = {};
 export function geometry(shape = "square") {
   if (geos[shape]) return geos[shape];
+  if (shape === "cube") return (geos[shape] = cubeGeometry());
   const hex = shape === "hex", nbrs = [], x2 = [], y = [];
   for (let i = 0; i < CELLS; i++) {
     const r = Math.floor(i / COLS), c = i % COLS, out = [];
@@ -61,18 +63,62 @@ export function geometry(shape = "square") {
     y.push(r);
   }
   const touch = nbrs.map(list => new Set(list));
-  return (geos[shape] = { shape, hex, cols: COLS, rows: ROWS, n: CELLS, nbrs, touch, x2, y });
+  const geo = { shape, hex, cols: COLS, rows: ROWS, n: CELLS, nbrs, touch, x2, y, nblocks: (COLS - 1) * (ROWS - 1) };
+  // a step read the way a page is (rightwards, or straight down: the words that run so are the easiest to see), and
+  // whether the step from b carries on in the direction of the one from a
+  geo.fwd = (a, b) => x2[b] > x2[a] || (x2[b] === x2[a] && y[b] > y[a]);
+  geo.straight = (a, b, c) => x2[b] - x2[a] === x2[c] - x2[b] && y[b] - y[a] === y[c] - y[b];
+  // the 2×2 block a square board's diagonal step lies in (its two diagonals cross), or -1 for any other step
+  geo.block = (a, b) => {
+    if (hex) return -1;
+    const ra = Math.floor(a / COLS), rb = Math.floor(b / COLS), ca = a % COLS, cb = b % COLS;
+    return ra !== rb && ca !== cb ? Math.min(ra, rb) * (COLS - 1) + Math.min(ca, cb) : -1;
+  };
+  // the spanning word's ways across, left to right or top to bottom; each a thunk, so what it draws from r is drawn when it is tried
+  geo.spanWays = (r, n) => shuffle(r, [...(n >= COLS ? ["across", "across"] : []), ...(n >= ROWS ? ["down"] : [])]).map(way => () => ({
+    starts: shuffle(r, Array.from({ length: way === "across" ? ROWS : COLS }, (_, k) => (way === "across" ? k * COLS : k))).slice(0, 3),
+    far: i => (way === "across" ? i % COLS === COLS - 1 : Math.floor(i / COLS) === ROWS - 1),
+    gap: i => (way === "across" ? COLS - 1 - (i % COLS) : ROWS - 1 - Math.floor(i / COLS)),
+  }));
+  return (geos[shape] = geo);
 }
-export const rowOf = i => Math.floor(i / COLS), colOf = i => i % COLS;
-/** The 2×2 block a square board's diagonal step lies in (its two diagonals cross), or -1 for any other step. */
-function blockOf(geo, a, b) {
-  if (geo.hex) return -1;
-  const ra = rowOf(a), rb = rowOf(b), ca = colOf(a), cb = colOf(b);
-  return ra !== rb && ca !== cb ? Math.min(ra, rb) * (COLS - 1) + Math.min(ca, cb) : -1;
+/**
+ * The planet's board (Korbi, 7 Nov 2026: "like the 3d cube minesweeper", one letter a square): Mines' cube, six faces of 3×3 =
+ * 54 cells, a cell touching the cells it shares a corner with (the 24 corner cells touch seven, the rest eight). A step carries
+ * on if it bends under about 40 degrees (the bend where it crosses a fold included); it reads "forward" when it runs eastward
+ * round the planet (down, for the cells of the poles' faces). The spanning word runs from a face to the one opposite.
+ */
+function cubeGeometry() {
+  const sb = solidBoard("cube", 3), n = sb.n, nbrs = sb.nb, touch = nbrs.map(l => new Set(l));
+  const key = p => p.map(x => Math.round(x * 1e7)).join(",");
+  // the corners shared by four cells are where two diagonals cross (a cube's own corner has three cells, all touching by an edge)
+  const by = new Map();
+  sb.cells.forEach((c, i) => c.pts.forEach(p => { const k = key(p); if (!by.has(k)) by.set(k, []); by.get(k).push(i); }));
+  const pair = new Map();
+  let nblocks = 0;
+  for (const cs of by.values()) if (cs.length === 4) { const id = nblocks++; for (const a of cs) for (const b of cs) if (a < b && !sb.side[a].includes(b)) pair.set(a * n + b, id); }
+  const C = sb.cells.map(c => c.c), face = i => Math.floor(i / 9);
+  const unit = v => { const l = Math.hypot(...v); return v.map(x => x / l); };
+  const lon = i => Math.atan2(C[i][0], C[i][2]), lat = i => Math.asin(C[i][1]);
+  const dir = (a, b) => unit(C[b].map((x, k) => x - C[a][k]));
+  const toFace = Array.from({ length: 6 }, (_, f) => {            // each cell's steps to face f
+    const d = new Array(n).fill(-1), q = [];
+    for (let i = 0; i < n; i++) if (face(i) === f) { d[i] = 0; q.push(i); }
+    for (let h = 0; h < q.length; h++) for (const j of nbrs[q[h]]) if (d[j] < 0) { d[j] = d[q[h]] + 1; q.push(j); }
+    return d;
+  });
+  return {
+    shape: "cube", hex: false, cube: true, solid: sb, cols: 0, rows: 0, n, nbrs, touch, face, nblocks,
+    fwd: (a, b) => { const d = Math.atan2(Math.sin(lon(b) - lon(a)), Math.cos(lon(b) - lon(a))); return Math.abs(d) > 1e-6 ? d > 0 : lat(b) < lat(a); },
+    straight: (a, b, c) => { const p = dir(a, b), q = dir(b, c); return p[0] * q[0] + p[1] * q[1] + p[2] * q[2] > 0.75; },
+    block: (a, b) => pair.get(a < b ? a * n + b : b * n + a) ?? -1,
+    spanWays: r => shuffle(r, [0, 1, 2, 3, 4, 5]).slice(0, 3).map(f => () => ({
+      starts: shuffle(r, Array.from({ length: 9 }, (_, k) => f * 9 + k)).slice(0, 3),
+      far: i => face(i) === (f ^ 1),                                // a cube's faces come in opposite pairs: 0 and 1, 2 and 3, 4 and 5
+      gap: i => toFace[f ^ 1][i],
+    })),
+  };
 }
-/** A step read the way a page is: rightwards, or straight down. Words that run so are the easiest to see. */
-const forward = (geo, a, b) => geo.x2[b] > geo.x2[a] || (geo.x2[b] === geo.x2[a] && geo.y[b] > geo.y[a]);
-const dirOf = (geo, a, b) => `${geo.x2[b] - geo.x2[a]},${geo.y[b] - geo.y[a]}`;
 
 // ---------- the themes and their words ----------
 /** A name as letters on the board: accents dropped, ß as SS, Ø as O, soft hyphens gone, A to Z. */
@@ -123,7 +169,7 @@ export const LEVELS = {
   medium: { label: "Medium", weight: { 1: 3, 2: 4, 3: 1 }, acronyms: 0.5, straight: 0.25, turn: 0, reads: "either", lean: 0, title: 2 },
   hard: { label: "Hard", weight: { 1: 1, 2: 3, 3: 4 }, acronyms: 1, straight: 0, turn: 0.45, reads: "back", lean: 10, title: 3 },
 };
-export const SHAPES = { square: "Square", hex: "Hex" };
+export const SHAPES = { square: "Square", hex: "Hex", cube: "Planet" };
 
 /** Crates' topics for a country (the commodity ones are gone with the commodities; the country ones keep their places in a shared link). */
 export const TOPIC_LIST = [...KB_TOPICS.country];
@@ -143,17 +189,17 @@ const topicWeight = (w, mix) => (!mix || !w.topics.length ? 1 : Math.max(...w.to
 
 /**
  * Picks the theme's words for a board: a spanning word of the theme's, then words whose lengths add up to the rest of
- * the 48 letters, five to seven of them (four to eight if it must), drawn by the level's and the mix's weights. No word
+ * the board's letters, five to seven of them (four to eight if it must), drawn by the level's and the mix's weights. No word
  * holds another (COPPER in COPPERBELT would trace twice). null when the theme can't fill a board so.
  */
-function chooseWords(r, t, level, mix, spanText) {
-  const L = LEVELS[level], target = CELLS - spanText.length;
+function chooseWords(r, t, level, mix, spanText, cells = CELLS) {
+  const L = LEVELS[level], target = cells - spanText.length;
   const pool = wordsOf(t).filter(w => !spanText.includes(w.text) && !w.text.includes(spanText));
   const level0 = w => (L.weight[w.d] ?? 1) * (w.acr ? L.acronyms : 1);
   // the mix's words first, by weight; a word only of topics left out comes after them all, used only if the theme
   // can't fill a board without it
   const order = [...drawWeighted(r, pool, w => level0(w) * topicWeight(w, mix)), ...drawWeighted(r, pool, w => (topicWeight(w, mix) ? 0 : level0(w)))];
-  for (const [lo, hi] of [[5, 7], [4, 8]]) {
+  for (const [lo, hi] of cells > CELLS ? [[6, 8], [5, 9]] : [[5, 7], [4, 8]]) {
     const pick = [];
     let budget = 4000;
     const go = (k, sum) => {
@@ -181,20 +227,20 @@ function chooseWords(r, t, level, mix, spanText) {
 function stepOrder(ctx, path, cand) {
   const { r, geo, style } = ctx;
   if (path.length < 2) return shuffle(r, cand);
-  const a = path[path.length - 2], b = path[path.length - 1], d0 = dirOf(geo, a, b);
-  const keyed = cand.map(j => ({ j, k: r() + (dirOf(geo, b, j) === d0 ? style.straight : style.turn) }));
+  const a = path[path.length - 2], b = path[path.length - 1];
+  const keyed = cand.map(j => ({ j, k: r() + (geo.straight(a, b, j) ? style.straight : style.turn) }));
   keyed.sort((p, q) => q.k - p.k);
   return keyed.map(x => x.j);
 }
 /** Marks cell j taken (and, on a square board, the diagonal block its step from i lies in); returns how to undo it. */
 function take(ctx, i, j) {
   ctx.owner[j] = 1;
-  const b = i < 0 ? -1 : blockOf(ctx.geo, i, j);
+  const b = i < 0 ? -1 : ctx.geo.block(i, j);
   if (b >= 0) ctx.diag[b] = 1;
   return b;
 }
 function untake(ctx, j, b) { ctx.owner[j] = 0; if (b >= 0) ctx.diag[b] = 0; }
-const stepFree = (ctx, i, j) => { const b = blockOf(ctx.geo, i, j); return b < 0 || !ctx.diag[b]; };
+const stepFree = (ctx, i, j) => { const b = ctx.geo.block(i, j); return b < 0 || !ctx.diag[b]; };
 /** Every walk of exactly n cells from `start` over free cells (no crossing), each handed to onWalk until it says stop. */
 function walksFrom(ctx, start, n, onWalk, may = null) {
   const path = [start], undo = [take(ctx, -1, start)];
@@ -277,14 +323,10 @@ function fillRest(ctx, lengths, placed) {
   }
   return null;
 }
-/** The spanning word's walk: from a cell on one side to the side across (left to right, or top to bottom). */
+/** The spanning word's walk: from a cell on one side to the side across (the geometry's ways: left to right, or top to bottom; a planet's, a face to the opposite one). */
 function spanWalk(ctx, n, lengths) {
-  const { r } = ctx, across = n >= COLS, down = n >= ROWS;
-  const ways = shuffle(r, [...(across ? ["across", "across"] : []), ...(down ? ["down"] : [])]);
-  for (const way of ways) {
-    const starts = shuffle(r, Array.from({ length: way === "across" ? ROWS : COLS }, (_, k) => (way === "across" ? k * COLS : k))).slice(0, 3);
-    const far = i => (way === "across" ? colOf(i) === COLS - 1 : rowOf(i) === ROWS - 1);
-    const gap = i => (way === "across" ? COLS - 1 - colOf(i) : ROWS - 1 - rowOf(i));
+  for (const way of ctx.geo.spanWays(ctx.r, n)) {
+    const { starts, far, gap } = way();
     for (const s of starts) {
       let got = null, tries = 0;
       ctx.budget = 1500;
@@ -302,11 +344,11 @@ function spanWalk(ctx, n, lengths) {
 /** The board cut into paths: the spanning word's first, then one for each other length. null if it didn't come off. */
 function pack(r, geo, spanLen, lengths, style) {
   for (let attempt = 0; attempt < 40; attempt++) {
-    const ctx = { r, geo, style, owner: new Uint8Array(geo.n), diag: new Uint8Array((COLS - 1) * (ROWS - 1)), budget: 0 };
+    const ctx = { r, geo, style, owner: new Uint8Array(geo.n), diag: new Uint8Array(geo.nblocks), budget: 0 };
     const span = spanWalk(ctx, spanLen, lengths);
     if (!span) continue;
     for (const i of span) ctx.owner[i] = 1;
-    for (let k = 1; k < span.length; k++) { const b = blockOf(geo, span[k - 1], span[k]); if (b >= 0) ctx.diag[b] = 1; }
+    for (let k = 1; k < span.length; k++) { const b = geo.block(span[k - 1], span[k]); if (b >= 0) ctx.diag[b] = 1; }
     ctx.budget = 6000;
     const rest = fillRest(ctx, lengths, []);
     if (rest) return [span, ...rest];
@@ -348,7 +390,7 @@ export function tracings(board, text, limit = 2, blocked = null) {
 export function countCovers(board, limit = 2) {
   const ways = board.words.map(w => tracings(board, w.text, 64));
   const order = ways.map((_, i) => i).sort((a, b) => ways[a].length - ways[b].length);
-  const used = new Uint8Array(CELLS);
+  const used = new Uint8Array(board.letters.length);
   let count = 0;
   const go = k => {
     if (count >= limit) return;
@@ -376,8 +418,8 @@ function findOf(board, w) {
   const geo = geometry(board.shape), cells = w.cells, text = w.text;
   let turns = 0, back = 0;
   for (let k = 1; k < cells.length; k++) {
-    if (!forward(geo, cells[k - 1], cells[k])) back++;
-    if (k > 1 && dirOf(geo, cells[k - 2], cells[k - 1]) !== dirOf(geo, cells[k - 1], cells[k])) turns++;
+    if (!geo.fwd(cells[k - 1], cells[k])) back++;
+    if (k > 1 && !geo.straight(cells[k - 2], cells[k - 1], cells[k])) turns++;
   }
   // the search tree for the word: every trace of its first letters, two letters long or more
   let nodes = 0;
@@ -431,14 +473,14 @@ function titleOf(r, t, onBoard, level) {
 export function makeBoard({ seed, theme, level = "medium", shape = "square", mix = null }, stats = null) {
   const t = themeById(theme);
   if (!t || !LEVELS[level]) return null;
-  const L = LEVELS[level], geo = geometry(shape === "hex" ? "hex" : "square");
+  const L = LEVELS[level], geo = geometry(SHAPES[shape] ? shape : "square");
   const r = seeded((seed >>> 0) ^ hashOf(`${theme}/${level}/${geo.shape}`));
   const style = { straight: L.straight, turn: L.turn };
   let best = null, bestKey = Infinity;
   for (let attempt = 0; attempt < 12; attempt++) {
     // Easy spans with the plainest name, unless its words can't fill the board around it
     const spanText = level === "easy" && attempt < 4 ? t.span[0] : t.span[Math.floor(r() * t.span.length)];
-    const picked = chooseWords(r, t, level, mix, spanText);
+    const picked = chooseWords(r, t, level, mix, spanText, geo.n);
     const paths = picked && pack(r, geo, spanText.length, picked.map(w => w.text.length), style);
     const board = paths && letter(r, geo, paths, spanText, picked, L);
     if (stats) { const k = !picked ? "words" : !paths ? "pack" : !board ? "letter" : "made"; stats[k] = (stats[k] || 0) + 1; }
@@ -456,16 +498,17 @@ export function makeBoard({ seed, theme, level = "medium", shape = "square", mix
   return best;
 }
 // How many ways a word traces (0, 1, or 2 for more than one), kept lean for the lettering's climb below, which asks it
-// thousands of times a board: letters as character codes, a way's cells as one 48-bit number (each cell a power of
-// two, exact in a double), the search's state in the module rather than a closure.
-const POW2 = Array.from({ length: CELLS }, (_, i) => 2 ** i);
-const way = { geo: null, L: null, T: null, on: new Uint8Array(CELLS), path: new Int8Array(32), first: 0, count: 0 };
+// thousands of times a board: letters as character codes, a way's cells as a number (each cell a power of two, exact in a
+// double; the planet's 54 cells are told in two halves, so a sum stays inside 53 bits), the search's state in the
+// module rather than a closure.
+const LOW = 27, POW_LO = Array.from({ length: 64 }, (_, i) => (i < LOW ? 2 ** i : 0)), POW_HI = Array.from({ length: 64 }, (_, i) => (i < LOW ? 0 : 2 ** (i - LOW)));
+const way = { geo: null, L: null, T: null, on: new Uint8Array(64), path: new Int8Array(32), first: 0, firstHi: 0, count: 0 };
 function wayStep(k) {
   const T = way.T;
   if (k === T.length) {
-    let key = 0;
-    for (let i = 0; i < k; i++) key += POW2[way.path[i]];
-    if (!way.count) { way.first = key; way.count = 1; } else if (key !== way.first) way.count = 2;
+    let key = 0, hi = 0;
+    for (let i = 0; i < k; i++) { key += POW_LO[way.path[i]]; hi += POW_HI[way.path[i]]; }
+    if (!way.count) { way.first = key; way.firstHi = hi; way.count = 1; } else if (key !== way.first || hi !== way.firstHi) way.count = 2;
     return;
   }
   const nb = way.geo.nbrs[way.path[k - 1]], ch = T[k];
@@ -480,7 +523,7 @@ function wayStep(k) {
 }
 function countWays(geo, L, T) {
   way.geo = geo; way.L = L; way.T = T; way.count = 0;
-  for (let i = 0; i < CELLS && way.count < 2; i++) {
+  for (let i = 0; i < geo.n && way.count < 2; i++) {
     if (L[i] !== T[0]) continue;
     way.on[i] = 1; way.path[0] = i;
     wayStep(1);
@@ -502,12 +545,12 @@ function letter(r, geo, paths, spanText, picked, { reads, lean: leanCost }) {
   for (const w of shuffle(r, picked)) { if (!byLen.has(w.text.length)) byLen.set(w.text.length, []); byLen.get(w.text.length).push(w); }
   for (const p of paths.slice(1)) slots.push(byLen.get(p.length).pop());
   const n = paths.length, flip = new Array(n).fill(false), at = paths.map((_, k) => k);   // at[k]: the path word k is on
-  const T = slots.map(w => Uint8Array.from(w.text, ch => ch.charCodeAt(0))), L = new Uint8Array(CELLS);
-  const fwd = paths.map(p => p.slice(1).filter((c, k) => forward(geo, p[k], c)).length - (p.length - 1) / 2);
+  const T = slots.map(w => Uint8Array.from(w.text, ch => ch.charCodeAt(0))), L = new Uint8Array(geo.n);
+  const fwd = paths.map(p => p.slice(1).filter((c, k) => geo.fwd(p[k], c)).length - (p.length - 1) / 2);
   const lean = k => { const f = flip[k] ? -fwd[at[k]] : fwd[at[k]]; return reads === "forward" ? (f < 0 ? 1 : 0) : reads === "back" ? (f > 0 ? 1 : 0) : 0; };
   const write = k => { const p = paths[at[k]], t = T[k]; for (let i = 0; i < p.length; i++) L[flip[k] ? p[p.length - 1 - i] : p[i]] = t[i]; };
   // paths that touch: a change to one can change how the other's word traces
-  const pathOf = new Int8Array(CELLS), near = paths.map((_, k) => paths.map((__, j) => j === k));
+  const pathOf = new Int8Array(geo.n), near = paths.map((_, k) => paths.map((__, j) => j === k));
   paths.forEach((p, k) => { for (const c of p) pathOf[c] = k; });
   paths.forEach((p, k) => { for (const c of p) for (const j of geo.nbrs[c]) near[k][pathOf[j]] = near[pathOf[j]][k] = true; });
   const bad = new Array(n).fill(false);
@@ -552,17 +595,17 @@ function letter(r, geo, paths, spanText, picked, { reads, lean: leanCost }) {
 // ---------- which theme ----------
 const makeable = new Map();
 /** Whether a theme can make a board at a level: some of its words, as the level weighs them, fill the board. */
-export function canMake(t, level) {
-  const key = `${t.id}/${level}/${incKey()}`;
+export function canMake(t, level, shape = "square") {
+  const key = `${t.id}/${level}/${shape}/${incKey()}`;
   if (!makeable.has(key)) {
     const r = seeded(hashOf(key));
-    makeable.set(key, t.span.some(s => !!chooseWords(r, t, level, null, s)));
+    makeable.set(key, t.span.some(s => !!chooseWords(r, t, level, null, s, geometry(shape).n)));
   }
   return makeable.get(key);
 }
 /** The themes a choice deals from: the countries of a region ("world": all) that can make a board at the level. */
-export function themesFor({ region = "world", level = "medium" } = {}) {
-  return THEMES.filter(t => okMk(BANK[t.i].mk) && (region === "world" || t.regions.includes(region)) && canMake(t, level));
+export function themesFor({ region = "world", level = "medium", shape = "square" } = {}) {
+  return THEMES.filter(t => okMk(BANK[t.i].mk) && (region === "world" || t.regions.includes(region)) && canMake(t, level, shape));
 }
 /** The theme for a seed, from a list, passing over those dealt lately where it can. */
 export function pickTheme(seed, list, avoid = []) {
@@ -582,7 +625,7 @@ export function boardFor({ seed, level = "medium", shape = "square", mix = null,
 }
 function boardOf({ seed, level, shape, mix, theme, region, avoid }) {
   if (theme) { const board = makeBoard({ seed, theme, level, shape, mix }); return board ? { deal: { seed, theme, level, shape, mix }, board } : null; }
-  const list = themesFor({ region, level }), passed = [...avoid];
+  const list = themesFor({ region, level, shape }), passed = [...avoid];
   let best = null;
   for (let k = 0; k < 6 && list.length; k++) {
     const id = pickTheme(seed + k, list, passed), board = makeBoard({ seed, theme: id, level, shape, mix });
@@ -613,7 +656,7 @@ export function tidyRun(run) {
 }
 /** The cells of words found or shown: they can't be traced again. */
 export function lockedCells(board, run) {
-  const out = new Uint8Array(CELLS);
+  const out = new Uint8Array(board.letters.length);
   for (const w of [...run.found, ...run.revealed]) for (const c of board.words[w].cells) out[c] = 1;
   return out;
 }
@@ -621,7 +664,7 @@ const sameCells = (a, b) => a.length === b.length && [...a].sort((x, y) => x - y
 /** Whether `cells` is a trace a finger could make: touching cells, none twice, none locked. */
 export function traceable(board, run, cells) {
   const geo = geometry(board.shape), locked = lockedCells(board, run);
-  return cells.length > 0 && new Set(cells).size === cells.length && cells.every((c, k) => c >= 0 && c < CELLS && !locked[c] && (!k || geo.touch[cells[k - 1]].has(c)));
+  return cells.length > 0 && new Set(cells).size === cells.length && cells.every((c, k) => c >= 0 && c < geo.n && !locked[c] && (!k || geo.touch[cells[k - 1]].has(c)));
 }
 /**
  * A trace submitted (the run changes): { kind, text, w, moved }. kind: "span" or "theme" (a word of the board, w its
@@ -694,7 +737,7 @@ export const missesOf = (board, run) => board.words.map((_, i) => i).filter(i =>
  * a word. Returns the seat for each cell.
  */
 export function shares(board, k) {
-  const out = new Array(CELLS).fill(0);
+  const out = new Array(board.letters.length).fill(0);
   if (k < 2) return out;
   board.words.forEach((w, j) => w.cells.forEach((c, t) => { out[c] = (t + j) % k; }));
   return out;

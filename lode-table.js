@@ -9,7 +9,7 @@
 //  - Race: everyone the same board on their own phone from the same moment, a run each, kept on the phone and reported
 //    here as it goes; the lowest score (time plus hints) wins.
 // Everything is kept by key (w3, s1, a word itself), never in a list by number, which the database reads back with holes.
-import { newRun, tidyRun, submit, useHint, giveUp, scoreOf, shares, CELLS } from "./lode-engine.js";
+import { newRun, tidyRun, submit, useHint, giveUp, scoreOf, shares, geometry, SHAPES } from "./lode-engine.js";
 
 export const MOST = 6;                 // the most at one table (a party's)
 export const COUNTDOWN = 3000;         // ms from a board's deal to its start, so everyone starts together
@@ -26,7 +26,7 @@ export function tidyBoard(b) {
   b.twice = b.twice || 0;
   return b;
 }
-export const isTable = g => g?.v === 1 && typeof g.board?.letters === "string" && g.board.letters.length === CELLS && Number.isInteger(g.n);
+export const isTable = g => g?.v === 1 && typeof g.board?.letters === "string" && g.board.letters.length === geometry(SHAPES[g.board.shape] ? g.board.shape : "square").n && Number.isInteger(g.n);
 
 /** A new table with its first board. mode: "team" or "race". */
 export function freshTable(players, { board, mode = "team", people: n = 2, app = 1, now = Date.now() }) {
@@ -52,8 +52,8 @@ export const holders = g => shares(g.board, g.people);
  * now (empty, or its player away). present: the seats whose players are here.
  */
 export function readable(g, slot, present) {
-  const hold = holders(g), open = new Uint8Array(CELLS), run = g.team;
-  for (let c = 0; c < CELLS; c++) open[c] = hold[c] === slot || !present.includes(hold[c]) ? 1 : 0;
+  const hold = holders(g), count = g.board.letters.length, open = new Uint8Array(count), run = g.team;
+  for (let c = 0; c < count; c++) open[c] = hold[c] === slot || !present.includes(hold[c]) ? 1 : 0;
   for (const w of [...run.found, ...run.revealed]) for (const c of g.board.words[w].cells) open[c] = 1;
   return open;
 }
@@ -72,7 +72,7 @@ export function tracesOf(g, here, me) {
   const present = presentSlots(g, here, me);
   return Object.entries(g?.players || {}).filter(([id, p]) => id !== me && p?.trace && present.includes(p.slot)).map(([id, p]) => {
     const [n, cells] = String(p.trace).split(":");
-    return { id, slot: p.slot, name: p.name || "Player", cells: Number(n) === g.n ? String(cells || "").split(".").filter(Boolean).map(Number).filter(c => c >= 0 && c < CELLS) : [] };
+    return { id, slot: p.slot, name: p.name || "Player", cells: Number(n) === g.n ? String(cells || "").split(".").filter(Boolean).map(Number).filter(c => c >= 0 && c < g.board.letters.length) : [] };
   }).filter(t => t.cells.length);
 }
 

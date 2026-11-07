@@ -6,11 +6,12 @@
 // clock, the menu and the table. Together (together.js): one board for the table, as a team with the letters shared out
 // (each sees only theirs) or as a race, everyone on their own phone.
 import { REGION_LIST } from "./lode-continents.js";
-import { CELLS, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
+import { CELLS, geometry, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
   scoreOf, missesOf, lockedCells } from "./lode-engine.js";
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
   standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
 import { createBoardView } from "./lode-board.js";
+import { createPlanetView } from "./lode-planet.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { BANK } from "./core.js";
 import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
@@ -60,7 +61,7 @@ let settings = cleanSettings(read(SET, {}));
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. The board is square and the clues are the titles, whatever
 // an older save chose; the level is the hidden ramp (`lode:ramp`, up after a board solved without a hint; first step the saved level).
 const OLD_LEVEL = settings.level;
-settings.shape = "square";
+settings.shape = wants3D(settings.view, "planet") ? "cube" : "square";   // the planet is a board of its own (a cube of 54 squares), dealt when the planet is the view
 settings.clues = "title";
 const levelNow = () => (settings.level = ramp("lode", Object.keys(LEVELS), { start: OLD_LEVEL }));
 levelNow();
@@ -86,34 +87,36 @@ let lastFound = null;                // the word just found, drawn fresh
 let clueAt = 0;                      // the clue showing, in Every word
 let spare = null;                    // the next random board, dealt ahead for the settings it was dealt with
 
-// The board: flat (lode-board.js), or a planet (lode-planet.js, a canvas, loaded when first wanted; 7 Nov 2026). `settings.view` is the
-// player's own choice, "planet" or "flat", written only when they make one; with none the suite's 2D / 3D default applies (mode3d.js).
+// The board: flat (lode-board.js), or the planet (lode-planet.js: a cube of 54 squares drawn as a world; Korbi, 7 Nov 2026), by the
+// board's own shape. `settings.view` is the player's choice for the boards to come, "planet" or "flat", written only when they make
+// one; with none the suite's 2D / 3D default applies (mode3d.js). A daily is always the flat board, the same for everyone.
 const fingers = { onTrace, onSubmit, usable: cell => usable(cell) };
-const flat = createBoardView($("stage"), fingers);
-let planet = null, planetOn = false, lastDraw = null, frozenNow = false;
-const current = () => (planetOn && planet ? planet : flat);
+const flat = createBoardView($("stage"), fingers), planet = createPlanetView($("stage"), fingers);
+planet.show(false);
+let shownView = flat, frozenNow = false;
 const view = {
-  set(b, v) { lastDraw = [b, v]; flat.set(b, v); planet?.set(b, v); },
-  freeze(on) { frozenNow = !!on; flat.freeze(on); planet?.freeze(on); },
-  clear() { flat.clear(); planet?.clear(); },
-  trace: cells => current().trace(cells),
-  get path() { return current().path; },
+  set(b, v) {
+    const next = b.shape === "cube" ? planet : flat;
+    if (next !== shownView) { shownView.clear(); shownView.show(false); shownView = next; shownView.show(true); shownView.freeze(frozenNow); }
+    next.set(b, v);
+  },
+  freeze(on) { frozenNow = !!on; shownView.freeze(on); },
+  clear() { shownView.clear(); },
+  trace: cells => shownView.trace(cells),
+  get path() { return shownView.path; },
 };
+/** The view for the boards to come; a board in hand of the other kind is dealt again at once if it's not begun, else on a yes. */
 async function setView(v, remember = true) {
-  if (v === "planet" && !planet) {
-    planet = (await import("./lode-planet.js")).createPlanetView($("stage"), fingers);
-    if (lastDraw) planet.set(...lastDraw);
-    planet.freeze(frozenNow);
-  }
-  planetOn = v === "planet" && !!planet;
-  flat.show(!planetOn); planet?.show(planetOn);
-  if (remember) { settings.view = planetOn ? "planet" : "flat"; saveSettings(); }
+  settings.shape = v === "planet" ? "cube" : "square";
+  if (remember) { settings.view = v; saveSettings(); }
+  spare = null;
+  if (!S || IN_FRAME || G || S.mode !== "random" || S.board.shape === settings.shape) return;
+  if (!started() || await sure(`Switch to ${v === "planet" ? "the planet" : "the flat board"} now? The board in hand is left.`)) start("random");
 }
-if (wants3D(settings.view, "planet")) setView("planet", false);
 onDefaultChange(is3D => { if (!settings.view) setView(is3D ? "planet" : "flat", false); });   // Settings' 2D mode, live
-const viewChoice = () => choice("Board", [["planet", "Planet"], ["flat", "Flat"]], planetOn ? "planet" : "flat", v => setView(v));
+const viewChoice = () => choice("Board", [["planet", "Planet"], ["flat", "Flat"]], settings.shape === "cube" ? "planet" : "flat", v => setView(v));
 
-const validS = s => !!s && !!s.board?.letters && s.board.letters.length === CELLS && Array.isArray(s.board.words) && !!s.run && !!s.deal;
+const validS = s => !!s && !!s.board?.letters && s.board.letters.length === geometry(SHAPES[s.board.shape] ? s.board.shape : "square").n && Array.isArray(s.board.words) && !!s.run && !!s.deal;
 function save() {
   if (IN_FRAME || !S) return;
   write(RUN, S);
@@ -225,7 +228,7 @@ function drawBoard(ctx) {
   view.set(ctx.board, {
     found: [...found, ...shown],
     hint: ctx.run.hint,
-    sealed: counting() ? new Uint8Array(CELLS).fill(1) : ctx.team ? sealedCells() : null,
+    sealed: counting() ? new Uint8Array(ctx.board.letters.length).fill(1) : ctx.team ? sealedCells() : null,
     others: ctx.team && together.room ? tracesOf(G, together.room.here, together.room.uid) : [],
   });
   view.freeze(IN_FRAME || ctx.run.done || counting());
@@ -556,7 +559,7 @@ function menuTable(body) {
 // can't drift from the game. A solo clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
   $("rulesBody").innerHTML = `
-    <p>A board of ${CELLS} letters hides a theme's words. Each word is a path of touching letters (sideways, up and down, or diagonally), no letter used twice, and between them the words use every letter on the board exactly once. One of them, the mother lode, names the theme and spans the board, touching two opposite sides.</p>
+    <p>A board of ${CELLS} letters hides a theme's words. Each word is a path of touching letters (sideways, up and down, or diagonally), no letter used twice, and between them the words use every letter on the board exactly once. One of them, the mother lode, names the theme and spans the board, touching two opposite sides. On the planet (Menu, Board) the board is a cube of ${geometry("cube").n} squares wrapped round a world, three by three on each of six faces; a letter touches those it shares a corner with, round the edges too, and the mother lode runs from a face to the one opposite. Turn the planet with a finger on the sea, trace on the letters.</p>
     <p><b>The theme.</b> A country from the knowledge base, and its words are its own clues: a city, a dish, a person, a firm. The title over the board is a clue to the theme.</p>
     <p><b>Playing.</b> Drag a finger through a word's letters, or tap them one at a time and tap the last again; slide back to take a letter off, and tap away from the letters to clear. A theme word found turns blue, the mother lode gold, and the line under the board says what links it to the theme. Words lists what you've found, and how long the rest are.</p>
     <p><b>Hints.</b> Any other English word of ${inWords(MIN_WORD)} letters or more counts towards a hint, ${inWords(PER_HINT)} words to a hint, as in Strands: the dots on the Hint button fill as they come. A hint rings the letters of the hardest word still hidden; a second while they're ringed numbers them in order. Each hint adds ${HINT_COST} seconds.</p>
