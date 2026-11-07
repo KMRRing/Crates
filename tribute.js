@@ -466,13 +466,14 @@ function stacked(cols, rem, room) {
   // each card behind another shows its whole corner, the rank and the suit under it: with the rank alone, a straight
   // flush (five ranks in a row in one suit) couldn't be seen in the hand. A deep column (five or more of a rank) has
   // its corners drawn smaller (tight), so it doesn't take the table's room.
-  const index = 2.1 * rem, small = 1.8 * rem, most = H + 7.2 * rem;
-  const tight = deepest > 1 && (most - H) / (deepest - 1) < index;
-  const drop = deepest > 1 ? (tight ? small : index) : 0;
+  // Korbi, 7 Nov 2026: the table's size must not change as the cards are rearranged (a rank's stack growing from four to five). The hand
+  // always takes the room of its deepest possible stack, and a deeper column has its corners drawn closer to fit it.
+  const index = 2.1 * rem, reach = 7.2 * rem;
+  const drop = deepest > 1 ? Math.min(index, Math.max(0.9 * rem, reach / (deepest - 1))) : 0, tight = deepest > 1 && drop < index;
   const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
   const at = [];
   cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
-  return { W, H, at, tight, height: H + (deepest - 1) * drop + 0.3 * rem };
+  return { W, H, at, tight, height: H + reach + 0.3 * rem };
 }
 /** Held sideways, in a row (a phone's way, by choice a tablet's): the hand fanned along the table's edge, each card
  *  showing its corner, a little more room between ranks than within one, as a hand is held. On a phone, larger in full
