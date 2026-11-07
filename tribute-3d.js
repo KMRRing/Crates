@@ -8,6 +8,7 @@
 // Animations API. It draws into #board3d inside the page's table (#table, so full screen puts the header and the
 // levels on it as ever), and your hand, the coach's line and the buttons are the page's own, with the same marks on
 // every card (data-id), so a tap means what it does in the table view and tribute.js's handlers serve both.
+import { courtArt } from "./court-art.js";
 import * as E from "./tribute-engine.js";
 
 const FACE = ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -86,39 +87,6 @@ const STAR = (() => {
   return pts.join(" ");
 })();
 const emblem = big => `<svg class="t3-em ${big ? "big" : "small"}" viewBox="0 0 24 24" aria-hidden="true"><circle class="ring" cx="12" cy="12" r="11.2"/><polygon class="star" points="${STAR}"/><circle class="hub" cx="12" cy="12" r="2.1"/></svg>`;
-// ---------- the court cards: a classic double-ended figure, one design a rank, in the card's own colour (suit red or black) ----------
-// (Korbi, 7 Nov 2026: "more beautiful, especially the ones with a face. Classic, vector art"; the gold letter in the middle went.)
-const INK_ = "#2B1D12", GOLD = "#D9A93E", GOLD_LO = "#A67A22", SKIN = "#F3D9B8", WHITE = "#FFFBEF";
-const ln = `stroke="${INK_}" stroke-width=".6" stroke-linejoin="round" stroke-linecap="round"`;
-const face = (hair = "", mouth = "") => `<rect x="23.2" y="26" width="5.6" height="5" fill="${SKIN}" ${ln}/><ellipse cx="26" cy="19" rx="7.2" ry="8.2" fill="${SKIN}" ${ln}/>`
-  + `${hair}<circle cx="23" cy="18.6" r=".9" fill="${INK_}"/><circle cx="29" cy="18.6" r=".9" fill="${INK_}"/><path d="M26 19.5v3" fill="none" ${ln} stroke-width=".4"/>${mouth || `<path d="M24 24.2q2 1.2 4 0" fill="none" ${ln}/>`}`;
-const jewel = (x, y, c) => `<circle cx="${x}" cy="${y}" r="1" fill="${c}" ${ln} stroke-width=".35"/>`;
-const HALF = {
-  // the king: crown, grey beard, an ermine collar, the sceptre
-  13: `<path d="M3 46C3 34 12 29.5 26 29.5S49 34 49 46Z" fill="currentColor" ${ln}/><path d="M26 31v15" stroke="${GOLD}" stroke-width="1.4"/>`
-    + `<path d="M9.5 32.5Q26 42 42.5 32.5L45 38Q26 49 7 38Z" fill="${WHITE}" ${ln}/>` + [14, 19, 24, 29, 34, 39].map((x, i) => `<path d="M${x} ${37 + (i % 2)}v1.6" ${ln} stroke-width=".8"/>`).join("")
-    + face(`<path d="M18.8 19Q19 31 26 31.6Q33 31 33.2 19Q31 25.5 26 25.5Q21 25.5 18.8 19Z" fill="#C9C2B4" ${ln}/>`, `<path d="M23 24.6q3 -1.4 6 0" fill="none" ${ln} stroke-width=".8"/>`)
-    + `<path d="M17.8 12.5L18.6 3.2 22.4 8 26 1 29.6 8 33.4 3.2 34.2 12.5Z" fill="${GOLD}" ${ln}/><rect x="17.8" y="10.6" width="16.4" height="3" fill="${GOLD_LO}" ${ln}/>${jewel(22, 12.1, "#C1272D")}${jewel(26, 12.1, "#2E5FA6")}${jewel(30, 12.1, "#C1272D")}`
-    + `<path d="M44 40V12" stroke="${GOLD_LO}" stroke-width="1.4" stroke-linecap="round"/><circle cx="44" cy="10.2" r="2.6" fill="${GOLD}" ${ln}/><path d="M44 5.2v1.6M41.6 10.2h-1.6M46.4 10.2H48" ${ln} stroke-width=".6"/>`,
-  // the queen: long fair hair, a small crown, pearls, a flower
-  12: `<path d="M16.4 19Q15 33 19.6 38H32.4Q37 33 35.6 19Q35.6 8 26 8Q16.4 8 16.4 19Z" fill="#D2973F" ${ln}/>`
-    + `<path d="M3 46C3 34 12 29.5 26 29.5S49 34 49 46Z" fill="currentColor" ${ln}/><path d="M18.4 31.4Q26 42 33.6 31.4" fill="${SKIN}" ${ln}/>`
-    + face(`<path d="M18.8 17Q20 10.6 26 10.4Q32 10.6 33.2 17Q29.5 14 26 14Q22.5 14 18.8 17Z" fill="#D2973F" ${ln}/>`)
-    + [20.5, 22.6, 24.8, 27.2, 29.4, 31.5].map((x, i) => `<circle cx="${x}" cy="${34.4 + Math.abs(i - 2.5) * 0.85}" r="1" fill="${WHITE}" ${ln} stroke-width=".4"/>`).join("")
-    + `<path d="M18.6 10.4L19.4 4.6 22.6 8 26 3 29.4 8 32.6 4.6 33.4 10.4Z" fill="${GOLD}" ${ln}/>${jewel(26, 8.9, "#2E5FA6")}`
-    + `<path d="M42 42V27" stroke="#4F7A3B" stroke-width="1.1" stroke-linecap="round"/><circle cx="42" cy="25" r="3" fill="#E9B8C4" ${ln}/><circle cx="42" cy="25" r="1.1" fill="${GOLD}"/><path d="M42 36q-4 -2 -5 -5" fill="none" stroke="#4F7A3B" stroke-width="1"/>`,
-  // the jack: a plumed cap, short hair, a banded tunic, the halberd
-  11: `<path d="M3 46C3 34 12 29.5 26 29.5S49 34 49 46Z" fill="currentColor" ${ln}/><path d="M7 46L26 31 45 46" fill="none" stroke="${GOLD}" stroke-width="2.2"/>`
-    + `<path d="M19.6 31.6L26 36.5 32.4 31.6" fill="${WHITE}" ${ln}/>`
-    + face(`<path d="M18.6 19Q18 11 26 10.6Q34 11 33.4 19Q32 14.6 26 14.6Q20 14.6 18.6 19Z" fill="#6B4425" ${ln}/><path d="M18.8 18Q17.6 23 19.6 25" fill="none" stroke="#6B4425" stroke-width="1.6" stroke-linecap="round"/>`)
-    + `<path d="M17 13Q16 4.6 27 4.4Q36.4 4.6 35.4 13Z" fill="currentColor" ${ln}/><rect x="16.4" y="11.2" width="19.6" height="2.8" rx="1" fill="${GOLD}" ${ln}/>`
-    + `<path d="M31 6Q40 -.4 47 3.4Q42 3.6 39.6 7.2Q36 7.6 34 8Z" fill="${WHITE}" ${ln}/><path d="M33.6 6.2Q40 2.6 45 3.4" fill="none" stroke="#C1272D" stroke-width=".8"/>`
-    + `<path d="M8 44V9" stroke="${GOLD_LO}" stroke-width="1.3" stroke-linecap="round"/><path d="M8 8.4L4.8 14 8 12.6 11.2 14Z" fill="#B9C0C8" ${ln}/><path d="M8 17L4.6 21 8 20 11.4 21Z" fill="#B9C0C8" ${ln}/>`,
-};
-const courtArt = r => `<svg class="t3-court" viewBox="0 0 52 92" aria-hidden="true"><rect x=".5" y=".5" width="51" height="91" rx="2.4" fill="#FFF8E6" stroke="${GOLD_LO}" stroke-width=".7"/>`
-  + `<rect x="2.6" y="2.6" width="46.8" height="86.8" rx="1.4" fill="none" stroke="${GOLD}" stroke-width=".35"/>`
-  + `${HALF[r]}<g transform="rotate(180 26 46)">${HALF[r]}</g><path d="M2.6 46h46.8" stroke="${GOLD}" stroke-width=".5"/></svg>`;
-
 /** A card's markup: its corner (rank over suit, a wild's star beside them, a joker's emblem), and its middle. The
  *  classes (tb-card, red, joker big or small, wild, level) are the page's own, set by its cardClass. */
 export function cardFace(id, level) {
@@ -127,7 +95,7 @@ export function cardFace(id, level) {
     return `<span class="t3i"><span class="t3r">${emblem(big)}</span></span><span class="t3m joker">${emblem(big)}<i>Joker</i></span>`;
   }
   const r = E.rankOf(id), glyph = E.SUITS[E.suitOf(id)], court = r >= 11 && r <= 13;
-  const mid = court ? `<span class="t3m court">${courtArt(r)}</span>` : `<span class="t3m">${glyph}</span>`;
+  const mid = court ? `<span class="t3m court">${courtArt(FACE[r], glyph)}</span>` : `<span class="t3m">${glyph}</span>`;
   return `<span class="t3i"><span class="t3r">${FACE[r]}</span><span class="t3s">${glyph}</span>${E.isWild(id, level) ? '<span class="t3w" aria-hidden="true">★</span>' : ""}</span>${mid}`;
 }
 const back = () => '<span class="t3b" aria-hidden="true"></span>';
@@ -241,14 +209,17 @@ export function createTable3d(c) {
     let play = "", open = "";
     if (g.phase === "over" && g.result) open = overHtml();
     else {
-      // Korbi, 7 Nov 2026: the cards don't vanish. Every play of the hand stays where it was set down, at the size of a card in
-      // your hand, a little turned, near the seat that played it; the newest lies on top, the play to beat labelled.
+      // Korbi, 7 Nov 2026: the cards don't vanish. Every play of the trick stays where it was set down, at the size of a card in
+      // your hand, a little turned, near the seat that played it; the newest lies on top, the play to beat labelled. When the trick is
+      // won they are swept to the winner.
       const at = { me: [0, 17], right: [9, 4], top: [0, -17], left: [-9, 4] };
       const pile = [];
-      g.log.forEach((e, i) => { if (e.e === "play") pile.push([e, i]); });
-      play = pile.slice(-PILE).map(([e, i]) => {
+      const from = g.log.map(e => e.e).lastIndexOf("trick") + 1;     // a trick that's over is swept away (Korbi: "the tricks should disappear after the round")
+      g.log.forEach((e, i) => { if (i >= from && e.e === "play") pile.push([e, i]); });
+      const shown = pile.slice(-PILE);
+      play = shown.map(([e, i], k) => {
         const r = E.classify(e.cards, g.level).find(x => x.type === e.type && x.key === e.key), groups = r ? arrange(e.cards, g.level, r) : [e.cards];
-        const fit = fitPlay(groups, { w: room.w, h: 1e4 }, hw, hw * 0.6), gapped = groups.some(x => x.length > 1), h = Math.imul(i + 1, 2654435761) >>> 0;
+        const fit = { ...fitPlay(groups, { w: room.w, h: 1e4 }, hw, hw * 0.6), step: 0.34, gap: 0.2 }, gapped = groups.some(x => x.length > 1), h = Math.imul(i + 1, 2654435761) >>> 0;
         const jit = k => ((h >>> k) % 1000) / 1000 - 0.5, [dx, dy] = at[slotOf(e.seat, me())];
         let n = 0;
         const cards = groups.map(grp => grp.map((id, k) => {
@@ -256,10 +227,10 @@ export function createTable3d(c) {
           return `<span class="${c.cardClass(id, g.level)} t3f t3-cd" data-id="${id}" style="margin-left:calc(var(--cw) * ${m.toFixed(3)})">${cardFace(id, g.level)}</span>`;
         }).join("")).join("");
         return `<span class="t3-cards t3-lay${r?.bomb ? " bomb" : ""}" style="--cw:${fit.w.toFixed(1)}px;left:${(50 + dx + jit(3) * 8).toFixed(1)}%;top:${(50 + dy + jit(13) * 7).toFixed(1)}%;`
-          + `transform:translate(-50%,-50%) rotate(${(jit(7) * 12).toFixed(1)}deg)">${cards}</span>`;
-      }).join("") + (g.top ? labelOf(g.top.seat, g.top.reading) : "");
+          + `transform:translate(-50%,-50%) rotate(${(jit(7) * 12).toFixed(1)}deg)">${cards}${k === shown.length - 1 && g.top ? labelOf(g.top.seat, g.top.reading) : ""}</span>`;   // (the label hangs under the newest play)
+      }).join("");
     }
-    if (g.phase !== "over") {
+    if (g.phase !== "over" && !g.top) {
       const lines = c.news(), seat = g.phase === "return" ? E.waitingOn(g)[0] : g.turn;
       const opening = lines.length && !g.log.some(e => e.e === "play" || e.e === "pass");
       const w = Math.max(22, Math.min(cap * 0.8, (room.h - 3 * rem) / RATIO / (g.tribute?.pays?.length > 1 ? 2 : 1)));
@@ -284,12 +255,13 @@ export function createTable3d(c) {
 
   // ---------- the screen as it was, before a new state is drawn ----------
   const centred = r => (r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height } : null);
-  /** Each card of your hand, where it is on screen now. */
+  /** Each card of your hand and of the middle, where it is on screen now, and the middle's cards as drawn. */
   function before() {
     if (!last || box.hidden || !moving()) return null;
-    const hand = new Map();
+    const hand = new Map(), trick = [];
     for (const el of handBox.querySelectorAll(".tb-card[data-id]")) hand.set(Number(el.dataset.id), centred(el.getBoundingClientRect()));
-    return { hand };
+    for (const el of playBox.querySelectorAll(".t3-cd")) trick.push({ id: Number(el.dataset.id), at: centred(el.getBoundingClientRect()), html: el.outerHTML });
+    return { hand, trick };
   }
 
   // ---------- motion ----------
@@ -314,6 +286,21 @@ export function createTable3d(c) {
       el.classList.remove("t3-coming");
       el.animate([{ scale: 1.1 }, { scale: 1 }], { duration: 200, easing: "ease-out" });
     };
+  }
+  /** The middle's old cards, swept to whoever took the trick, shrinking as they go. */
+  function sweep(was, seat) {
+    const to = plateAt(seat);
+    if (!to || !was?.trick.length) return;
+    was.trick.forEach((t, i) => {
+      if (!t.at) return;
+      const g = document.createElement("div");
+      g.className = "t3-ghost sweep";
+      g.style.cssText = `width:${t.at.w}px;height:${t.at.h}px;left:${t.at.x - t.at.w / 2}px;top:${t.at.y - t.at.h / 2}px;--cw:${t.at.w}px`;
+      g.innerHTML = t.html.replace(/ style="[^"]*"/, "");
+      fx.append(g);
+      track(g.animate([{ transform: "none", opacity: 1 }, { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3)`, opacity: 0 }],
+        { duration: 520, delay: 160 + i * 22, easing: "cubic-bezier(.5, 0, .8, .4)", fill: "both" })).onfinish = () => g.remove();
+    });
   }
   /** A word popped at a seat: a pass, or its place as it goes out. */
   function pop(seat, selector) {
@@ -365,6 +352,7 @@ export function createTable3d(c) {
           if (el) fly(id, a, centred(el.getBoundingClientRect()), { up0: e.seat === me(), up1: true, delay: j * 40, el });
         });
       } else if (e.e === "pass") pop(e.seat, ".t3-act");
+      else if (e.e === "trick") sweep(was, e.seat);
       else if (e.e === "return") flyGift(e, 0, was);
       else if (e.e === "out") pop(e.seat, ".t3-place");
       k++;

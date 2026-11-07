@@ -114,9 +114,6 @@
 .t3i .t3s { font-size: .3em; line-height: 1; margin-top: .06em; }
 .t3i .t3w { position: absolute; left: calc(100% + .12em); top: .02em; font-size: .24em; color: var(--tb-star); text-shadow: 0 0 .1em rgba(0, 0, 0, .25); }
 .t3m { position: absolute; left: .08em; right: .08em; top: .42em; bottom: .08em; display: grid; place-items: center; font-size: .46em; line-height: 1; font-weight: 800; }
-.t3m.court { align-content: center; justify-items: center; gap: .02em; }
-.t3m.court b { font-size: 1.12em; font-weight: 800; font-stretch: var(--wide); color: var(--t3-ink); letter-spacing: 0; }
-.t3m.court i { font-size: .56em; font-style: normal; }
 /* a wild card is gilt, starred; a level card carries a brass bar across its top */
 .t3f.wild { border-color: var(--tb-star); background: linear-gradient(158deg, color-mix(in srgb, #FFF 55%, var(--tb-face)), color-mix(in srgb, var(--tb-star) 30%, var(--tb-face)) 60%, color-mix(in srgb, var(--tb-star) 42%, var(--tb-face))); }
 .t3f.wild::before { border-color: var(--tb-star); border-width: 2px; }
@@ -323,7 +320,7 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 .t3-play { position: absolute; inset: 0; display: block; }
 .t3-play .t3-lay { position: absolute; width: max-content; filter: drop-shadow(0 .12rem .1rem rgba(0, 0, 0, .5)); }
 .t3-play .t3-lay.bomb { filter: drop-shadow(0 0 .35rem color-mix(in srgb, var(--tb-red) 80%, transparent)) drop-shadow(0 .12rem .1rem rgba(0, 0, 0, .5)); }
-.t3-play .t3-label { position: absolute; left: 50%; bottom: -.4rem; translate: -50% 0; z-index: 99; width: max-content; }
+.t3-play .t3-label { position: absolute; left: 50%; top: calc(100% + .35rem); translate: -50% 0; z-index: 99; width: max-content; max-width: none; overflow: visible; }
 /* your picked cards: well up, a thick gilt edge and a glow */
 #app.tb3 .tb-hand .tb-card.sel { transform: translateY(calc(var(--ly, 0px) - 1.1rem)) rotate(var(--rot, 0deg)); border-color: var(--t3-gilt); border-width: 2px; z-index: 5;
   background: linear-gradient(158deg, #FFF8DC, color-mix(in srgb, var(--t3-gilt) 45%, var(--tb-face)));
@@ -340,4 +337,4 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 .t3-plate.at-top .t3-name { overflow: visible; }
 /* the court cards' figure fills the card's middle (the gold letter that was here is gone) */
 .t3m.court { left: .26em; right: .14em; top: .1em; bottom: .1em; padding: 0; font-size: 1em; }
-.t3-court { display: block; width: 100%; height: 100%; }
+.t3m.court .court-art { display: block; width: 100%; height: 100%; }

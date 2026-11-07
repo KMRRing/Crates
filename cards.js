@@ -3,6 +3,7 @@
 // lettered down its corner, where a rank is, so it reads in a fanned hand. Sizes are in em, so a hand, a play on the
 // table and a card in a line of words are the same card at different sizes (cards.css). A game says what each of its
 // cards is: { rank: "10", suit: 0–3 (♦ ♣ ♥ ♠) } or { joker: "big" | "small" }.
+import { courtArt } from "./court-art.js";
 export const SUIT_MARKS = ["♦", "♣", "♥", "♠"];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -14,7 +15,7 @@ export function cardHtml(face, { cls = "", data = {}, label = "" } = {}) {
     return `<span class="cd joker ${big ? "big" : "small"}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(label || (big ? "big joker" : "small joker"))}"><span class="cd-j">JOKER</span><span class="cd-pip" aria-hidden="true">★</span></span>`;
   }
   const red = face.suit === 0 || face.suit === 2, s = SUIT_MARKS[face.suit], court = ["J", "Q", "K"].includes(String(face.rank));
-  return `<span class="cd${red ? " red" : ""}${court ? ` court rk-${face.rank}` : ""}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(label || `${face.rank} of ${["diamonds", "clubs", "hearts", "spades"][face.suit]}`)}"><span class="cd-r">${esc(face.rank)}</span><span class="cd-s">${s}</span><span class="cd-pip" aria-hidden="true">${s}</span>${court ? `<span class="cd-ct" aria-hidden="true"></span>` : ""}</span>`;
+  return `<span class="cd${red ? " red" : ""}${court ? ` court rk-${face.rank}` : ""}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(label || `${face.rank} of ${["diamonds", "clubs", "hearts", "spades"][face.suit]}`)}"><span class="cd-r">${esc(face.rank)}</span><span class="cd-s">${s}</span><span class="cd-pip" aria-hidden="true">${s}</span>${court ? `<span class="cd-ct" aria-hidden="true">${courtArt(String(face.rank), s)}</span>` : ""}</span>`;
 }
 /** A card's back: the others' hands. */
 export const backHtml = (cls = "") => `<span class="cd back${cls ? ` ${cls}` : ""}" aria-hidden="true"></span>`;

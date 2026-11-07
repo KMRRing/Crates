@@ -36,13 +36,7 @@ html[data-theme="office"] { --cd-face: #FFFFFF; --cd-edge: #C8C6C4; --cd-red: #C
 .cd-line { display: inline-flex; font-size: var(--cd-line, .62rem); vertical-align: middle; }
 .cd-line > .cd + .cd { margin-left: -1.2em; }
 
-/* courts: a gilt cartouche at the foot of the face with the emblem twice, the second upside down, a diagonal rule between (J a cap, Q a tiara, K a crown) */
+/* courts: the figure of court-art.js (a double-ended king, queen or jack in vector art) in the face's middle, clear of the corner index */
 .cd.court .cd-pip { display: none; }
-.cd-ct { position: absolute; left: 1.02em; right: .2em; top: .2em; bottom: .2em; border: .03em solid var(--cd-gilt); border-radius: .1em; overflow: hidden; opacity: .95;
-  background: linear-gradient(to bottom right, transparent calc(50% - .02em), var(--cd-gilt) calc(50% - .02em) calc(50% + .02em), transparent calc(50% + .02em)); }
-.cd-ct::before, .cd-ct::after { content: ""; position: absolute; left: 50%; width: 1em; height: 1em; margin-left: -.5em; background: currentColor; -webkit-mask: var(--cd-em) center / contain no-repeat; mask: var(--cd-em) center / contain no-repeat; }
-.cd-ct::before { top: .16em; }
-.cd-ct::after { bottom: .16em; transform: rotate(180deg); }
-.cd.court.rk-J .cd-ct { --cd-em: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 19C2.6 11 8 5.4 14.6 5.6L13.4 8.4C11 8.6 9.4 10 9.2 12.6L21 15.4C17 18 9 21.4 3 19Z'/%3E%3Cpath d='M12 5.4C15.6 2.2 19.6 1.6 22.4 3.2 19.6 3.4 17.6 5 17 8.4 15.8 6.6 14 5.8 12 5.4Z'/%3E%3C/svg%3E"); }
-.cd.court.rk-Q .cd-ct { --cd-em: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 19C3.4 12 6.4 9 12 3.2 17.6 9 20.6 12 21 19Z'/%3E%3Crect x='3' y='20.4' width='18' height='2.4' rx='.6'/%3E%3Ccircle cx='7' cy='8.4' r='1.4'/%3E%3Ccircle cx='17' cy='8.4' r='1.4'/%3E%3Ccircle cx='12' cy='2.4' r='1.6'/%3E%3C/svg%3E"); }
-.cd.court.rk-K .cd-ct { --cd-em: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 19L1.6 8.4 8 13.2 12 5.4l4 7.8 6.4-4.8L21 19Z'/%3E%3Crect x='3' y='20.4' width='18' height='2.4' rx='.6'/%3E%3Ccircle cx='1.8' cy='7.4' r='1.5'/%3E%3Ccircle cx='22.2' cy='7.4' r='1.5'/%3E%3Ccircle cx='12' cy='3.8' r='1.6'/%3E%3C/svg%3E"); }
+.cd-ct { position: absolute; left: 1.02em; right: .12em; top: .14em; bottom: .14em; display: block; }
+.cd-ct .court-art { display: block; width: 100%; height: 100%; }

@@ -106,7 +106,7 @@ check(typeof T.createParallax === "function" && T.createParallax(null).dispose()
   check(cardHtml({ rank: "K", suit: 2 }).includes("court rk-K") && cardHtml({ rank: "Q", suit: 0 }).includes("cd-ct"), "a court card carries its emblem");
   check(!cardHtml({ rank: "10", suit: 1 }).includes("court") && !cardHtml({ rank: "A", suit: 3 }).includes("cd-ct") && !cardHtml({ joker: "big" }).includes("cd-ct"), "numbers, aces and jokers carry none");
   const cards = readFileSync(new URL("../cards.css", import.meta.url), "utf8");
-  check(["J", "Q", "K"].every(r => cards.includes(`.rk-${r} .cd-ct`)) && cards.includes(".cd.back::after"), "the stylesheet draws the courts and the engraved back");
+  check(cards.includes(".cd-ct .court-art") && cards.includes(".cd.back::after"), "the stylesheet sets the courts' figure (court-art.js) and the engraved back");
   check(css.includes(".tk-surface") && css.includes("::before") && css.includes("prefers-reduced-motion"), "the kit has the flat surface, the cloth layer, and respects reduced motion");
 }
 
