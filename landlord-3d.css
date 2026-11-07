@@ -20,3 +20,9 @@
 .ll3-pay.up { color: var(--tk-go); }
 .ll3-pay.down { color: #F0A596; }
 .tk-count.low { color: #A8382B; }
+/* Korbi, 7 Nov 2026: a name is one line (a long one is cut short), or the seat at the top grows into the banner above */
+.ll3 .tk-plate:is(.at-l, .at-r) { width: 6.4rem; }
+.ll3 .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .85rem; letter-spacing: calc(.04em * var(--track)); }
+/* the two seats stand low enough that their avatars clear the banner; the middle moves down under them */
+.ll3 .tk-plate:is(.at-l, .at-r) { top: 47%; }
+.ll3 .tk-centre { top: 50%; }

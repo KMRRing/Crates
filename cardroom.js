@@ -75,14 +75,15 @@ const low = () => matchMedia("(max-height: 520px)").matches;
  * @param label    id -> the card's name
  * @param classes  id -> extra classes (sel, advised, dim, shade…)
 
+ * @param big      the fan's card size, in steps of Guandan's (default 1.1); a hand of few cards takes more
  * @param html     id, { cls, data } -> a card's markup, for a game with a pack of its own (instead of face and label)
  * @param reachRem how far below a card the deepest stack may reach; a game whose stacks are shallow (four suits) takes less
  * @returns the layout, with `.fan`
  */
-export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2, html = null }) {
+export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2, html = null, big = null }) {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, room = box.parentElement?.clientWidth || box.clientWidth || 360;
   const row = fan ?? (sideways() && low());
-  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1 : 1.1 }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
+  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1 : big ?? 1.1 }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
   const rows = Math.max(...cols.map(c => c.length), 1);
   const t = (x) => (x + lay.W / 2 - room / 2) / (room / 2), drop = (row ? 0.9 : 0.55) * rem, tilt = row ? 6 : 4;
   box.classList.add("cr-hand");

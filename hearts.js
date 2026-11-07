@@ -146,7 +146,7 @@ function drawTable(v) {
       think: (s.step === "play" && s.turn === seat && !isMe(seat)) || (s.step === "pass" && s.give[seat].length < 3 && !isMe(seat)), win: win === seat || (res && res.moon === seat), over: !!res,
     }));
     const lanes = [0, 1, 2, 3].map(seat => { const c = trickOf(s, seat); return c != null ? cardMarkup(c, win === seat ? "lit" : "") : ""; });
-    const note = s.step === "pass" ? `Pass ${DIR_WORD[s.dir]}: ${s.give.filter(g => g.length === 3).length} of 4 have passed` : resultLine(s) || `Hand ${s.deal} · ♥ ${s.broken ? "broken" : "unbroken"}`;
+    const note = s.step === "pass" ? "" : resultLine(s);
     three.draw({ me, plates, lanes, top: `<p class="hr-note">${esc(note)}</p>`, winner: !s.trick.plays.length && s.done > 0 ? s.trick.lead : null });
     return;
   }
@@ -164,7 +164,7 @@ function drawHand(v) {
   box.classList.toggle("turn", mine);
   // Guandan's fan (cardroom.js): a run to a suit, the suits alternating black and red, the highest first
   const cols = [3, 2, 1, 0].map(su => hand.filter(id => suitOf(id) === su).sort((x, y) => rankOf(y) - rankOf(x))).filter(c => c.length);
-  drawHandBox(box, { cols, fan: true, face, label: cardName,
+  drawHandBox(box, { cols, fan: true, big: 1.3, face, label: cardName,
     classes: id => [sel.has(id) && "sel", gave && s.give[v.seat].includes(id) && "sel", legal && !legal.has(id) && "no", got?.has(id) && "recv"].filter(Boolean).join(" ") });
 }
 $("hand").addEventListener("click", async e => {

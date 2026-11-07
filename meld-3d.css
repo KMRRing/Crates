@@ -15,3 +15,5 @@
 .ml3 .ml-reveal { max-width: 100%; }
 .ml3-sc { font-style: normal; font-weight: 800; }
 @container (max-height: 460px) { .ml3 .ml-grabs { display: none; } }
+/* Korbi, 7 Nov 2026: what the other picked up sits above the piles, not over your own seat's plate */
+.ml3 .ml-grabs { order: -1; margin-bottom: .6rem; }

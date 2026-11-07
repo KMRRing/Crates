@@ -5,15 +5,18 @@
 export function slide(el, from, delay) {
   const r = el.getBoundingClientRect(), kx = r.width / (el.offsetWidth || 1) || 1, ky = r.height / (el.offsetHeight || 1) || 1;
   const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, d = { x: (from.x - at.x) / kx, y: (from.y - at.y) / ky };
-  for (let i = 0; i < 5; i++) {
-    el.style.transform = `translate(${d.x}px, ${d.y}px)`;
+  // the seat's plate stands upright on the cloth, so a card on the cloth at its foot is behind it: the card starts lifted toward
+  // the viewer, clear of the plate, and settles onto the cloth as it arrives
+  const Z = 48;
+  for (let i = 0; i < 6; i++) {
+    el.style.transform = `translate3d(${d.x}px, ${d.y}px, ${Z}px)`;
     const m = el.getBoundingClientRect(), ex = from.x - (m.left + m.width / 2), ey = from.y - (m.top + m.height / 2);
     if (Math.abs(ex) < 1 && Math.abs(ey) < 1) break;
     d.x += ex / kx; d.y += ey / ky;
   }
   el.style.transform = "";
   // one plain slide and nothing else (no overshoot, no flip): the card is flat on the cloth the whole way
-  el.animate([{ transform: `translate(${d.x}px, ${d.y}px) scale(${Math.max(0.2, Math.min(1, from.h / (r.height || 1))).toFixed(3)})` }, { transform: "none" }],
+  el.animate([{ transform: `translate3d(${d.x}px, ${d.y}px, ${Z}px) scale(${Math.max(0.2, Math.min(1, from.h / (r.height || 1))).toFixed(3)})` }, { transform: "none" }],
     { duration: 360, delay, easing: "cubic-bezier(.3, .7, .2, 1)", fill: "backwards" });
 }
 
