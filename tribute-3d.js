@@ -307,7 +307,16 @@ export function createTable3d(c) {
    *  with the table and looks flat on it until the trick is cleared. No copy flies, so nothing fades out and in. */
   function flyCard(el, a, b, { delay, ms }) {
     const r = el.getBoundingClientRect(), kx = r.width / (el.offsetWidth || 1) || 1, ky = r.height / (el.offsetHeight || 1) || 1;
+    // the plane is in perspective, so the screen's distance is no straight multiple of the plane's: start from the straight guess and
+    // correct it by measuring where the card really lands (a long flight from your hand otherwise starts well short of it)
     const from = { x: (a.x - b.x) / kx, y: (a.y - b.y) / ky }, s0 = Math.max(0.2, Math.min(1.4, a.h / (r.height || 1)));
+    for (let i = 0; i < 5; i++) {
+      el.style.translate = `${from.x}px ${from.y}px`;
+      const m = el.getBoundingClientRect(), ex = a.x - (m.left + m.width / 2), ey = a.y - (m.top + m.height / 2);
+      if (Math.abs(ex) < 1 && Math.abs(ey) < 1) break;
+      from.x += ex / kx; from.y += ey / ky;
+    }
+    el.style.translate = "";
     el.classList.remove("t3-coming");
     track(el.animate([{ translate: `${from.x}px ${from.y}px`, scale: s0 }, { translate: "0 0", scale: 1.06, offset: 0.85 }, { translate: "0 0", scale: 1 }],
       { duration: ms, delay, easing: EASE, fill: "backwards" }));

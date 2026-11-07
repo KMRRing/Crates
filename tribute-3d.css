@@ -368,3 +368,9 @@ html[data-mode="night"] #app.tb3 .tb-table { background: none; }
 #app.tb3 > .tb-strip { position: relative; z-index: 6; }
 /* Korbi, 7 Nov 2026: the ally a touch further from the levels plate */
 #app.tb3 .t3-plate.at-top { top: calc(6% + .5rem); }
+
+/* Korbi, 7 Nov 2026: "card play animations still don't work". The card is drawn by the table, but its flight starts in your hand, below it:
+   the stage and the table clipped it, so a play of yours showed only once it reached the cloth (and a computer's, which starts on the
+   cloth, always showed: hence "sometimes"). Nothing clips now, and the field stands above the hand so the card rises out of it. */
+#app.tb3 .tb-table, #app.tb3 .t3-stage { overflow: visible; }
+#app.tb3 .t3-field { z-index: 5; }
