@@ -405,6 +405,7 @@ export function holdScene3D(svg, fieldIn) {
     } else lighter.visible = false;
   }
 
+  const mine0 = o => new Set(o.ghost || []);
   // ---------- the interface ----------
   const scene = {
     frame, px: 30, decks: field.decks,
@@ -424,6 +425,19 @@ export function holdScene3D(svg, fieldIn) {
         const [px, py] = L.p(x0 - 0.45, my, g.H), [sx, sy] = L.p(x1 + 0.45, my, g.H);
         out.push(`<text class="side3" x="${f3(px)}" y="${f3(py)}">P</text><text class="side3" x="${f3(sx)}" y="${f3(sy)}">S</text>`,
           `<polygon class="bow3" points="${[L.p(mx - 0.32, y0 - 0.14, g.H), L.p(mx + 0.32, y0 - 0.14, g.H), L.p(mx, y0 - 0.6, g.H)].map(q => `${f3(q[0])},${f3(q[1])}`).join(" ")}"/>`);
+      }
+      // a consignment (stamped cargo) some crate covers shows through them, as the flat drawing's x-ray does (Korbi, 7 November 2026:
+      // "a way to see the target crates through the other crates"): its footprint outlined at mid height, dashed, over the picture
+      const bd = o.board, shut = i => !!bd[i] && !o.gone?.has(i);
+      for (let i = 0; i < field.n; i++) {
+        if (bd[i] !== 2 || o.gone?.has(i)) continue;
+        const col = i % n2, z = Math.floor(i / n2), c = g.cells[col];
+        let covered = false;
+        for (let y = z + 1; y < field.decks && !covered; y++) covered = shut(y * n2 + col) || (mine0(o).has(y * n2 + col));
+        if (!covered) for (const e of c.edges) if (e.nb >= 0) for (let y = z; y < field.decks && !covered; y++) covered = shut(y * n2 + e.nb) && bd[y * n2 + e.nb] !== 2;
+        if (!covered) continue;
+        const h = (z + 0.5) * g.dh, pts = c.pts.map(p => L.p(p[0], p[1], h));
+        out.push(`<polygon class="xray${o.lit?.has(i) ? " going" : ""}" points="${pts.map(q => `${f3(q[0])},${f3(q[1])}`).join(" ")}"/>`);
       }
       const [fx, fy, fw, fh] = frame, r = Math.min(20 / (scene.px || 30), fw * 0.09);
       out.push(turnArrow(fx + r * 1.25, fy + fh - r * 1.25, r, -1), turnArrow(fx + fw - r * 1.25, fy + fh - r * 1.25, r, 1));
