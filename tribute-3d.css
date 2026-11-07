@@ -350,3 +350,10 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 .t3-caption { position: absolute; z-index: 6; translate: -50% 0; width: max-content; max-width: 100%; pointer-events: none; }
 .t3-caption[hidden] { display: none; }
 .t3-caption .t3-label { display: block; }
+
+/* Korbi, 7 Nov 2026: a slight gap again between the table's near edge and your hand, and the table brought up to the levels plate */
+#app.tb3 #hand { margin-top: .45rem; }
+#app.tb3 .tb-table { margin-top: -2.5rem; }
+#app.tb3 .t3-mat { bottom: 1.5rem; }
+@media (max-height: 700px) { #app.tb3 .tb-table { margin-top: -1.75rem; } }   /* a short phone: the table's far end would run under the levels plate */
+@media (max-height: 640px) { #app.tb3 .tb-table { margin-top: -1.1rem; } #app.tb3 #hand { margin-top: -.8rem; } }   /* (a short phone gives up some of the gap to the hand for the table's room) */
