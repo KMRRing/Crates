@@ -433,6 +433,8 @@ export function place(P, run, side, word, { hint = false } = {}) {
   if (side === "bottom") run.bottom.unshift(w); else run.top.push(w);
   if (hint) run.hinted.push(w);
   (run.order ??= []).push(side);
+  // Korbi, 7 November 2026: nobody types the last word. A rung one step from the other end's rung makes the connection itself.
+  if (isStep(working(run, side === "bottom" ? "top" : "bottom"), w, P.rules)) { run.done = true; return "done"; }
   return "placed";
 }
 /** Takes the working rung off one end (never the first or last word). */

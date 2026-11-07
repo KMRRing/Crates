@@ -1,16 +1,16 @@
 // Ladder: Lewis Carroll's Doublets. From the first word to the last, one letter changed at a time, every rung a word;
 // par is the fewest steps it can be done in, and the score is the time with a minute for every step over par. Worked
-// from either end, as on paper. The rules and the ladders are ladder-engine.js's; the pairs with
-// a link between them, Carroll's own among them, ladder-pairs.js's; this file keeps the run, the clock and the taps.
+// from either end, as on paper, and the last word is made for you: a rung one letter from the other end's rung joins them. The
+// rules and the ladders are ladder-engine.js's, every ladder random (Korbi, 7 November 2026: no linked pairs, no book); this file
+// keeps the run, the clock and the taps.
 // Together, a team's ladder or a race (ladder-room.js).
 import { RULES, LENGTHS, LEVELS, OVER, HINT, analyse, generate, levelOf, newRun, place, undoLast, working,
   words, steps, hintFor, score } from "./ladder-engine.js";
-import { BOOK, THEMES, linkedFor } from "./ladder-pairs.js";
 import { RACE_LADDERS } from "./ladder-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { ramp } from "./ramp.js";
-import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { part, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -19,9 +19,9 @@ import { createLadderRoom } from "./ladder-room.js";
 
 
 const $ = id => document.getElementById(id);
-const RUN = "ladder:run", PREFS = "ladder:prefs", BESTS = "ladder:bests", BOOKED = "ladder:book", SEEN = "ladder:seen", PARS = "ladder:pars";
+const RUN = "ladder:run", PREFS = "ladder:prefs", BESTS = "ladder:bests", PARS = "ladder:pars";
 const DAILY = { level: "medium", lengths: [4, 5], rules: "classic" };   // today's is the same for everyone, so these are fixed
-const KINDS = { daily: "Today's", random: "Random", linked: "Linked", book: "The book" };
+const KINDS = { daily: "Today's", random: "Random" };     // a saved ladder of a kind that has gone (linked, the book) is dropped
 const SAVE_EVERY = 5000;                                              // ms between saves of a ladder in play (a watcher sees it that often)
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -34,20 +34,21 @@ const CAPS = w => String(w).toUpperCase();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
 // ---------- what you've chosen ----------
-const prefs = { level: "easy", lengths: [4, 5], themes: Object.keys(THEMES), rules: "classic", kind: "random", ...read(PREFS, {}) };
+const prefs = { level: "easy", lengths: [4, 5], rules: "classic", ...read(PREFS, {}) };
 if (!LEVELS[prefs.level]) prefs.level = "easy";
-// Korbi, 4 November 2026: the menu is the minimum it needs to be. The ladders are Classic, of four or five letters, on every
-// theme, whatever an older save chose; the level is the hidden ramp (`ladder:ramp`, up after a ladder climbed at par without a
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The ladders are Classic, of four or five letters,
+// whatever an older save chose; the level is the hidden ramp (`ladder:ramp`, up after a ladder climbed at par without a
 // hint; first step the saved level).
 const OLD_LEVEL = prefs.level;
-Object.assign(prefs, { rules: "classic", lengths: [4, 5], themes: Object.keys(THEMES) });
+Object.assign(prefs, { rules: "classic", lengths: [4, 5] });
+delete prefs.themes;
+delete prefs.kind;
 const levelNow = () => (prefs.level = ramp("ladder", Object.keys(LEVELS), { start: OLD_LEVEL }));
 levelNow();
 // the computer (a rival that raced you, then a partner holding half the letters) was removed: its saved choices go (Korbi, 7 November 2026)
 delete prefs.rival;
 delete prefs.computer;
 delete prefs.cpu;
-if (!KINDS[prefs.kind] || prefs.kind === "daily") prefs.kind = "random";
 const keepPrefs = () => write(PREFS, prefs);
 
 // ---------- the ladder on screen ----------
@@ -61,7 +62,7 @@ let message = null;         // { text, tone } until the next tap, else how to pl
 
 const room = createLadderRoom({
   onState: () => { if (G) render(); }, toast, askName, prefs, keepPrefs,
-  solo: () => { G = loadSolo(); if (!G) deal(prefs.kind); else { history.replaceState(null, "", hashFor(G)); clockRun(); render(); } },
+  solo: () => { G = loadSolo(); if (!G) deal("random"); else { history.replaceState(null, "", hashFor(G)); clockRun(); render(); } },
   // the table's ladder on the page (null: the lobby, where nobody sees a ladder yet)
   begin: g => {
     const same = G && g && G.mode === g.mode && G.n === g.n && G.P.start === g.P.start && G.raceI === g.raceI;
@@ -108,46 +109,14 @@ const bestKey = g => `${g.kind}:${g.P.level || levelOf(g.P)}:${g.P.rules}`;
 // ---------- dealing ----------
 /** Lets the page draw the mark before a long piece of work (a graph to build, a hard ladder to find). */
 const paint = () => new Promise(res => requestAnimationFrame(() => setTimeout(res, 0)));
-/** A pair played as a ladder: its analysis, with the line and where it's from. */
-function pairLadder(p, rules, extra = {}) {
-  const P = analyse(p.a, p.b, rules);
-  return P ? { ...P, level: levelOf(P), say: p.say, by: p.by || null, theme: p.theme || null, ...extra } : null;
-}
-const linkedLevels = new Map();
-/** The linked pairs at a level, by these rules and themes (their level found once a session: each is a search). */
-function linkedAt(level, rules, themes) {
-  return linkedFor(rules, themes).filter(p => {
-    const key = `${p.a}-${p.b}-${rules}`;
-    if (!linkedLevels.has(key)) { const P = analyse(p.a, p.b, rules); linkedLevels.set(key, P ? levelOf(P) : null); }
-    return linkedLevels.get(key) === level;
-  });
-}
-/** The next linked pair: one not played yet at this level, until they've all been. */
-function nextLinked(level, rules, themes) {
-  let pool = linkedAt(level, rules, themes);
-  if (!pool.length) pool = linkedFor(rules, themes);
-  const seen = new Set(read(SEEN, [])), key = p => `${p.a}-${p.b}`;
-  let fresh = pool.filter(p => !seen.has(key(p)));
-  if (!fresh.length) { for (const p of pool) seen.delete(key(p)); fresh = pool; }
-  const p = fresh[Math.floor(Math.random() * fresh.length)];
-  seen.add(key(p));
-  write(SEEN, [...seen]);
-  return p;
-}
-const bookDone = () => read(BOOKED, {});
-/** The book's chapter to play: the first not climbed. */
-const bookAt = () => { const d = bookDone(); const i = BOOK.findIndex((_, k) => !d[k]); return i < 0 ? 0 : i; };
-
-/** A new ladder of a kind (today's, random, linked, a chapter of the book), to play solo. */
-async function deal(kind = prefs.kind, { chapter = null, seed = null, level = levelNow() } = {}) {
-  const slow = prefs.rules === "grow" && kind !== "daily" && kind !== "book";
+/** A new ladder, today's or random, to play solo. */
+async function deal(kind = "random", { seed = null, level = levelNow() } = {}) {
+  const slow = prefs.rules === "grow" && kind !== "daily";
   const done = busy(slow ? "Setting out the words" : "Making a ladder", { delay: slow ? 0 : 150 });
   await paint();
   try {
     let P;
     if (kind === "daily") P = { ...generate(today(), DAILY), day: today() };
-    else if (kind === "book") { const i = chapter ?? bookAt(); P = pairLadder(BOOK[i], "classic", { chapter: i }); }
-    else if (kind === "linked") P = pairLadder(nextLinked(level, prefs.rules, prefs.themes), prefs.rules);
     else P = generate(seed ?? randomSeed(), { level, lengths: prefs.lengths, rules: prefs.rules });
     begin({ kind, P });
   } finally { done(); }
@@ -164,13 +133,13 @@ function begin({ kind, P }, run = newRun(P), extra = {}) {
 }
 const confirmLeave = async () => !started() || await sure("Start a new ladder? This one isn't finished.");
 
-// ---------- links: #s=SEED&l=LEVEL&n=45&r=RULES (random), #d=DAY (today's), #p=A-B&r=RULES (a pair) ----------
+// ---------- links: #s=SEED&l=LEVEL&n=45&r=RULES (random), #d=DAY (today's); an old #p= link (a pair) deals a random one ----------
 function hashFor(g) {
   if (!g || g.mode !== "solo") return `${location.pathname}${location.search}`;
   const P = g.P, base = `${location.pathname}${location.search}`;
   if (g.kind === "daily") return `${base}#d=${P.day}`;
   if (g.kind === "random") return `${base}#s=${P.seed}&l=${P.level}&n=${prefs.lengths.join("")}&r=${P.rules}`;
-  return `${base}#p=${P.start}-${P.end}&r=${P.rules}${P.chapter != null ? `&c=${P.chapter}` : ""}`;
+  return base;
 }
 function fromHash() {
   const h = new URLSearchParams(location.hash.slice(1)), rules = RULES[h.get("r")] ? h.get("r") : "classic";
@@ -179,12 +148,6 @@ function fromHash() {
     const lengths = [...String(h.get("n") || "45")].map(Number).filter(n => LENGTHS.includes(n));
     const level = LEVELS[h.get("l")] ? h.get("l") : "easy";
     return { kind: "random", P: generate(Number(h.get("s")), { level, lengths: lengths.length ? lengths : [4, 5], rules }) };
-  }
-  if (h.get("p")) {
-    const [a, b] = h.get("p").split("-"), c = h.has("c") ? Number(h.get("c")) : null, from = BOOK[c];
-    const say = from && from.a === a && from.b === b ? from : linkedFor(rules).find(p => p.a === a && p.b === b) || { a, b, say: `From ${CAPS(a)} to ${CAPS(b)}` };
-    const P = pairLadder(say, rules, from && from.a === a ? { chapter: c } : {});
-    return P ? { kind: from && from.a === a ? "book" : "linked", P } : null;
   }
   return null;
 }
@@ -302,9 +265,8 @@ function finish() {
   const bests = read(BESTS, {}), k = bestKey(G);
   G.fresh = bests[k] == null || sc < bests[k];
   if (G.fresh) { bests[k] = sc; write(BESTS, bests); }
-  if ((G.kind === "random" || G.kind === "linked") ){ levelNow(); ramp.won(over === 0 && !r.hints); levelNow(); }
+  if (G.kind === "random") { levelNow(); ramp.won(over === 0 && !r.hints); levelNow(); }
   if (G.kind === "daily") noteDayTime("ladder", sc, G.P.day);     // the day's first finish counts, the moment it's final
-  if (G.kind === "book") { const d = bookDone(); if (!d[G.P.chapter] || sc < d[G.P.chapter].score) { d[G.P.chapter] = { steps: steps(r), par: G.P.par, score: sc }; write(BOOKED, d); } }
   const pars = read(PARS, { now: 0, best: 0 });
   pars.now = over === 0 && !r.hints ? pars.now + 1 : 0;
   pars.best = Math.max(pars.best, pars.now);
@@ -428,8 +390,8 @@ function drawRival() {
 }
 function drawSay() {
   const P = G.P, say = $("say");
-  const text = P.say || `From ${CAPS(P.start)} to ${CAPS(P.end)}`;
-  const from = G.kind === "book" ? `${P.by}, ${P.chapter + 1} of ${BOOK.length}` : G.kind === "daily" ? "Today's" : G.mode !== "solo" ? room.label(G) : P.theme ? THEMES[P.theme] : "";
+  const text = `From ${CAPS(P.start)} to ${CAPS(P.end)}`;
+  const from = G.kind === "daily" ? "Today's" : G.mode !== "solo" ? room.label(G) : "";
   say.replaceChildren(text, ...(from ? [el("small", "", from)] : []));
 }
 function drawLine() {
@@ -475,7 +437,7 @@ function drawResult() {
   v.className = `ld-verdict${over === 0 ? " good" : ""}`;
   v.replaceChildren(`${head} Score ${fmt(sc)}.`, el("small", "", `${bits.join(", ")}.${G.fresh ? " A new best." : best != null ? ` Best ${fmt(best)}.` : ""}`));
   $("more").textContent = routesLine();
-  $("nextBtn").textContent = G.kind === "book" && G.P.chapter < BOOK.length - 1 ? "Next chapter" : G.kind === "daily" ? "A random ladder" : "Another ladder";
+  $("nextBtn").textContent = G.kind === "daily" ? "A random ladder" : "Another ladder";
 }
 /** What the routes at par were, in a sentence: how many, and whether yours was the commonest. */
 function routesLine() {
@@ -483,8 +445,7 @@ function routesLine() {
   const many = P.routes >= 1e6 ? "a million or more" : P.routes.toLocaleString("en-GB");
   const told = P.routes === 1 ? (atPar ? "There's one route at par, only one, and you found it." : `There's one route at par, only one: through ${via}.`)
     : atPar ? `You found one of ${many} routes at par${mine ? ", the commonest" : ""}.` : `There are ${many} routes at par; the commonest goes through ${via}.`;
-  const next = G.kind === "book" && P.chapter < BOOK.length - 1 ? ` Next in the book: ${BOOK[P.chapter + 1].say}.` : "";
-  return `${told}${next}`;
+  return told;
 }
 function render(scroll = false) {
   if (!G) return;
@@ -554,18 +515,12 @@ document.addEventListener("keydown", e => {
 });
 
 // ---------- the menu ----------
-let pick = null;            // what New ladder deals: random, linked, book
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (room.on || room.joining) { room.menu(body); showMenu(body); return; }
-  pick ??= G?.kind && G.kind !== "daily" ? G.kind : prefs.kind;
-  const startLabel = pick === "book" ? "Play the chapter" : "New ladder";
-  part(body, "play").append(action(startLabel, async () => { if (await confirmLeave()) { prefs.kind = pick; keepPrefs(); deal(pick); } }, "primary"));
-  const content = part(body, "content");
-  content.append(choice("Ladders", Object.entries(KINDS).filter(([k]) => k !== "daily"), pick, v => { pick = v; openMenu(); }));   // Today's is a button (todayPart)
+  part(body, "play").append(action("New ladder", async () => { if (await confirmLeave()) deal("random"); }, "primary"));
   todayPart(body, { app: "ladder", play: () => deal("daily"), playing: G?.kind === "daily" && G.P.day === today() && !G.run.done, busy: started() });
-  if (pick === "book") content.append(bookList());
   const pars = read(PARS, { now: 0, best: 0 }), best = G ? read(BESTS, {})[bestKey(G)] : null;
   part(body, "about").append(
     line(`${G ? `${G.kind === "daily" ? "Today's" : LEVELS[G.P.level || levelOf(G.P)].label}: ${best != null ? `best ${fmt(best)}` : "not climbed yet"}. ` : ""}Clean pars in a row ${pars.now}, most ${pars.best}. A step over par adds ${OVER} s, a hint ${HINT} s.`),
@@ -587,34 +542,15 @@ function showRules() {
     <p>Lewis Carroll's Doublets: climb from the first word to the last, changing one letter at a time. Each letter keeps its place, and every rung must be a word.</p>
     <p><b>For example.</b> Carroll's own, HEAD to TAIL: HEAD, HEAL, TEAL, TELL, TALL, TAIL. Five steps, which is par; the third letter changes twice (A to L, then L to I), a detour, the kind of step that makes a ladder hard to see.</p>
     <p><b>Par.</b> The fewest steps the ladder can be done in, found by searching every word, so it's proven, not estimated. Between the ends stand the rungs still to go at par: the next, where your word appears, and the rest drawn short with a brass dot. The end shows the commonest route at par, how many there are, and whether yours was it.</p>
-    <p><b>Playing.</b> Tap a letter of the working rung, then its new letter on the keys. If that makes a word it's the next rung; if not, the line says why and the letter stays chosen, so another key can be tried at once. Or type a whole word and press Enter. Work from either end, as on paper: Work up (or a tap on the last word) builds from the bottom, Work down from the top, and the ladder is whole the moment a word made at one end is a word of the other. Undo takes off the last rung made, at no cost; a word already on your ladder can't come back. On a keyboard the arrows move along the letters, and up and down switch ends.</p>
+    <p><b>Playing.</b> Tap a letter of the working rung, then its new letter on the keys. If that makes a word it's the next rung; if not, the line says why and the letter stays chosen, so another key can be tried at once. Or type a whole word and press Enter. Work from either end, as on paper: Work up (or a tap on the last word) builds from the bottom, Work down from the top, and the ladder is whole the moment a word made at one end is one letter from the word at the other: the last word is made for you. Undo takes off the last rung made, at no cost; a word already on your ladder can't come back. On a keyboard the arrows move along the letters, and up and down switch ends.</p>
     <p><b>The words.</b> A rung may be any word of ${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))} letters in a wide word list, British and American spellings both, so a real word is never refused. The ends are everyday words, and a ladder the game makes can be done at par in words people know.</p>
     <p><b>Hint.</b> Puts on the next rung of the commonest shortest route from where you are, and says how many steps are left, for ${HINT} seconds.</p>
     <p><b>Score.</b> Your time, plus ${OVER} seconds for every step over par and ${HINT} a hint, lower being better: a step costs more than speed, since par is the point. Playing alone, the clock stands still while the menu or these rules are open.</p>
-    <p><b>Ladders.</b> In the menu: <b>Today's</b>; <b>Random</b>, at a level, from the word lengths you tick; <b>Linked</b>, pairs with a link between them (COLD to WARM, LEAD to GOLD, BULL to BEAR), from the themes you tick; and <b>The book</b>, Carroll's own doublets in his order, each opening once the one before is climbed. Easy has at most one detour at par; Hard has two or more, and exactly one route at par.</p>
-    <p><b>Grow and shrink.</b> The genre's own variant, in Settings' Rules, for random and linked ladders: a step may also add or take away a letter, which opens pairs of different lengths (HOT to COLD in three: HOT, COT, COD, COLD). Tap a gap between letters to add one there; ⌫ on a chosen letter takes it away.</p>
+    <p><b>Ladders.</b> In the menu: <b>Today's</b>, or a new random one, at a level that rises as you climb at par. Easy has at most one detour at par; Hard has two or more, and exactly one route at par.</p>
+    <p><b>Grow and shrink.</b> The genre's own variant, in Settings' Rules, for random ladders: a step may also add or take away a letter, which opens pairs of different lengths (HOT to COLD in three: HOT, COT, COD, COLD). Tap a gap between letters to add one there; ⌫ on a chosen letter takes it away.</p>
     <p><b>Today's ladder.</b> ${LEVELS[DAILY.level].label}, ${DAILY.lengths.map(inWords).join(" or ")} letters, ${RULES[DAILY.rules]}, the same for everyone, and a new one at midnight UTC. It counts the moment it's whole.</p>
     <p><b>Together.</b> As a team, one ladder for the table: each of you holds letters that must change, may change only those, and sees only your own letters of the last word, so you have to talk. Or a race: the same ${inWords(RACE_LADDERS)} ladders for everyone, the lowest score winning.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
-}
-/** The book's chapters: climbed (with the steps), the one to play, the ones after it. */
-function bookList() {
-  const done = bookDone(), at = bookAt(), box = el("div");
-  const ol = el("ol", "ld-book");
-  BOOK.forEach((p, i) => {
-    const li = el("li", i === at ? "cur" : !done[i] && i > at ? "locked" : "");
-    const r = done[i];
-    li.append(el("b", "", String(i + 1)), el("span", "", p.say), r ? el("em", "", r.steps === r.par ? "par" : `+${r.steps - r.par}`) : el("i"));
-    if (r || i === at) {
-      li.setAttribute("role", "button");
-      li.tabIndex = 0;
-      li.addEventListener("click", async () => { $("menuDlg").close(); if (await confirmLeave()) deal("book", { chapter: i }); });
-    }
-    ol.append(li);
-  });
-  box.append(el("span", "menu-label", `The book: ${Object.keys(done).length} of ${BOOK.length} climbed`), ol);
-  requestAnimationFrame(() => ol.querySelector(".cur")?.scrollIntoView({ block: "nearest" }));
-  return box;
 }
 async function copyLink() {
   const link = `${location.origin}${hashFor(G)}`;
@@ -657,8 +593,7 @@ $("hintBtn").addEventListener("click", useHint);
 $("flipBtn").addEventListener("click", flip);
 $("nextBtn").addEventListener("click", () => {
   if (G?.mode !== "solo") { room.again(G); return; }
-  if (G.kind === "book" && G.P.chapter < BOOK.length - 1) deal("book", { chapter: G.P.chapter + 1 });
-  else deal(G.kind === "daily" ? "random" : G.kind);
+  deal("random");
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); room.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) room.resync(); });
@@ -676,13 +611,13 @@ window.__ladder = { get game() { return G; }, get cursor() { return cursor; }, g
 const forToday = arrivedForToday();   // from the games screen's tile: today's ladder, still to play
 async function solo() {
   G = loadSolo();
-  const linked = fromHash();
-  if (linked && !sameLadder(G, linked)) { begin(linked); return; }
+  const shared = fromHash();
+  if (shared && !sameLadder(G, shared)) { begin(shared); return; }
   if (forToday && !IN_FRAME && !(G?.kind === "daily" && G.P.day === today())) {
     if (!started() || await sure("Today's ladder is waiting. Leave the one you've started?")) { deal("daily"); return; }
   }
   if (G) { history.replaceState(null, "", hashFor(G)); clockRun(); render(); }
-  else deal(dailyDue("ladder") && !IN_FRAME ? "daily" : prefs.kind);
+  else deal(dailyDue("ladder") && !IN_FRAME ? "daily" : "random");
 }
 // a table in the address: its ladder, with no solo one dealt under it
 if (room.inAddress) room.join().then(ok => { if (!ok) solo(); });

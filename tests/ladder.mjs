@@ -1,9 +1,7 @@
-// Ladder (ladder-engine.js, ladder-pairs.js): Carroll's rules, par and the routes to it counted exactly, the generator
-// at each level across many seeds, the grading, hints, a run through JSON, the daily, and every
-// one of the book's and the linked pairs played.
+// Ladder (ladder-engine.js): Carroll's rules, par and the routes to it counted exactly, the generator
+// at each level across many seeds, the grading, hints, a run through JSON, and the daily.
 import { ACCEPT, COMMON, LENGTHS, LEVELS, LEVEL_ORDER, OVER, HINT, graphFor, isStep, isRung, rarity, analyse, distance, routeFrom, search, effort, fits, levelOf, generate, isEnd, inflected, apart,
   newRun, place, undo, working, words, steps, hintFor, score, rng } from "../ladder-engine.js";
-import { BOOK, CARROLL, KINBOTE, LINKED, THEMES, linkedFor } from "../ladder-pairs.js";
 import { dealFor, freshTable, isTable, defaultMode, startTable, teamMove, teamUndo, teamHint, teamOn, mustChange, raceReport, raceOrder, raceOver, teamResult } from "../ladder-table.js";
 import { sayReady, noteRun, runOf, standings, resultOf, rematch } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -113,19 +111,19 @@ function countByHand(P, cap = 50) {
   check(place(P, run, "top", "cold") === "used", "a word already on the ladder can't come again");
   check(undo(run, "top") && working(run, "top") === "cold" && !undo(run, "top"), "undo takes the working rung off, never the first word");
   check(place(P, run, "bottom", "ward") === "placed" && working(run, "bottom") === "ward" && words(run).join() === "cold,ward,warm", "the ladder is worked from the bottom too");
-  check(place(P, run, "top", "cord") === "placed" && place(P, run, "top", "card") === "placed", "and from the top");
-  check(place(P, run, "top", "ward") === "done" && run.done && words(run).join(" ") === "cold cord card ward warm" && steps(run) === 4, "the two ends meet: a whole ladder, at par");
+  check(place(P, run, "top", "cord") === "placed", "and from the top");
+  // Korbi, 7 Nov 2026: nobody types the last word; a rung one step from the other end's rung joins the two ends itself
+  check(place(P, run, "top", "card") === "done" && run.done && words(run).join(" ") === "cold cord card ward warm" && steps(run) === 4, "a rung one step from the other end's makes the connection: a whole ladder, at par");
   // a meeting further down drops the rungs the bottom end needn't have climbed
   const Q = newRun(P);
   place(P, Q, "bottom", "ward"); place(P, Q, "bottom", "word"); place(P, Q, "top", "cord");
-  check(place(P, Q, "top", "word") === "done" && words(Q).join(" ") === "cold cord word ward warm", "a join at any rung of the other end");
+  check(Q.done && words(Q).join(" ") === "cold cord word ward warm", "a join at the other end's working rung");
   const T = newRun(P);
   place(P, T, "top", "cord");
   const h = hintFor(P, T, "top");
   check(h && isStep("cord", h.word) && h.left === 2 && distance(h.word, "warm") === 2, "a hint: the next rung on a shortest route from where you are, and the steps left");
   T.ms = 83000; T.hints = 1;
   ["card", "ward"].forEach(w => place(P, T, "top", w));
-  place(P, T, "top", "warm");
   check(T.done && score(P, T) === 83 + HINT, "a score: the seconds, and a hint's 30");
   const U = newRun(P);
   for (const w of ["colt", "cola", "cold"]) place(P, U, "top", w);
@@ -143,7 +141,7 @@ function countByHand(P, cap = 50) {
   place(P, X, "top", "cord");
   place(P, X, "bottom", "ward");
   const back = JSON.parse(JSON.stringify(X));
-  check(place(P, back, "top", "card") === "placed" && place(P, back, "top", "ward") === "done" && steps(back) === 4, "a run read back from JSON carries on");
+  check(place(P, back, "top", "card") === "done" && steps(back) === 4, "a run read back from JSON carries on");
 }
 
 // ---------- the daily ----------
@@ -155,22 +153,9 @@ function countByHand(P, cap = 50) {
   check(Array.from({ length: 5 }, r1).join() === Array.from({ length: 5 }, r2).join(), "the seeded generator repeats");
 }
 
-// ---------- the book and the linked pairs ----------
+// ---------- par on known pairs ----------
 {
-  const played = BOOK.map(p => ({ p, P: analyse(p.a, p.b) }));
-  check(played.every(({ P }) => P && P.par <= 11 && P.needs <= 4), `every one of Carroll's and Kinbote's ${BOOK.length} plays, in words of his day (${played.filter(x => !x.P || x.P.needs > 4).map(x => x.p.say).join(", ") || "all"})`);
-  check(CARROLL.length === 32 && KINBOTE.length === 3, "Carroll's 31 of his 38, his HEAD to TAIL first, and Kinbote's three");
   check(analyse("hate", "love").par === 3 && analyse("lass", "male").par === 4 && analyse("live", "dead").par === 6, "Kinbote's records: in three and four are par; live to dead takes six, not five");
-  const caps = p => p.say.toUpperCase().includes(p.a.toUpperCase()) && p.say.toUpperCase().includes(p.b.toUpperCase());
-  check(BOOK.every(caps) && LINKED.every(caps), "every pair's line names both its words");
-  const linked = LINKED.map(p => ({ p, P: analyse(p.a, p.b, p.rules) }));
-  const weak = linked.filter(({ P }) => !P || P.par < 3 || P.par > 9 || P.needs > 3);
-  check(!weak.length, `all ${LINKED.length} linked pairs play by their rules, par 3 to 9, in words no rarer than SCOWL 40${weak.length ? `: not ${weak.map(x => x.p.say).join(", ")}` : ""}`);
-  check(Object.keys(THEMES).every(t => linkedFor("classic", [t]).length >= 6) && linkedFor("classic").every(p => p.rules === "classic") && linkedFor("grow").length === LINKED.length,
-    "every theme has pairs for Classic; growing, every pair plays");
-  check(new Set(LINKED.map(p => `${p.a}-${p.b}-${p.rules}`)).size === LINKED.length, "no pair twice");
-  const levels = LEVEL_ORDER.map(l => linked.filter(({ P }) => P && levelOf(P) === l).length);
-  check(levels.every(n => n >= 15), `linked pairs at every level (${levels.join(", ")})`);
 }
 
 // ---------- together: the table (ladder-table.js), every change through the database's round trip ----------
