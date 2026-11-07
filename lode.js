@@ -211,14 +211,22 @@ function drawTheme(ctx) {
   $("clueNav").hidden = !every;
   if (!every) {
     $("kind").textContent = spanFound ? `Theme · ${b.name}` : ctx.level === "hard" ? "Theme" : `Theme · ${kindWords[b.kind]}`;
-    $("title").textContent = `“${b.title.text}”`;
+    // Korbi, 7 Nov 2026: a title shows the item it is about, its topic, and the description (not the description alone). A board
+    // from before the item was kept shows the description alone.
+    const t = b.title, label = TOPIC_LIST.find(([id]) => id === t.topic)?.[1];
     $("title").classList.remove("lo-clue");
+    $("title").classList.toggle("lo-item", !!t.word);
+    const head = el("div", "lo-head");
+    head.append(el("b", "", t.word || ""), ...(label ? [el("small", "", label)] : []));
+    if (t.word) $("title").replaceChildren(head, el("span", "lo-desc", `“${t.text}”`));
+    else $("title").textContent = `“${t.text}”`;
     return;
   }
   const order = clueOrder(ctx), k = Math.min(clueAt, order.length - 1), w = order[k], word = b.words[w];
   const got = ctx.run.found.includes(w) || ctx.run.revealed.includes(w);
   $("kind").textContent = spanFound ? `Theme · ${b.name}` : `Clues · ${kindWords[b.kind]}`;
   $("clueAt").textContent = `${k + 1} of ${order.length}`;
+  $("title").classList.remove("lo-item");
   $("title").classList.add("lo-clue");
   $("title").textContent = w === 0 ? `${got ? word.text : `${word.text.length} letters`}: the theme, from side to side`
     : `${got ? word.text : `${word.text.length} letters`}: ${word.hint}`;

@@ -22,7 +22,7 @@ export function tidyBoard(b) {
   b.words = list(b.words).map(w => ({ text: w.text, shown: w.shown || w.text, hint: w.hint || "", d: w.d || 1, entity: w.entity ?? null, cells: list(w.cells).map(Number) }));
   b.grade = { know: b.grade?.know || 0, find: b.grade?.find || 0, score: b.grade?.score || 0,
     words: list(b.grade?.words).map(g => ({ turns: g.turns || 0, back: g.back || 0, lures: g.lures || 0, find: g.find || 0 })) };
-  b.title = { text: b.title?.text || "", d: b.title?.d || 1, word: b.title?.word ?? null };
+  b.title = { text: b.title?.text || "", d: b.title?.d || 1, word: b.title?.word ?? null, topic: b.title?.topic ?? null };
   b.twice = b.twice || 0;
   return b;
 }

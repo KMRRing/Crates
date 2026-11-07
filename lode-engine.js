@@ -415,11 +415,11 @@ function says(text, words) {
 function titleOf(r, t, onBoard, level) {
   const want = LEVELS[level].title, banned = [...namesOf(t), ...onBoard];
   const pool = BANK[t.i].words.filter(w => okMk(w.mk) && w.hint && w.hint.length <= 80 && !onBoard.includes(letters(w.w)) && !says(w.hint, banned) && !says(w.w, banned));
-  if (!pool.length) return { text: `A ${t.kind}`, d: 1, word: null };
+  if (!pool.length) return { text: `A ${t.kind}`, d: 1, word: null, topic: null };
   const near = Math.min(...pool.map(w => Math.abs((w.d || 2) - want)));
   const best = pool.filter(w => Math.abs((w.d || 2) - want) === near);
   const w = best[Math.floor(r() * best.length)];
-  return { text: w.hint, d: w.d || 2, word: w.w };
+  return { text: w.hint, d: w.d || 2, word: w.w, topic: (w.topics || [])[0] || null };
 }
 
 // ---------- a board ----------

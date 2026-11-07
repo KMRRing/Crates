@@ -90,6 +90,9 @@ const boards = [], timings = [];
   say("twice", `at most ${MAX_TWICE} words a board that also trace a second way, and the board knows which`);
   say("unique", "the solver finds exactly one way the words cover the board, counting up to two");
   say("title", "the title names neither the theme nor a word on the board");
+  // Korbi, 7 Nov 2026: a title shows its item (the card names it), its topic and its description; the item is no word on the board either
+  const titled = boards.filter(b => b.title.word);
+  check(titled.length > boards.length * 0.9 && titled.every(b => b.title.topic && !b.words.some(w => letters(b.title.word).includes(w.text))), `a title carries its item and its topic (${titled.length} of ${boards.length} boards), the item no word on the board`);
   const share = s => boards.filter(b => b.shape === s && b.twice === 0).length / boards.filter(b => b.shape === s).length;
   check(share("hex") >= 0.6 && share("square") >= 0.25, `most boards trace every word one way only (Hex ${Math.round(100 * share("hex"))}%, Square ${Math.round(100 * share("square"))}%)`);
   check(q(timings, 0.5) < 60 && q(timings, 0.9) < 250, `a board is made quickly here: median ${q(timings, 0.5).toFixed(1)} ms, 90% within ${q(timings, 0.9).toFixed(1)} ms`);
