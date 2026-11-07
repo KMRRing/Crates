@@ -88,10 +88,12 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
   const rim = layered([{ inset: -10, y: 9, c: look.oakTop }, { inset: 2, y: 9, c: look.oakTop }, { inset: 3.5, y: 8, c: look.oak }, { inset: 4.4, y: 6, c: look.brass },
     { inset: 5.4, y: 6, c: look.brassHi }, { inset: 6.2, y: 5, c: look.brass }, { inset: 7, y: 0, c: look.oak }]);
   // seats: a ledger of leather with a brass-edged top, one for each opponent and a blotter for you
-  const padLevels = (leather, ring) => [{ inset: 0, y: 0, c: leather }, { inset: 0, y: 4, c: leather }, { inset: 1.2, y: 5, c: ring }, { inset: 3, y: 5, c: ring }, { inset: 3, y: 5, c: leather }, { inset: 5, y: 5, c: leather }];
+  // Korbi, 7 Nov 2026: the leather mats covered nine tenths of the table. A section is now only a thin brass line inlaid in the wood, none of it raised
+  // or filled; the one whose turn it is shows a brighter line.
+  const padLevels = ring => [{ inset: 0, y: 0.7, c: ring }, { inset: 1.5, y: 0.7, c: ring }];
   const pads = [];
-  const padAt = k => pads[k] || (pads[k] = layered(padLevels(look.seat, look.brass), { fill: true }));
-  const minePad = layered(padLevels(look.mine, look.brass), { fill: true });
+  const padAt = k => pads[k] || (pads[k] = layered(padLevels(look.brass)));
+  const minePad = layered(padLevels(look.brass));
   const plate = layered([{ inset: 0, y: 0, c: look.plate }, { inset: 0, y: 6, c: look.plate }, { inset: 2, y: 7, c: look.plateHi }, { inset: 4, y: 7, c: look.plate }], { fill: true });
 
   // ---------- props ----------
@@ -184,7 +186,7 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
     upp = stage.unitsPerPx(model.w / 2, model.h / 2) || 0.05;
     rim.update(whole);
     seatPads(model);
-    if (model.mine) minePad.update(model.mine, { lift: model.mine.turn ? 2 : 0, colors: [look.mine, look.mine, model.mine.turn ? look.brassHi : look.brass, model.mine.turn ? look.brassHi : look.brass, look.mine, look.mine] });
+    if (model.mine) minePad.update(model.mine, { lift: model.mine.turn ? 0.8 : 0, colors: model.mine.turn ? [look.brassHi, look.brassHi] : [look.brass, look.brass] });
     minePad.mesh.visible = !!model.mine;
     bidPlate(model);
     props(model);
@@ -195,9 +197,8 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
   function seatPads(model) {
     model.seats.forEach((s, k) => {
       const pad = padAt(k);
-      const leather = s.out ? look.seatOut : s.picked ? look.seat : s.turn ? look.seatTurn : look.seat;
       const ring = s.picked ? look.picked : s.aim ? look.aim : s.turn ? look.brassHi : s.out ? 0x5a4a30 : look.brass;
-      pad.update({ x: s.x - 1.5 * rem, y: s.y - 1.5 * rem, w: s.w + 3 * rem, h: s.h + 3 * rem }, { lift: s.turn || s.picked ? 2.5 : 0, colors: [leather, leather, ring, ring, leather, leather] });
+      pad.update({ x: s.x - 1.5 * rem, y: s.y - 1.5 * rem, w: s.w + 3 * rem, h: s.h + 3 * rem }, { lift: s.turn || s.picked ? 0.8 : 0, colors: [ring, ring] });
       pad.mesh.visible = true;
     });
     for (let k = model.seats.length; k < pads.length; k++) pads[k].mesh.visible = false;
