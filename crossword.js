@@ -36,7 +36,7 @@ const RUN = "crossword:run", SETTINGS = "crossword:settings", TIMES = "crossword
 const APP = 1;                 // the table's version
 
 // ---------- settings ----------
-// The menu is the minimum it needs to be (Korbi, 4 November 2026): the clues (Classic, Almanac or Both), the zoom, the computer
+// The menu is the minimum it needs to be (Korbi, 4 November 2026): the clues (Classic, Almanac or Both), the computer
 // partner and the topics line. The level is the hidden ramp (`ramp.js`, `crossword:ramp`, first rung the level once saved), a grid
 // is its level's own size, every answer and both ways, no twist, the partner's pace quick, and nothing checks as you go.
 // computer: off, or a partner holding the Down clues of a split grid; today's is the same for everyone (dailyOptions)
@@ -212,8 +212,8 @@ window.visualViewport?.addEventListener("resize", () => fitLayout());
 // A 13 by 13 grid's squares are 22 to 26 px on a phone, so the grid zooms: a pinch, the strip's magnifier, the menu,
 // + and − on a keyboard, Ctrl and the wheel on a computer. It zooms inside its own window, the size it is whole, so
 // nothing else on the screen changes size; a finger drags it about, and it moves along to keep the square being typed
-// in in sight (crossword-zoom.js does the arithmetic). How close you like it is kept on this device only, where suite:
-// keys stay: a phone's close-up isn't a tablet's.
+// in in sight (crossword-zoom.js does the arithmetic). Every grid opens whole (Korbi, 7 November 2026: no whole/close-up
+// setting); how close you last zoomed is kept on this device only, where suite: keys stay: a phone's close-up isn't a tablet's.
 const ZOOM = "suite:crossword-zoom";
 // px a square: under ZOOM_FROM the grid offers to zoom (a thumb's square, as Mines finds); CLOSE, a close-up until you
 // pinch one of your own; CLOSEST, the most it zooms. Plain px, not grown with a tablet's layout (wide.js): a pixel is
@@ -222,8 +222,8 @@ const ZOOM_FROM = 34, CLOSE = 40, CLOSEST = 60;
 let fit = 0;                   // px a square, the grid whole (fitLayout)
 let view = null;               // zoomed in: { cell, x, y } (crossword-zoom.js); the whole grid: null
 let followed = null;           // the square and direction the view last moved along with
-const zoomPref = () => ({ on: false, cell: CLOSE, ...read(ZOOM, {}) });
-const keepZoom = () => { if (!IN_FRAME) write(ZOOM, { on: !!view, cell: view ? view.cell : zoomPref().cell }); };
+const zoomPref = () => ({ cell: CLOSE, ...read(ZOOM, {}) });
+const keepZoom = () => { if (!IN_FRAME) write(ZOOM, { cell: view ? view.cell : zoomPref().cell }); };
 const sizeNow = () => { const p = puzzle(); return { C: p.rows[0].length, R: p.rows.length }; };
 const windowNow = () => { const { C, R } = sizeNow(); return { w: span(C, fit), h: span(R, fit) }; };
 /** Whether the grid's squares are small enough to be worth zooming (the magnifier and the menu offer it then). */
@@ -255,14 +255,13 @@ function drawView(glide = false) {
   }
   drawZoomButton();
 }
-/** After the layout changes (a new grid, the screen turned): the view held to the new window, or a new grid opened
- *  close up if that's how you left it. */
+/** After the layout changes (a new grid, the screen turned): the view held to the new window; a new grid opens whole. */
 function fitView() {
   if (!puzzle()) return;
   const { C, R } = sizeNow();
   if (zoomFor !== drawnFor) {                 // a new grid: its cursor is placed after this, and the view snaps to it
     zoomFor = drawnFor;
-    view = zoomPref().on && !IN_FRAME && zoomable() ? { cell: closeUp(), x: 0, y: 0 } : null;
+    view = null;
     followed = null;
     snap = true;
   }
@@ -1106,7 +1105,6 @@ function openMenu() {
     const help = (label, fn) => choice(label, [["letter", "Letter"], ["word", "Word"], ["grid", "Grid"]], null, v => { dlg.close(); fn(v); });
     play_.append(help("Check", helpCheck), help("Reveal", helpReveal));
   }
-  if (zoomable() || view) play_.append(choice("Zoom", [["whole", "Whole grid"], ["close", "Close up"]], view ? "close" : "whole", v => { dlg.close(); setZoom(v === "close"); }));
   if (together.room || joining) {
     const table = part(body, "together");
     if (G) {
