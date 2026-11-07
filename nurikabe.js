@@ -9,7 +9,7 @@ import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, k
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, ticks, onPause, isPaused, todayPart } from "./menu.js";
+import { part, action, line, choice, ticks, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
@@ -406,7 +406,7 @@ function finish() {
   save();
   roundOver("nurikabe");
   wave();
-  if (!IN_FRAME) soundSolved();
+  if (!IN_FRAME && prefs.sound !== false) soundSolved();
 }
 
 // ---------- the board ----------
@@ -676,6 +676,7 @@ function openMenu() {
   if (!levels) content.append(ticks("Twists", TWIST_ORDER.map(w => [w, TWISTS[w]]), prefs.twists, v => { prefs.twists = v; savePrefs(); }));
   if (!COOP) todayPart(body, { app: "nurikabe", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
+  if (!IN_FRAME) part(body, "settings").append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; savePrefs(); }));
   const best = S && !COOP ? bestOf(S) : null;
   const about = part(body, "about");
   if (levels) {
