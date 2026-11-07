@@ -492,7 +492,9 @@ function openWords() {
     const got = r.found.includes(i), shown = r.revealed.includes(i), open = got || shown || over;
     const li = el("li", `${i ? "" : "span "}${got ? "got" : shown ? "shown" : "hidden"}`);
     li.append(el("b", "lo-wtext", open ? w.text : "•".repeat(w.text.length)));
-    const why = !open ? `${w.text.length} letters${i ? "" : ", from side to side: the theme"}` : i ? w.hint : `the theme, ${b.name}, from side to side`;
+    // every word's clue shows, found or not (Korbi, 8 November 2026); a clue that names its own word has it starred out
+    const mask = txt => (txt || "").replace(new RegExp(w.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "****");
+    const why = i ? `${open ? "" : `${w.text.length} letters · `}${mask(w.hint)}` : open ? `the theme, ${b.name}, from side to side` : `${w.text.length} letters, from side to side: the theme`;
     const tags = [];
     if (G?.mode === "team" && G.by[`w${i}`] != null) tags.push(nameOfSlot(G.by[`w${i}`]));
     if (r.hinted.includes(i)) tags.push("a hint");

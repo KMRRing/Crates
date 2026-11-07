@@ -35,6 +35,7 @@ function between(u, v) {
 const D = 4;                                  // the eye's distance from the middle, in the planet's radius: a gentle perspective
 const RAISE = 0.15, GAP = 0.06, BEVEL = 0.1;  // as Mines' cube: a tile stands this many cells up; its foot is inset by GAP, its top by BEVEL more
 const MOST = 2.2;                             // the most it zooms in, times the whole planet's size
+const LEAST = 0.5;                            // the most it zooms out: half the fitted size, the planet small in the middle (Korbi, 8 November 2026: "scroll out more")
 const SPIN_MS = 420;                          // how fast a flick's spin dies away (its time constant)
 const GLYPH = 0.8;                            // a letter's size over its tile's size on screen
 const TAP_MS = 320, TAP_PX = 6;               // a double tap: two short, still touches this close in time
@@ -118,7 +119,7 @@ export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}
   const fitK = () => Math.max(1, (Math.min(W, H) / 2 - 4) * Math.sqrt(D * D - outer * outer) / (outer * D));
   const reach = (kk = k) => kk * outer * D / Math.sqrt(D * D - outer * outer);
   function clamp() {
-    k = Math.min(fitK() * MOST, Math.max(fitK(), k));
+    k = Math.min(fitK() * MOST, Math.max(fitK() * LEAST, k));
     const rx = Math.max(0, reach() - W / 2 + 6), ry = Math.max(0, reach() - H / 2 + 6);
     ox = Math.min(rx, Math.max(-rx, ox)); oy = Math.min(ry, Math.max(-ry, oy));
   }
