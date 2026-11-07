@@ -18,9 +18,10 @@ const TITLED = new Set(`crates lots punt quote origin order chart ledger nexus i
   slate delta spot speedmaths pipes survey stow shunt
   sudoku calcudoku kakuro hitori masyu nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls codeword assay yield
   calibre parley arthistory wine firmament trade constitutions statecraft music maths speedfuels blend refinery rack cartel deck rush
-  party quest cue`.split(/\s+/).map(n => n + ".html"));
+  party quest cue tribute`.split(/\s+/).map(n => n + ".html"));
+// (tribute: Guandan became titled on 7 Nov 2026, Korbi: it should state its name and logo, which go back to the games)
 // FULL alone: card and dice games, board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
-const FULL = new Set(`contract trumps tribute landlord bigtwo hearts shoe carrack meld pegs hong bones boast yacht solitaire banquet holdem blackjack baccarat
+const FULL = new Set(`contract trumps landlord bigtwo hearts shoe carrack meld pegs hong bones boast yacht solitaire banquet holdem blackjack baccarat
   tarot craps roulette sicbo factor gambit flank morris crown go river silo gammon carrom
   avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle slipway topple harbour ingot
   almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));
