@@ -302,3 +302,39 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 /* its height: the near edge's face (the apron) hangs down from the top, dark wood under a brass line, standing on a shadow */
 .t3-mat::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 1.5rem; transform-origin: 50% 0; transform: rotateX(-90deg);
   background: linear-gradient(180deg, color-mix(in srgb, var(--tk-brass) 85%, #000) 0 .12rem, transparent .12rem), linear-gradient(180deg, #3A1B0D, #1E0D05); border-radius: 0 0 .3rem .3rem; }
+
+/* ---------- 7 Nov 2026, Korbi: a wider, flatter table; larger seats; clearer picks; plays that stay ---------- */
+#app.tb3 { --t3-tilt: 22deg; }
+#app.tb3 .tb-table { margin-inline: -.9rem; }                  /* out to the screen's edges (the page's own padding) */
+#app.tb3 .t3-mat { left: .35rem; right: .35rem; }
+/* the other seats, larger */
+.t3-med { width: 3.3rem; height: 3.3rem; font-size: 1.45rem; }
+.t3-name { font-size: 1.02rem; }
+.t3-meta { font-size: .8rem; }
+.t3-n { font-size: 1.02rem; min-width: 1.9rem; padding: .1rem .4rem; }
+.t3-fan { width: 2.5rem; height: 2.1rem; }
+.t3-fan .t3b { width: 1.45rem; height: 2.05rem; margin-left: -.725rem; }
+.t3-place { font-size: .9rem; }
+.t3-act { font-size: .8rem; }
+.t3-plate.at-left, .t3-plate.at-right { width: 6.2rem; }
+.t3-plate.at-me .t3-med { width: 3.3rem; height: 3.3rem; }
+/* the plays stay on the table: each lies where it was set down, a card of your hand's size, a little turned */
+.t3-centre { left: 6.4rem; right: 6.4rem; top: 20%; bottom: 14%; }
+.t3-play { position: absolute; inset: 0; display: block; }
+.t3-play .t3-lay { position: absolute; width: max-content; filter: drop-shadow(0 .12rem .1rem rgba(0, 0, 0, .5)); }
+.t3-play .t3-lay.bomb { filter: drop-shadow(0 0 .35rem color-mix(in srgb, var(--tb-red) 80%, transparent)) drop-shadow(0 .12rem .1rem rgba(0, 0, 0, .5)); }
+.t3-play .t3-label { position: absolute; left: 50%; bottom: -.4rem; translate: -50% 0; z-index: 99; width: max-content; }
+/* your picked cards: well up, a thick gilt edge and a glow */
+#app.tb3 .tb-hand .tb-card.sel { transform: translateY(calc(var(--ly, 0px) - 1.1rem)) rotate(var(--rot, 0deg)); border-color: var(--t3-gilt); border-width: 2px; z-index: 5;
+  background: linear-gradient(158deg, #FFF8DC, color-mix(in srgb, var(--t3-gilt) 45%, var(--tb-face)));
+  box-shadow: 0 0 0 3px var(--t3-gilt), 0 .6rem .9rem -.2rem rgba(0, 0, 0, .5), 0 0 1.2rem .2rem color-mix(in srgb, var(--t3-gilt) 80%, transparent); }
+#app.tb3 .tb-hand.ok .tb-card.sel { border-color: var(--tb-go); background: linear-gradient(158deg, #F2FFF6, color-mix(in srgb, var(--tb-go) 38%, var(--tb-face)));
+  box-shadow: 0 0 0 3px var(--tb-go), 0 .6rem .9rem -.2rem rgba(0, 0, 0, .5), 0 0 1.2rem .2rem color-mix(in srgb, var(--tb-go) 85%, transparent); }
+#app.tb3 .tb-hand .tb-card.advised:not(.sel) { outline: 3px solid var(--t3-gilt); outline-offset: -4px; box-shadow: 0 0 .9rem .1rem color-mix(in srgb, var(--t3-gilt) 70%, transparent); }
+#app.tb3 .tb-hand.fan .tb-card.sel { transform: translateY(calc(var(--ly, 0px) - 1rem)) rotate(var(--rot, 0deg)); }
+#app.tb3 .t3-mat { height: 122%; }
+#app.tb3 .t3-plate.at-left, #app.tb3 .t3-plate.at-right { top: 34%; }
+#app.tb3 .t3-centre { top: 24%; bottom: 20%; }
+#app.tb3 .t3-inlay { top: 52%; }
+.t3-plate.at-top { max-width: 96%; }
+.t3-plate.at-top .t3-name { overflow: visible; }

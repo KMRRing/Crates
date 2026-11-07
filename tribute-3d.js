@@ -4,7 +4,7 @@
 // the four seats stand round it, each a plate with a medallion, a fan of card backs and how many are left; the play to
 // beat lies in the middle, laid out as the combination it is, with the plays it beat as words at their seats; the
 // level and its wild card are on a brass plate. Cards move as the game does (dealt from the middle, played from your
-// hand or a seat's backs, swept to whoever took the trick, tribute flown from the payer to the receiver), by the Web
+// hand or a seat's backs, tribute flown from the payer to the receiver), by the Web
 // Animations API. It draws into #board3d inside the page's table (#table, so full screen puts the header and the
 // levels on it as ever), and your hand, the coach's line and the buttons are the page's own, with the same marks on
 // every card (data-id), so a tap means what it does in the table view and tribute.js's handlers serve both.
@@ -12,7 +12,7 @@ import * as E from "./tribute-engine.js";
 
 const FACE = ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 const PLACE = ["1st", "2nd", "3rd", "4th"];
-const FLY_MS = 470, EASE = "cubic-bezier(.3, .7, .2, 1)", MOST_FLIGHTS = 14, RATIO = 1.4;
+const FLY_MS = 470, EASE = "cubic-bezier(.3, .7, .2, 1)", MOST_FLIGHTS = 14, RATIO = 1.4, PILE = 10;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 // ---------- what can be worked out without a page (tests/tribute.mjs) ----------
@@ -204,20 +204,29 @@ export function createTable3d(c) {
   function drawMiddle() {
     const g = G(), cs = getComputedStyle(centre), px = v => parseFloat(v) || 0, rem = px(getComputedStyle(document.documentElement).fontSize) || 16;
     const room = { w: centre.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight), h: centre.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) };
-    const hw = px(getComputedStyle($("app")).getPropertyValue("--tb-cw")) || 2.6 * rem, cap = Math.max(hw * 1.45, 4.2 * rem);
+    const hw = px(getComputedStyle($("app")).getPropertyValue("--tb-cw")) || 2.6 * rem, cap = Math.max(hw * 1.45, 4.2 * rem);   // (cap: the tribute cards')
     let play = "", open = "";
     if (g.phase === "over" && g.result) open = overHtml();
-    else if (g.top) {
-      // the play to beat, laid out as what it is, as large as the room lets it be, its label under it
-      const r = g.top.reading, groups = arrange(g.top.cards, g.level, r), fit = fitPlay(groups, { w: room.w, h: room.h - 2.1 * rem }, cap);
-      const gapped = groups.some(x => x.length > 1);
-      let i = 0;
-      const cards = groups.map(grp => grp.map((id, k) => {
-        const m = i++ === 0 ? 0 : fit.step - 1 + (k === 0 && gapped ? fit.gap : 0);
-        return `<span class="${c.cardClass(id, g.level)} t3f t3-cd" data-id="${id}" style="margin-left:calc(var(--cw) * ${m.toFixed(3)})">${cardFace(id, g.level)}</span>`;
-      }).join("")).join("");
-      play = `<span class="t3-cards${r.bomb ? " bomb" : ""}" style="--cw:${fit.w.toFixed(1)}px">${cards}</span>${labelOf(g.top.seat, r)}`;
-    } else if (g.phase !== "over") {
+    else {
+      // Korbi, 7 Nov 2026: the cards don't vanish. Every play of the hand stays where it was set down, at the size of a card in
+      // your hand, a little turned, near the seat that played it; the newest lies on top, the play to beat labelled.
+      const at = { me: [0, 17], right: [9, 4], top: [0, -17], left: [-9, 4] };
+      const pile = [];
+      g.log.forEach((e, i) => { if (e.e === "play") pile.push([e, i]); });
+      play = pile.slice(-PILE).map(([e, i]) => {
+        const r = E.classify(e.cards, g.level).find(x => x.type === e.type && x.key === e.key), groups = r ? arrange(e.cards, g.level, r) : [e.cards];
+        const fit = fitPlay(groups, { w: room.w, h: 1e4 }, hw, hw * 0.6), gapped = groups.some(x => x.length > 1), h = Math.imul(i + 1, 2654435761) >>> 0;
+        const jit = k => ((h >>> k) % 1000) / 1000 - 0.5, [dx, dy] = at[slotOf(e.seat, me())];
+        let n = 0;
+        const cards = groups.map(grp => grp.map((id, k) => {
+          const m = n++ === 0 ? 0 : fit.step - 1 + (k === 0 && gapped ? fit.gap : 0);
+          return `<span class="${c.cardClass(id, g.level)} t3f t3-cd" data-id="${id}" style="margin-left:calc(var(--cw) * ${m.toFixed(3)})">${cardFace(id, g.level)}</span>`;
+        }).join("")).join("");
+        return `<span class="t3-cards t3-lay${r?.bomb ? " bomb" : ""}" style="--cw:${fit.w.toFixed(1)}px;left:${(50 + dx + jit(3) * 8).toFixed(1)}%;top:${(50 + dy + jit(13) * 7).toFixed(1)}%;`
+          + `transform:translate(-50%,-50%) rotate(${(jit(7) * 12).toFixed(1)}deg)">${cards}</span>`;
+      }).join("") + (g.top ? labelOf(g.top.seat, g.top.reading) : "");
+    }
+    if (g.phase !== "over") {
       const lines = c.news(), seat = g.phase === "return" ? E.waitingOn(g)[0] : g.turn;
       const opening = lines.length && !g.log.some(e => e.e === "play" || e.e === "pass");
       const w = Math.max(22, Math.min(cap * 0.8, (room.h - 3 * rem) / RATIO / (g.tribute?.pays?.length > 1 ? 2 : 1)));
@@ -242,13 +251,12 @@ export function createTable3d(c) {
 
   // ---------- the screen as it was, before a new state is drawn ----------
   const centred = r => (r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height } : null);
-  /** Each card of your hand and of the middle, where it is on screen now, and the middle's cards as drawn. */
+  /** Each card of your hand, where it is on screen now. */
   function before() {
     if (!last || box.hidden || !moving()) return null;
-    const hand = new Map(), trick = [];
+    const hand = new Map();
     for (const el of handBox.querySelectorAll(".tb-card[data-id]")) hand.set(Number(el.dataset.id), centred(el.getBoundingClientRect()));
-    for (const el of playBox.querySelectorAll(".t3-cd")) trick.push({ id: Number(el.dataset.id), at: centred(el.getBoundingClientRect()), html: el.outerHTML });
-    return { hand, trick };
+    return { hand };
   }
 
   // ---------- motion ----------
@@ -273,21 +281,6 @@ export function createTable3d(c) {
       el.classList.remove("t3-coming");
       el.animate([{ scale: 1.1 }, { scale: 1 }], { duration: 200, easing: "ease-out" });
     };
-  }
-  /** The middle's old cards, swept to whoever took the trick, shrinking as they go. */
-  function sweep(was, seat) {
-    const to = plateAt(seat);
-    if (!to || !was?.trick.length) return;
-    was.trick.forEach((t, i) => {
-      if (!t.at) return;
-      const g = document.createElement("div");
-      g.className = "t3-ghost sweep";
-      g.style.cssText = `width:${t.at.w}px;height:${t.at.h}px;left:${t.at.x - t.at.w / 2}px;top:${t.at.y - t.at.h / 2}px;--cw:${t.at.w}px`;
-      g.innerHTML = t.html.replace(/ style="[^"]*"/, "");
-      fx.append(g);
-      track(g.animate([{ transform: "none", opacity: 1 }, { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3)`, opacity: 0 }],
-        { duration: 520, delay: 160 + i * 22, easing: "cubic-bezier(.5, 0, .8, .4)", fill: "both" })).onfinish = () => g.remove();
-    });
   }
   /** A word popped at a seat: a pass, or its place as it goes out. */
   function pop(seat, selector) {
@@ -339,7 +332,6 @@ export function createTable3d(c) {
           if (el) fly(id, a, centred(el.getBoundingClientRect()), { up0: e.seat === me(), up1: true, delay: j * 40, el });
         });
       } else if (e.e === "pass") pop(e.seat, ".t3-act");
-      else if (e.e === "trick") sweep(was, e.seat);
       else if (e.e === "return") flyGift(e, 0, was);
       else if (e.e === "out") pop(e.seat, ".t3-place");
       k++;
