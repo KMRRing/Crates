@@ -668,7 +668,7 @@ export function createModel(host, opts = {}) {
   return {
     canvas,
     /** A new puzzle: { size, grid }. */
-    set: build,
+    set(puzzle) { spinUntil = 0; winUntil = 0; build(puzzle); reset(); },   // (Korbi, 7 Nov 2026: a new puzzle ends the win's turning; the camera is back at the base view and still)
     /** The run's marks, what they break (breaks() of the engine) and the hint showing ({ set, focus } or null). */
     update(m, broken, h) { marks = m; br = broken; hint = h; refresh(); },
     show(on) { shown = !!on; if (shown) { resize(); wake(); } else if (frameId) { cancelAnimationFrame(frameId); frameId = 0; } },

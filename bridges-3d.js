@@ -364,7 +364,9 @@ export function createModel(host, opts = {}) {
   }
 
   /** Shows a puzzle: `p` is { lay, size, seed } (the page's P and the run's seed, which gives the shore). */
-  function set(p) {
+  /** A new puzzle ends the win's turning, and the camera is back at the base view, still (Korbi, 7 Nov 2026). */
+  function set(p) { spinUntil = 0; winUntil = 0; setPuzzle(p); reset(); }
+  function setPuzzle(p) {
     const began = performance.now();
     P = p; lay = p.lay; size = p.size; realmed = lay.isl.some(o => o.realm);
     disposeWorld();

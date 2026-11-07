@@ -238,7 +238,9 @@ export function createModel(host, opts = {}) {
   /** What a ray or a finger meets in a cell: the block, or the water over it where the cell is sea. */
   const topOf = x => (look && (look.marks[x] === SEA || bridge[x]) ? Math.max(cur[x], wcur[x]) : cur[x]);
   const isPaddy = number => number % 2 === 0;               // a plot is a flooded paddy or a millet field by its number's place, fixed
-  function set(puzzle) {
+  /** A new puzzle ends the win's turning, and the camera is back at the base view, still (Korbi, 7 Nov 2026). */
+  function set(puzzle) { spinUntil = 0; setPuzzle(puzzle); reset(); }
+  function setPuzzle(puzzle) {
     disposeWorld();
     if (puzzle.N !== N || !scenic) { scenic?.dispose(); scenic = createScenery(scene, puzzle.N); }
     N = puzzle.N; clue = puzzle.stone || puzzle.clue;
