@@ -1,0 +1,35 @@
+/* The card room: Guandan's hand, plate and coach's bubble, shared (cardroom.js). Korbi, 7 Nov 2026: every card game is this one brand. */
+
+/* ---------- your cards ---------- */
+.cr-hand { position: relative; flex: none; margin-top: -.2rem; font-size: var(--cd-size, 1rem); touch-action: none; -webkit-touch-callout: none; user-select: none; }
+.cr-hand .cd { position: absolute; margin: 0; transition: transform .1s; transform: translateY(var(--ly, 0px)) rotate(var(--rot, 0deg)); cursor: pointer; }
+.cr-hand .cd.sel { transform: translateY(calc(var(--ly, 0px) - .45em)) rotate(var(--rot, 0deg)); border-color: var(--cr-in, #2F6A9B); box-shadow: 0 0 0 1.5px var(--cr-in, #2F6A9B), var(--cd-thick);
+  background-color: color-mix(in srgb, var(--cr-in, #2F6A9B) 22%, var(--cd-face)); background-image: none; }
+.cr-hand .cd.advised:not(.sel) { outline: 2px solid var(--cr-in, #2F6A9B); outline-offset: -3px; }
+.cr-hand .cd.shade:not(.sel) { background-color: color-mix(in srgb, var(--cr-in, #2F6A9B) 11%, var(--cd-face)); border-color: color-mix(in srgb, var(--cr-in, #2F6A9B) 40%, var(--cd-edge)); }
+.cr-hand.tight .cd { font-size: .94em; }
+
+/* ---------- the brass plate ---------- */
+.cr-plate { display: flex; align-items: center; gap: .7rem; width: 100%; box-sizing: border-box; padding: .28rem .75rem; border: 1px solid var(--brass); border-radius: 6px; color: var(--ink); font-size: .8rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brass) 28%, var(--sheet)), color-mix(in srgb, var(--brass) 12%, var(--sheet)) 55%, color-mix(in srgb, var(--brass) 20%, var(--sheet)));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sheet) 55%, transparent), inset 0 0 0 3px color-mix(in srgb, var(--brass) 55%, transparent), 0 .12rem .3rem rgba(0, 0, 0, .14); }
+.cr-plate small { display: block; font-size: .58rem; font-weight: 800; line-height: 1; color: var(--brass-lo); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.cr-lead { display: flex; align-items: center; gap: .4rem; }
+.cr-title b { font-size: 1.2rem; font-weight: 800; font-stretch: var(--wide); }
+.cr-sides { display: flex; gap: .55rem; margin-left: auto; }
+.cr-side { display: grid; justify-items: center; gap: .08rem; min-width: 2rem; padding: .12rem .35rem; border-radius: 4px; }
+.cr-side b { font-size: 1.05rem; font-weight: 800; line-height: 1; }
+.cr-side.on { background: color-mix(in srgb, var(--sheet) 55%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent); }
+.cr-tail { align-self: center; font-size: .64rem; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+
+/* ---------- the coach's bubble ---------- */
+.cr-bar { position: relative; }
+.cr-bubble { position: absolute; left: 0; right: 0; bottom: calc(100% + .55rem); z-index: 20; margin: 0; padding: .55rem 2rem .6rem .75rem; border: 1px solid var(--brass); border-radius: .5rem;
+  font-size: .82rem; line-height: 1.35; text-align: left; color: var(--ink); background: color-mix(in srgb, var(--sheet) 80%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  box-shadow: 0 .3rem .9rem rgba(0, 0, 0, .3); overscroll-behavior: contain; }
+.cr-bubble[hidden] { display: none; }
+.cr-bubble::after { content: ""; position: absolute; left: 1.4rem; bottom: -.4rem; width: .7rem; height: .7rem; border: solid var(--brass); border-width: 0 1px 1px 0; transform: rotate(45deg); background: color-mix(in srgb, var(--sheet) 80%, transparent); }
+.cr-bubble b { margin-right: .3rem; color: var(--cr-in, #2F6A9B); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.cr-bubble-x { position: absolute; top: .2rem; right: .25rem; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: none; color: var(--ink); font-size: 1.2rem; line-height: 1; opacity: .7; cursor: pointer; }
+.cr-bubble-x:hover { opacity: 1; }
+@media (orientation: landscape) and (min-width: 700px) { .cr-bubble { bottom: 3.7rem; } }

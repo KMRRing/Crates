@@ -10,7 +10,8 @@ import { ramp } from "./ramp.js";
 import { think, quickPlan, sameMove, BUDGET } from "./bigtwo-think.js";
 import { one, playsWords, moveSaid, moveNames, adviceLine, after, pts, verdict } from "./bigtwo-coach.js";
 import { seatPage } from "./seats-ui.js";
-import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, bubble, drawHandBox, wireDrag } from "./cardroom.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { tableView } from "./table3d-view.js";
@@ -161,17 +162,28 @@ function draw() {
   if (key !== selFor) { selFor = key; sel = new Set(); }
   newDeal(v);
   if (advice && advice.key !== decisionOf(v)) advice = null;
-  $("strip").innerHTML = `Deal <b>${s.deal}</b> of ${s.opts.deals}${s.opts.suits === "tw" ? " · ♣ lowest" : ""}`;
+  // the brass plate across the top (cardroom.js): the deal, and every seat's score
+  $("strip").innerHTML = plateHtml({ title: `<small>Deal</small><b>${s.deal} of ${s.opts.deals}</b>`,
+    items: Array.from({ length: s.seats }, (_, i) => ({ k: isMe(i) ? "You" : nameOf(i).slice(0, 6), v: `${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}`, on: s.step === "play" && s.turn === i })),
+    tail: s.opts.suits === "tw" ? "♣ lowest" : "" });
   drawTable(v);
   drawHand(v);
-  // a coach that speaks unasked keeps its room, so the table holds its size as it speaks and falls quiet
-  $("status").classList.toggle("kept", speaks() && v.seat != null);
-  $("status").innerHTML = `<span>${statusLine(v)}</span>`;
+  // the coach's word is a bubble over the screen (cardroom.js), what the table is waiting for a plain line
+  const said = splitStatus(statusLine(v));
+  $("status").innerHTML = `<span>${said.plain}</span>`;
+  coachBubble.show(said.bubble);
   drawBar();
   advise(v);
 }
 
 /** The latest a seat has done in this trick: its cards, or a pass. */
+const coachBubble = bubble($("coach"));
+/** The status line's coach words (a hint, its play, its word on your last move) go to the bubble, the rest stays a line. */
+function splitStatus(html) {
+  if (/^(<b>(Hint|Coach)<\/b>|<b class="b2-miss">|<i class="ld")/.test(html)) return { bubble: html, plain: "" };
+  const at = html.indexOf(" · <b>Your play</b>");
+  return at < 0 ? { bubble: "", plain: html } : { bubble: html.slice(at + 3), plain: html.slice(0, at) };
+}
 function actOf(s, seat) {
   for (let i = s.trick.plays.length - 1; i >= 0; i--) if (s.trick.plays[i].seat === seat) return s.trick.plays[i];
   return null;
@@ -238,38 +250,24 @@ function sortedHand(hand, so) {
 /** The hint, while it stands: asked for this decision (a pass leaves the hand as it was, so the hand can't tell), and
  *  the cards picked still its play. */
 const liveHint = () => (hinted && V?.G && hinted.key === decisionOf(V) && sel.size === hinted.cards.length && hinted.cards.every(c => sel.has(c)) ? hinted : null);
-const GAP = .55;                                                 // between the hint's groups, in card widths' em
 function drawHand(v) {
   const box = $("hand");
-  if (v.seat == null) { box.innerHTML = `<p class="b2-watch">Watching: you sit down at the next game.</p>`; return; }
-  // with a hint, the play first (picked, raised), then each play the rest of the hand makes, apart, every other one
-  // shaded, low to high; else the hand by rank or suit
-  const h = liveHint();
-  const parts = h ? [sortedHand(h.cards, "rank"), ...h.groups.map(g => g.cards)].filter(g => g.length) : [sortedHand(v.state.hands[v.seat] || [], opts.sort)];
+  if (v.seat == null) { box.innerHTML = `<p class="b2-watch">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
+  // Guandan's hand (cardroom.js): a column to a rank, the strongest on the left; with a hint, its play first and then each play
+  // the rest of the hand makes, a column each, every other one shaded
+  const h = liveHint(), o = v.state.opts, hand = v.state.hands[v.seat] || [];
+  const byRank = new Map();
+  for (const id of hand) { const r = rankOf(id); if (!byRank.has(r)) byRank.set(r, []); byRank.get(r).push(id); }
+  const rankCols = [...byRank.values()].map(c => c.sort((a, b) => suitOf(a) - suitOf(b))).sort((a, b) => value(b[0], o) - value(a[0], o));
+  const cols = h ? [h.cards, ...h.groups.map(g => g.cards)].filter(g => g.length) : rankCols;
+  const colOf = new Map();
+  cols.forEach((c, k) => c.forEach(id => colOf.set(id, k)));
   // Always: the coach's play marked in your hand, until a Hint picks it
   const advised = !h && opts.coach === "on" && advice?.key === decisionOf(v) && advice.r.best.t === "play" ? new Set(advice.r.best.cards) : null;
-  let html = "", n = 0;
-  parts.forEach((cards, k) => cards.forEach((id, i) => {
-    const cls = [sel.has(id) && "sel", advised?.has(id) && "advised", h && k && !i && "grp", h && (k - (h.cards.length ? 1 : 0)) % 2 === 1 && !sel.has(id) && "shade"].filter(Boolean).join(" ");
-    html += cardHtml(face(id), { cls, data: { id }, label: cardName(id) });
-    n++;
-  }));
-  box.innerHTML = html;
-  fitRow(box, n, { max: 1.15 });
-  // the gaps between the groups take width the row's fitting didn't count: the cards close up to keep it
-  const gaps = parts.length - 1, size = parseFloat(box.style.getPropertyValue("--cd-size"));
-  if (gaps && size && n > 1) {
-    const cw = size * 2.5, step = Math.min(cw * 1.04, (box.clientWidth - cw - gaps * GAP * size) / (n - 1));
-    box.style.setProperty("--cd-step", `${Math.max(step, cw * 0.22)}px`);
-  }
+  drawHandBox(box, { cols, face, label: cardName,
+    classes: id => [sel.has(id) && "sel", advised?.has(id) && "advised", h && (colOf.get(id) - (h.cards.length ? 1 : 0)) % 2 === 1 && colOf.get(id) >= (h.cards.length ? 1 : 0) && !sel.has(id) && "shade"].filter(Boolean).join(" ") });
 }
-$("hand").addEventListener("click", e => {
-  const c = e.target.closest(".cd[data-id]");
-  if (!c || !V?.G || V.seat == null) return;
-  const id = Number(c.dataset.id);
-  if (sel.has(id)) sel.delete(id); else sel.add(id);
-  draw();
-});
+wireDrag($("hand"), { has: id => sel.has(id), toggle: (id, pick) => { if (!V?.G || V.seat == null) return; if (pick) sel.add(id); else sel.delete(id); draw(); } });
 
 const WHY = ' <button type="button" class="link b2-why" data-why="1">Why?</button>';
 const WAIT = '<i class="ld" aria-hidden="true"></i>The coach is weighing it…';
@@ -324,6 +322,7 @@ $("bar").addEventListener("click", async e => {
   if (act === "hint") {
     const key = decisionOf(V);
     hintAsked = key;
+    coachBubble.ask();
     draw();
     const a = await weigh(V);
     if (!a || !V || decisionOf(V) !== key) { draw(); return; }

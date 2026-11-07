@@ -115,10 +115,10 @@ export const rectOf = el => { const r = el?.getBoundingClientRect(); return r &&
  */
 export function createCloth(host, { seats = 4, clockwise = true } = {}) {
   const spots = seatSpots(seats, { clockwise });
-  host.innerHTML = `<div class="tk-field tk-n${spots.length}"><div class="tk-stage"><div class="tk-mat">`
+  host.innerHTML = `<div class="tk-field tk-n${spots.length}"><div class="tk-stage"><div class="tk-pivot"><div class="tk-mat">`
     + `<div class="tk-inlay" aria-hidden="true"></div><div class="tk-centre" aria-live="polite"></div>`
     + spots.map((s, i) => `<div class="tk-plate at-${s.side}" data-slot="${i}" style="--x:${s.x}%;--y:${s.y}%"><span class="tk-body"></span><span class="tk-act"></span></div>`).join("")
-    + `</div></div></div>`;
+    + `</div></div></div></div>`;
   const field = host.firstElementChild, mat = field.querySelector(".tk-mat");
   createParallax(field);                                          // frees itself once the field has left the page
   const plates = [...mat.querySelectorAll(".tk-plate")], bodies = plates.map(p => p.firstElementChild), acts = plates.map(p => p.lastElementChild);

@@ -14,6 +14,7 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="cardroom.css">
 <link rel="stylesheet" href="course.css">
 <link rel="stylesheet" href="bigtwo.css">
 <link rel="stylesheet" href="table3d.css">
@@ -31,12 +32,12 @@
     </div>
   </header>
 
-  <p id="strip" class="b2-strip full-pull"></p>
+  <div id="strip" class="b2-strip full-pull"></div>
   <section id="table" class="b2-table fit-grow" aria-label="The table"></section>
   <section id="side" class="b2-side" aria-label="Your cards">
     <p id="status" class="b2-status" aria-live="polite"></p>
-    <div id="hand" class="b2-hand cd-row" role="group" aria-label="Your cards"></div>
-    <div id="bar" class="b2-bar"></div>
+    <div id="hand" class="cr-hand" role="group" aria-label="Your cards"></div>
+    <div class="cr-bar"><p id="coach" class="b2-coach" aria-live="polite" hidden></p><div id="bar" class="b2-bar"></div></div>
   </section>
 </div>
 
