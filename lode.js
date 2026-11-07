@@ -1,11 +1,12 @@
-// Lode: Strands' genre on the knowledge base. A board of 48 letters hides a country's or a commodity's words, each a
+// Lode: Strands' genre on the knowledge base. A board of 48 letters hides a country's words, each a
 // path of touching letters, every letter used once; the word that spans the board names the theme, the mother lode.
 // Trace a word by dragging through its letters, or tap them and tap the last again. Other English words of four letters
 // or more earn hints, three a hint. Your time plus 30 seconds a hint is your score. The boards and rules are
 // lode-engine.js's, the table lode-table.js's, the drawing and the finger lode-board.js's; this file keeps the run, the
 // clock, the menu and the table. Together (together.js): one board for the table, as a team with the letters shared out
 // (each sees only theirs) or as a race, everyone on their own phone.
-import { CELLS, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
+import { REGION_LIST } from "./lode-continents.js";
+import { CELLS, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
   scoreOf, missesOf, lockedCells } from "./lode-engine.js";
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
   standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
@@ -28,7 +29,7 @@ import { busy, waitMark } from "./loading.js";
 import { leaderboard } from "./standings.js";
 import * as pile from "./pile.js";
 
-dropdown(document.getElementById("pool"));
+dropdown(document.getElementById("region"));
 
 const $ = id => document.getElementById(id);
 const RUN = "lode:run", SET = "lode:settings", TIMES = "lode:times", SEEN = "lode:seen", TABLE = "lode:table";
@@ -45,14 +46,12 @@ const first = name => String(name || "Player").trim().split(/\s+/)[0];
 
 // ---------- settings: what the next board deals, and how it's shown ----------
 const CLUES = { title: "Title", every: "Every word" };
-const ALL_GROUPS = [...GROUPS.country, ...GROUPS.commodity].map(([k]) => k);
 function cleanSettings(s) {
   return {
     level: LEVELS[s?.level] ? s.level : "medium",
     shape: SHAPES[s?.shape] ? s.shape : "square",
     clues: CLUES[s?.clues] ? s.clues : "title",
-    pool: POOLS[s?.pool] ? s.pool : "mixed",
-    off: Array.isArray(s?.off) ? s.off.filter(k => ALL_GROUPS.includes(k)) : [],
+    region: REGION_LIST.some(([k]) => k === s?.region) ? s.region : "world",       // a pool or sectors an older save chose are gone (7 Nov 2026: countries only)
   };
 }
 let settings = cleanSettings(read(SET, {}));
@@ -64,7 +63,7 @@ settings.clues = "title";
 const levelNow = () => (settings.level = ramp("lode", Object.keys(LEVELS), { start: OLD_LEVEL }));
 levelNow();
 const saveSettings = () => { if (!IN_FRAME) write(SET, settings); };
-$("pool").value = settings.pool;
+$("region").value = settings.region;
 // The topics are the suite's one set (Settings; topics-on.js), not kept here: read when a board is dealt, never once at
 // start-up, so a change reaches the next board and one already dealt keeps what it was dealt. An old settings object that
 // still carries a mix of its own is read as any other and its mix never used.
@@ -204,7 +203,7 @@ function drawBoard(ctx) {
   });
   view.freeze(IN_FRAME || ctx.run.done || counting());
 }
-const kindWords = { country: "a country", commodity: "a commodity" };
+const kindWords = { country: "a country" };
 function drawTheme(ctx) {
   const b = ctx.board, spanFound = ctx.run.found.includes(0) || ctx.run.done;
   const every = ctx.clues === "every";
@@ -353,13 +352,13 @@ function begin(made, mode, day = null) {
   render();
   setTimeout(dealSpare, 1500);
 }
-const spareKey = s => JSON.stringify([s.level, s.shape, s.pool, s.off, mixNow()]);
-/** A random board for the settings: the one dealt ahead if it's for them, else a new one. Nothing in the regions and
- *  sectors chosen can fill a board: every theme. */
+const spareKey = s => JSON.stringify([s.level, s.shape, s.region, mixNow()]);
+/** A random board for the settings: the one dealt ahead if it's for them, else a new one. Nothing in the region
+ *  chosen can fill a board: every country. */
 function dealRandom(set = settings) {
   if (spare?.key === spareKey(set)) { const m = spare.made; spare = null; return m; }
-  const deal = { seed: randomSeed(), level: set.level, shape: set.shape, mix: mixNow(), pool: set.pool, off: set.off, avoid: read(SEEN, []) };
-  return boardFor(deal) || { ...boardFor({ ...deal, pool: "mixed", off: [] }), fell: true };
+  const deal = { seed: randomSeed(), level: set.level, shape: set.shape, mix: mixNow(), region: set.region, avoid: read(SEEN, []) };
+  return boardFor(deal) || { ...boardFor({ ...deal, region: "world" }), fell: true };
 }
 /** The next board, dealt while you play this one, so Another board is at once. */
 function dealSpare() {
@@ -373,7 +372,7 @@ function start(mode) {
     if (mode === "daily") { const d = today(), made = boardFor(dailyDeal(d)); begin(made, "daily", d); return; }
     const made = dealRandom();
     begin(made, "random");
-    if (made.fell) toast("No theme left in the regions and sectors chosen: this board is from every theme", 3600);
+    if (made.fell) toast("No country left in the region chosen: this board is from every country", 3600);
   } finally { done(); }
 }
 async function confirmStart(mode) {
@@ -490,7 +489,7 @@ function openMenu() {
 function menuSolo(body) {
   part(body, "play").append(action("New board", () => confirmStart("random"), "primary"));
   const content = part(body, "content");
-  content.append(mirror("Themes", $("pool")));
+  content.append(mirror("Region", $("region")));
   contentChoices(content);
   todayPart(body, { app: "lode", play: () => start("daily"), playing: S?.mode === "daily" && S.day === today(), busy: started() });
   if (S && !S.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
@@ -505,29 +504,9 @@ function topicsNote() {
   if (p === "all" || p === "none") return "";
   return `A left-out topic's words come only when a theme can't fill a board without them${p === "custom" ? ". Your own mix doesn't count for your best" : ""}`;
 }
-/** Topics (Settings', changed in a sheet from here), regions and sectors: what the next random board deals from. */
+/** Topics (Settings', changed in a sheet from here): what the next random board deals from. The region is the header's dropdown, mirrored above. */
 function contentChoices(box) {
   box.append(...topicsPart(box, topicsNote()));
-  const kinds = settings.pool === "mixed" ? ["country", "commodity"] : settings.pool === "countries" ? ["country"] : ["commodity"];
-  for (const kind of kinds) {
-    const options = GROUPS[kind], label = kind === "country" ? "Regions" : "Sectors";
-    const on = options.map(([k]) => k).filter(k => !settings.off.includes(k));
-    const wrap = el("div", "lo-include");
-    const draw = () => {
-      const now = options.map(([k]) => k).filter(k => !settings.off.includes(k));
-      wrap.replaceChildren(ticks(label, options, now, v => { settings.off = [...settings.off.filter(k => !options.some(([o]) => o === k)), ...options.map(([k]) => k).filter(k => !v.includes(k))]; saveSettings(); }));
-      const all = el("p", "lo-allnone");
-      const set = keep => { settings.off = [...settings.off.filter(k => !options.some(([o]) => o === k)), ...(keep ? [] : options.map(([k]) => k))]; saveSettings(); draw(); };
-      const a = el("button", "link", "All"), n = el("button", "link", "None");
-      a.type = n.type = "button";
-      a.addEventListener("click", () => set(true));
-      n.addEventListener("click", () => set(false));
-      all.append(a, " · ", n);
-      wrap.append(all);
-    };
-    draw();
-    if (on.length) box.append(wrap);
-  }
 }
 function menuTable(body) {
   const table = part(body, "together");
@@ -538,7 +517,7 @@ function menuTable(body) {
   table.append(choice("Next board", Object.entries(MODES), nextMode, v => { nextMode = v; openMenu(); }));
   table.append(action("A new board", dealForTable, "primary"));
   const content = part(body, "content");
-  content.append(mirror("Themes", $("pool")));
+  content.append(mirror("Region", $("region")));
   if (!context()?.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
 }
@@ -549,11 +528,11 @@ function menuTable(body) {
 function showRules() {
   $("rulesBody").innerHTML = `
     <p>A board of ${CELLS} letters hides a theme's words. Each word is a path of touching letters (sideways, up and down, or diagonally), no letter used twice, and between them the words use every letter on the board exactly once. One of them, the mother lode, names the theme and spans the board, touching two opposite sides.</p>
-    <p><b>The theme.</b> A country or a commodity from the knowledge base, and its words are its own clues: a city, a dish, a person, a firm. The title over the board is a clue to the theme; Easy and Medium say whether it's a country or a commodity.</p>
+    <p><b>The theme.</b> A country from the knowledge base, and its words are its own clues: a city, a dish, a person, a firm. The title over the board is a clue to the theme.</p>
     <p><b>Playing.</b> Drag a finger through a word's letters, or tap them one at a time and tap the last again; slide back to take a letter off, and tap away from the letters to clear. A theme word found turns blue, the mother lode gold, and the line under the board says what links it to the theme. Words lists what you've found, and how long the rest are.</p>
     <p><b>Hints.</b> Any other English word of ${inWords(MIN_WORD)} letters or more counts towards a hint, ${inWords(PER_HINT)} words to a hint, as in Strands: the dots on the Hint button fill as they come. A hint rings the letters of the hardest word still hidden; a second while they're ringed numbers them in order. Each hint adds ${HINT_COST} seconds.</p>
     <p><b>Score.</b> Your time plus the hints' seconds, lower being better. Show the words still hidden, in the menu, ends the board at ${SHOW_COST} seconds a word, more than a hint ever costs. Playing alone, the clock stands still while the menu or these rules are open.</p>
-    <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards, and doesn't say if the theme is a country or a commodity. The menu also chooses the themes (countries, commodities or both) and the regions and sectors they come from; which topics the words are of is set once for every game, in Settings.</p>
+    <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards. The menu chooses the region the countries come from (the world or a continent); which topics the words are of is set once for every game, in Settings.</p>
     <p><b>Settings.</b> Board: ${SHAPES.square}, or ${SHAPES.hex}, a honeycomb where each letter touches six. Clues: ${CLUES.title}, or ${CLUES.every}, each word's clue with its length in place of the title, one at a time with the arrows, the mother lode's last. They apply from the next board.</p>
     <p><b>Today's board.</b> Medium and square, from every theme, the same for everyone, and a new one at midnight UTC. It counts the moment its last word is found.</p>
     <p><b>Together.</b> As a team, one board with its letters shared out: you see only yours, and a sealed letter is a team mate's, marked with where it is (C4, the third column's fourth letter) so you can ask for it. Anyone traces through any letters, and what you trace shows on the others' boards as it grows. Or a race: the same board on every phone from the same moment, the lowest score winning.</p>`;
@@ -723,11 +702,11 @@ $("seeBtn").addEventListener("click", openWords);
 $("nextBtn").addEventListener("click", () => { if (G?.mode === "race") openRace(); else if (G) dealForTable(); else start("random"); });
 $("cluePrev").addEventListener("click", () => { const ctx = context(); if (!ctx) return; clueAt = (clueAt - 1 + ctx.board.words.length) % ctx.board.words.length; drawTheme(ctx); });
 $("clueNext").addEventListener("click", () => { const ctx = context(); if (!ctx) return; clueAt = (clueAt + 1) % ctx.board.words.length; drawTheme(ctx); });
-$("pool").addEventListener("change", () => {
-  settings.pool = $("pool").value;
+$("region").addEventListener("change", () => {
+  settings.region = $("region").value;
   saveSettings();
   if (G) return;                                            // at a table the next board deals from it
-  if (!S || S.mode === "daily" || started()) toast(`${$("pool").selectedOptions[0].textContent}: from the next board`);
+  if (!S || S.mode === "daily" || started()) toast(`${$("region").selectedOptions[0].textContent}: from the next board`);
   else start("random");
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); together.resync(); } });

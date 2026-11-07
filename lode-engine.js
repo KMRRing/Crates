@@ -1,12 +1,13 @@
 // Lode's rules and boards, pure (lode.js draws them; tests/lode.mjs checks them). Strands' genre: a board of 48
 // letters hides the theme's words, each a path of touching letters, and between them they use every letter once; one
 // of them, the spanning word (the mother lode), names the theme and touches two opposite sides. The themes are the
-// knowledge base's countries and commodities, their words the clues that point to them (Crates' bank, bank.js). A
+// knowledge base's countries, their words the clues that point to them (Crates' bank, bank.js). A
 // board is made from its seed alone, the same on every device: the words are chosen, packed into the board as paths
 // that never cross, lettered, and kept only if every word can be traced in exactly one way (so however you trace a
 // word, it is the board's own) and the words cover the board in exactly one way. Nothing here reads the clock, a
 // random number of its own or the page.
-import { BANK, GROUPS } from "./core.js";
+import { BANK } from "./core.js";
+import { CONTINENTS } from "./lode-continents.js";
 import { KB_TOPICS, TOPIC_OF, drawWeighted, mixFromSubjects, even, anyIn } from "./topics.js";
 import { isWord } from "./wordlist.js";
 import { SPAN } from "./lode-themes.js";
@@ -24,9 +25,8 @@ export const MAX_TWICE = 2;           // words on a board that may also trace a 
 export const PER_HINT = 3;            // other words found for one hint, as in Strands
 export const HINT_COST = 30;          // seconds a hint adds to the score
 export const SHOW_COST = 120;         // seconds each word shown by giving up adds: more than earning a hint ever costs
-export const KINDS = { country: "country", commodity: "commodity" };
-export const POOLS = { countries: ["country"], commodities: ["commodity"], mixed: ["country", "commodity"] };
-export { GROUPS };
+// Korbi, 7 Nov 2026: Lode is countries only (no commodities), and its regions are the six continents, as in Chart.
+export const KINDS = { country: "country" };
 
 // ---------- seeded randomness: the same seed, the same numbers, on every device ----------
 export function seeded(seed) {
@@ -81,7 +81,7 @@ export function letters(name) {
     .replace(/[Łł]/g, "l").replace(/[Đđ]/g, "d").replace(/[Þþ]/g, "th").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
 }
 const acronym = name => name.length > 1 && /^[A-Z0-9]+$/.test(name);
-export const THEMES = BANK.map((a, i) => ({ i, id: a.entity, name: a.name, kind: a.cat, group: a.group, span: SPAN[a.entity] || null })).filter(t => t.span);
+export const THEMES = BANK.map((a, i) => ({ i, id: a.entity, name: a.name, kind: a.cat, regions: CONTINENTS[a.entity] || [], span: SPAN[a.entity] || null })).filter(t => t.span && t.kind === "country");
 const BY_ID = new Map(THEMES.map(t => [t.id, t]));
 export const themeById = id => BY_ID.get(id) || null;
 const FILLER = new Set(["THE", "AND", "FOR"]);   // in other names ("the netherlands"), but in every clue too
@@ -125,8 +125,8 @@ export const LEVELS = {
 };
 export const SHAPES = { square: "Square", hex: "Hex" };
 
-/** Crates' topics, a country's and a commodity's in one list: a word's aspects are from either. */
-export const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
+/** Crates' topics for a country (the commodity ones are gone with the commodities; the country ones keep their places in a shared link). */
+export const TOPIC_LIST = [...KB_TOPICS.country];
 /**
  * The mix (`mix` of a deal) the suite's subjects that are on make (topics-on.js: { subject: 0 | 1 }): each topic in at
  * weight 1, Lode's Balanced, when its subject is on, out when it isn't. A link or an old save may still carry a mix
@@ -560,10 +560,9 @@ export function canMake(t, level) {
   }
   return makeable.get(key);
 }
-/** The themes a choice deals from: a pool (countries, commodities or both), regions and sectors left out. */
-export function themesFor({ pool = "mixed", off = [], level = "medium" } = {}) {
-  const kinds = POOLS[pool] || POOLS.mixed;
-  return THEMES.filter(t => okMk(BANK[t.i].mk) && kinds.includes(t.kind) && !off.includes(t.group) && canMake(t, level));
+/** The themes a choice deals from: the countries of a region ("world": all) that can make a board at the level. */
+export function themesFor({ region = "world", level = "medium" } = {}) {
+  return THEMES.filter(t => okMk(BANK[t.i].mk) && (region === "world" || t.regions.includes(region)) && canMake(t, level));
 }
 /** The theme for a seed, from a list, passing over those dealt lately where it can. */
 export function pickTheme(seed, list, avoid = []) {
@@ -573,17 +572,17 @@ export function pickTheme(seed, list, avoid = []) {
 }
 export const SLACK = 40;              // how far outside its band a dealt board may grade (beyond that, another theme)
 /**
- * A board for a deal ({ seed, level, shape, mix, theme } or, without a theme, { pool, off, avoid } to pick one): the
+ * A board for a deal ({ seed, level, shape, mix, theme } or, without a theme, { region, avoid } to pick one): the
  * seed's theme, or, if that theme can't make a board inside the level's band (Freight's words make no Easy board),
  * the next the seed picks, and so on: the same on every device. Returns { deal (with its theme), board }, or null.
  */
-export function boardFor({ seed, level = "medium", shape = "square", mix = null, theme = null, pool = "mixed", off = [], avoid = [], daily = false }) {
+export function boardFor({ seed, level = "medium", shape = "square", mix = null, theme = null, region = "world", avoid = [], daily = false }) {
   STRICT = daily;
-  try { return boardOf({ seed, level, shape, mix, theme, pool, off, avoid }); } finally { STRICT = false; }
+  try { return boardOf({ seed, level, shape, mix, theme, region, avoid }); } finally { STRICT = false; }
 }
-function boardOf({ seed, level, shape, mix, theme, pool, off, avoid }) {
+function boardOf({ seed, level, shape, mix, theme, region, avoid }) {
   if (theme) { const board = makeBoard({ seed, theme, level, shape, mix }); return board ? { deal: { seed, theme, level, shape, mix }, board } : null; }
-  const list = themesFor({ pool, off, level }), passed = [...avoid];
+  const list = themesFor({ region, level }), passed = [...avoid];
   let best = null;
   for (let k = 0; k < 6 && list.length; k++) {
     const id = pickTheme(seed + k, list, passed), board = makeBoard({ seed, theme: id, level, shape, mix });
@@ -596,7 +595,7 @@ function boardOf({ seed, level, shape, mix, theme, pool, off, avoid }) {
   return best && { deal: best.deal, board: best.board };
 }
 /** Today's deal, the same for everyone (day: YYYYMMDD): Medium, square, every theme, every topic, nobody's settings. */
-export const dailyDeal = day => ({ seed: day, level: "medium", shape: "square", mix: null, pool: "mixed", daily: true });
+export const dailyDeal = day => ({ seed: day, level: "medium", shape: "square", mix: null, daily: true });
 
 // ---------- a run: one player's progress on a board ----------
 // found and revealed are the words' places in board.words (0, the spanning word); extra, the other words found, for
