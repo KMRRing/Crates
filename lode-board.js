@@ -4,6 +4,7 @@
 // (slide back to take the last off), or tap them one at a time and tap the last again to submit; a tap off the
 // letters clears. The view never decides what a trace means: it hands it to the page.
 import { geometry, CELLS, COLS } from "./lode-engine.js";
+import { createTracer } from "./lode-trace.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const R = 1 / Math.sqrt(3);                 // a hex's corner radius when hexes are one unit across
@@ -24,7 +25,7 @@ export function centres(shape) {
 export const extent = shape => (shape === "hex" ? [COLS + 0.5, 2 * R + 7 * 1.5 * R] : [COLS, 8]);
 const hexPoints = ([x, y], k = 0.96) => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return `${(x + k * R * Math.cos(a)).toFixed(3)},${(y + k * R * Math.sin(a)).toFixed(3)}`; }).join(" ");
 const through = (pts, cells) => cells.map(c => pts[c].map(v => v.toFixed(3)).join(",")).join(" ");
-const coord = i => `${"ABCDEF"[i % COLS]}${Math.floor(i / COLS) + 1}`;
+export const coord = i => `${"ABCDEF"[i % COLS]}${Math.floor(i / COLS) + 1}`;
 
 /**
  * The board in `host`. onTrace(cells) as a trace grows or shrinks; onSubmit(cells) when one is let go of (or its last
@@ -35,7 +36,7 @@ export function createBoardView(host, { onTrace = () => {}, onSubmit = () => {},
   host.replaceChildren(svg);
   const layer = name => el("g", { class: name }, svg);
   const grid = layer("lo-grid"), veins = layer("lo-veins"), live = layer("lo-live"), trace = layer("lo-trace"), marks = layer("lo-marks"), glyphs = layer("lo-glyphs"), notes = layer("lo-notes");
-  let board = null, geo = null, pts = [], view = {}, path = [], tapping = false, drag = null, frozen = false;
+  let board = null, geo = null, pts = [], view = {}, path = [];
 
   // ---------- drawing ----------
   function set(b, v = {}) {
@@ -47,7 +48,7 @@ export function createBoardView(host, { onTrace = () => {}, onSubmit = () => {},
       const [w, h] = extent(b.shape);
       svg.setAttribute("viewBox", `0 0 ${w.toFixed(3)} ${h.toFixed(3)}`);
       svg.classList.toggle("hex", b.shape === "hex");
-      path = []; tapping = false; drag = null;
+      finger?.reset();
       grid.replaceChildren();
       if (b.shape === "hex") for (let i = 0; i < CELLS; i++) el("polygon", { points: hexPoints(pts[i]), class: "lo-cell" }, grid);
     }
@@ -102,81 +103,43 @@ export function createBoardView(host, { onTrace = () => {}, onSubmit = () => {},
     for (const c of path) { const t = el("text", { x: pts[c][0], y: pts[c][1], class: "lo-l picked" }, trace); t.textContent = view.sealed?.[c] ? "" : board.letters[c]; }
   }
 
-  // ---------- the finger ----------
+  // ---------- the finger (lode-trace.js) ----------
   function toBoard(e) {
     const p = svg.createSVGPoint();
     p.x = e.clientX; p.y = e.clientY;
     const m = svg.getScreenCTM();
     return m ? p.matrixTransform(m.inverse()) : null;
   }
-  /** The cell whose centre is within `reach` of a point (in cells), or -1. A drag reaches less than a tap, so a
-   *  diagonal stroke through the corner between four letters doesn't catch the two beside it. */
+  /** The cell whose centre is within `reach` of a point (in cells), or -1. */
   function cellAt(q, reach) {
     let best = -1, d2 = reach * reach;
     for (let i = 0; i < CELLS; i++) { const dx = pts[i][0] - q.x, dy = pts[i][1] - q.y, d = dx * dx + dy * dy; if (d < d2) { d2 = d; best = i; } }
     return best;
   }
-  const changed = () => { drawTrace(); onTrace([...path]); };
-  function clear() { if (!path.length && !tapping) return; path = []; tapping = false; drag = null; changed(); }
-  function submit() {
-    const cells = [...path];
-    path = []; tapping = false; drag = null;
-    drawTrace();
-    onSubmit(cells);
-  }
-  /** One point of a stroke: take the letter it's over back off (the one before the last) or on (one touching the last). */
-  function along(q) {
-    const c = cellAt(q, board.shape === "hex" ? 0.4 : 0.38);
-    if (c < 0 || c === path[path.length - 1]) return;
-    if (c === path[path.length - 2]) { path.pop(); drag.grew = true; changed(); return; }
-    if (!path.includes(c) && geo.touch[path[path.length - 1]].has(c) && usable(c)) { path.push(c); drag.grew = true; changed(); }
-  }
+  const finger = createTracer({
+    touch: () => geo.touch, pick: (q, reach) => cellAt(q, board.shape === "hex" ? reach * 1.05 : reach), usable, step: 0.25,
+    changed: p => { path = p; drawTrace(); }, onTrace, onSubmit,
+  });
   svg.addEventListener("pointerdown", e => {
-    if (!board || frozen || e.button > 0) return;
+    if (!board || e.button > 0) return;
     e.preventDefault();
     const q = toBoard(e);
     if (!q) return;
-    const c = cellAt(q, 0.55);
-    if (c < 0 || !usable(c)) { clear(); return; }
-    try { svg.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
-    if (tapping && path.length) {
-      const last = path[path.length - 1], at = path.indexOf(c);
-      if (c === last) { submit(); return; }                     // the last letter tapped again: that's the word
-      if (at >= 0) { path = path.slice(0, at + 1); drag = { id: e.pointerId, from: q, grew: false }; changed(); return; }
-      if (geo.touch[last].has(c)) { path.push(c); drag = { id: e.pointerId, from: q, grew: false }; changed(); return; }
-    }
-    path = [c]; tapping = false;
-    drag = { id: e.pointerId, from: q, grew: false };
-    changed();
+    if (finger.down(q, e.pointerId)) { try { svg.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ } }
   });
-  svg.addEventListener("pointermove", e => {
-    if (!drag || e.pointerId !== drag.id || frozen) return;
-    const q = toBoard(e);
-    if (!q) return;
-    // a quick stroke can skip a letter between two events: walk the stretch in quarter-cell steps
-    const dx = q.x - drag.from.x, dy = q.y - drag.from.y, steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 0.25));
-    for (let k = 1; k <= steps; k++) along({ x: drag.from.x + dx * k / steps, y: drag.from.y + dy * k / steps });
-    drag.from = q;
-  });
-  const lift = e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const grew = drag.grew;
-    drag = null;
-    if (e.type === "pointercancel") { clear(); return; }
-    if (grew && path.length > 1) submit();
-    else tapping = path.length > 0;                             // a tap: carry on tapping letters
-  };
-  svg.addEventListener("pointerup", lift);
-  svg.addEventListener("pointercancel", lift);
+  svg.addEventListener("pointermove", e => { const q = toBoard(e); if (q) finger.move(q, e.pointerId); });
+  svg.addEventListener("pointerup", e => finger.up(e.pointerId));
+  svg.addEventListener("pointercancel", e => finger.up(e.pointerId, true));
   svg.addEventListener("contextmenu", e => e.preventDefault());
-  host.addEventListener("pointerdown", e => { if (e.target === host) clear(); });   // the stage round the board: a tap there clears
+  host.addEventListener("pointerdown", e => { if (e.target === host) finger.clear(); });   // the stage round the board: a tap there clears
 
   return {
-    set, draw, clear,
-    get path() { return [...path]; },
-    /** While frozen (the board over, a watching frame), the finger does nothing. */
-    freeze(on) { frozen = !!on; if (on) { path = []; tapping = false; drag = null; drawTrace(); } },
+    set, draw, clear: finger.clear,
+    /** Shown or not (the planet, lode-planet.js, is the other). */
+    show(on) { svg.style.display = on ? "" : "none"; },
+    get path() { return finger.path; },
+    freeze: finger.freeze,
     /** Draws a trace as if traced (tests, and a board read back mid-trace). */
-    trace(cells) { path = [...cells]; tapping = true; changed(); },
+    trace: finger.set,
   };
 }

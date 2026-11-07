@@ -11,6 +11,7 @@ import { CELLS, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, THEMES
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
   standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
 import { createBoardView } from "./lode-board.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { BANK } from "./core.js";
 import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
@@ -51,6 +52,7 @@ function cleanSettings(s) {
     level: LEVELS[s?.level] ? s.level : "medium",
     shape: SHAPES[s?.shape] ? s.shape : "square",
     clues: CLUES[s?.clues] ? s.clues : "title",
+    view: s?.view === "planet" || s?.view === "flat" ? s.view : undefined,                  // kept only when the player picks one (mode3d.js)
     region: REGION_LIST.some(([k]) => k === s?.region) ? s.region : "world",       // a pool or sectors an older save chose are gone (7 Nov 2026: countries only)
   };
 }
@@ -84,7 +86,32 @@ let lastFound = null;                // the word just found, drawn fresh
 let clueAt = 0;                      // the clue showing, in Every word
 let spare = null;                    // the next random board, dealt ahead for the settings it was dealt with
 
-const view = createBoardView($("stage"), { onTrace, onSubmit, usable: cell => usable(cell) });
+// The board: flat (lode-board.js), or a planet (lode-planet.js, a canvas, loaded when first wanted; 7 Nov 2026). `settings.view` is the
+// player's own choice, "planet" or "flat", written only when they make one; with none the suite's 2D / 3D default applies (mode3d.js).
+const fingers = { onTrace, onSubmit, usable: cell => usable(cell) };
+const flat = createBoardView($("stage"), fingers);
+let planet = null, planetOn = false, lastDraw = null, frozenNow = false;
+const current = () => (planetOn && planet ? planet : flat);
+const view = {
+  set(b, v) { lastDraw = [b, v]; flat.set(b, v); planet?.set(b, v); },
+  freeze(on) { frozenNow = !!on; flat.freeze(on); planet?.freeze(on); },
+  clear() { flat.clear(); planet?.clear(); },
+  trace: cells => current().trace(cells),
+  get path() { return current().path; },
+};
+async function setView(v, remember = true) {
+  if (v === "planet" && !planet) {
+    planet = (await import("./lode-planet.js")).createPlanetView($("stage"), fingers);
+    if (lastDraw) planet.set(...lastDraw);
+    planet.freeze(frozenNow);
+  }
+  planetOn = v === "planet" && !!planet;
+  flat.show(!planetOn); planet?.show(planetOn);
+  if (remember) { settings.view = planetOn ? "planet" : "flat"; saveSettings(); }
+}
+if (wants3D(settings.view, "planet")) setView("planet", false);
+onDefaultChange(is3D => { if (!settings.view) setView(is3D ? "planet" : "flat", false); });   // Settings' 2D mode, live
+const viewChoice = () => choice("Board", [["planet", "Planet"], ["flat", "Flat"]], planetOn ? "planet" : "flat", v => setView(v));
 
 const validS = s => !!s && !!s.board?.letters && s.board.letters.length === CELLS && Array.isArray(s.board.words) && !!s.run && !!s.deal;
 function save() {
@@ -492,6 +519,7 @@ function menuSolo(body) {
   content.append(mirror("Region", $("region")));
   contentChoices(content);
   todayPart(body, { app: "lode", play: () => start("daily"), playing: S?.mode === "daily" && S.day === today(), busy: started() });
+  part(body, "settings").append(viewChoice());
   if (S && !S.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   const about = part(body, "about"), times = read(TIMES, {});
   about.append(line(S ? `${LEVELS[S.deal.level].label}, ${SHAPES[S.deal.shape].toLowerCase()}: ${times[bestKey(S)] != null ? `best ${fmt(times[bestKey(S)])}` : "no best yet"}. A hint adds ${HINT_COST} s.` : ""),
@@ -518,6 +546,7 @@ function menuTable(body) {
   table.append(action("A new board", dealForTable, "primary"));
   const content = part(body, "content");
   content.append(mirror("Region", $("region")));
+  part(body, "settings").append(viewChoice());
   if (!context()?.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
 }
@@ -728,7 +757,7 @@ setInterval(() => {
 // for tests and debugging
 window.__lode = {
   get state() { return S; }, get table() { return G; }, get context() { return context(); }, get settings() { return settings; },
-  start, submitCells: onSubmit, useHint: useHintNow, giveUp: giveUpNow, together, view,
+  start, submitCells: onSubmit, useHint: useHintNow, giveUp: giveUpNow, together, view, setView, get planet() { return planet; },
 };
 
 /** The solo board: a link's, today's (from the games screen's tile while it's still to play), the saved one, or a new one. */
