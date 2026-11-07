@@ -164,7 +164,7 @@ function drawHand(v) {
   box.classList.toggle("turn", mine);
   // Guandan's fan (cardroom.js): a run to a suit, the suits alternating black and red, the highest first
   const cols = [3, 2, 1, 0].map(su => hand.filter(id => suitOf(id) === su).sort((x, y) => rankOf(y) - rankOf(x))).filter(c => c.length);
-  drawHandBox(box, { cols, fan: true, big: 1.3, face, label: cardName,
+  drawHandBox(box, { cols, fan: true, face, label: cardName,
     classes: id => [sel.has(id) && "sel", gave && s.give[v.seat].includes(id) && "sel", legal && !legal.has(id) && "no", got?.has(id) && "recv"].filter(Boolean).join(" ") });
 }
 $("hand").addEventListener("click", async e => {

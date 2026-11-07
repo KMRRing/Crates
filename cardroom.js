@@ -43,7 +43,7 @@ export function bubble(el) {
 // ---------- your cards ----------
 /** A column to a rank, its cards each showing at least their corner; always the room of the deepest stack (7.2rem below the card). */
 export function stackedLayout(cols, rem, room, { big = false, reachRem = 7.2 } = {}) {
-  const W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
+  const W = (big ? 3.6 : 3.2) * rem, H = (big ? 5 : 4.5) * rem;   // Korbi, 7 Nov 2026: the cards were far too small
   const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
   const deepest = Math.max(1, ...cols.map(c => c.length));
   const index = 2.1 * rem, reach = reachRem * rem;
@@ -75,7 +75,7 @@ const low = () => matchMedia("(max-height: 520px)").matches;
  * @param label    id -> the card's name
  * @param classes  id -> extra classes (sel, advised, dim, shade…)
 
- * @param big      the fan's card size, in steps of Guandan's (default 1.1); a hand of few cards takes more
+ * @param big      the fan's card size, in steps of Guandan's (default by the count of cards: 1.4 to 1.8)
  * @param html     id, { cls, data } -> a card's markup, for a game with a pack of its own (instead of face and label)
  * @param reachRem how far below a card the deepest stack may reach; a game whose stacks are shallow (four suits) takes less
  * @returns the layout, with `.fan`
@@ -83,7 +83,9 @@ const low = () => matchMedia("(max-height: 520px)").matches;
 export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2, html = null, big = null }) {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, room = box.parentElement?.clientWidth || box.clientWidth || 360;
   const row = fan ?? (sideways() && low());
-  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1 : big ?? 1.1 }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
+  // a fan's card is as large as its count leaves room for: few cards big, a full hand of thirteen to seventeen still well over Guandan's size
+  const count = cols.reduce((a, c) => a + c.length, 0), roomy = count <= 8 ? 1.8 : count <= 14 ? 1.55 : 1.4;
+  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1.15 : big ?? roomy }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
   const rows = Math.max(...cols.map(c => c.length), 1);
   const t = (x) => (x + lay.W / 2 - room / 2) / (room / 2), drop = (row ? 0.9 : 0.55) * rem, tilt = row ? 6 : 4;
   box.classList.add("cr-hand");

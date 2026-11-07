@@ -22,3 +22,18 @@
 .pg3-crib { padding: 0 .25rem; border-radius: .2rem; font-style: normal; font-size: .68rem; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
 .pg3c .tk-plate:is(.at-l, .at-r) { top: 62%; }
 @container (max-height: 420px) { .pg3c .tk-mat { height: 122%; } }
+/* Korbi, 7 Nov 2026: the pegboard was a dim glass bar on the cloth. It is a board now: a lighter walnut panel under a brass rim, a drilled track a side
+   (a hole to each point, a brass line at the skunk), turned brass pegs with a highlight, and the cloth is left clear of the hand below it. */
+.pg3c .pg-board { gap: .9rem; padding: 1rem 1.1rem; border-radius: .35rem; border: 1px solid var(--tk-gilt);
+  background: linear-gradient(172deg, #9B6A3C, #7A4D27 55%, #6A421F);
+  box-shadow: inset 0 0 0 .2rem #5A3718, inset 0 0 0 .26rem color-mix(in srgb, var(--tk-gilt) 75%, transparent), 0 .35rem .7rem rgba(0, 0, 0, .5); }
+.pg3c .pg-nm { color: #FFF3DC; text-shadow: 0 1px 0 rgba(0, 0, 0, .5); font-size: .85rem; }
+.pg3c .pg-pts { color: #FFF3DC; font-size: 1.05rem; }
+.pg3c .pg-track { height: 1.25rem; border-radius: .6rem; box-shadow: inset 0 .12rem .3rem rgba(0, 0, 0, .65), 0 1px 0 rgba(255, 235, 200, .25);
+  background: radial-gradient(circle at 50% 50%, #1C0F06 0 .11rem, transparent .13rem) 0 0 / calc(100% / 60) 100% repeat-x, linear-gradient(180deg, #4E2F15, #623B1B); }
+.pg3c .pg-line { border-left-color: var(--tk-gilt); top: -.35rem; bottom: -.35rem; }
+.pg3c .pg-peg { width: 1rem; height: 1rem; margin: -.5rem 0 0 -.5rem; box-shadow: 0 .15rem .3rem rgba(0, 0, 0, .6), inset 0 0 0 .1rem rgba(0, 0, 0, .25);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .75), transparent 45%), var(--tk-gilt); }
+.pg3c .pg-lane.me .pg-peg { background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .75), transparent 45%), var(--tk-go); }
+.pg3c .pg-peg.back { width: .75rem; height: .75rem; margin: -.375rem 0 0 -.375rem; opacity: .7; }
+.pg-table.pg3c { margin-bottom: .9rem; }
