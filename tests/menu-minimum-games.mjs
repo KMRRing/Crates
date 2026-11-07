@@ -31,7 +31,8 @@ for (const g of ALL) {
   const left = GONE.filter(l => rowOf(src, l) && !(g === "go" && l === "You play") && !(["gambit", "go"].includes(g) && l === "Strength")   /* 8 November 2026, Korbi: Chess and Go get a visible strength setting ("Adaptive" is the ramp) */ && !(g === "tarot" && l === "Players"));
   check(!left.length, `${g}: none of the cut rows is built${left.length ? ` (still: ${left.join(", ")})` : ""}`);
   // a coach is a switch, never a four-way choice
-  check(!/choice\(\s*["']Coach["']/.test(src), `${g}: the coach is one on/off toggle`);
+  // Go's Coach is a three-way choice (off, Hint button, Always show) since d4f20f92, which Korbi took (8 November 2026: left as it is; this had been red since and held every publish back)
+  check(g === "go" || !/choice\(\s*["']Coach["']/.test(src), `${g}: the coach is one on/off toggle`);
 }
 for (const g of RAMPED) {
   const src = fs.readFileSync(`${root}${g}.js`, "utf8");

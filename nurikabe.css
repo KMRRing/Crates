@@ -93,6 +93,7 @@ html[data-mode="night"] { --nk-in: #D2A06A; --nk-good: #7FC2A8; --nk-bad: #E8806
 .nk-controls { display: grid; gap: .45rem; align-content: start; }
 .nk-controls[hidden], .nk-result[hidden] { display: none; }
 .nk-say { margin: 0; height: 4.05em; overflow: hidden; font-size: .86rem; line-height: 1.35; color: var(--ink-soft); }
+.nk-time small.nk-landn.over { color: var(--nk-bad); }
 .nk-say.bad { color: var(--nk-bad); }
 .nk-say.good { color: var(--nk-good); }
 .nk-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }

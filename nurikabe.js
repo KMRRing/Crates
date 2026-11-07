@@ -4,7 +4,7 @@
 // made in nurikabe-worker.js. This file keeps the run, the clock and the taps, and draws the board.
 import { solved as soundSolved } from "./nurikabe-sound.js";
 import { plotsOf } from "./nurikabe-works.js";
-import { SIZES, LEVELS, DAILY, NONE, SEA, LAND, TWISTS, TWIST_ORDER, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn, twistsOf, twistOn, labelOf, fixedAt } from "./nurikabe-engine.js";
+import { SIZES, LEVELS, DAILY, NONE, SEA, LAND, TWISTS, TWIST_ORDER, puzzleOf, stateOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn, twistsOf, twistOn, labelOf, fixedAt } from "./nurikabe-engine.js";
 import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, kindOf, starsFor } from "./nurikabe-levels.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -558,7 +558,17 @@ function drawStrip() {
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
   put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}`);
-  put("landn", S.land != null ? `Land ${S.land}` : "");
+  // the land count, live: what is dotted, numbered or arched against the total the puzzle gives
+  const have = landHave();
+  put("landn", S.land != null ? `Land ${have ?? 0} / ${S.land}` : "");
+  $("landn").classList.toggle("over", S.land != null && have > S.land);
+}
+/** Island cells in all as the marks stand: every number, every "?", every arch cell and every dot. */
+function landHave() {
+  if (!S || !P || S.land == null) return null;
+  let n = 0;
+  for (const v of stateOf(P, S.marks)) if (v === 2) n++;
+  return n;
 }
 function drawLine() {
   const l = $("line");
@@ -568,6 +578,12 @@ function drawLine() {
   else if (message) { text = message.text; tone = message.tone; }
   else if (S.came && S.came !== S.level && !/[12]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
   else if (!/[12]/.test(S.marks)) text = "Tap a cell to shade it as sea, again to dot it as island (a note), again to clear it. Or drag to paint a run of cells.";
+  else if (S.land != null) {
+    // 8 November 2026, Korbi: a player must be told the land total is fixed and what draws on it
+    const have = landHave(), d = have - S.land;
+    text = `Exactly ${S.land} island cells in all, arches and “+”, “≤”, “?” islands included. `
+      + (d > 0 ? `You have ${have}: ${d} too many.` : d < 0 ? `You have ${have}: ${-d} to go.` : `You have exactly ${S.land}.`);
+  }
   else text = "Each number is an island of that many cells. The rest is sea: one piece, with no 2×2 block of it.";
   if (l.textContent !== text) l.textContent = text;
   l.className = `nk-say${tone ? ` ${tone}` : ""}`;
