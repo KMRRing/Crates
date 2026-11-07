@@ -360,3 +360,8 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 
 /* Korbi, 7 Nov 2026: the slight pivot with the pointer (and, on a phone, its tilt), the kit's own */
 .t3-field .t3-mat { transform: rotateX(calc(var(--t3-tilt) + var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); }
+
+/* Korbi, 7 Nov 2026: no box behind the table in the dark themes either (its gradient showed against the page), and the levels plate in front of the table that now rises under it */
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.tb3 .tb-table { background: none; } }
+html[data-mode="night"] #app.tb3 .tb-table { background: none; }
+#app.tb3 > .tb-strip { position: relative; z-index: 6; }
