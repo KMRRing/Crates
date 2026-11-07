@@ -19,8 +19,7 @@ html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
 
 .hd-mark { display: inline-block; }
 .hd-mark svg { width: 100%; height: 100%; display: block; }
-.hd-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hd-strip b { color: var(--ink); font-variant-numeric: tabular-nums; }
+#app.holdem { --cr-in: var(--hd-in); }
 
 /* ---------- the table ---------- */
 .hd-table { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -68,14 +67,7 @@ html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
 
 /* ---------- your cards, the size of a raise, your buttons ---------- */
 .hd-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
-.hd-hand { display: flex; align-items: center; gap: .8rem; height: 4.5rem; box-sizing: border-box; padding: .15rem .2rem; }
-.hd-hand .cd-line { font-size: 1.12rem; flex: none; }
-.hd-hand .cd-line > .cd + .cd { margin-left: .22em; }
-.hd-hand .cd-line.folded { opacity: .4; }
-.hd-read { flex: 1 1 0; min-width: 0; display: grid; gap: .12rem; }
-.hd-read b { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hd-read span { font-size: .8rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hd-read .st b { color: var(--hd-in); font-size: inherit; }
+.cr-hand .cd.folded { opacity: .4; }
 .hd-watch { margin: auto; color: var(--ink-soft); }
 .hd-size { display: grid; gap: .25rem; height: 4.1rem; align-content: start; }
 .hd-presets { display: flex; gap: .3rem; }
@@ -96,20 +88,11 @@ html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
 /* a long label ("Raise to 1,200", a call all in) drops the wide lettering rather than be cut short on a phone */
 .hd-go.long { letter-spacing: 0; font-stretch: 100%; }
 
-/* ---------- the coach ---------- */
-/* up to three lines under your cards, and a Hint button; while it is on it keeps its room, so the table holds its size as the coach speaks and falls quiet */
-.hd-coach { display: flex; align-items: center; gap: .5rem; height: 3.1rem; padding: 0 .2rem; font-size: .78rem; line-height: 1.25; color: var(--ink-soft); }
-.hd-coach[hidden] { display: none; }
-.hd-says { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.hd-hint { flex: none; min-height: 2.3rem; padding: .2rem .9rem; }
+/* ---------- the coach: the card room's bubble over the buttons (cardroom.css), its Hint a button among them ---------- */
+.hd-says { display: block; }
+.hd-go.hd-hint { flex: 0 0 auto; padding: .3rem .5rem; letter-spacing: 0; font-size: .8rem; }
 .hd-says b { color: var(--hd-in); }
 .hd-says:has(.hd-why) { cursor: pointer; }
-/* a 390×600 phone: the coach's box takes two lines, and the table, now too short for the pot, the board and two lines of narrator, draws
-   the board smaller and leaves the pot to the strip above (the table's own size is what is asked, so a taller phone never changes) */
-@media (max-height: 640px) and (orientation: portrait) {
-  .hd-coach { height: 2.2rem; }
-  .hd-says { -webkit-line-clamp: 2; }
-}
 @container (max-height: 16.5rem) {
   .hd-pot { display: none; }
   .hd-board { font-size: min(.56rem, var(--hd-board)); }
@@ -166,8 +149,6 @@ html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
   #app.holdem .hd-strip { grid-column: 1 / -1; grid-row: 2; }
   #app.holdem .hd-table { grid-column: 1; grid-row: 3; }
   #app.holdem .hd-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
-  #app.holdem .hd-hand { height: 6.2rem; }
-  #app.holdem .hd-hand .cd-line { font-size: 1.6rem; }
 }
 html[data-theme="office"] :is(.hd-table, .hd-seat) { border-radius: 4px; }
 
@@ -277,3 +258,10 @@ html[data-theme="office"] :is(.hd-table, .hd-seat) { border-radius: 4px; }
 .hx-ring text.hx-dtext { fill: var(--plate-ink); font-size: 8px; font-weight: 800; }
 .hx-ring text.hx-tag { fill: var(--ln-in); font-size: 7.5px; font-weight: 800; letter-spacing: .03em; }
 html[data-theme="office"] .hx-panel, html[data-theme="office"] .hx-terms > div { border-radius: 4px; }
+
+/* Korbi, 7 Nov 2026: the card room's proportions (Guandan's): the table clear of the banner, close to the cards, which stand clear of the buttons */
+.hd-table.hd3 { margin: .8rem 0 .1rem; }
+.hd-side { padding-top: 0; gap: .15rem; }
+#app.holdem .cr-hand { margin-bottom: .5rem; }
+.cr-bubble .hd-miss { color: #A8382B; }
+.cr-bubble .hd-why { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }

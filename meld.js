@@ -8,7 +8,8 @@ import { seatPage } from "./seats-ui.js";
 import { createCourse, progressOf } from "./course.js";
 import { cardStage } from "./course-cards.js";
 import { COURSE, judge, toGin, hold } from "./meld-course.js";
-import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, bubble, drawHandBox } from "./cardroom.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 import { ramp } from "./ramp.js";
@@ -91,15 +92,17 @@ function lastLine(s) {
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("status").textContent = ""; $("strip").textContent = ""; $("bar").innerHTML = ""; return; }
+  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("strip").textContent = ""; $("bar").innerHTML = ""; return; }
   const s = v.state, me = mine();
   const key = `${v.G.seq}:${s.hand}:${s.step}:${(s.hands[me] || []).length}`;
   if (key !== selFor) { selFor = key; sel = null; }
-  const mark = (k, n) => `<b>${esc(who(k))}</b> ${n}`;
-  $("strip").innerHTML = `Hand <b>${s.hand}</b> · game to ${s.opts.to} · ${mark(me, s.scores[me])} · ${mark(1 - me, s.scores[1 - me])}`;
+  // the brass plate across the top (cardroom.js): the hand, each side's score, the game's target
+  $("strip").innerHTML = plateHtml({ title: `<small>Hand</small><b>${s.hand}</b>`, tail: `to ${s.opts.to}`,
+    items: [me, 1 - me].map(k => ({ k: who(k).slice(0, 6), v: s.scores[k], on: s.step === "draw" && s.turn === k })) });
   drawTable(v);
   drawHand(v);
-  $("status").innerHTML = statusLine(v);
+  // no status line: the buttons say what to do (Throw 5♠, Knock · 3); the coach's bubble holds a hand's result
+  coachBubble.show(s.step === "shown" || s.step === "over" ? statusLine(v) : "");
   drawBar(v);
 }
 
@@ -171,10 +174,9 @@ function freshOf(v) {
   known = new Set(hand);
   return new Set();
 }
-const GAP = .55;                                                   // between melds, in card widths' em
 function drawHand(v) {
   const box = $("hand"), s = v.state;
-  if (v.seat == null) { box.innerHTML = `<p class="ml-watch">Watching: you sit down at the next game.</p>`; return; }
+  if (v.seat == null) { box.innerHTML = `<p class="ml-watch">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
   const shown = s.step === "shown" || s.step === "over";
   let parts;
   if (shown && s.result) {
@@ -186,21 +188,11 @@ function drawHand(v) {
     else parts = [[...hand].sort(opts.sort === "suit" ? (a, b) => suitOf(a) - suitOf(b) || rankOf(a) - rankOf(b) : (a, b) => rankOf(a) - rankOf(b) || suitOf(a) - suitOf(b))];
   }
   const fresh = shown ? new Set() : freshOf(v), lit = new Set(shown && s.result ? s.result.lay : []);
-  let html = "", n = 0;
-  parts.forEach((g, k) => g.forEach((id, i) => {
-    const cls = [sel === id && "sel", fresh.has(id) && "fresh", lit.has(id) && "lit", k && !i && "grp"].filter(Boolean).join(" ");
-    html += cardHtml(face(id), { cls, data: { id }, label: cardName(id) });
-    n++;
-  }));
-  box.innerHTML = html;
-  fitRow(box, n, { max: 1.15 });
-  // the gaps between melds take width the row's fitting didn't count: the cards close up to keep it
-  const gaps = parts.length - 1, size = parseFloat(box.style.getPropertyValue("--cd-size"));
-  if (gaps && size && n > 1) {
-    const cw = size * 2.5, step = Math.min(cw * 1.04, (box.clientWidth - cw - gaps * GAP * size) / (n - 1));
-    box.style.setProperty("--cd-step", `${Math.max(step, cw * 0.22)}px`);
-  }
+  // Guandan's fan (cardroom.js): a run to a meld (the deadwood last), a gap between them
+  drawHandBox(box, { cols: parts, fan: true, face, label: cardName,
+    classes: id => [sel === id && "sel", fresh.has(id) && "fresh", lit.has(id) && "lit"].filter(Boolean).join(" ") });
 }
+const coachBubble = bubble($("coach"));
 $("hand").addEventListener("click", e => {
   const c = e.target.closest(".cd[data-id]");
   if (!c || !V?.G || !myTurn(V) || V.state.step !== "discard") return;
@@ -209,12 +201,13 @@ $("hand").addEventListener("click", e => {
   draw();
 });
 
-/** The deadwood left by throwing each card: what the status line and the Knock button say. */
+/** The deadwood left by throwing each card: what the Knock button says. */
 function throwing(v) {
   const s = v.state, hand = s.hands[v.seat], out = new Map();
   for (const c of hand) if (c !== s.took) out.set(c, deadCount(hand.filter(x => x !== c)));
   return out;
 }
+/** A hand's result, for the bubble; while it is played the buttons carry everything. */
 function statusLine(v) {
   const s = v.state;
   if (s.step === "over") return `<span>${esc(finalLine(s))}</span>`;
@@ -223,18 +216,7 @@ function statusLine(v) {
     if (r.kind === "wash") return "<span>Hands shown. Nobody scores.</span>";
     return `<span>${esc(`${who(me)} ${verb(me, "hold", "holds")} ${r.dead[me]} deadwood${r.lay.length && r.by !== me ? " after laying off" : ""}.`)} Tap Next hand, or wait.</span>`;
   }
-  if (v.seat == null) return `<span>${esc(nameOf(v.toMove ?? 0))} to play.</span>`;
-  if (!myTurn(v)) return `<span>${esc(nameOf(v.toMove))} ${v.seats[v.toMove]?.bot ? "is thinking…" : "to play."}</span>`;
-  const up = short(s.discard[s.discard.length - 1]);
-  if (s.step === "offer") return `<span>${s.last?.did === "pass" ? `${esc(nameOf(1 - v.seat))} passed. ` : ""}Take the <b>${up}</b>, or pass.</span>`;
-  if (s.step === "draw") return `<span>${s.mustStock ? "You both passed the upcard: <b>draw from the stock</b>." : `Draw from the stock, or take the <b>${up}</b>.`}</span>`;
-  const out = throwing(v), best = Math.min(...out.values());
-  if (sel != null && out.has(sel)) {
-    const d = out.get(sel);
-    return `<span>Throw the <b>${short(sel)}</b>: <b>${d}</b> deadwood${d === 0 ? ", gin" : d <= 10 ? ", you can knock" : ""}.</span>`;
-  }
-  if (sel != null) return `<span>You can't throw back the <b>${short(sel)}</b> you just took.</span>`;
-  return `<span>Pick a card to throw. The best leaves <b>${best}</b> deadwood${best <= 10 ? ": you can knock" : " (knock at 10 or less)"}.</span>`;
+  return "";
 }
 
 function drawBar(v) {

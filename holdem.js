@@ -13,6 +13,7 @@ import { score, describe, equity, vsRandom, rankOf, suitOf, RANKS, RANK_WORDS, R
 import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
 import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, bubble, drawHandBox } from "./cardroom.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { tableView } from "./table3d-view.js";
@@ -171,10 +172,11 @@ function coachLine(v) {
   }
   return "";
 }
+const coachBubble = bubble($("coach"));
 function drawCoach(v) {
-  const box = $("coach");
-  box.hidden = !coaching() || v.seat == null;
-  if (!box.hidden) box.innerHTML = `<span class="hd-says">${coachLine(v)}</span><button type="button" class="btn hd-hint" data-act="hint" ${mine() ? "" : "disabled"}>Hint</button>`;
+  // the coach's word, or else how your hand reads, is the bubble over the buttons (cardroom.js)
+  const said = v.seat == null ? "" : coachLine(v) || (v.state.step === "bet" ? handRead(v) : "");
+  coachBubble.show(said ? `<span class="hd-says">${said}</span>` : "");
 }
 /** A Hint: the coach's move, with the slider set to its size when it raises. */
 async function hint() {
@@ -215,7 +217,8 @@ const contested = res => res.pots.filter(p => !p.back).reduce((t, p) => t + p.am
 
 function stripLine(s) {
   const street = s.step === "bet" || s.step === "runout" ? ["Before the flop", "The flop", "The turn", "The river"][s.seen >= 5 ? 3 : s.seen === 4 ? 2 : s.seen === 3 ? 1 : 0] : s.step === "over" ? "Game over" : "Showdown";
-  return `Hand <b>${s.hand}</b> of ${s.opts.hands} · Pot <b>HK$${fmt(s.step === "shown" || s.step === "over" ? contested(s.result) : potOf(s))}</b> · ${street}`;
+  // the brass plate across the top (cardroom.js): the hand, the pot, the street
+  return plateHtml({ title: `<small>Hand</small><b>${s.hand} of ${s.opts.hands}</b>`, items: [{ k: "Pot", v: `HK$${fmt(s.step === "shown" || s.step === "over" ? contested(s.result) : potOf(s))}` }], tail: street });
 }
 
 /** What a seat last did, in a word (the rules keep it as "raise 300", "allin 5000", "fold"…); the amount is the chip beside its name. */
@@ -330,29 +333,18 @@ function oddsLine(v) {
 }
 function drawHand(v) {
   const box = $("hand");
-  if (v.seat == null) { box.innerHTML = `<p class="hd-watch">Watching: you sit down at the next game.</p>`; return; }
-  const s = v.state, hole = s.hole[v.seat], out = s.out[v.seat], over = s.step === "over";
-  const board = s.board.slice(0, s.seen);
-  const made = s.seen >= 3 ? describe(score([...hole, ...board])) : null;
-  const name = out ? "Folded" : made ? made.text : startName(hole);
-  const odds = !out && !over && opts.odds && s.step === "bet" ? oddsLine(v) : "";
-  box.innerHTML = `${cards(hole).replace('class="cd-line"', `class="cd-line${out ? " folded" : ""}"`)}<div class="hd-read" role="status" aria-live="polite"><b>${esc(name)}</b><span class="st">${statusLine(v)}</span>${odds ? `<span>${esc(odds)}</span>` : ""}</div>`;
+  if (v.seat == null) { box.innerHTML = `<p class="hd-watch">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
+  const s = v.state, out = s.out[v.seat];
+  // Guandan's fan (cardroom.js), your two cards; folded, they dim
+  drawHandBox(box, { cols: [[...s.hole[v.seat]]], fan: true, face, label: cardName, classes: () => (out ? "folded" : "") });
 }
-
-function statusLine(v) {
-  const s = v.state;
-  if (s.step === "over") return esc(s.winners.includes(v.seat) ? "You win the game" : `${s.winners.map(who).join(" and ")} ${s.winners.length > 1 ? "share it" : "wins"}`);
-  if (s.step === "shown") {
-    if (v.seat == null) return "";
-    const d = s.result.deltas[v.seat];
-    return esc(s.out[v.seat] && d <= 0 ? `You folded: ${signed(d)}` : d > 0 ? `You win HK$${fmt(d)}` : d < 0 ? `You lose HK$${fmt(-d)}` : "You get your bet back");
-  }
-  if (s.step === "runout") return "All in: the cards are turned up";
-  if (v.seat == null) return esc(`${nameOf(s.turn)} to act`);
-  if (s.out[v.seat]) return "You folded: watch the hand out";
-  if (s.turn !== v.seat) { const w = v.seats[s.turn]; return esc(w?.bot && !w.away ? `${w.name} is thinking…` : `${w?.name || "Someone"} to act`); }
-  const me = legal(s, v.seat);
-  return me.toCall ? `<b>Your move</b> · ${fmt(me.toCall)} to call, pot ${fmt(me.pot)}` : `<b>Your move</b> · check, or bet · pot ${fmt(me.pot)}`;
+/** How your hand reads, for the bubble: its name, and the odds when they're asked for. */
+function handRead(v) {
+  const s = v.state, hole = s.hole[v.seat], out = s.out[v.seat];
+  if (out) return "<b>Folded</b>: watch the hand out";
+  const board = s.board.slice(0, s.seen), made = s.seen >= 3 ? describe(score([...hole, ...board])) : null;
+  const odds = opts.odds && s.step === "bet" ? oddsLine(v) : "";
+  return `<b>${esc(made ? made.text : startName(hole))}</b>${odds ? ` · ${esc(odds)}` : ""}`;
 }
 
 // ---------- the size of a raise, and your buttons ----------
@@ -421,13 +413,15 @@ function drawBar() {
   // a fold is for when there's something to call: a free fold is never right, so it waits
   bar.innerHTML = `<button type="button" class="btn hd-go${ring("fold")}" data-act="fold" ${on && me.toCall ? "" : "disabled"}>Fold</button>
     <button type="button" class="btn hd-go call${ring("check", "call")}${cLabel.length > 10 ? " long" : ""}" data-act="${on && !me.toCall ? "check" : "call"}" ${on ? "" : "disabled"}>${esc(cLabel)}</button>
-    <button type="button" class="btn primary hd-go raise${ring("raise")}${rLabel.length > 12 ? " long" : ""}" data-act="raise" ${raise ? "" : "disabled"}>${esc(rLabel)}</button>`;
+    <button type="button" class="btn primary hd-go raise${ring("raise")}${rLabel.length > 12 ? " long" : ""}" data-act="raise" ${raise ? "" : "disabled"}>${esc(rLabel)}</button>`
+    + (coaching() && v.seat != null ? `<button type="button" class="btn hd-go hd-hint" data-act="hint" ${on ? "" : "disabled"}>Hint</button>` : "");
 }
 $("bar").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b || b.disabled || !V) return;
   const act = b.dataset.act;
   if (act === "new") { newGame(); return; }
+  if (act === "hint") { if (mine()) hint(); return; }
   const move = act === "raise" ? { t: "raise", to: raiseTo } : { t: act };
   // Check and Always: the move set against the coach's, from the table as it was before it
   const key = decisionOf(V), before = speaks() ? structuredClone(V.state) : null, seat = V.seat, known = advice?.key === key ? advice : null;
@@ -473,7 +467,6 @@ function showWhy(which) {
   if (!$("whyDlg").open) $("whyDlg").showModal();
 }
 $("coach").addEventListener("click", e => {
-  if (e.target.closest("[data-act=hint]")) { if (mine()) hint(); return; }
   // the line itself opens Why? too: a long word is clamped, and its link may be cut off with the end of it
   const b = e.target.closest(".hd-why") || e.target.closest(".hd-says")?.querySelector(".hd-why");
   if (b) showWhy(b.dataset.why === "review" ? "review" : hinted?.key === (V?.G && decisionOf(V)) ? "hint" : "");
