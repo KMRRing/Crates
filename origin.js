@@ -17,7 +17,7 @@ import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line, todayPart } from "./menu.js";
+import { part, choice, action, line, toggle, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
@@ -27,10 +27,12 @@ import { busy, waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily";
+const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily", EXPLAIN = "origin:explain";
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own run)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+// Korbi, 7 Nov 2026: a clue is just the item's name ("Handball"); the sentence that explains it shows only when this is on.
+const explaining = () => read(EXPLAIN, false) === true;
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
 // ---------- how warm a wrong guess is ----------
@@ -261,7 +263,8 @@ function render() {
   drawTeam();
   $("clues").replaceChildren(...R.clues.slice(0, R.shown).map(c => {
     const li = el("li");
-    li.append(el("b", "", c.name), el("span", "", c.hint));
+    li.append(el("b", "", c.name));
+    if (explaining()) li.append(el("span", "", c.hint));
     return li;
   }));
   showStar($("card"), R.mk || R.clues.slice(0, R.shown).find(c => c.mk)?.mk);
@@ -446,6 +449,9 @@ const together = createTogether({
 const backToSolo = () => { if (together.room) together.leave(); else location.replace(soloHref()); };
 
 // ---------- the menu ----------
+function explainPart(body) {
+  part(body, "settings").append(toggle("Explain each clue", explaining(), on => { write(EXPLAIN, on); render(); }));
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -456,6 +462,7 @@ function openMenu() {
       table.append(action("New game", dealAgain, "primary"), ...topicsPart(table, "The next game is dealt from your topics"),
         line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
     } else { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); }
+    explainPart(body);
     table.append(action("Back to solo", backToSolo, "link"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -465,6 +472,7 @@ function openMenu() {
   // your topics (the clues they leave out) are for random runs; today's is the same for everyone
   content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; today's run deals every topic"));
   todayPart(body, { app: "origin", play: openToday, playing: !!S?.daily && !S.over });   // openToday asks before it leaves a run you've started
+  explainPart(body);
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${ANSWERS.length} countries`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
