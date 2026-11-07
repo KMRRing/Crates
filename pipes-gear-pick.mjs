@@ -6,6 +6,7 @@
 import fs from "fs";
 const here = new URL("./", import.meta.url);
 const { makeLevel } = await import(new URL("pipes-gear-make.js", here));
+const { discVoid } = await import(new URL("pipes-gear-engine.js", here));
 const { parseLevel, check } = await import(new URL("pipes-gear-engine.js", here));
 const { solve } = await import(new URL("pipes-gear-solve.js", here));
 const F = await import(new URL("pipes-gear-frac.js", here));
@@ -118,13 +119,23 @@ for (const ch of CHAPTERS) {
   if (want.length && !want.includes(ch.key)) { out.set(ch.key, kept.get(ch.key) || []); continue; }
   const rows = [];
   for (let i = 0; i < ch.names.length; i++) {
-    const base = ch.recipe(i), cand = [], from = 700001 + i * 5000 + ch.key.charCodeAt(0) * 100000, tries = +(process.env.TRIES || 120);
+    const raw = ch.recipe(i), cand = [], tries = +(process.env.TRIES || 400);
+    // a round plate: as many squares across as it takes to hold the trains' squares (a piece each, the barrel and the dial) K times over;
+    // a level that finds no candidate that small is given a little more room
+    const used = raw.trains.reduce((n, t) => n + t.pieces + 2, 0);
     const t0 = Date.now();
-    for (let seed = from; seed < from + tries && Date.now() - t0 < +(process.env.SLOT_MS || 90000); seed++) {
-      let m = null;
-      try { m = makeLevel(seed, { nodes: ch.nodes[i], limit: 6e5, ...base }); } catch (e) { console.log("error", seed, e.message); }
-      if (!m || !ch.need(m)) continue;
-      cand.push({ seed, m });
+    for (const K of [1.2, 1.35, 1.5, 1.7, 1.9, 2.2, 2.6, 3.0]) {
+      let d = 4;
+      while (d < 7 && d * d - discVoid(d).size < K * used) d++;
+      const base = { ...raw, cols: d, rows: d, disc: true }, from = 700001 + i * 5000 + ch.key.charCodeAt(0) * 100000;
+      for (let seed = from; seed < from + tries && Date.now() - t0 < +(process.env.SLOT_MS || 90000); seed++) {
+        let m = null;
+        try { m = makeLevel(seed, { nodes: ch.nodes[i], limit: 6e5, ...base }); } catch (e) { console.log("error", seed, e.message); }
+        if (!m || !ch.need(m)) continue;
+        cand.push({ seed, m });
+      }
+      // stop at the first plate size that has a candidate about as hard as the slot's target; a smaller plate has fewer ways to go wrong
+      if (cand.some(c => c.m.nodes >= ch.nodes[i] * 0.7 && c.m.nodes <= ch.nodes[i] * 1.5)) break;
     }
     if (!cand.length) { console.log(`chapter ${ch.key} level ${i + 1}: no candidate`); continue; }
     const miss = c => Math.abs(Math.log(Math.max(5, c.m.nodes) / ch.nodes[i]));

@@ -151,8 +151,8 @@ export function rectOutline(x0, x1, z0, z1, s, scallop = false) {
 }
 /** The plate: a slab with scalloped corners and a polished bevel (anglage), its top at y = 0 and `depth` thick (group 0 the faces, 1 the sides and
  *  bevel). UVs in world units over `tile`, so the perlage repeats. */
-export function plateGeometry(rect, tile = 0.15, depth = 0.12) {
-  const [x0, x1, z0, z1] = rect, g = slab(shapeOf(rectOutline(x0, x1, z0, z1, 0.5, true)), depth, 0.03, 2);
+export function plateGeometry(rect, tile = 0.15, depth = 0.12, round = false) {
+  const [x0, x1, z0, z1] = rect, g = slab(shapeOf(round ? circle((x1 - x0) / 2, 96) : rectOutline(x0, x1, z0, z1, 0.5, true)), depth, 0.03, 2);
   g.translate(0, -depth, 0);
   const p = g.attributes.position, uv = new Float32Array(p.count * 2);
   for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) / tile; uv[i * 2 + 1] = p.getZ(i) / tile; }
@@ -160,7 +160,18 @@ export function plateGeometry(rect, tile = 0.15, depth = 0.12) {
   return g;
 }
 /** A polished frame line round the board (the field), standing on y = 0, h tall. */
-export const frameGeometry = (x0, x1, z0, z1, w, h) => slab(shapeOf(rectOutline(x0 - w, x1 + w, z0 - w, z1 + w, 0.1), [rectOutline(x0, x1, z0, z1, 0.06)]), h, h / 3);
+export const frameGeometry = (x0, x1, z0, z1, w, h, round = false) => slab(round ? shapeOf(circle((x1 - x0) / 2 + w, 96), [circle((x1 - x0) / 2, 96)]) : shapeOf(rectOutline(x0 - w, x1 + w, z0 - w, z1 + w, 0.1), [rectOutline(x0, x1, z0, z1, 0.06)]), h, h / 3);
+/** A flat disc of radius r facing up (the glass over a round plate), uv across its square like quadGeometry's. */
+export function discQuad(r, n = 64) {
+  const pos = [0, 0, 0], uv = [0.5, 0.5], nrm = [0, 1, 0], idx = [];
+  for (let i = 0; i < n; i++) { const t = (i / n) * TAU; pos.push(Math.cos(t) * r, 0, Math.sin(t) * r); uv.push(0.5 + Math.cos(t) / 2, 0.5 + Math.sin(t) / 2); nrm.push(0, 1, 0); idx.push(0, 1 + (i + 1) % n, 1 + i); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nrm, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
 /** A flat slab w by d with rounded ends (a bridge) of height h on y = 0, its top striped along x: uv.x runs along the length in `stripe` units, so the
  *  Geneva normal map's stripes cross the bridge. Group 0 the top, 1 the sides and bevel. */
 export function bridgeGeometry(w, d, h, stripe = 0.07, round = 0.12, bevel = 0.014) {
@@ -172,16 +183,22 @@ export function bridgeGeometry(w, d, h, stripe = 0.07, round = 0.12, bevel = 0.0
 }
 /** The case: the profile swept round a rounded rectangle, so the bezel, the band and the lip hold the plate (its edge meets the inner lip at y = 0).
  *  uv.x is the length round the case, in `flute` units (a normal map of fine ridges makes the coin edge and the fluted bezel). Top y = 0.2. */
-export function caseGeometry(rect, gap, flute = 0.05) {
+export function caseGeometry(rect, gap, flute = 0.05, round = false) {
   const [x0, x1, z0, z1] = rect, R = 0.62, prof = [      // [outward offset from the plate's edge, y]
     [-0.01, -0.05], [-0.01, 0.1], [0.012, 0.17], [0.04, 0.2], [gap * 0.5, 0.208], [gap - 0.07, 0.196], [gap - 0.02, 0.15], [gap, 0.08], [gap, -0.1], [gap, -0.3], [gap - 0.03, -0.42], [gap - 0.1, -0.5], [-0.2, -0.52]];
   const c = [[x1 - R, z1 - R, 0], [x0 + R, z1 - R, 90], [x0 + R, z0 + R, 180], [x1 - R, z0 + R, 270]], path = [];
   const edge = (ax, az, bx, bz, nx, nz) => { const L = Math.hypot(bx - ax, bz - az), k = Math.max(1, Math.round(L / 0.5)); for (let i = 0; i < k; i++) path.push({ x: ax + (bx - ax) * i / k, z: az + (bz - az) * i / k, nx, nz }); };
   const a = (cx, cz, a0) => { for (let i = 0; i <= 5; i++) { const t = (a0 + i * 90 / 5) * DEG; path.push({ x: cx + Math.cos(t) * (R + 0), z: cz + Math.sin(t) * R, nx: Math.cos(t), nz: Math.sin(t) }); } };
-  a(c[0][0], c[0][1], 0); edge(c[0][0], z1, c[1][0], z1, 0, 1);
-  a(c[1][0], c[1][1], 90); edge(x0, c[1][1], x0, c[2][1], -1, 0);
-  a(c[2][0], c[2][1], 180); edge(c[2][0], z0, c[3][0], z0, 0, -1);
-  a(c[3][0], c[3][1], 270); edge(x1, c[3][1], x1, c[0][1], 1, 0);
+  if (round) {
+    // a round case: the same profile swept round the plate's circle
+    const Rr = (x1 - x0) / 2, k = 144;
+    for (let i = 0; i < k; i++) { const t = (i / k) * TAU; path.push({ x: Math.cos(t) * Rr, z: Math.sin(t) * Rr, nx: Math.cos(t), nz: Math.sin(t) }); }
+  } else {
+    a(c[0][0], c[0][1], 0); edge(c[0][0], z1, c[1][0], z1, 0, 1);
+    a(c[1][0], c[1][1], 90); edge(x0, c[1][1], x0, c[2][1], -1, 0);
+    a(c[2][0], c[2][1], 180); edge(c[2][0], z0, c[3][0], z0, 0, -1);
+    a(c[3][0], c[3][1], 270); edge(x1, c[3][1], x1, c[0][1], 1, 0);
+  }
   const N = path.length, pos = [], uv = [], idx = [];
   let s = 0;
   path.forEach((p, i) => {

@@ -15,6 +15,12 @@ export const SLOTS = 8;           // gear ids per square
 const WAYS = ["cw", "ccw"];
 
 // ---------- the level ----------
+/** The squares outside a round plate `d` squares across (a level with `disc` in its data keeps them as voids): their centres are further from the middle than the radius less a fifth of a square. */
+export function discVoid(d) {
+  const out = new Set(), m = (d - 1) / 2;
+  for (let y = 0; y < d; y++) for (let x = 0; x < d; x++) if (Math.hypot(x - m, y - m) > d / 2 - 0.2) out.add(y * d + x);
+  return out;
+}
 /** The square beyond c on side d, or -1 off the board. */
 export function beyond(L, c, d) {
   const x = c % L.cols + DIRS[d][0], y = Math.floor(c / L.cols) + DIRS[d][1];
@@ -35,12 +41,13 @@ const wayOf = d => (d === "ccw" || d === 1 ? 1 : 0);
 export function parseLevel(spec) {
   const rows = spec.map.length, cols = spec.map[0].length, size = cols * rows, bad = m => { throw new Error(`level ${spec.id}: ${m}`); };
   const L = { id: spec.id, name: spec.name, chapter: spec.chapter, cols, rows, size, rotate: spec.rotate !== false, cap: new Int8Array(size).fill(3), fixed: Array(size).fill(null),
-    click: new Int8Array(size).fill(-1), trains: [], pins: [], clicks: [], hand: {}, total: 0, sols: [], spec };
+    click: new Int8Array(size).fill(-1), trains: [], pins: [], clicks: [], hand: {}, total: 0, sols: [], spec, void: new Uint8Array(size) };
   spec.map.forEach((row, y) => {
     if (row.length !== cols) bad(`row ${y} is ${row.length} wide, not ${cols}`);
     [...row].forEach((ch, x) => {
       const c = y * cols + x;
       if (ch === "#") L.cap[c] = 0;
+      else if (ch === " ") { L.cap[c] = 0; L.void[c] = 1; }      // outside a round plate: no ground, nothing to lay or to see
       else if (ch === "1" || ch === "2") L.cap[c] = Number(ch);
       else if (ch !== ".") bad(`unknown square ${ch}`);
     });
@@ -409,7 +416,7 @@ export function tempo(L, M) {
 export function planOf(L, theme = null) {
   return {
     id: L.id, name: L.name, cols: L.cols, rows: L.rows, rotate: L.rotate, theme,
-    terrain: Array.from({ length: L.size }, (_, c) => (L.cap[c] === 0 ? "pillar" : L.cap[c] < 3 ? `bridge${L.cap[c]}` : "ground")),
+    terrain: Array.from({ length: L.size }, (_, c) => (L.void[c] ? "void" : L.cap[c] === 0 ? "pillar" : L.cap[c] < 3 ? `bridge${L.cap[c]}` : "ground")),
     cap: Array.from(L.cap),
     trains: L.trains.map(t => ({ id: t.id, index: t.index, barrel: { ...t.barrel }, sink: { ...t.sink, goal: t.goal } })),
     pins: L.pins.map(p => ({ c: p.c, kind: p.kind, rot: p.rot, train: p.train, goal: p.goal })),

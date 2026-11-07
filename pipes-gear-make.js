@@ -6,7 +6,7 @@
 import { rng, mix } from "./pipes-pieces.js";
 import * as F from "./pipes-gear-frac.js";
 import { CATALOG, parseKind, shapeOf, orientations, back, SIDE, topLayer, radius } from "./pipes-gear-shapes.js";
-import { parseLevel, check, beyond, pieceStr, pieceOf, SLOTS, keyOf } from "./pipes-gear-engine.js";
+import { parseLevel, check, beyond, pieceStr, pieceOf, SLOTS, keyOf, discVoid } from "./pipes-gear-engine.js";
 import { solve } from "./pipes-gear-solve.js";
 
 const pick = (r, a) => a[Math.floor(r() * a.length)];
@@ -127,11 +127,11 @@ export const WHY = {};
 export function makeLevel(seed, o) {
   const no = k => { WHY[k] = (WHY[k] || 0) + 1; return null; };
   const r = rng(mix(seed, 177)), L0 = { cols: o.cols, rows: o.rows, size: o.cols * o.rows };
-  const blocked = new Set(), routes = [];
+  const gone = o.disc ? discVoid(o.cols) : new Set(), blocked = new Set(gone), routes = [];
   for (const t of o.trains) {
     let R = null;
     const near = new Set();
-    for (const c of blocked) for (let d = 0; d < 4; d++) { const x = beyond(L0, c, d); if (x >= 0) near.add(x); }
+    for (const c of blocked) if (!gone.has(c)) for (let d = 0; d < 4; d++) { const x = beyond(L0, c, d); if (x >= 0) near.add(x); }
     for (let k = 0; k < 60 && !R; k++) R = drawRoute(L0, t.pieces, r, k < 40 ? new Set([...blocked, ...near]) : blocked, t.bends || 0, !!o.touch);
     if (!R) return no(1);
     // keep the trains' squares apart: the barrel, the route and the sink are taken, and so is the ring of squares round the barrel and sink
@@ -190,7 +190,7 @@ export function makeLevel(seed, o) {
   }
   const spec = {
     id: `g${seed}`, name: "", chapter: o.chapter || "z", cols: o.cols, rows: o.rows, rotate: true,
-    map: Array.from({ length: o.rows }, () => ".".repeat(o.cols)), hand: "", sols: [], pins: [], clicks: [],
+    map: Array.from({ length: o.rows }, (_, y) => Array.from({ length: o.cols }, (__, x) => (gone.has(y * o.cols + x) ? " " : ".")).join("")), hand: "", sols: [], pins: [], clicks: [],
     trains: o.trains.map((t, i) => ({
       id: "ABC"[i], barrel: { c: routes[i].barrel.c, side: SIDE[routes[i].barrel.side], m: t.m, l: t.l, n: dressed[i].barrelN },
       sink: { c: routes[i].sink.c, side: SIDE[routes[i].sink.side], m: dressed[i].m, l: dressed[i].l, n: dressed[i].sinkN,
@@ -237,7 +237,7 @@ export function makeLevel(seed, o) {
   // stage 1: a plate of pillars with only the routes open, where the answers are few and the solver is quick; pins, clicks and bridges
   // are added until at most maxSols remain
   const free = [];
-  for (let c = 0; c < L.size; c++) if (!routeSquares.has(c) && !ends.has(c)) { setMap(c, "#"); free.push(c); }
+  for (let c = 0; c < L.size; c++) if (!routeSquares.has(c) && !ends.has(c) && !gone.has(c)) { setMap(c, "#"); free.push(c); }
   L = build();
   for (let guard = 0; guard < 40; guard++) {
     const s = solveL();

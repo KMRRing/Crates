@@ -68,13 +68,29 @@ export const HIT = D * 0.8;
 export const TAB_LEN = D * 0.42, TAB_THICK = D * 0.1;
 
 // ---------- gears ----------
-export const PITCH = [{ n: 12, depth: 0.2, fill: "--sh-a", letter: "A" }, { n: 18, depth: 0.15, fill: "--sh-b", letter: "B" }, { n: 24, depth: 0.12, fill: "--sh-c", letter: "C" }];
-export const IDLER = { n: 12, depth: 0.18, fill: "--sh-i", letter: "I" };
+// each pitch has its own metal (the finish's colour, --sh-*, and the 2D gradient sh-m*; the 3D view's METALS in the same order): A brass,
+// B rose gold, C steel; the idler is black polish. Blued steel and magenta steel (anodised) are the next two finishes if a fourth and fifth pitch come.
+export const PITCH = [{ n: 12, depth: 0.2, fill: "--sh-a", metal: "sh-m0", letter: "A" }, { n: 18, depth: 0.15, fill: "--sh-b", metal: "sh-m1", letter: "B" }, { n: 24, depth: 0.12, fill: "--sh-c", metal: "sh-m2", letter: "C" }];
+export const IDLER = { n: 12, depth: 0.18, fill: "--sh-i", metal: "sh-m3", letter: "I" };
 /** The family of each gear code: plain A, B, C; the idler; the bridges (two pitches). */
 export const FAMILY = [[0], [1], [2], [3], [0, 1], [0, 2], [1, 2]];
 const spec = k => (k === 3 ? IDLER : PITCH[k]);
 export const teethOf = c => (c === 3 ? IDLER.n : FAMILY[c].length === 1 ? PITCH[c].n : Math.round((PITCH[FAMILY[c][0]].n + PITCH[FAMILY[c][1]].n) / 2));
 /** The outline of a toothed wheel: trapezoid teeth with a rounded tip and root, the first tooth centred on angle 0 (so every hex direction meets a tooth or a gap). */
+const TOOTH = [[-0.5, 0], [-0.3, 0], [-0.19, 0.985], [-0.11, 1], [0.11, 1], [0.19, 0.985], [0.3, 0]];        // a tooth's profile: [angle in teeth, 0 root / 1 tip]
+/**
+ * The idler's outline as points: it meshes every pitch, so its rim is cut in one arc for each, each arc with its own pitch's teeth (4 of A's, 6 of
+ * B's, 8 of C's: a third of the circle each), which makes it a complicated wheel that does not say what it meshes with.
+ */
+export function idlerPoints(ro) {
+  const out = [], arc = 2 * Math.PI / PITCH.length;
+  PITCH.forEach((p, i) => {
+    const step = 2 * Math.PI / p.n, root = ro * (1 - p.depth), count = Math.round(arc / step);
+    for (let k = 0; k < count; k++) for (const [fr, h] of TOOTH) { const a = i * arc + (k + 0.5 + fr) * step, r = root + (ro - root) * h; out.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  });
+  return out;
+}
+const pathOf = pts => `M${pts.map(p => `${f(p[0])} ${f(p[1])}`).join("L")}Z`;
 function toothPath(n, ro, depth) {
   const step = 2 * Math.PI / n, root = ro * (1 - depth), prof = [[-0.5, root], [-0.3, root], [-0.19, ro * 0.985], [-0.11, ro], [0.11, ro], [0.19, ro * 0.985], [0.3, root]];
   const pts = [];
@@ -90,6 +106,7 @@ const WINDOWS = [3, 5, 8, 6];
 /** What is engraved on a gear's face: a groove at the rim, its windows (see WINDOWS), the hub with its hole. `k` is the shape: a pitch 0..2 or 3 the idler. */
 function face(root, k) {
   let s = `<circle r="${f(root * 0.9)}" fill="none" stroke="#000" stroke-opacity=".3" stroke-width=".8"/><circle r="${f(root * 0.9 + 0.9)}" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width=".6"/>`;
+  for (const [r, a] of [[0.84, 0.18], [0.8, 0.12], [0.76, 0.18]]) s += `<circle r="${f(root * r)}" fill="none" stroke="${k === 3 ? "#fff" : "#000"}" stroke-opacity="${a * (k === 3 ? 0.5 : 1)}" stroke-width=".4"/>`;    // a turned (engine-turned) band
   const n = WINDOWS[k];
   if (k === 3) for (let i = 0; i < n; i++) { const a = i * Math.PI / 3 + Math.PI / 6; s += `<circle cx="${f(Math.cos(a) * root * 0.58)}" cy="${f(Math.sin(a) * root * 0.58)}" r="${f(root * 0.13)}" style="fill:var(--sh-recess)" stroke="#000" stroke-opacity=".5" stroke-width=".6"/>`; }
   else for (let i = 0; i < n; i++) { const tau = 2 * Math.PI, a0 = i * tau / n + 0.2, a1 = a0 + tau / n - Math.min(0.42, tau / n * 0.4); s += `<path d="${sector(root * 0.36, root * 0.74, a0, a1)}" style="fill:var(--sh-recess)" stroke="#000" stroke-opacity=".5" stroke-width=".6" stroke-linejoin="round"/>`; }
@@ -99,6 +116,8 @@ function face(root, k) {
 /** The definitions every drawing shares: gradients, the seven gear bodies, the jewel, the lever. Put into the page once. */
 function defsMarkup() {
   let s = `<defs>
+  ${[["sh-m0", ["#FFF1BC", "#E2B652", "#A87A25", "#F0CC6E", "#8E6419"]], ["sh-m1", ["#FFDCCB", "#E6A890", "#A86A58", "#F4C1AB", "#8E5445"]], ["sh-m2", ["#FFFFFF", "#CDD2D8", "#868D96", "#EEF1F4", "#737A84"]], ["sh-m3", ["#6A6B78", "#1B1B21", "#050508", "#34353F", "#0A0A0E"]]]
+    .map(([id, c]) => `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">${c.map((col, i) => `<stop offset="${i / 4}" stop-color="${col}"/>`).join("")}</linearGradient>`).join("")}
   <radialGradient id="sh-hi" cx=".32" cy=".26" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
   <radialGradient id="sh-lo" cx=".7" cy=".78" r=".8"><stop offset="0" stop-color="#000" stop-opacity=".36"/><stop offset=".6" stop-color="#000" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
   <radialGradient id="sh-hub" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#F4F6F8"/><stop offset=".6" stop-color="#AEB4BB"/><stop offset="1" stop-color="#6A7078"/></radialGradient>
@@ -112,12 +131,12 @@ function defsMarkup() {
   <clipPath id="sh-left"><rect x="-30" y="-30" width="30" height="60"/></clipPath><clipPath id="sh-right"><rect x="0" y="-30" width="30" height="60"/></clipPath>`;
   for (let c = 0; c < 7; c++) {
     if (c < 4) {
-      const sp = spec(c), p = toothPath(sp.n, RO, sp.depth);
-      s += `<g id="sh-g${c}"><path d="${p}" transform="translate(.9 1.3)" fill="#000" opacity=".28"/><path d="${p}" style="fill:var(--gf,var(${sp.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/><path d="${p}" fill="url(#sh-hi)"/><path d="${p}" fill="url(#sh-lo)"/>${face(RO * (1 - sp.depth), c)}</g>`;
+      const sp = spec(c), p = c === 3 ? pathOf(idlerPoints(RO)) : toothPath(sp.n, RO, sp.depth);
+      s += `<g id="sh-g${c}"><path d="${p}" transform="translate(.9 1.3)" fill="#000" opacity=".3"/><path d="${p}" style="fill:var(--gf,url(#${sp.metal}))" stroke="#0c0905" stroke-opacity=".85" stroke-width=".9" stroke-linejoin="round"/><path d="${p}" fill="url(#sh-hi)"/><path d="${p}" fill="url(#sh-lo)"/><path d="${p}" transform="translate(-.4 -.4)" fill="none" stroke="#fff" stroke-opacity="${c === 3 ? ".5" : ".7"}" stroke-width=".55" stroke-linejoin="round"/>${face(RO * (1 - sp.depth), c)}</g>`;
     } else {
       const [a, b] = FAMILY[c], pa = PITCH[a], pb = PITCH[b], ta = toothPath(pa.n, RO, pa.depth), tb = toothPath(pb.n, RO, pb.depth);
       s += `<g id="sh-g${c}"><path d="${ta}" transform="translate(.9 1.3)" fill="#000" opacity=".28" clip-path="url(#sh-left)"/><path d="${tb}" transform="translate(.9 1.3)" fill="#000" opacity=".28" clip-path="url(#sh-right)"/>
-        <path d="${ta}" clip-path="url(#sh-left)" style="fill:var(--gf,var(${pa.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/><path d="${tb}" clip-path="url(#sh-right)" style="fill:var(--gf,var(${pb.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/>
+        <path d="${ta}" clip-path="url(#sh-left)" style="fill:var(--gf,url(#${pa.metal}))" stroke="#0c0905" stroke-opacity=".85" stroke-width=".9" stroke-linejoin="round"/><path d="${tb}" clip-path="url(#sh-right)" style="fill:var(--gf,url(#${pb.metal}))" stroke="#0c0905" stroke-opacity=".85" stroke-width=".9" stroke-linejoin="round"/>
         <path d="${ta}" clip-path="url(#sh-left)" fill="url(#sh-hi)"/><path d="${tb}" clip-path="url(#sh-right)" fill="url(#sh-lo)"/>
         <g clip-path="url(#sh-left)">${face(RO * (1 - Math.max(pa.depth, pb.depth)), a)}</g><g clip-path="url(#sh-right)">${face(RO * (1 - Math.max(pa.depth, pb.depth)), b)}</g><path d="M0 ${-RO}V${RO}" stroke="#2a1d08" stroke-opacity=".7" stroke-width="1.2"/></g>`;
     }

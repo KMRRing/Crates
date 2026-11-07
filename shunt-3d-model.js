@@ -176,13 +176,13 @@ const LIGHT = {
 };
 /** The look for a theme and for day or night. The theme changes nothing of the watch: the page round it carries the theme. */
 export const skinFor = (theme, night) => ({ ...LIGHT[night ? "night" : "day"] });
-/** The gears' finishes, told apart by hue and by lightness (and, for the colour-blind, by their teeth, their windows and the tray's letters): A yellow
- *  gilt, B blued steel, C rose gold, the idler black DLC (a hard black coating) with a polished bevel. */
+/** The gears' finishes, told apart by hue and by lightness (and, for the colour-blind, by their teeth, their windows and the tray's letters): A brass/gold,
+ *  B rose gold, C steel/silver, the idler black polish (a mirror-black bevel, a polished face). Blued and magenta steel are the next two if pitches are added. */
 export const METALS = [
-  { color: 0xf0c53a, metalness: 0.75, roughness: 0.26 },
-  { color: 0x2f62b8, metalness: 0.7, roughness: 0.24 },
-  { color: 0xe88e86, metalness: 0.8, roughness: 0.26 },
-  { color: 0x1c1d21, metalness: 0.55, roughness: 0.2 },
+  { color: 0xe3b657, metalness: 1, roughness: 0.16 },
+  { color: 0xe8a893, metalness: 1, roughness: 0.17 },
+  { color: 0xb4bac3, metalness: 1, roughness: 0.14 },
+  { color: 0x0f0f13, metalness: 0.9, roughness: 0.07 },
 ];
 /** How many windows a gear shape is cut with: 3, 5 and 8 for the pitches, the idler six round holes. */
 export const WINDOWS = [3, 5, 8, 6];

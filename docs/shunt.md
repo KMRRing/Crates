@@ -20,3 +20,4 @@ Traps:
 - Each pitch has its own layer height (`LAYER_Y`) so unmeshed neighbours of different pitches pass over one another; the idler is as tall as all three layers. A bridge's two parts turn at their own pitch's speed, not as one body. Gears are placed in the 2D view's angles (tooth 0 on the x axis, the half-tooth phase for the other turning direction): `tests/shunt-3d.mjs` checks the teeth interleave.
 
 **4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Mode (Levels or Random), Today's, Sound and Tilt. A random plate's difficulty is the hidden ramp (`shunt:ramp`, up after a plate with three stars, down after a failed one; first step the saved difficulty); the coach lines are always on.
+- 6 November 2026, Korbi: the pitches are metals: gold, rose gold and steel for A, B and C, and the black polished idler carries every pitch's teeth on its rim (a different tooth size in every level) so nothing shows that it meshes with all of them.

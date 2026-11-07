@@ -6,16 +6,17 @@
 import { rng, mix } from "./pipes-pieces.js";
 import { parseLevel, specOf, layRoute, check, beyond, back, shapeJoining, routeChar, SHAPES, GLYPH, LOAD_CHAR, SIDE, KINDS } from "./pipes-train.js";
 import { solve } from "./pipes-train-solve.js";
+import { discVoid } from "./pipes-gear-engine.js";
 
 const pick = (r, a) => a[Math.floor(r() * a.length)];
 function shuffled(a, r) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
 
 /** A random route of n squares on a cols × rows plate, the mainspring before its first square and the load after its last:
  *  { passes: [{ c, a, b }], source: { c, d }, terminal: { c, d } } or null. `turns` is the fewest bends it may have. */
-export function randomRoute(cols, rows, n, r, turns = 0) {
+export function randomRoute(cols, rows, n, r, turns = 0, gone = new Set()) {
   const L0 = { cols, rows, size: cols * rows };
   const d0 = pick(r, [0, 1, 2, 3]), s = Math.floor(r() * L0.size), first = beyond(L0, s, d0);
-  if (first < 0) return null;
+  if (first < 0 || gone.has(s) || gone.has(first)) return null;
   const passes = [], used = new Set([s]);
   let tries = 0;
   const bends = () => passes.reduce((k, p) => k + (p.b !== back(p.a) ? 1 : 0), 0);
@@ -24,7 +25,7 @@ export function randomRoute(cols, rows, n, r, turns = 0) {
     used.add(c);
     for (const b of shuffled([0, 1, 2, 3].filter(x => x !== a), r)) {
       const next = beyond(L0, c, b);
-      if (next < 0 || used.has(next)) continue;
+      if (next < 0 || used.has(next) || gone.has(next)) continue;
       passes.push({ c, a, b });
       if (passes.length === n) { if (bends() >= turns) return true; }
       else if (walk(next, back(b))) return true;
@@ -45,10 +46,11 @@ export function randomRoute(cols, rows, n, r, turns = 0) {
  */
 export function makeLevel(seed, o) {
   const r = rng(mix(seed, 91));
-  const R = randomRoute(o.cols, o.rows, o.pieces, r, o.turns || 0);
+  const gone = o.disc ? discVoid(o.cols) : new Set(), R = randomRoute(o.cols, o.rows, o.pieces, r, o.turns || 0, gone);
   if (!R) return null;
   // the mainspring and the load side by side would look meshed when they are not
   if (Math.abs(R.source.c % o.cols - R.terminal.c % o.cols) + Math.abs(Math.floor(R.source.c / o.cols) - Math.floor(R.terminal.c / o.cols)) < 2) return null;
+  if (gone.has(R.terminal.c) || gone.has(R.source.c)) return null;
   const n = R.passes.length, cls = Array(n).fill(1);
   const idx = shuffled([...Array(n).keys()], r), duos = o.duos || 0, trios = o.trios || 0;
   idx.slice(0, duos).forEach(i => { cls[i] = 2; });
@@ -60,7 +62,7 @@ export function makeLevel(seed, o) {
   const enter = [];
   for (let i = 0; i < n; i++) { enter.push(e); e = (e ^ ((cls[i] - 1) & 1)) ^ 1; }
   const spin = e ? "ccw" : "cw";
-  const grid = Array.from({ length: o.rows }, () => Array(o.cols).fill("."));
+  const grid = Array.from({ length: o.rows }, (_, y) => Array.from({ length: o.cols }, (__, x) => (gone.has(y * o.cols + x) ? "#" : ".")));   // the voids are rocks to the old rules
   const put = (c, ch) => { grid[Math.floor(c / o.cols)][c % o.cols] = ch; };
   const get = c => grid[Math.floor(c / o.cols)][c % o.cols];
   put(R.source.c, "S"); put(R.terminal.c, "T");

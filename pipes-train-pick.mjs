@@ -6,6 +6,7 @@
 import fs from "fs";
 const here = new URL("./", import.meta.url);
 const { makeLevel } = await import(new URL("pipes-train-make.js", here));
+const { discVoid } = await import(new URL("pipes-gear-engine.js", here));
 const { parseLevel } = await import(new URL("pipes-train.js", here));
 const { solve } = await import(new URL("pipes-train-solve.js", here));
 
@@ -40,13 +41,21 @@ const picked = [], seenSig = new Set();
 for (const ch of CHAPTERS) {
   const rows = [];
   for (let i = 0; i < 5; i++) {
-    const base = ch.recipe(i), cand = [];
-    const from = 400001 + i * 1000 + ch.key.charCodeAt(0) * 10000;
-    for (let seed = from; seed < from + (ch.key > "d" ? 700 : 260); seed++) {
-      const m = makeLevel(seed, base);
-      if (!m || !ch.need(m)) continue;
-      const sig = m.spec.map.join("") + m.spec.hand;
-      if (!seenSig.has(sig)) cand.push({ seed, m });
+    const raw = ch.recipe(i), cand = [];
+    // a round plate: as many squares across as it takes to hold the route's squares (and the mainspring and the dial) K times over; a level
+    // that finds no answer set that small is given a little more room
+    for (const K of [1.3, 1.45, 1.6, 1.8, 2.0, 2.3, 2.7, 3.2, 3.6]) {
+      let d = 4;
+      while (d < 10 && d * d - discVoid(d).size < K * (raw.pieces + 2)) d++;
+      const base = { ...raw, cols: d, rows: d, disc: true };
+      const from = 400001 + i * 1000 + ch.key.charCodeAt(0) * 10000;
+      for (let seed = from; seed < from + 3 * (ch.key > "d" ? 700 : 260); seed++) {
+        const m = makeLevel(seed, base);
+        if (!m || !ch.need(m)) continue;
+        const sig = m.spec.map.join("") + m.spec.hand;
+        if (!seenSig.has(sig)) cand.push({ seed, m });
+      }
+      if (cand.length >= 2) break;
     }
     if (!cand.length) throw new Error(`chapter ${ch.key} level ${i + 1}: no candidate`);
     const miss = c => Math.abs(Math.log(Math.max(5, c.m.nodes) / ch.target[i]));
@@ -76,9 +85,9 @@ for (const { ch, rows } of picked) {
   out += `  // ${ch.name}\n`;
   for (const r of rows) {
     const spec = r.m.spec, s = solve(parseLevel({ ...spec, id: r.id }), 12);
-    out += `  { id: ${q(r.id)}, name: ${q(r.name)}, chapter: ${q(ch.key)}, out: ${q(spec.out)}, inlet: ${q(spec.inlet)}, spin: ${q(spec.spin)}, hand: ${q(spec.hand)}, sols: ${q(s.sols.map(x => x.route))},\n    map: [${spec.map.map(q).join(", ")}] },\n`;
+    out += `  { id: ${q(r.id)}, name: ${q(r.name)}, chapter: ${q(ch.key)}, disc: true, out: ${q(spec.out)}, inlet: ${q(spec.inlet)}, spin: ${q(spec.spin)}, hand: ${q(spec.hand)}, sols: ${q(s.sols.map(x => x.route))},\n    map: [${spec.map.map(q).join(", ")}] },\n`;
   }
 }
 out += `];\n`;
-fs.writeFileSync(new URL("pipes-train-levels.js", here), out);
+fs.writeFileSync(new URL(process.env.OUT || "pipes-train-levels.js", here), out);
 console.log("written");

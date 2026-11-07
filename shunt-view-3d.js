@@ -162,7 +162,7 @@ export function createView({ board, tray, onGesture, onLost, cam: kept = null, o
   };
   M.shadow.map.flipY = false;
   M.tabGlint = M.glint.clone();
-  const gearMat = METALS.map(o => envify(std({ ...o, vertexColors: true, normalMap: grainMap, normalScale: new THREE.Vector2(0.55, 0.55) }), 0.75)), ghostMat = METALS.map(o => std({ ...o, vertexColors: true, transparent: true, opacity: 0.66, depthWrite: false, emissive: o.color, emissiveIntensity: 0.55 }));
+  const gearMat = METALS.map(o => envify(std({ ...o, vertexColors: true, normalMap: grainMap, normalScale: new THREE.Vector2(0.4, 0.4) }), 1.0)), ghostMat = METALS.map(o => std({ ...o, vertexColors: true, transparent: true, opacity: 0.66, depthWrite: false, emissive: o.color, emissiveIntensity: 0.55 }));
   const gearGeo = [0, 1, 2, 3].map(G.gearGeometry);
 
   // ---------- the case, the plate, the tray (built once; a theme re-tints them) ----------

@@ -5,6 +5,7 @@
 import fs from "fs";
 const here = new URL("./", import.meta.url);
 const { makeLevel } = await import(new URL("pipes-gear-make.js", here));
+const { discVoid } = await import(new URL("pipes-gear-engine.js", here));
 const { parseLevel, check, emptyLaid } = await import(new URL("pipes-gear-engine.js", here));
 const { transformLevel } = await import(new URL("pipes-gear-legacy.js", here));
 const { solve } = await import(new URL("pipes-gear-solve.js", here));
@@ -41,7 +42,13 @@ for (const [band, recipes] of Object.entries(BANDS)) {
   for (let seed = 910001, tries = 0; out[band].length < per && tries < per * 400; seed++, tries++) {
     const k = tries % recipes.length, rc = recipes[k];
     let m = null;
-    try { m = makeLevel(seed, { nodes: 2000, limit: 6e5, ...rc.o(tries) }); } catch { /* next */ }
+    try {
+      // a round plate, as many squares across as holds the trains' squares (a piece each, the barrel and the dial) 1.9 times over
+      const o = rc.o(tries), used = o.trains.reduce((n, t) => n + t.pieces + 2, 0);
+      let d = 4;
+      while (d < 10 && d * d - discVoid(d).size < 1.9 * used) d++;
+      m = makeLevel(seed, { nodes: 2000, limit: 6e5, ...o, cols: d, rows: d, disc: true });
+    } catch { /* next */ }
     if (!m || !rc.ok(m)) continue;
     const sig = m.spec.map.join("") + m.spec.hand;
     if (seen.has(sig)) continue;

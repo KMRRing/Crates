@@ -158,7 +158,7 @@ const DEFS = {
   shear: "Shear: a shove slides a whole line, so gears can slip away from their neighbours and a train breaks.",
   jam: "A jam: gears touching in an odd ring cannot all turn, so the whole train locks and scores nothing.",
   bridge: "A bridge is one gear showing two pitches: it meshes both, so it joins their trains into one.",
-  idler: "An idler (black) meshes with every pitch.",
+  idler: "An idler (black, with every pitch's teeth on its rim) meshes with every pitch.",
 };
 function define(term) {
   if (seen.has(term)) return "";
@@ -166,7 +166,7 @@ function define(term) {
   write(SEEN, [...seen]);
   return `<span class="def">${DEFS[term]}</span>`;
 }
-const PITCHES = ["gold", "blue", "rose"];
+const PITCHES = ["gold", "rose gold", "steel"];
 function colourName(t, st) {
   const cnt = [0, 0, 0];
   t.cells.forEach(c => { const g = st.cells[c]; if (g <= 2) cnt[g]++; });

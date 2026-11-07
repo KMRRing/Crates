@@ -178,7 +178,7 @@ if (have("pipes-3d-geo.js")) {
       if (M.fullSize(plan, t)) full++; else compact++;
     }
     const mg = M.marginsFor(plan);
-    if (!Object.values(mg).every(v => v >= 0.4 && v < 2.8)) bad3++;
+    if (!Object.values(mg).every(v => v >= (M.isRound(plan) ? 0.2 : 0.4) && v < 2.8)) bad3++;   // a round plate's case hugs its circle
   }
   check(full + compact > 60 && compact > 0, `real levels: ${full} instruments have the margin to themselves, ${compact} are built compact on their sink's square`);
   check(bad3 === 0, "real levels: every plate's margins stay sane (the board keeps the room)");

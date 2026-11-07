@@ -8,6 +8,7 @@
 import * as Z from "../pipes-train.js";
 import { solve } from "../pipes-train-solve.js";
 import { LEVELS, CHAPTERS } from "../pipes-train-levels.js";
+import { discVoid } from "../pipes-gear-engine.js";   // the squares outside a round plate are kept as rocks by the old rules, and needed by nothing
 // a bare-bones DOM, enough for the drawing to build a tree we can read (the wheels' `.spin` groups)
 globalThis.document = { createElementNS: (_, tag) => ({ tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = String(v); }, appendChild(c) { this.kids.push(c); return c; } }) };
 const { drawSource, drawLoad, spinAngle, spinMs } = await import("../pipes-wheels.js");
@@ -194,7 +195,7 @@ check(bad === 0, `all ${LEVELS.length} levels solve exactly as listed (${unique}
     const tries = [];
     L.cells.forEach((f, c) => {
       const x = c % L.cols, y = Math.floor(c / L.cols);
-      if (f?.k === "rock") tries.push([`pillar at ${x},${y}`, map => { map[y][x] = "."; }]);
+      if (f?.k === "rock" && !(spec.disc && discVoid(L.cols).has(c))) tries.push([`pillar at ${x},${y}`, map => { map[y][x] = "."; }]);
       if (f?.k === "old") tries.push([`fixed gear at ${x},${y}`, (map, hand) => { map[y][x] = "."; hand[f.piece] = (hand[f.piece] || 0) + 1; }]);
     });
     L.loads.forEach(c => { const x = c % L.cols, y = Math.floor(c / L.cols); tries.push([`load at ${x},${y}`, map => { map[y][x] = "."; }]); });

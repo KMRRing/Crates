@@ -28,9 +28,22 @@ export function edgeDist(plan, sink) {
 }
 /** Whether a train's complication has its full size, out in the plate's margin: its sink is on the board's edge and its way out leads off the board. Any other sink (Book I's, and
  *  most of the later levels') carries a compact instrument on the sink's own square, as the flat plate draws it. */
-export const fullSize = (plan, t) => !!REACH[t.sink?.goal?.type] && !t.sink.goal?.ring && edgeDist(plan, t.sink) <= 0.51;
+export const isRound = plan => !!plan?.terrain?.includes("void");
+/** A round plate's radius in squares: the circle that holds every square that is not a void, with a little ground beyond. */
+export function roundRadius(plan) {
+  let R = 0;
+  plan.terrain.forEach((t, c) => {
+    if (t === "void") return;
+    const x = c % plan.cols - plan.cols / 2, z = Math.floor(c / plan.cols) - plan.rows / 2;
+    for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) R = Math.max(R, Math.hypot(x + dx, z + dz));
+  });
+  return R + 0.12;
+}
+export const fullSize = (plan, t) => !isRound(plan) && !!REACH[t.sink?.goal?.type] && !t.sink.goal?.ring && edgeDist(plan, t.sink) <= 0.51;
 /** The plate's room round the board for this plan: the base margins, widened on the side each full-size instrument reaches out of. */
 export function marginsFor(plan) {
+  // a round plate: the circle's square, the instruments compact on their sinks' squares (the flat plate's way)
+  if (isRound(plan)) { const R = roundRadius(plan), mx = R - plan.cols / 2, mz = R - plan.rows / 2; return { l: mx, r: mx, top: mz, bottom: mz }; }
   const mg = { ...MARGIN };
   for (const t of plan?.trains || []) {
     if (!fullSize(plan, t)) continue;

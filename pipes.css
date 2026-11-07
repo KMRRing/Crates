@@ -281,3 +281,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
   #app.puzzle:has(.pi-hand.wrap) #status { -webkit-line-clamp: 1; line-clamp: 1; }
   #app.pipes:has(.pi-hand.wrap) .pi-bar { margin-top: .3rem; }
 }
+/* a round plate (a level with voids in its corners): the gearbox's face in a brass bezel, the squares laid on it */
+.pi-board.round { background: transparent; border-radius: 0; overflow: visible; }
+.pi-board .disc { fill: var(--pi-ground); }
+.pi-board .disc-bezel { fill: none; stroke: var(--brass); stroke-width: 3; }

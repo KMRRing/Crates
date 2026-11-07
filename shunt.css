@@ -7,10 +7,10 @@
   --sh-brass: #B8913F;     /* the brass edge of the plate and its recesses */
   --sh-iron: #43484C;      /* a stud's plate, a lever whose line is full */
   --sh-glow: #FFE08A;      /* what the board lights: the lever chosen, the coach's pulse, the shove's ghost */
-  --sh-a: #F0C53A;         /* pitch A: yellow gilt */
-  --sh-b: #2F62B8;         /* pitch B: blued steel */
-  --sh-c: #E88E86;         /* pitch C: rose gold */
-  --sh-i: #25262A;         /* the idler: black DLC */
+  --sh-a: #D9AE4E;         /* pitch A: brass / gold */
+  --sh-b: #E3A38F;         /* pitch B: rose gold */
+  --sh-c: #CDD2D8;         /* pitch C: steel / silver */
+  --sh-i: #17171C;         /* the idler: black polish */
   --bad: #A8382B;
   --good: #2F7D5B;
 }

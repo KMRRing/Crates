@@ -3,6 +3,7 @@
 import * as THREE from "./vendor/three.js";
 import { toothOutline, SHAPES, WINDOWS, THICK, IDLER_THICK, RO, PLATE_R, CASE_R, SEAT_R, FLOOR, cellW } from "./shunt-3d-model.js";
 import { CELLS } from "./shunt-engine.js";
+import { idlerPoints } from "./shunt-view-2d.js";
 
 const TAU = Math.PI * 2;
 
@@ -49,7 +50,7 @@ export function gearGeometry(k) {
     for (let s = 8; s >= 0; s--) { const a = a0 + (a1 - a0) * s / 8; pts.push([Math.cos(a) * r1, Math.sin(a) * r1]); }
     holes.push(pts);
   }
-  const H = k === 3 ? IDLER_THICK : THICK, g = slab(shapeOf(toothOutline(n, RO, depth), holes), H, 0.02, 2);
+  const H = k === 3 ? IDLER_THICK : THICK, g = slab(shapeOf(k === 3 ? idlerPoints(RO) : toothOutline(n, RO, depth), holes), H, 0.016, 1);     // a crisp chamfer that catches the light
   shade(g);
   // relief: a raised ring on the web and a boss round the axle, so a gear's face is not one flat sheet
   const ringTop = slab(shapeOf(ring(0.405, 36), [ring(0.372, 36)]), 0.024, 0.006).translate(0, H, 0), boss = slab(shapeOf(ring(0.17, 24), [ring(0.075, 14)]), 0.04, 0.008).translate(0, H, 0);

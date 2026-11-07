@@ -27,7 +27,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = k => 1 - Math.pow(1 - k, 3);
 
 /** The plate's rows as the statics read them (". # 1 2") from the plan's terrain. */
-const mapOf = p => Array.from({ length: p.rows }, (_, j) => Array.from({ length: p.cols }, (__, i) => ({ pillar: "#", bridge1: "1", bridge2: "2" })[p.terrain?.[j * p.cols + i]] || ".").join(""));
+const mapOf = p => Array.from({ length: p.rows }, (_, j) => Array.from({ length: p.cols }, (__, i) => ({ void: " ", pillar: "#", bridge1: "1", bridge2: "2" })[p.terrain?.[j * p.cols + i]] || ".").join(""));
 /** The wheels a piece laid at square c would stand as, for the ghost and the hint: { x, y, n, m, layer } in board units. */
 function wheelsOf(sq, cols) {
   const sh = sq && shapeOf(sq.kind, sq.rot || 0);
@@ -104,17 +104,18 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     statics.traverse(o => { if (o.geometry && !o.userData.keep) o.geometry.dispose?.(); });
     statics = new THREE.Group(); tilter.add(statics);
     rect = P.plateRect(cols, rows);
-    const [x0, x1, z0, z1] = rect, cr = P.caseRect(cols, rows);
-    mesh(G.caseGeometry(rect, P.CASE_GAP), M.caseM, { receive: false });
-    mesh(G.plateGeometry(rect), [M.plate, M.plateEdge], { cast: false });
+    const [x0, x1, z0, z1] = rect, cr = P.caseRect(cols, rows), round = P.isRound(plan);
+    mesh(G.caseGeometry(rect, P.CASE_GAP, 0.05, round), M.caseM, { receive: false });
+    mesh(G.plateGeometry(rect, 0.15, 0.12, round), [M.plate, M.plateEdge], { cast: false });
     // six blued screws on the band, each with its slot
-    const sp = [[x0 + 1.4, z0 - 0.17], [x1 - 1.4, z0 - 0.17], [x0 + 1.4, z1 + 0.17], [x1 - 1.4, z1 + 0.17], [x0 - 0.17, 0], [x1 + 0.17, 0]];
+    const sp = round ? Array.from({ length: 6 }, (_, k) => [Math.cos((k + 0.5) * Math.PI / 3) * ((x1 - x0) / 2 + 0.17), Math.sin((k + 0.5) * Math.PI / 3) * ((x1 - x0) / 2 + 0.17)])
+      : [[x0 + 1.4, z0 - 0.17], [x1 - 1.4, z0 - 0.17], [x0 + 1.4, z1 + 0.17], [x1 - 1.4, z1 + 0.17], [x0 - 0.17, 0], [x1 + 0.17, 0]];
     const scr = inst(G.screwGeometry(0.07), M.steel, 6, { parent: statics, cast: false }), slo = inst(G.slotGeometry(0.07), M.slot, 6, { parent: statics, cast: false });
     sp.forEach(([x, z], i) => { _q.setFromAxisAngle(_e, (i * 2.4) % Math.PI); _m.compose(_p.set(x, 0.205, z), _q, _s); scr.setMatrixAt(i, _m); slo.setMatrixAt(i, _m); });
     scr.count = slo.count = 6;
     // the field's polished line round the board
     const gx = cols / 2, gz = rows / 2;
-    mesh(G.frameGeometry(-gx - 0.02, gx + 0.02, -gz - 0.02, gz + 0.02, 0.025, 0.014), M.bridgeEdge, { cast: false });
+    mesh(round ? G.frameGeometry(-(x1 - x0) / 2 + 0.2, (x1 - x0) / 2 - 0.2, 0, 0, 0.025, 0.014, true) : G.frameGeometry(-gx - 0.02, gx + 0.02, -gz - 0.02, gz + 0.02, 0.025, 0.014), M.bridgeEdge, { cast: false });
     // engraving: faint squares, the legend, the jewel count
     engrave = mesh(G.quadGeometry(x1 - x0 - 0.5, z1 - z0 - 0.3), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: 0.8 }), { at: [(x0 + x1) / 2, 0.003, (z0 + z1) / 2], cast: false, receive: false });
     paintEngraving();
@@ -133,10 +134,11 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.28, "rgba(255,255,255,0)"); g.addColorStop(0.36, "rgba(255,255,255,.34)"); g.addColorStop(0.43, "rgba(255,255,255,.04)"); g.addColorStop(0.5, "rgba(255,255,255,.2)"); g.addColorStop(0.56, "rgba(255,255,255,0)"); g.addColorStop(1, "rgba(255,255,255,0)");
       c.fillStyle = g; c.fillRect(0, 0, s, s);
     }, true) });
-    const glass = mesh(G.quadGeometry(x1 - x0, z1 - z0), glassMat, { at: [(x0 + x1) / 2, P.GLASS_Y, (z0 + z1) / 2], cast: false, receive: false });
+    const glass = mesh(round ? G.discQuad((x1 - x0) / 2 + 0.05) : G.quadGeometry(x1 - x0, z1 - z0), glassMat, { at: [(x0 + x1) / 2, P.GLASS_Y, (z0 + z1) / 2], cast: false, receive: false });
     glass.userData.glass = true;
     const sh = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: 0.4, map: drawn(256, (c, s) => {
-      c.filter = "blur(14px)"; c.fillStyle = "#000"; c.fillRect(s * 0.14, s * 0.14, s * 0.72, s * 0.72);
+      c.filter = "blur(14px)"; c.fillStyle = "#000";
+      if (round) { c.beginPath(); c.arc(s / 2, s / 2, s * 0.36, 0, Math.PI * 2); c.fill(); } else c.fillRect(s * 0.14, s * 0.14, s * 0.72, s * 0.72);
     }) });
     scene.remove(shadowMesh);
     shadowMesh = new THREE.Mesh(G.quadGeometry((cr[1] - cr[0]) * 1.5, (cr[3] - cr[2]) * 1.5), sh);
@@ -186,6 +188,12 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const t = drawn(W, (c, s, hh) => {
       const sx = s / (rect[1] - rect[0] - 0.5), toX = x => (x - (rect[0] + 0.25)) * sx, toY = z => (z - (rect[2] + 0.15)) * sx;
       c.strokeStyle = `rgba(${ink},.16)`; c.lineWidth = 1.2;
+      if (P.isRound(plan)) {
+        // a round plate: each square that is ground, outlined, and the plate's own ring
+        plan.terrain.forEach((t, k) => { if (t !== "void") c.strokeRect(toX(k % cols - cols / 2), toY(Math.floor(k / cols) - rows / 2), sx, sx); });
+        c.beginPath(); c.arc(toX(0), toY(0), (rect[1] - rect[0]) / 2 * sx - 0.2 * sx, 0, Math.PI * 2); c.stroke();
+        return;
+      }
       for (let i = 0; i <= cols; i++) { c.beginPath(); c.moveTo(toX(i - cols / 2), toY(-rows / 2)); c.lineTo(toX(i - cols / 2), toY(rows / 2)); c.stroke(); }
       for (let j = 0; j <= rows; j++) { c.beginPath(); c.moveTo(toX(-cols / 2), toY(j - rows / 2)); c.lineTo(toX(cols / 2), toY(j - rows / 2)); c.stroke(); }
       c.fillStyle = `rgba(${ink},.55)`; c.textAlign = "center"; c.font = `600 ${Math.round(sx * 0.2)}px Georgia, serif`;
@@ -648,7 +656,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       const p = P.rayAtY(rl.o, rl.d, 0.1);
       if (!p) return { kind: "off" };
       const i = Math.floor(p[0] + cols / 2), j = Math.floor(p[1] + rows / 2);
-      if (i < 0 || j < 0 || i >= cols || j >= rows) return { kind: "off" };
+      if (i < 0 || j < 0 || i >= cols || j >= rows || plan.terrain[j * cols + i] === "void") return { kind: "off" };
       return { kind: "cell", c: j * cols + i, gear: g ? g.id : null, sub: g ? g.id : null };
     },
     project(c) {

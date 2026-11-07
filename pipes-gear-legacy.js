@@ -4,7 +4,7 @@
 // daily and Random levels that are drawn from a pool of solved plates.
 import * as Old from "./pipes-train.js";
 import { LEVELS as OLD_LEVELS, CHAPTERS as OLD_CHAPTERS } from "./pipes-train-levels.js";
-import { pieceStr, SIDE } from "./pipes-gear-engine.js";
+import { pieceStr, SIDE, discVoid } from "./pipes-gear-engine.js";
 import { mirrorPiece, canonRot, shapeOf, quarter, CELL } from "./pipes-gear-shapes.js";
 
 /** The old kind -> the new kind and its turn. */
@@ -19,12 +19,12 @@ export const newPiece = old => pieceStr(...OLD_KIND[old]);
 /** An old level (its text) as new level data. */
 export function legacySpec(spec) {
   const O = Old.parseLevel(spec), cols = O.cols, rows = O.rows;
-  const map = [], pins = [], clicks = [];
+  const map = [], pins = [], clicks = [], gone = spec.disc ? discVoid(cols) : new Set();     // a round plate's voids are rocks to the old rules
   for (let y = 0; y < rows; y++) {
     let row = "";
     for (let x = 0; x < cols; x++) {
       const c = y * cols + x, f = O.cells[c];
-      row += f?.k === "rock" ? "#" : ".";
+      row += gone.has(c) ? " " : f?.k === "rock" ? "#" : ".";
       if (f?.k === "old") { const [kind, rot] = OLD_KIND[f.piece]; pins.push({ c, kind, rot, train: 0 }); }
       if (O.load[c] >= 0) clicks.push({ c, dir: O.load[c] ? "ccw" : "cw" });
     }

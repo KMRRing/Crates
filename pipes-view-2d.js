@@ -154,15 +154,31 @@ export function createView({ board, onGesture, onLost } = {}) {
   let prevLaid = null;
 
   const cellXY = c => [(c % plan.cols) * T, Math.floor(c / plan.cols) * T];
-  const px = (x, y) => [((x + PAD) / (plan.cols * T + 2 * PAD)) * 100, ((y + PAD) / (plan.rows * T + 2 * PAD)) * 100];
+  // The picture's box in plate units: the plate with a margin, or for a round plate (voids in its corners) the circle that holds its squares.
+  let vb = { x: -PAD, y: -PAD, w: 0, h: 0 }, rim = 0;
+  const boxOf = p => {
+    const w = p.cols * T, h = p.rows * T, round = p.terrain.includes("void");
+    if (!round) return { box: { x: -PAD, y: -PAD, w: w + 2 * PAD, h: h + 2 * PAD }, rim: 0 };
+    let R = 0;
+    p.terrain.forEach((t, c) => {
+      if (t === "void") return;
+      const x0 = (c % p.cols) * T - w / 2, y0 = Math.floor(c / p.cols) * T - h / 2;
+      R = Math.max(R, ...[[x0, y0], [x0 + T, y0], [x0, y0 + T], [x0 + T, y0 + T]].map(([x, y]) => Math.hypot(x, y)));
+    });
+    R += 3;
+    return { box: { x: w / 2 - R - PAD, y: h / 2 - R - PAD, w: 2 * (R + PAD), h: 2 * (R + PAD) }, rim: R };
+  };
+  const px = (x, y) => [((x - vb.x) / vb.w) * 100, ((y - vb.y) / vb.h) * 100];
 
   view.setLevel = p => {
     plan = p;
     layered = new Set([...p.trains.flatMap(t => [t.barrel.l, t.sink.l]), ...p.pins.map(q => Number(String(q.kind).match(/\.(\d)/)?.[1] || 1))]).size > 1 || p.terrain.some(t => t.startsWith("bridge"));
     board.replaceChildren();
-    board.style.setProperty("--cols", (p.cols * T + 2 * PAD) / T);
-    board.style.setProperty("--rows", (p.rows * T + 2 * PAD) / T);
-    svg = el("svg", { viewBox: `${-PAD} ${-PAD} ${p.cols * T + 2 * PAD} ${p.rows * T + 2 * PAD}`, role: "img", "aria-label": `${p.name}: the plate` });
+    ({ box: vb, rim } = boxOf(p));
+    board.style.setProperty("--cols", vb.w / T);
+    board.style.setProperty("--rows", vb.h / T);
+    board.classList.toggle("round", rim > 0);
+    svg = el("svg", { viewBox: `${vb.x} ${vb.y} ${vb.w} ${vb.h}`, role: "img", "aria-label": `${p.name}: the plate` });
     gGround = el("g", { class: "ground" }, svg);
     gWheels = el("g", { class: "wheels" }, svg);
     gTop = el("g", { class: "marks" }, svg);
@@ -178,7 +194,14 @@ export function createView({ board, onGesture, onLost } = {}) {
 
   function drawGround() {
     gGround.replaceChildren();
+    if (rim) {
+      // a round plate: the gearbox's face and its brass bezel, the squares laid on it
+      const cx = plan.cols * T / 2, cy = plan.rows * T / 2;
+      el("circle", { cx, cy, r: rim + 2.5, class: "disc-bezel" }, gGround);
+      el("circle", { cx, cy, r: rim, class: "disc" }, gGround);
+    }
     for (let c = 0; c < plan.cols * plan.rows; c++) {
+      if (plan.terrain[c] === "void") continue;
       const [x, y] = cellXY(c), g = el("g", { transform: `translate(${x} ${y})` }, gGround), ter = plan.terrain[c];
       el("rect", { x: 1, y: 1, width: T - 2, height: T - 2, rx: 6, class: ter === "pillar" ? "slot rock" : "slot" }, g);
       if (ter === "pillar") { el("circle", { cx: 30, cy: 30, r: 11, class: "g-pillar" }, g); el("circle", { cx: 30, cy: 30, r: 5, class: "g-screw" }, g); el("path", { d: "M26 30H34", class: "g-slot" }, g); }
@@ -326,15 +349,15 @@ export function createView({ board, onGesture, onLost } = {}) {
   view.stop = () => { clearTimeout(runTimer); clearTimeout(idleTimer); runUpTo = 0; epoch = 0; };
   view.hit = (clientX, clientY) => {
     if (!plan || !svg) return null;
-    const r = svg.getBoundingClientRect(), W = plan.cols * T + 2 * PAD, H = plan.rows * T + 2 * PAD;
-    const vx = (clientX - r.left) / r.width * W - PAD, vy = (clientY - r.top) / r.height * H - PAD;
+    const r = svg.getBoundingClientRect();
+    const vx = (clientX - r.left) / r.width * vb.w + vb.x, vy = (clientY - r.top) / r.height * vb.h + vb.y;
     const x = Math.floor(vx / T), y = Math.floor(vy / T);
-    if (x >= 0 && y >= 0 && x < plan.cols && y < plan.rows) return { kind: "cell", c: y * plan.cols + x, sub: [vx - x * T, vy - y * T] };
+    if (x >= 0 && y >= 0 && x < plan.cols && y < plan.rows && plan.terrain[y * plan.cols + x] !== "void") return { kind: "cell", c: y * plan.cols + x, sub: [vx - x * T, vy - y * T] };
     return { kind: "off" };
   };
   view.project = c => {
-    const r = svg.getBoundingClientRect(), [x, y] = cellXY(c), W = plan.cols * T + 2 * PAD, H = plan.rows * T + 2 * PAD;
-    return [r.left + (x + 30 + PAD) / W * r.width, r.top + (y + 30 + PAD) / H * r.height];
+    const r = svg.getBoundingClientRect(), [x, y] = cellXY(c);
+    return [r.left + (x + 30 - vb.x) / vb.w * r.width, r.top + (y + 30 - vb.y) / vb.h * r.height];
   };
   /** Rings a square once (the workings strip's chips). */
   view.pulse = c => {
