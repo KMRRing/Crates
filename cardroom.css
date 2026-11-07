@@ -10,9 +10,11 @@
 .cr-hand.tight .cd { font-size: .94em; }
 
 /* ---------- the brass plate ---------- */
-.cr-plate { display: flex; align-items: center; gap: .7rem; width: 100%; box-sizing: border-box; padding: .28rem .75rem; border: 1px solid var(--brass); border-radius: 6px; color: var(--ink); font-size: .8rem;
+.cr-plate, .cr-strip { display: flex; align-items: center; gap: .7rem; width: 100%; box-sizing: border-box; padding: .28rem .75rem; border: 1px solid var(--brass); border-radius: 6px; color: var(--ink); font-size: .8rem;
   background: linear-gradient(180deg, color-mix(in srgb, var(--brass) 28%, var(--sheet)), color-mix(in srgb, var(--brass) 12%, var(--sheet)) 55%, color-mix(in srgb, var(--brass) 20%, var(--sheet)));
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sheet) 55%, transparent), inset 0 0 0 3px color-mix(in srgb, var(--brass) 55%, transparent), 0 .12rem .3rem rgba(0, 0, 0, .14); }
+.cr-strip.cr-strip { justify-content: space-between; align-items: center; margin: 0 0 .7rem; gap: .7rem; font-size: .8rem; color: var(--ink); white-space: nowrap; }
+.cr-strip.cr-strip b { color: var(--ink); font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .cr-plate small { display: block; font-size: .58rem; font-weight: 800; line-height: 1; color: var(--brass-lo); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
 .cr-lead { display: flex; align-items: center; gap: .4rem; }
 .cr-title b { font-size: 1.2rem; font-weight: 800; font-stretch: var(--wide); }
