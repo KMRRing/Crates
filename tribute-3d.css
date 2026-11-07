@@ -145,12 +145,13 @@
 .t3-mini .t3i .t3r { font-size: .5em; }
 .t3-mini .t3i .t3s { font-size: .46em; }
 .t3-mini .t3i .t3w { left: auto; right: .08em; top: .06em; translate: none; font-size: .26em; }
-/* a card's back: the cobalt with a brass lattice and a brass lozenge in the middle */
-.t3b { display: block; box-sizing: border-box; border: 1px solid color-mix(in srgb, var(--brass) 80%, #000); border-radius: .22rem;
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--brass) 80%, transparent) 0 11%, transparent 12%),
-    repeating-linear-gradient(45deg, transparent 0 .2rem, color-mix(in srgb, var(--brass) 40%, transparent) .2rem calc(.2rem + 1px)),
-    repeating-linear-gradient(-45deg, transparent 0 .2rem, color-mix(in srgb, var(--brass) 40%, transparent) .2rem calc(.2rem + 1px)), var(--tb-in-deep);
-  box-shadow: inset 0 0 0 .12rem var(--tb-in-deep), inset 0 0 0 calc(.12rem + 1px) color-mix(in srgb, var(--brass) 70%, transparent), 0 .1rem .25rem rgba(0, 0, 0, .3); }
+/* a card's back: the shared one (cards.css, cardback.svg), a cream margin round a navy panel engraved in gilt. Korbi, 7 Nov 2026: the old
+   hairline lattice turned to mud at this size and was no match for the cards' backs elsewhere. */
+.t3b { display: block; position: relative; box-sizing: border-box; border: 1px solid var(--cd-edge); border-radius: .22rem; background: var(--cd-face);
+  box-shadow: 0 .1rem .25rem rgba(0, 0, 0, .3); }
+.t3b::before, .t3b::after { content: ""; position: absolute; inset: .09rem; border-radius: .12rem; }
+.t3b::before { background: radial-gradient(ellipse 90% 70% at 32% 22%, color-mix(in srgb, var(--cd-back) 78%, #FFF), var(--cd-back) 58%, color-mix(in srgb, var(--cd-back) 78%, #000)); }
+.t3b::after { background: var(--cd-back-line); -webkit-mask: url("./cardback.svg") center / 100% 100% no-repeat; mask: url("./cardback.svg") center / 100% 100% no-repeat; }
 
 /* ---------- the levels: a brass plate, the wild card beside the level ---------- */
 #app.tb3 .tb-strip { display: block; margin: .5rem 0 .35rem; font-size: .8rem; }
