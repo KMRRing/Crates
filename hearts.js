@@ -9,7 +9,8 @@ import { seatPage } from "./seats-ui.js";
 import { createCourse, progressOf } from "./course.js";
 import { cardStage } from "./course-cards.js";
 import { COURSE, judge, hold, face as courseFace, label as courseLabel, withLabels } from "./hearts-course.js";
-import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, drawHandBox } from "./cardroom.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 import { ramp } from "./ramp.js";
@@ -78,7 +79,10 @@ function draw() {
   // the picked cards stay picked while the others play; a new hand, a pass done or a move of yours clears them
   const key = `${v.G.seq}:${s.deal}:${s.step === "pass" ? "p" : "q"}:${(s.hands[v.seat ?? 0] || []).length}`;
   if (key !== selFor) { selFor = key; sel = new Set(); }
-  $("strip").innerHTML = `Hand <b>${s.deal}</b> · ${s.dir === "hold" ? "No pass" : `Pass ${DIR_WORD[s.dir]}`} · To ${s.opts.to} · <span class="${s.broken ? "hr-red" : ""}">♥ ${s.broken ? "broken" : "unbroken"}</span>`;
+  // the brass plate across the top (cardroom.js): the hand and its pass, every seat's score, the target and the hearts
+  $("strip").innerHTML = plateHtml({ title: `<small>Hand</small><b>${s.deal}</b>`,
+    items: [0, 1, 2, 3].map(i => ({ k: isMe(i) ? "You" : nameOf(i).slice(0, 6), v: s.scores[i], on: s.step === "play" && s.turn === i })),
+    tail: `${s.dir === "hold" ? "No pass" : `Pass ${DIR_WORD[s.dir]}`} · to ${s.opts.to}<br>♥ ${s.broken ? "broken" : "unbroken"}` });
   drawTable(v);
   drawHand(v);
   $("status").innerHTML = `<span>${statusLine(v)}</span>`;
@@ -155,12 +159,14 @@ function drawTable(v) {
 const myTurn = v => !!(v?.G && v.seat != null && v.state.step === "play" && v.state.turn === v.seat);
 function drawHand(v) {
   const box = $("hand");
-  if (v.seat == null) { box.innerHTML = `<p class="hr-watch">Watching: you sit down at the next game.</p>`; return; }
+  if (v.seat == null) { box.innerHTML = `<p class="hr-watch">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
   const s = v.state, hand = s.hands[v.seat], mine = myTurn(v), legal = mine ? new Set(legalCards(s, v.seat)) : null;
   const gave = s.step === "pass" && s.give[v.seat].length === 3, got = s.step !== "pass" && s.done < 3 ? new Set(s.recv[v.seat]) : null;
   box.classList.toggle("turn", mine);
-  box.innerHTML = hand.map(id => cardMarkup(id, [sel.has(id) && "sel", gave && s.give[v.seat].includes(id) && "sel", legal && !legal.has(id) && "no", got?.has(id) && "recv"].filter(Boolean).join(" "), { id })).join("");
-  fitRow(box, hand.length, { max: 1.2 });
+  // Guandan's fan (cardroom.js): a run to a suit, the suits alternating black and red, the highest first
+  const cols = [3, 2, 1, 0].map(su => hand.filter(id => suitOf(id) === su).sort((x, y) => rankOf(y) - rankOf(x))).filter(c => c.length);
+  drawHandBox(box, { cols, fan: true, face, label: cardName,
+    classes: id => [sel.has(id) && "sel", gave && s.give[v.seat].includes(id) && "sel", legal && !legal.has(id) && "no", got?.has(id) && "recv"].filter(Boolean).join(" ") });
 }
 $("hand").addEventListener("click", async e => {
   const c = e.target.closest(".cd[data-id]");
