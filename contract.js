@@ -11,6 +11,7 @@ import { SUITS, RANKS, COMPASS, SEATS, SIDES, suitOf, rankOf, sortHand, legalCar
   vulText, sideOf, NT, dealScore, cardText, hcp } from "./contract-core.js";
 import { chooseCall, explainCall, showText } from "./contract-sayc.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { plateHtml, bubble, drawHandBox } from "./cardroom.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
@@ -160,7 +161,7 @@ function draw() {
     fill($("centre"), "");
     $("hand").innerHTML = "";
     $("aside").innerHTML = "";
-    $("say").textContent = "";
+    $("say").hidden = true;
     $("controls").innerHTML = `<button class="btn primary bd-go" type="button" data-act="new">New match</button>`;
     return;
   }
@@ -203,11 +204,11 @@ function drawInfo(s) {
     : `<span class="bd-contract idle">${s.step === "bid" ? "Bidding" : ""}</span>`;
   const tricks = s.contract && s.step !== "bid" ? `<span class="bd-tricks" title="tricks"><b>${s.won[mine]}</b>–<b>${s.won[1 - mine]}</b></span>` : "";
   if (on3()) {
-    const c = s.contract, d = c ? SEATS[c.declarer] : "";
-    $("info").innerHTML = plaqueHtml({ contract: c ? contractHtml(c) : "", declarer: c ? COMPASS[c.declarer] : "", deal: s.no, deals: DEALS, vul, mine,
-      label: `${c ? `Contract ${contractText(c)} by ${d}. ` : "Bidding. "}${vulText(vul)}. Tap for the auction.` })
-      + (tricks ? `<span class="bd-tricks" title="tricks"><b>${s.won[mine]}</b>–<b>${s.won[1 - mine]}</b></span>` : "")
-      + `<span class="bd-score">us <b>${s.scores[mine]}</b> · them <b>${s.scores[1 - mine]}</b></span>`;
+    // the brass plate across the top (cardroom.js): the contract (tap for the auction), the tricks, each side's score, who's vulnerable
+    const c = s.contract;
+    $("info").innerHTML = plateHtml({ lead: c ? `<button class="bd-contract" type="button" data-act="auction" aria-label="Contract ${esc(contractText(c))} by ${esc(SEATS[c.declarer])}. Tap for the auction.">${contractHtml(c)} <small>${esc(COMPASS[c.declarer])}</small></button>` : "",
+      title: c ? "" : `<small>Deal</small><b>${s.no}/${DEALS}</b>`,
+      items: [...(tricks ? [{ k: "Tricks", v: `${s.won[mine]}–${s.won[1 - mine]}` }] : []), { k: "Us", v: s.scores[mine] }, { k: "Them", v: s.scores[1 - mine] }], tail: `${c ? `Deal ${s.no}/${DEALS}<br>` : ""}${vulWord}` });
     return;
   }
   $("info").innerHTML = `<span class="bd-deal">Deal ${s.no}/${DEALS}<small class="${vul[mine] ? "vul" : ""}">${vulWord}</small></span>${contract}${tricks}<span class="bd-score">us <b>${s.scores[mine]}</b> · them <b>${s.scores[1 - mine]}</b></span>`;
@@ -335,41 +336,23 @@ function drawAside(s) {
 /** Your hand along the foot: the cards you may play lifted on your turn (dummy's, at the top, on dummy's). */
 function drawHand(s) {
   const box = $("hand"), seat = V.seat;
-  if (seat == null) { box.innerHTML = `<p class="bd-status">Watching: you sit down at the next match.</p>`; return; }
+  if (seat == null) { box.innerHTML = `<p class="bd-status">Watching: you sit down at the next match.</p>`; box.style.height = ""; return; }
   const live = s.step === "play" && s.turn === seat && rules.toMove(s) === seat;
   const ok = live ? new Set(legalCards(s.hands[seat], s.trick)) : null, best = live && hint?.card != null ? hint.card : null;
   const hand = sortHand(s.step === "scored" || s.step === "over" ? s.dealt[seat] : s.hands[seat]);
-  box.innerHTML = hand.map(c => card(c, live ? `${ok.has(c) ? "ok" : "dim"}${c === best ? " coach" : ""}` : "", { card: c })).join("");
   box.classList.toggle("is-dummy", !!(s.contract && seat === dummyOf(s) && s.step !== "bid"));
-  fitRow(box, hand.length, { max: 1.25 });
+  // Guandan's fan (cardroom.js): a run to a suit, the cards you may play lifted on your turn
+  const suits = new Map();
+  for (const c of hand) { const su = suitOf(c); if (!suits.has(su)) suits.set(su, []); suits.get(su).push(c); }
+  drawHandBox(box, { cols: [...suits.values()], fan: true, face, label: cardText, classes: c => (live ? `${ok.has(c) ? "ok" : "dim"}${c === best ? " coach" : ""}` : "") });
 }
 
 /** The line over your hand: a hint or a call explained while they last, else what the table waits on. */
 function drawSay(s) {
-  const el = $("say");
-  if (hint?.html) { el.innerHTML = hint.html; return; }
-  if (said?.html) { el.innerHTML = said.html; return; }
-  el.innerHTML = esc(statusOf(s));
-  el.querySelector(".bd-wait")?.append(waitMark());
+  // only the coach's word (a hint, a call explained) speaks, as the bubble over the buttons; the buttons say what the table waits on
+  sayBubble.show(hint?.html || said?.html || "");
 }
-function statusOf(s) {
-  const seat = V.seat, who = rules.toMove(s);
-  if (s.step === "bid") return who === seat ? (s.auction.length ? "Your call. Tap a call in the auction to see what it showed." : "Your call: you're the dealer.") : `${nameOf(who)} is thinking…`;
-  if (s.step === "play") {
-    const dummy = dummyOf(s), hand = s.turn;
-    if (who === seat) {
-      if (hand !== seat) return `Dummy's card: you play it${s.trick.length ? "" : " (dummy leads)"}.`;
-      return !s.tricks.length && !s.trick.length ? "Your opening lead." : s.trick.length ? "Your card: follow suit if you can." : "Your lead.";
-    }
-    if (hand === dummy) return `${nameOf(s.contract.declarer)} plays dummy's card…`;
-    return `${nameOf(hand)} is thinking…`;
-  }
-  if (s.step === "trick") return "";
-  if (s.step === "passed") return "Passed out.";
-  if (s.step === "scored") return s.no >= DEALS ? "The last deal of the match." : `Deal ${s.no + 1} of ${DEALS} next.`;
-  return "";
-}
-
+const sayBubble = bubble($("say"));
 /** Under your hand: the bidding box while it's bid, else the hint. */
 function drawControls(s) {
   const box = $("controls"), seat = V.seat;
@@ -417,8 +400,8 @@ async function makeCall(call) {
   if (why) toast(why);
 }
 $("hand").addEventListener("click", e => {
-  const el = e.target.closest("[data-card]");
-  if (el && V?.state?.turn === V.seat) playCard(Number(el.dataset.card));
+  const el = e.target.closest("[data-id]");
+  if (el && V?.state?.turn === V.seat) playCard(Number(el.dataset.id));
 });
 $("seatTop").addEventListener("click", e => {
   const el = e.target.closest(".bd-dummy [data-card]");

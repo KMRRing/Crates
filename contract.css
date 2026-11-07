@@ -65,11 +65,12 @@ html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
 .bd-row i.lit { color: var(--bd-in); text-decoration: underline; text-underline-offset: .15em; }
 /* dummy's cards as a hand, yours to play */
 .bd-dummy { --bd-under: var(--bd-felt); width: 100%; justify-content: center; min-height: 3.6rem; padding-top: .35rem; }
-.bd-dummy .cd, .bd-hand .cd { cursor: pointer; transition: transform .12s; }
-.bd-dummy .cd.ok, .bd-hand .cd.ok { transform: translateY(-.4em); }
+.bd-dummy .cd { cursor: pointer; transition: transform .12s; }
+.bd-dummy .cd.ok { transform: translateY(-.4em); }
+.cr-hand .cd.ok { translate: 0 -.45em; }
 /* a card you may not play fades toward what it lies on, but stays opaque: in a fanned row the card under it doesn't show through */
-:is(.bd-dummy, .bd-hand, .ln-sheet.bd .lc-hand) .cd.dim { opacity: 1; }
-:is(.bd-dummy, .bd-hand, .ln-sheet.bd .lc-hand) .cd.dim::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--bd-under, var(--yard)) 55%, transparent); }
+:is(.bd-dummy, .cr-hand, .ln-sheet.bd .lc-hand) .cd.dim { opacity: 1; }
+:is(.bd-dummy, .cr-hand, .ln-sheet.bd .lc-hand) .cd.dim::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--bd-under, var(--yard)) 55%, transparent); }
 .cd.coach { box-shadow: 0 0 0 2.5px var(--bd-in), 0 0 0 5px color-mix(in srgb, var(--bd-in) 30%, transparent); }
 
 .bd-centre { grid-area: centre; position: relative; display: grid; place-items: center; min-height: 0; container-type: size; }
@@ -113,7 +114,7 @@ html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
 /* your hand, the line over it, the bidding box */
 .bd-side { display: flex; flex-direction: column; gap: .3rem; padding-top: .3rem; }
 .bd-aside { display: none; }
-.bd-say { margin: 0; height: 2.5em; overflow-y: auto; font-size: .82rem; line-height: 1.25; color: var(--ink-soft); text-align: center; }
+.bd-say { margin: 0; }
 .bd-say b.bd-who { color: var(--ink); margin-right: .2rem; }
 .bd-coach { margin-right: .3rem; padding: .02rem .35rem; border-radius: 3px; background: var(--bd-in); color: var(--sheet); font-size: .66rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); vertical-align: .08em; }
 .bd-card { color: var(--cd-black); }
@@ -121,8 +122,7 @@ html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .bd-card:not(.red) { color: var(--ink); } }
 html[data-mode="night"] .bd-card:not(.red) { color: var(--ink); }
 .bd-wait { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .35rem; vertical-align: -.2em; }
-.bd-hand { justify-content: center; min-height: 4.5rem; padding-top: .45rem; }
-.bd-hand.is-dummy .cd { cursor: default; }
+.cr-hand.is-dummy .cd { cursor: default; }
 .bd-status { margin: 0; text-align: center; color: var(--ink-soft); font-size: .88rem; }
 .bd-controls { display: grid; gap: .3rem; }
 .bd-box { display: grid; gap: .3rem; }
@@ -184,3 +184,9 @@ html[data-theme="office"] :is(.bd-seat, .bd-result, .bd-contract) { border-radiu
   #app.contract .bd-aside { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   #app.contract .bd-aside .bd-auction { max-height: none; }
 }
+
+/* Korbi, 7 Nov 2026: the card room's proportions (Guandan's) */
+#app.contract { --cr-in: var(--bd-in); }
+.bd-side { padding-top: 0; gap: .15rem; }
+#app.contract .cr-hand { margin-bottom: 1.2rem; }
+.bd-table { margin-top: .7rem; }

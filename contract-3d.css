@@ -60,7 +60,7 @@ html[data-mode="night"] .bd3 .bd-result .bd-s:not(.red) { color: var(--pg-ink); 
 .bd-col .cd:not(:last-child) .cd-ct { display: none; }
 .bd-col.void { border: 1px dashed color-mix(in srgb, var(--tk-text) 28%, transparent); border-radius: .2em; }
 /* dummy's cards to play, across the top, on the cloth */
-.bd3 .bd-dummy .cd, .bd3 .bd-hand .cd { box-shadow: var(--cd-thick); }
+.bd3 .bd-dummy .cd, .bd3 .cr-hand .cd { box-shadow: var(--cd-thick); }
 
 /* ---------- the plaque: brass, screwed to the rail, the contract engraved and each vulnerable side's tab in red enamel ---------- */
 .bd-plaque { position: relative; display: inline-grid; grid-template-columns: auto auto; grid-template-areas: "c v" "n v"; align-items: center; column-gap: .55rem; row-gap: 0; min-width: 0;
@@ -119,7 +119,7 @@ html[data-theme="office"] .bd-pl-n { color: rgba(22, 26, 31, .75); }
 @media (prefers-reduced-motion: reduce) { .bd3 .bd-box .btn { transition: none; } }
 
 /* ---------- your hand: each card lifted when it may be played, with its shadow lengthening ---------- */
-.bd-hand .cd.ok, .bd-dummy .cd.ok { box-shadow: var(--cd-thick), 0 .5em .6em -.12em rgba(28, 42, 52, .38); }
+.cr-hand .cd.ok, .bd-dummy .cd.ok { box-shadow: var(--cd-thick), 0 .5em .6em -.12em rgba(28, 42, 52, .38); }
 
 /* ---------- held sideways ---------- */
 @media (orientation: landscape) and (min-width: 700px) {
