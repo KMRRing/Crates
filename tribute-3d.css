@@ -13,7 +13,7 @@
 
 /* ---------- the plane: tipped away, the far side narrower; the eye level with the near edge ---------- */
 .t3-field { --fw: 100%; --fh: 100%; position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; }
-.t3-stage { position: absolute; inset: 0; overflow: hidden; perspective: calc(var(--fh) * 1.7); perspective-origin: 50% 100%; }
+.t3-stage { position: absolute; inset: 0; overflow: hidden; perspective: calc(var(--fh, 31rem) * 1.7); perspective-origin: 50% 100%; }
 .t3-mat { --t3-cloth: #29507A; --t3-lit: #4A7AAA; --t3-text: #F5F0E2; --t3-soft: #B7C6D6; position: absolute; left: .1rem; right: .1rem; bottom: 0; height: 128%; transform-origin: 50% 100%;
   transform: rotateX(var(--t3-tilt)); transform-style: preserve-3d; box-sizing: border-box; border: 2px solid var(--brass); border-radius: .5rem;
   background:
@@ -360,7 +360,9 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 @media (max-height: 640px) { #app.tb3 .tb-table { margin-top: -.75rem; } #app.tb3 #hand { margin-top: -1.1rem; } }   /* (a short phone gives up some of the gap to the hand for the table's room) */
 
 /* Korbi, 7 Nov 2026: the slight pivot with the pointer (and, on a phone, its tilt), the kit's own */
-.t3-field .t3-mat { transform: rotateX(calc(var(--t3-tilt) + var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); }
+/* the pivot is its own layer round the tipped cloth: should a browser ever refuse its calc(), the table loses the pivot, never its tilt
+   (Korbi, 7 Nov 2026: it sometimes started flat on his phone, with the tilt and the pivot in one transform) */
+.t3-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(calc(var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); }
 
 /* Korbi, 7 Nov 2026: no box behind the table in the dark themes either (its gradient showed against the page), and the levels plate in front of the table that now rises under it */
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.tb3 .tb-table { background: none; } }
@@ -375,3 +377,4 @@ html[data-mode="night"] #app.tb3 .tb-table { background: none; }
 #app.tb3 .tb-table, #app.tb3 .t3-stage { overflow: visible; }
 #app.tb3 .t3-field { z-index: 5; }
 #app.tb3 .t3-centre { pointer-events: none; z-index: 4; }   /* above the seats (z-index 3): a card flies over your seat, not under it */
+.t3-pivot, .t3-mat { will-change: transform; }   /* its own compositing layers from the first paint (the table started flat on an iPhone until the view was switched) */
