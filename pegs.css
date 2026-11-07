@@ -13,8 +13,7 @@ html[data-theme="office"][data-mode="night"] { --pg-in: #479EF5; }
 
 .pg-mark { display: inline-block; }
 .pg-mark svg { width: 100%; height: 100%; display: block; }
-.pg-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); }
-.pg-strip b { color: var(--ink); }
+#app.pegs { --cr-in: var(--pg-in); }
 
 /* ---------- the table ---------- */
 .pg-table { display: flex; flex-direction: column; gap: .4rem; padding: .6rem; min-height: 0; border-radius: 6px; background: var(--pg-felt);
@@ -72,12 +71,6 @@ html[data-theme="office"][data-mode="night"] { --pg-in: #479EF5; }
 
 /* ---------- your cards and your buttons ---------- */
 .pg-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
-.pg-status { display: flex; align-items: center; justify-content: center; height: 2.6em; margin: 0; overflow: hidden; line-height: 1.3; text-align: center; font-size: .9rem; color: var(--ink-soft); }
-.pg-status b { color: var(--pg-in); }
-.pg-hand { height: 4.6rem; padding-top: .45rem; box-sizing: border-box; justify-content: center; }
-.pg-hand .cd { cursor: pointer; transition: transform .1s; }
-.pg-hand .cd.sel { transform: translateY(-.4rem); background: color-mix(in srgb, var(--pg-in) 18%, var(--cd-face)); border-color: var(--pg-in); box-shadow: 0 0 0 1.5px var(--pg-in); }
-@media (prefers-reduced-motion: reduce) { .pg-hand .cd { transition: none; } }
 .pg-watch { margin: auto; color: var(--ink-soft); }
 .pg-bar { display: flex; gap: .45rem; align-items: center; }
 .pg-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -106,3 +99,8 @@ html[data-theme="office"][data-mode="night"] { --pg-in: #479EF5; }
 }
 html[data-theme="office"] .pg-table { border-radius: 4px; }
 .ln-sheet.pg { --ln-in: var(--pg-in); }
+
+/* Korbi, 7 Nov 2026: the card room's proportions (Guandan's) */
+.pg-table { margin-top: .8rem; }
+.pg-side { padding-top: 0; gap: .15rem; }
+#app.pegs .cr-hand { margin-bottom: 1.7rem; }

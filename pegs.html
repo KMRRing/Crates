@@ -14,6 +14,7 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="cardroom.css">
 <link rel="stylesheet" href="course.css">
 <link rel="stylesheet" href="pegs.css">
 <link rel="stylesheet" href="pegs-3d.css">
@@ -29,11 +30,10 @@
     </div>
   </header>
 
-  <p id="strip" class="pg-strip full-pull"></p>
+  <div id="strip" class="pg-strip full-pull"></div>
   <section id="table" class="pg-table fit-grow" aria-label="The table"></section>
   <section id="side" class="pg-side" aria-label="Your cards">
-    <p id="status" class="pg-status" aria-live="polite"></p>
-    <div id="hand" class="pg-hand cd-row" role="group" aria-label="Your cards"></div>
+    <div id="hand" class="cr-hand" role="group" aria-label="Your cards"></div>
     <div id="bar" class="pg-bar"></div>
   </section>
 </div>

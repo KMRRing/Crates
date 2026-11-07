@@ -8,7 +8,8 @@ import { createCourse, progressOf } from "./course.js";
 import { cardStage } from "./course-cards.js";
 import { COURSE, judge, face as lessonFace, label as lessonLabel, hold } from "./pegs-course.js";
 import { seatPage } from "./seats-ui.js";
-import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, drawHandBox } from "./cardroom.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { ramp } from "./ramp.js";
@@ -92,14 +93,14 @@ function finalLine(s) {
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { for (const id of ["table", "hand", "status", "strip", "bar"]) $(id).innerHTML = ""; return; }
+  if (!v?.G) { for (const id of ["table", "hand", "strip", "bar"]) $(id).innerHTML = ""; return; }
   const s = v.state, me = mine();
   const key = `${v.G.seq}:${s.deal}:${s.step}:${(s.hands[me] || []).length}`;
   if (key !== selFor) { selFor = key; sel = []; }
-  $("strip").innerHTML = `Deal <b>${s.deal}</b> · game to ${s.opts.to} · ${esc(who(s.dealer))} ${verb(s.dealer, "have", "has")} the crib`;
+  // the brass plate across the top (cardroom.js): the deal, the game's target, whose crib it is
+  $("strip").innerHTML = plateHtml({ title: `<small>Deal</small><b>${s.deal}</b>`, items: [me, 1 - me].map(k => ({ k: who(k).slice(0, 6), v: s.scores[k] })), tail: `to ${s.opts.to}<br>${esc(whose(s.dealer))} crib` });
   drawTable(v);
   drawHand(v);
-  $("status").innerHTML = statusLine(v);
   drawBar(v);
 }
 
@@ -153,17 +154,14 @@ function showHtml(v) {
 // ---------- your cards ----------
 function drawHand(v) {
   const box = $("hand"), s = v.state;
-  if (v.seat == null) { box.innerHTML = `<p class="pg-watch">Watching: you sit down at the next game.</p>`; return; }
+  if (v.seat == null) { box.innerHTML = `<p class="pg-watch">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
   const showing = s.step === "show" || s.step === "over";
   const hand = showing ? s.keep[v.seat] : s.hands[v.seat];
   const count = s.seq.reduce((a, e) => a + value(e.card), 0);
   const ok = s.step === "play" && myTurn(v) ? new Set(playable(hand, count)) : null;
-  let html = "";
-  for (const id of [...hand].sort((a, b) => rankOf(a) - rankOf(b) || suitOf(a) - suitOf(b))) {
-    html += cardHtml(face(id), { cls: [sel.includes(id) && "sel", (showing || (ok && !ok.has(id))) && "dim"].filter(Boolean).join(" "), data: { id }, label: cardName(id) });
-  }
-  box.innerHTML = html;
-  fitRow(box, hand.length, { max: 1.2 });
+  // Guandan's fan (cardroom.js): your cards low to high
+  const cols = [[...hand].sort((a, b) => rankOf(a) - rankOf(b) || suitOf(a) - suitOf(b))];
+  drawHandBox(box, { cols, fan: true, face, label: cardName, classes: id => [sel.includes(id) && "sel", (showing || (ok && !ok.has(id))) && "dim"].filter(Boolean).join(" ") });
 }
 $("hand").addEventListener("click", e => {
   const c = e.target.closest(".cd[data-id]");
@@ -174,17 +172,6 @@ $("hand").addEventListener("click", e => {
   else return;
   draw();
 });
-
-function statusLine(v) {
-  const s = v.state;
-  if (s.step === "over") return `<span>${esc(finalLine(s))}</span>`;
-  if (s.step === "show") return `<span>${s.won != null ? "" : "Tap for the next count, or wait."}</span>`;
-  if (v.seat == null) return `<span>${esc(nameOf(v.toMove ?? 0))} to play.</span>`;
-  if (!myTurn(v)) return `<span>${esc(nameOf(v.toMove ?? 1 - v.seat))} ${v.seats[v.toMove ?? 0]?.bot ? "is thinking…" : "to play."}</span>`;
-  if (s.step === "discard") return `<span>Pick two cards for ${esc(whose(s.dealer))} crib${sel.length ? `: <b>${sel.map(short).join(" ")}</b>` : ""}.</span>`;
-  const count = s.seq.reduce((a, e) => a + value(e.card), 0);
-  return `<span>Count <b>${count}</b>. ${sel.length ? `Play the <b>${short(sel[0])}</b>.` : "Pick a card to play."}</span>`;
-}
 
 function drawBar(v) {
   const bar = $("bar"), s = v.state;
