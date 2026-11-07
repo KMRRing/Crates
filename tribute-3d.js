@@ -123,7 +123,7 @@ const still = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-mo
 export function createTable3d(c) {
   const $ = id => document.getElementById(id);
   const box = $("board3d"), handBox = $("hand");
-  box.innerHTML = `<div class="t3-field" id="t3field"><div class="t3-stage"><div class="t3-mat" id="t3mat">
+  box.innerHTML = `<div class="t3-field" id="t3field"><span class="t3-caption" id="t3cap" hidden></span><div class="t3-stage"><div class="t3-mat" id="t3mat">
       <div class="t3-inlay" id="t3inlay" aria-hidden="true"></div>
       <div class="t3-centre" id="t3centre" aria-live="polite"><div class="t3-play" id="t3play"></div><div class="t3-open" id="t3open"></div></div>
       ${["top", "left", "right", "me"].map(s => `<div class="t3-plate at-${s}" id="t3-${s}"></div>`).join("")}
@@ -202,6 +202,18 @@ export function createTable3d(c) {
       + `<span class="t3-order">${r.order.map((s, i) => `<span class="${E.teamOf(s) === us ? "us" : ""}"><small>${PLACE[i]}</small>${esc(c.nameOf(s))}</span>`).join("")}</span>`
       + `<span class="t3-line">${ours ? "You rise" : "They rise"} ${r.gain} level${r.gain > 1 ? "s" : ""}, to ${FACE[r.levels[r.team]]}${r.passedA ? ", passing the ace" : ""}.${r.over ? ` ${r.winner === us ? "You win the match." : "They win the match."}` : ""}</span></span>`;
   }
+  // Korbi, 7 Nov 2026: the play to beat is written under the play area, flat, not tilted and not tied to a card. It lives outside the
+  // tilted mat, set at the screen position just below the lowest card of the pile.
+  const capEl = $("t3cap");
+  function caption(html) {
+    capEl.hidden = !html;
+    if (!html) return;
+    capEl.innerHTML = html;
+    const fr = field.getBoundingClientRect(), cards = [...playBox.querySelectorAll(".t3-lay")].map(e => e.getBoundingClientRect());
+    if (!cards.length || !fr.width) return;
+    capEl.style.left = `${(Math.min(...cards.map(r => r.left)) / 2 + Math.max(...cards.map(r => r.right)) / 2 - fr.left).toFixed(1)}px`;
+    capEl.style.top = `${(Math.max(...cards.map(r => r.bottom)) - fr.top + 6).toFixed(1)}px`;
+  }
   function drawMiddle() {
     const g = G(), cs = getComputedStyle(centre), px = v => parseFloat(v) || 0, rem = px(getComputedStyle(document.documentElement).fontSize) || 16;
     const room = { w: centre.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight), h: centre.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) };
@@ -227,7 +239,7 @@ export function createTable3d(c) {
           return `<span class="${c.cardClass(id, g.level)} t3f t3-cd" data-id="${id}" style="margin-left:calc(var(--cw) * ${m.toFixed(3)})">${cardFace(id, g.level)}</span>`;
         }).join("")).join("");
         return `<span class="t3-cards t3-lay${r?.bomb ? " bomb" : ""}" style="--cw:${fit.w.toFixed(1)}px;left:${(50 + dx + jit(3) * 8).toFixed(1)}%;top:${(50 + dy + jit(13) * 7).toFixed(1)}%;`
-          + `transform:translate(-50%,-50%) rotate(${(jit(7) * 12).toFixed(1)}deg)">${cards}${k === shown.length - 1 && g.top ? labelOf(g.top.seat, g.top.reading) : ""}</span>`;   // (the label hangs under the newest play)
+          + `transform:translate(-50%,-50%) rotate(${(jit(7) * 12).toFixed(1)}deg)">${cards}</span>`;
       }).join("");
     }
     if (g.phase !== "over" && !g.top) {
@@ -238,6 +250,7 @@ export function createTable3d(c) {
     }
     fill(playBox, play);
     fill(openBox, open);
+    caption(play && g.top ? labelOf(g.top.seat, g.top.reading) : "");
     centre.classList.toggle("has", !!play);
     if (inlay._lv !== g.level) { inlay._lv = g.level; inlay.innerHTML = `<b>${FACE[g.level]}</b>`; }
     inlay.classList.toggle("quiet", !!play || !!open);

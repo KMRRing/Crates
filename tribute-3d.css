@@ -344,3 +344,9 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 .t3-plate:is(.at-left, .at-right) .t3-tally { gap: .4rem; }
 .t3-plate.at-top .t3-tally { flex-direction: column; gap: .4rem; }
 .t3-plate.at-top .t3-fan { margin-bottom: .1rem; }
+
+/* Korbi, 7 Nov 2026: the play to beat is written flat under the play area, outside the tilted mat. */
+.t3-field { position: relative; }
+.t3-caption { position: absolute; z-index: 6; translate: -50% 0; width: max-content; max-width: 100%; pointer-events: none; }
+.t3-caption[hidden] { display: none; }
+.t3-caption .t3-label { display: block; }
