@@ -16,27 +16,28 @@ const clamp01 = u => Math.max(0, Math.min(1, u));
 
 // the table's colours by day and night (the flat table is dark in every theme, so this is too)
 const LOOK = {
-  day: { baize: 0x2b7058, oak: 0x4b2e1b, oakTop: 0x6b4527, brass: 0xc9a24a, brassHi: 0xf0cf79, seat: 0x45202a, seatTurn: 0x5a2833, seatOut: 0x26141a,
-    mine: 0x503420, aim: 0xf1ead8, picked: 0xe76f51, plate: 0xd2a64a, plateHi: 0xf3d98c, held: 0x2c7a52, broke: 0xa8382b, open: 0x142a21 },
-  night: { baize: 0x1d5240, oak: 0x2f1d12, oakTop: 0x45301d, brass: 0xa98838, brassHi: 0xd2b25f, seat: 0x2f141b, seatTurn: 0x421d27, seatOut: 0x1a0d11,
-    mine: 0x382416, aim: 0xd8d1c0, picked: 0xd8603f, plate: 0xb48e3c, plateHi: 0xd9bb69, held: 0x1f5c3d, broke: 0x85291f, open: 0x0d1d17 },
+  day: { baize: 0x6c3a22, oak: 0x4b2e1b, oakTop: 0x6b4527, brass: 0xc9a24a, brassHi: 0xf0cf79, seat: 0x45202a, seatTurn: 0x5a2833, seatOut: 0x26141a,
+    mine: 0x503420, aim: 0xf1ead8, picked: 0xe76f51, plate: 0xd2a64a, plateHi: 0xf3d98c, held: 0x2c7a52, broke: 0xa8382b, open: 0x24130b },
+  night: { baize: 0x4a2515, oak: 0x2f1d12, oakTop: 0x45301d, brass: 0xa98838, brassHi: 0xd2b25f, seat: 0x2f141b, seatTurn: 0x421d27, seatOut: 0x1a0d11,
+    mine: 0x382416, aim: 0xd8d1c0, picked: 0xd8603f, plate: 0xb48e3c, plateHi: 0xd9bb69, held: 0x1f5c3d, broke: 0x85291f, open: 0x180c06 },
 };
 const HEX = c => [(c >> 16 & 255) / 255, (c >> 8 & 255) / 255, (c & 255) / 255];
 
 export function createCartel3d(host, { onLost = () => {} } = {}) {
-  const stage = createDiceStage(host, { camera: { span: SPAN, elev: 56, fov: 24 }, clear: n => (n ? 0x12301f : 0x1a3a2c), onLost, capacity: 64, exposure: 0.92, light: { sun: [1.55, 1.3], hemi: [0.62, 0.62] } });
+  const stage = createDiceStage(host, { camera: { span: SPAN, elev: 56, fov: 24 }, clear: n => (n ? 0x1a0d07 : 0x2a1509), onLost, capacity: 64, exposure: 0.92, light: { sun: [1.55, 1.3], hemi: [0.62, 0.62] } });
   const { THREE, std, mesh, worldAt, track } = stage;
   let look = LOOK.day, rem = 1, upp = 0.05, last = null, dead = false;
 
-  // ---------- the baize, with a woven grain ----------
+  // ---------- the table top: polished mahogany, the card room's (Korbi, 7 Nov 2026: "use the new table"), with a long grain ----------
   const baizeTex = (() => {
     const c = document.createElement("canvas");
-    c.width = c.height = 128;
+    c.width = c.height = 256;
     const x = c.getContext("2d");
-    x.fillStyle = "#808080"; x.fillRect(0, 0, 128, 128);
-    for (let i = 0; i < 2600; i++) { x.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"; x.fillRect(Math.random() * 128, Math.random() * 128, 1.5, 1.5); }
+    x.fillStyle = "#808080"; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 700; i++) { x.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.09)"; x.fillRect(0, Math.random() * 256, 256, Math.random() * 2.2 + .3); }
+    for (let i = 0; i < 160; i++) { x.fillStyle = "rgba(0,0,0,.06)"; x.fillRect(Math.random() * 256, Math.random() * 256, Math.random() * 90 + 20, 1); }
     const t = new CanvasTexture(c);
-    t.wrapS = t.wrapT = 1000; t.repeat.set(26, 26); t.needsUpdate = true;
+    t.wrapS = t.wrapT = 1000; t.repeat.set(8, 8); t.needsUpdate = true;
     return track(t);
   })();
   const baizeMat = std(0xffffff, 0.98, 0, { map: baizeTex, color: look.baize });

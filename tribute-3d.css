@@ -365,3 +365,5 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.tb3 .tb-table { background: none; } }
 html[data-mode="night"] #app.tb3 .tb-table { background: none; }
 #app.tb3 > .tb-strip { position: relative; z-index: 6; }
+/* Korbi, 7 Nov 2026: the ally a touch further from the levels plate */
+#app.tb3 .t3-plate.at-top { top: calc(6% + .5rem); }
