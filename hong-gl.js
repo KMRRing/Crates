@@ -10,6 +10,7 @@
 import * as T from "./vendor/three-run.js";
 import { faceMarkup } from "./hong-tiles.js";
 import { IN_FRAME } from "./suite.js";
+import { bindOrbit } from "./camera-kit.js";
 
 const TL = 4 / 3, THICK = 0.7, T_BLACK = 0.35, T_GOLD = 0.175, T_FACE = 0.175, BEVEL = 0.16;       // a tile in its widths: its length, its thickness (half black porcelain, a quarter gold, a quarter ivory), the edge's bevel
 const KEY = "suite:hong-view";
@@ -161,49 +162,11 @@ export function createGL({ host, onFrame = () => {} }) {
     fit = fitDist();
     view.dist = fit * clamp(Number.isFinite(s?.zoom) ? s.zoom : 1, 0.3, 1.8);
   }
-  // one finger or the mouse turns and tilts, two fingers or the wheel zoom, a double tap puts it back
-  const pts = new Map();
-  let pinch = 0, tapAt = 0;
-  function bind(el) {
-    el.style.touchAction = "none";
-    el.addEventListener("pointerdown", e => { el.setPointerCapture?.(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); pinch = 0; el.style.cursor = "grabbing"; });
-    el.addEventListener("pointermove", e => {
-      const p = pts.get(e.pointerId);
-      if (!p || !view) return;
-      const dx = e.clientX - p.x, dy = e.clientY - p.y;
-      p.x = e.clientX; p.y = e.clientY;
-      if (pts.size === 1) {
-        view.yaw -= dx * 0.0065;
-        view.pitch = clamp(view.pitch + dy * 0.0055, (PITCH[0] * Math.PI) / 180, (PITCH[1] * Math.PI) / 180);
-        pose();
-      } else if (pts.size === 2) {
-        const [a, b] = [...pts.values()], dist = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch) { view.dist = clamp(view.dist * (pinch / dist), fit * 0.3, fit * 1.8); pose(); }
-        pinch = dist;
-      }
-    });
-    const up = e => {
-      const had = pts.delete(e.pointerId);
-      pinch = 0;
-      el.style.cursor = "grab";
-      if (!had) return;
-      if (!pts.size) {
-        keep();
-        const now = Date.now();
-        if (now - tapAt < 320 && Math.hypot(e.movementX || 0, e.movementY || 0) < 4) { resetView(); tapAt = 0; } else tapAt = now;
-      }
-    };
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", up);
-    el.addEventListener("wheel", e => {
-      if (!view) return;
-      e.preventDefault();
-      view.dist = clamp(view.dist * Math.exp(e.deltaY * 0.0014), fit * 0.3, fit * 1.8);
-      pose(); keep();
-    }, { passive: false });
-    el.addEventListener("dblclick", () => resetView());
-    el.style.cursor = "grab";
-  }
+  // one finger or the mouse turns and tilts, two fingers or the wheel zoom, a double tap puts it back (camera-kit.js)
+  const bind = el => bindOrbit(el, {
+    get: () => view, fit: () => fit, set: v => { view = v; pose(); }, done: keep, reset: resetView,
+    pitch: [(PITCH[0] * Math.PI) / 180, (PITCH[1] * Math.PI) / 180], zoom: [0.3, 1.8],
+  });
 
   // ---------- materials and geometry, made once ----------
   function build() {

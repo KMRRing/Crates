@@ -11,10 +11,10 @@ Source: Korbi's doc "Tuesday plan: app todo and Settle foundry" (6 Nov 2026), wh
 - **Ladder fixes, Crossword buttons, Codeword clue cap:** **ask** (`ladder*.js`, `crossword*.js`, `codeword*.js`).
 
 ## Wave 1: shared files (Korbi must say nobody else is in them)
-- **Menu consistency:** rules live on one page inside Learn; the topics link goes Back to menu. `menu.js`, `topics-ui.js`; touches every game's menu part, so do it by script where possible.
-- **Shared easy/medium/hard control:** reverses Korbi's 4 November "no difficulty picker, use `ramp()`" ruling. **Ask him to confirm** before building; then one control in `menu.js` and a mapping onto each game's `ramp` start.
-- **Shared 3D camera kit:** one module for orbit/zoom/reset used by the 3D views (see `hong-3d.js`, `shunt-view-3d.js`, `bridges-3d.js` for the three current styles); first user Mahjong, then the rest.
-- **Sound-audit test:** `tests/` file that loads each game's sound module (`*-sound.js`) and fails on a game with sound code that never respects the mute setting.
+- **Menu consistency:** DONE 7 Nov (rules are the first page of Learn's map in `course.js`; the 20 games with a course lost the menu's rules button; the Topics sheet has Back to menu and reopens the menu). Games without a course keep their Rules button.
+- **Shared easy/medium/hard control:** Korbi confirmed 7 Nov (reverses 4 Nov "no difficulty picker, use `ramp()`"). One control in `menu.js` and a mapping onto each game's `ramp` start. NOT BUILT yet; record the new ruling as a dated comment where it lands.
+- **Shared 3D camera kit:** one module for orbit/zoom/reset used by the 3D views (see `hong-3d.js`, `shunt-view-3d.js`, `bridges-3d.js` for the three current styles); `camera-kit.js` (turn/pinch/wheel maths + `bindOrbit`, `tests/camera-kit.mjs`) is DONE 7 Nov and Mahjong (`hong-gl.js`) uses it. Left: Shunt, Bridges and Go keep their own cameras (they pan, tilt with the phone or snap to a top view), so each needs a step of its own.
+- **Sound-audit test:** DONE 7 Nov (`tests/sound-mute.mjs`, static). It found Dujiang with no Sound setting (added). Open: Calibre's repeater gong has no Sound setting; Korbi decides (named in the test's EXEMPT).
 
 ## Wave 2: shared mahogany card table
 - **Table frame, Guandan (`tribute`) and Schafkopf first:** one `style.css`/module frame (felt-less mahogany table, brass rail) the card games draw inside; `trumps`, `tribute`, `landlord`, `bigtwo`, `hearts` later. 3D kit precedent: `table3d` code (`git show e2c62ef8:docs/table3d.md`).
