@@ -31,4 +31,8 @@ ramp("lw", ["x", "y"], { start: "x" });
 check(ramp.levels().join() === "easy,hard" && ramp.pick("medium") === null && ramp.pick("hard") === "y", "two steps: Easy and Hard only");
 ramp("lx", ["only"]);
 check(ramp.levels().length === 0 && ramp.level() === null && ramp.pick("easy") === null, "one step: no row");
+// 7 Nov 2026 (Korbi: the Level row showed three times in Lode): the row sits inside the Settings part, so menu.js must look
+// for an existing one anywhere in the menu, not only among its direct children.
+{ const { readFileSync } = await import("node:fs");
+  check(/!body\.querySelector\("\[data-level\]"\)/.test(readFileSync(new URL("../menu.js", import.meta.url), "utf8")), "menu.js adds the Level row once, wherever the first one sits"); }
 process.exit(bad ? 1 : 0);
