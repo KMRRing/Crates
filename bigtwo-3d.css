@@ -37,3 +37,5 @@
 @media (max-height: 700px) and (orientation: portrait) { .b23 .tk-plate:is(.at-l, .at-r) { top: 88%; } }
 /* the flying card keeps its depth against the standing plates (cardslide.js): every box from the cloth down to it passes depth on */
 .b23 .tk-centre, .b23-pile, .b23-pile .cd-line { transform-style: preserve-3d; }
+/* a short field (the buttons and cards take the rest): the cloth stands taller in it, nearer the banner */
+@container (max-height: 420px) { .b23 .tk-mat { height: 122%; } }
