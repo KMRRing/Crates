@@ -1,6 +1,5 @@
 // Fuel maths' deck (README, Speed maths; speedfuels-data.js): the desk's figures agree with each other, every chain says what
-// it does in words that match its arithmetic, Korbi's own chain works out as he would, and docs/speedfuels.md lists every
-// chain with figures and answer for him to review (a chain added without its entry there fails here).
+// it does in words that match its arithmetic, and Korbi's own chain works out as he would.
 import fs from "fs";
 import { chainProblem, drawFigs, rng, judge, near, fmtNum, fmtAnswer, stepText, values, roundSf } from "../speedmaths-core.js";
 import { FUEL, CRUDE_BBL, COMPARATOR, TOPICS, DEFS, CONSTANTS, sum } from "../speedfuels-data.js";
@@ -10,7 +9,6 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const root = new URL("..", import.meta.url).pathname;
 const source = fs.readFileSync(root + "speedfuels-data.js", "utf8");
-const doc = fs.readFileSync(root + "docs/speedfuels.md", "utf8");
 
 // ---------- the desk's figures agree with each other ----------
 // a barrel is 158.987 litres, so barrels a tonne is 6.2898 over the density in tonnes a m³ (at 15 °C)
@@ -89,20 +87,5 @@ function* combos(figs) {
   check(r.ok && run.score === first.worth && /^(close|exact)$/.test(r.grade), "and takes the answer rounded as asked");
 }
 
-// ---------- the list for Korbi to review ----------
-{
-  check(/to review/i.test(doc) && /Korbi/.test(doc), "docs/speedfuels.md says these are to be reviewed");
-  const missing = [], wrong = [];
-  for (const d of DEFS) {
-    const at = doc.indexOf(`(${d.id})`);
-    if (at < 0) { missing.push(d.id); continue; }
-    const block = doc.slice(at, doc.indexOf("\n### ", at) < 0 ? undefined : doc.indexOf("\n### ", at));
-    const first = Object.fromEntries(Object.entries(d.figs).map(([k, v]) => [k, v[0]]));
-    const p = chainProblem(d, first);
-    if (!p || !block.includes(`Answer: ${fmtAnswer(p.answer)} ${p.unit}`)) wrong.push(d.id);
-  }
-  check(!missing.length && !wrong.length, `every one of the ${DEFS.length} chains is in docs/speedfuels.md with its worked answer${missing.length ? `; missing ${missing.join(", ")}` : ""}${wrong.length ? `; answer differs for ${wrong.join(", ")}` : ""}`);
-}
-
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("speedfuels: the deck's figures agree, every chain is listed for review, and Korbi's works out");
+else console.log("speedfuels: the deck's figures agree and Korbi's works out");

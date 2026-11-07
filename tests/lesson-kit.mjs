@@ -174,6 +174,5 @@ check(["--ink", "--sheet", "--tile", "--brass", "--ln-in", "--ln-ok", "--ln-no"]
 check(/html\[data-theme="office"\]/.test(css), "Office has its own rule");
 check(/lesson-kit\.css/.test(read("constitutions.html")), "constitutions.html links the kit's stylesheet");
 check(/createKit/.test(read("constitutions-stage.js")), "the Constitutions stage uses the kit");
-check(fs.existsSync(new URL("../docs/lesson-kit.md", import.meta.url)), "docs/lesson-kit.md exists");
 
 if (bad) process.exitCode = 1;

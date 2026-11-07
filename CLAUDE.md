@@ -1,313 +1,42 @@
-# Working on Crates
+# Working on Codex (this repo is Crates)
 
-Codex: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
-Parley, Blend, Refinery, Stow, Hong, Tribute, Cue, Party, River, Gambit, Boast, Big Two, Landlord, Banquet, Gammon,
-Trumps, Quest, Bones), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
-Every push to `main` is tested by `.github/workflows/pages.yml`, but only for what it changed (below); GitHub Pages serves `main` at
-https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
-`sw.js`, which it does only when every test passes.
-`docs/` has one file per game or topic (README.md is the index; "(README, Idle)" in a comment means `docs/idle.md`). Read the file of the game you work on first.
+Plain HTML, CSS and JS modules, no build step. Live at https://kmrring.github.io/Crates/ (GitHub Pages serves `main`). Tests in `tests/` say what to fix when they fail; most rules below are enforced by one.
 
-The owner, Korbi, never uses a command line: do the git work yourself, and make anything he needs work from the app.
+## Who and how
+- Korbi (owner) never uses a command line: do the git work yourself and make everything work from the app. He's a biofuels trader: terse, expert, define a technical term the first time.
+- A game is `<game>.html/.js/.css`, its engine and data files, and `tests/<game>.mjs`. On-screen names differ from file names (Gears=pipes, Mahjong=hong, Hanse=factor, Dujiang=nurikabe, Chess=gambit, Xiangqi=river, Guandan=tribute, Dou Dizhu=landlord, Nonet=sudoku, Tally=kakuro, Cull=hitori, Portolan=slitherlink); `apps.js` has the list. Name games by their official name unless it's a trademark; no falling-blocks game (Tetris).
+- The per-game docs were deleted on 7 November 2026 (Korbi: "unless it's truly essential, remove it"). Old ones: `git show e2c62ef8:docs/<game>.md`. Korbi's rulings now live as dated comments in the code or test they govern: add one there, not a doc. `docs/licences-images-and-engines.md` stays (no GPL engines, public-domain images only).
+- Clean code as you go; comments say why, not what.
 
 ## Several Claudes at once
+- Stay in one game. Shared files need Korbi's OK first: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `menu.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`, `rich.js`, `pics.js`, `wide.js`, `net.js`, `memdb.js`, `random*.js`, `lan*.js`, `tools/`, `.github/`, `kb/` and every bank built from it, and this file.
+- `git pull --rebase` before pushing. Never force-push or rewrite `main`. Never commit `sw.js`: the workflow writes it after the tests pass (`--local` makes one to try offline play).
+- Before pushing: `node tools/pick-tests.mjs --run $(git diff --name-only origin/main)`. Only tests under five seconds run unless Korbi says otherwise (`--slow`, `--all`); the whole suite runs nightly. Syntax: `node tests/syntax.mjs` (`node --check` misses module errors on Node 22).
+- After pushing, check the Actions run is green and the bot committed `sw.js`; look at the last nightly run when you start. A red test means installed copies stay on the last good version.
 
-1. **Stay in one app.** A game is its `<game>.html`, `.js` and `.css`, its own engine and data files, and
-   `tests/<game>.mjs`. Change only those, and only that game's `docs/<game>.md`.
-2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
-   is in them: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
-   `rich.js`, `pics.js`, `wide.js`, `net.js`, `memdb.js`, `random*.js`, the offline party's `lan*.js`, `tools/`,
-   `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`, `chart-geo.js`, `quote-bank.js`,
-   `kb-index.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`, `phil`, `rel`, `refining` banks), and
-   this file.
-3. **Pull before you push:** `git pull --rebase`. Never force-push, never rewrite `main`'s history: that is how one
-   Claude silently deletes another's work.
-4. **Never commit `sw.js`.** It lists every file for offline play with a version from their contents, so every
-   change would touch it; the workflow writes it after the tests pass and commits it as github-actions[bot] (pull
-   before your next push). `node tools/build-sw.mjs` writes nothing locally; `--local` writes one to try offline play,
-   which you then don't commit.
-5. **Built files are rebuilt, not merged.** If a rebase conflicts in a bank built from `kb/`, settle `kb/` and run
-   `node tools/build-kb.mjs`.
-6. **Test before pushing what CI will run:** `node tools/pick-tests.mjs --run $(git diff --name-only origin/main)` (a
-   few seconds). By default only the tests that take under five seconds run (Korbi, 29 October 2026: the suite took too
-   long and uptime isn't important here; of 594 pushes only 2 broke a game's rules, and 14 failures were one afternoon's
-   bank rewrites; his standing rule: unless he says otherwise, only the under-five-second tests), and that is the push's
-   own selection too: the quick tests that read every page; the tests of what changed (a game's own, and for a shared
-   file, a bank or a `kb/` file the tests that load it, found from the files each test names); and a twentieth of the
-   rest, a different one each push (`--slot N`), so every test gets its turn. 53 of 149 tests take five seconds or
-   more (Factor, Manifest, Refinery, Cartel, Punt, Topple's, `offline`...; 60% of the suite's time): they run
-   only when he says so (`--slow` adds the ones named for or loading your change; `--all` is everything) and in the
-   nightly run. Their times are in `tools/test-times.json`; `node tools/pick-tests.mjs --measure` writes it again (do it
-   after adding a test that's slow, or when the nightly shows one over five seconds). The whole suite runs every night
-   (`.github/workflows/all-tests.yml`, 02:23 UTC) and on demand (`gh api -X POST
-   repos/KMRRing/Crates/actions/workflows/all-tests.yml/dispatches -f ref=main`; `gh workflow run` needs GraphQL, which
-   sessions can't reach). A push compares with the last commit the bot published, so a cancelled run's changes are never
-   skipped. If a test fails, `sw.js` isn't published and installed copies stay on the last good version (a fresh visit to
-   the site still gets the new files, so don't leave it broken).
-7. **After pushing, check the run went green** (Actions on GitHub) and that the bot committed `sw.js` when you changed
-   a game file; look at the last nightly "Every test" run when you start, and fix what it found; installed copies update a minute or two later.
+## Standalone repos
+- Gears, Shunt, Mahjong, Hanse, Dujiang, Lanterns and Landfall each live in `github.com/KMRRing/<name>` with their own Pages site: one game, copied unchanged from Crates, no games screen, no partner or second player, a minimal menu with a "Refresh game" line. Work there is cheaper (small context); this repo stays the master of shared files.
+- `tools/standalone.mjs` (usage in its header) makes one (`out`), shows what changed on either side since the base commit in `.crates-base` (`status`), and merges chosen files back (`in`) or forward (`from`). Merge game files only, never menu code (`menu.js`, `games-find.js`, a game's menu function). Then test and push Crates, and `base` the repo. `tools/standalone-menu.patch` is the menu change.
+- A session can push only to repos attached to it (`add_repo`).
 
-## Knowledge lives in kb/
+## Screens
+- The page never scrolls: fit 390×600 up with `#app.fit-screen`, `.fit-col`, `.fit-grow`, `.fit-box`, `.fit-scroll`; nothing changes size mid-game. Look at 390×664, 390×844 and iPad 820×1180 / 1180×820 before pushing a visible change.
+- Sizes in rem (px only for borders, radii, strokes, SVG text); sideways is exactly `@media (orientation: landscape) and (min-width: 700px)` (`#app.beside`, `.fit-half`); script sizes use `scale()` / `sideways()` from `wide.js`. `tests/wide.mjs` checks.
+- No `alert()`, `confirm()` or `prompt()` (Korbi: "feels budget"): use `sure()`, `typed()`, `notice()` from `sure.js`.
+- Full screen: every page's `#app` is `full` (ambient: cards, boards, idle, pictures) or `full titled` (puzzles, quizzes, tools); menu mark top right; a thin status line is `full-pull`; list a new game in `tests/full-screen.mjs`.
+- Look: only `style.css` tokens (`--yard`, `--sheet`, `--tile`, `--ink`, `--brass`, `--plate`, enamels `--c0`..`--c3`), square-ish corners, no pills, wide-spaced capitals for names. Themes are Codex (day/night) and Office (night only); dark rules go under both `prefers-color-scheme` and `data-mode="night"`; a new game needs an Office icon in `apps.js`.
+- Waits use `busy()` / `progress()` / `waitMark()` from `loading.js`, never a spinner of your own. The mark and icons are generated (`tools/build-mark.mjs`); never edit them by hand.
+- Menus use `menu.js` controls (`part`, `choice`, `ticks`, `toggle`, `action`, `line`; Quote's is the model). Parts in order: play, content, together, settings, about. No difficulty picker (use `ramp()`), no instructions, topics come from Settings' `topics.js`. A game with a clock or animation listens to `onPause`.
 
-`kb/` is the one source for Crates, Punt's knowledge levels, Quote and Chart (README: "The knowledge base"). Edit
-`kb/`, run `node tools/build-kb.mjs`, never edit a built bank; `tests/kb.mjs` must pass. Edited one anyway? `node tools/adopt-banks.mjs` brings the edits into `kb/` and checks the rebuild is byte-identical; rebuilding without it undoes them.
+## State, days, modes
+- Saved state is `localStorage` under the game's own prefix (`<game>:…`; a best in `<game>:best`); `suite.js` syncs keys between devices and a watching partner sees only those, so everything shown must be in them. A watching frame (`IN_FRAME`) writes nowhere.
+- Dailies use `today()` from `suite.js`, never your own day count; count a daily the moment its result is final; the tile opens today's with `arrivedForToday()`.
+- Random mode: a solo game calls `roundOver("<id>")` from `random.js` when a round's result is final and goes in `random-core.js`'s `ROUNDS` or `LEFT_OUT`.
+- Offline: `sw.js` lists whatever the pages load, found by `tools/offline.mjs`; a path built at run time must be kept in `offlineFiles` there and in `RUNTIME` of `tests/offline.mjs`.
 
-- **Entities** have sets (what they are: country, commodity, city, painting…) and facts (position, note, year…).
-- **Links** say why two things connect. A clue link is one of Crates' pairs: the hand-written hint (the "because"), its
-  aspects (the topics the Settings subjects choose among: they belong to the link, not the thing), difficulty, the other answers
-  it fits, its position. Typed links: in, painted-by, hangs-in, movement.
-- **Crates is append-only:** shared board codes point at answer and clue positions (`crates`, `pos`). New answers and
-  new clues go at the end; nothing is reordered or removed.
-- **The build writes questions** for a painting (Punt's who, where, movement; Quote's year) and a pin for a museum, when
-  kb/ has the facts and no hand-written ones exist: to add a painting, add the entity and its three links, nothing else.
-  Its `note` is told with the answers. A movement option must be wrong: mark a movement `within` its parent (Rococo
-  in the Baroque) and a painting `notWith` a movement it could fairly be said to be (View of Toledo: Baroque).
-- **Items** (Chart's pins, Quote's estimates, Punt's choices) point at the entities they're about; misses carry those
-  entities into the pile, and the other games' learning modes deal questions about them.
-- **Kinds:** a clue thing's kind (`kind:person`, `kind:food`…) is either set by hand or given by `tools/kb-kinds.mjs`
-  from its hints (marked `kindBy: "words"`); a kind by hand always stands. Settling one from `kb/KINDS.md`: add the
-  set and drop `kindBy`.
-- `kb/MIGRATION.md` and `kb/KINDS.md` list what still needs a person: words that may be two things under one name,
-  facts two sources gave differently, places whose country names no country, clue things whose kind is open.
+## Together
+- Duo play is the game opened with `?room=CODE`; no room setup in a game's menu; a game with duo goes in `DUO_GAMES` in `suite.js` and reports through `createTogether`'s `result` or `reportDuo`. Games for a few seats run on `seats.js`; head-to-head on `duel.js`; tables (`table.js`) and parties (`party-core.js`, `ELSEWHERE`) as the tests in `tests/` show. The database drops empty arrays and objects, so state must survive `roundTrip` (`tests/rtdb.js`).
 
-## How the owner wants things
-
-- **The page never scrolls.** Every game fits the screen from 390×600 up; anything long scrolls inside its own box
-  (dialogs may scroll). Use `style.css`'s frame: `#app.fit-screen`, `.fit-col`, `.fit-grow`, `.fit-box`, `.fit-scroll`.
-  Nothing should change size mid-game.
-- **No browser pop-ups.** Never `alert()`, `confirm()` or `prompt()` (2 November 2026, Korbi: "don't use alerts. just do in-app pop ups. feels budget."): ask with `sure()`, `typed()` or `notice()` from `sure.js`, which return promises, so the caller is async. `tests/no-native-dialogs.mjs` lists the games not yet changed with how many calls each has left; clean a game and lower its number there.
-- **Look before you push** a visible change: a browser at 390×664 and 390×844 (Playwright works in the container),
-  and on an iPad both ways, 820×1180 and 1180×820 (README, Bigger screens).
-- **Clean code as you go**, don't just flag it; comments say why, not what.
-- **Docs only when needed, and short.** Write to `docs/<game>.md` only for a ruling of Korbi's (the date and his words, one line) or a trap the code can't show (an invariant; something that looks wrong and isn't). No account of what you changed (git has it), no how the code works (the code has it), no test lists or measurements. Most changes need no docs; a change that makes a line there false fixes or deletes that line.
-- He's a biofuels trader and wants expert, terse engagement; define a technical term the first time you use it.
-
-## Bigger screens
-
-A phone held upright is the design, and must look exactly as it did; a tablet draws it larger, and a screen held
-sideways puts a game's parts beside its board (README, "Bigger screens"; `style.css`).
-- **Sizes in rem**, not px, for anything that should grow: a tablet grows the root's font size. n px is n/16 rem, the
-  same on a phone. Borders, radii, strokes and shadows stay px, and so does text in an SVG drawn to a viewBox.
-  `tests/wide.mjs` fails on a px size of 3 or more.
-- **Sideways** is `@media (orientation: landscape) and (min-width: 700px)`, exactly (`SIDEWAYS` in `wide.js`, which
-  `tests/wide.mjs` checks every stylesheet against). Give `#app` the class `beside` (header across, the board's column
-  and a side column `--beside` wide) and place your parts in it in your own stylesheet; or `wide`, the whole width, for
-  a card that divides itself. A half that's only a box sideways is a `.fit-half` (on a phone it isn't a box at all).
-  Buttons low in the side column, boxes to type in high (a tablet's keyboard covers the bottom).
-- **Sizes in script** multiply by `scale()` from `wide.js`; ask `sideways()` for which layout is showing, and redraw on
-  `resize` (the screen turns).
-
-## The look
-
-Brass instruments on a codex's page (README, "The look"). Build every screen from `style.css`'s tokens: `--yard`
-(the page), `--sheet` (cards, dialogs), `--tile`/`--tile-edge`, `--ink`, `--ink-soft`, `--brass` (lines, frames, scales),
-`--rule` (hairlines), `--plate`/`--plate-ink` (a primary action: navy lettered in gilt by day, brass lettered in navy by
-night), the enamels `--c0`..`--c3`, `--learn`. A game's own accent is one enamel, `--<game>-in`, with its soft fill
-`color-mix(in srgb, var(--<game>-in) 15%, var(--sheet))`; good and bad are verdigris `#2F7D5B`/`#7FC2A8` and oxblood
-`#A8382B`/`#E8806F`. No cool greys, no pills: corners are square-ish (4–6px), the main action is the plate, names of
-things are wide spaced capitals (`font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .08em+`).
-**Loading:** `busy(label)` from `loading.js` for any wait that holds up the screen (the Codex mark, large, mid-screen);
-a wait with stages says each as it begins with `progress(words, at)` (a bar under the label, `at` 0 to 1 for the whole
-wait; joining, the connection and updates already do); `waitMark()` before the words of a short wait in a line or a box.
-Never a spinner of your own, never "Loading…" alone.
-**The mark** (README, "The mark") is generated: edit `tools/build-mark.mjs` and run it; never edit `mark/*.svg`, `logo.svg`, `icon.svg`,
-`loader-small.svg` or `mark.js` by hand (`tests/mark.mjs` fails on a drift). The app icons are 3D renders from `tools/mark-3d/`.
-
-## Saved state syncs
-
-`suite.js` syncs every `localStorage` key between devices on the same solo code (except `suite:`, Crates' run keys and
-Firebase's own). Keep a game's keys under its own prefix (`manifest:run2`, `quote:best`): a change from another device
-to the open game's keys reloads it. A game's best goes in `<game>:best` (a number, a `{ score }`, or bests by level) to
-show on the games screen. The same prefix is what a partner watches: everything a game shows must be in its own keys
-(`<game>:…`; a game keeping keys under another prefix lists it in `PREFIXES` in `suite.js`, as Slate's `glyph:` and
-Blend's `blend2:`), written as it changes and read at start-up, or the watcher's frame draws a screen of its own
-(Calibre's design, Rush's position, Parley's card and Pipes' board were once kept only in memory). A watching frame
-(`IN_FRAME` from `suite.js`) reads the partner's copy and its writes go nowhere, so don't keep state that matters
-anywhere else, and don't end or restart a run on `visibilitychange` there.
-
-## Offline
-
-Every page must open with no connection, from the home screen too. `sw.js` keeps whatever the pages load:
-`tools/offline.mjs` finds it by reading them (scripts, styles, imports, workers, fetches, any string naming one of
-the app's files), wherever it lives, `kb/` included (Origin, Almanac and Order once imported `kb/` files the list
-left out, and never opened offline). A load whose path is built as the code runs (a template with `${}`, a variable)
-can't be followed: make sure what it loads is kept (`offlineFiles` in `tools/offline.mjs`), then add it to `RUNTIME`
-in `tests/offline.mjs`, which fails until you do. The service worker's logic is `tools/service-worker.js`.
-
-## Dailies
-
-- **One day for every game:** `today()` from `suite.js` (the UTC date, YYYYMMDD, `days.js`). Never count days yourself:
-  Origin and Order once used the phone's own clock and their dailies never reached the games screen
-  (`tests/days.mjs` fails on a day of a game's own).
-- **Count a daily the moment its result is final** (the solve, the last answer settling), not when its summary opens:
-  leaving after the last answer must not lose the day. Record it where the games screen reads it (`markOf` in
-  `suite.js`): `noteComparable`, `noteDayTime`, or `<game>:daily` by the day.
-- **The tile opens today's** while it's still to play (`#today`): a game with a daily takes it with
-  `arrivedForToday()` at start-up and opens today's, asking before it leaves a run you've started.
-- **A played day is recorded for you** (`ledger:played`, for the Ledger): `suite.js` notes it when your page writes a changed `best`, `daily`, `ranked`, `streak`, `stars`, `lessons`, `course`, `progress`, `today`, `count` or `wins`, and `roundOver` does. A game that keeps none of those and has no round calls `notePlayed()` from `suite.js` at its first move.
-- Today's is a button, not a mode: `todayPart` from `menu.js` (Korbi, 4 November 2026)
-
-## Random mode
-
-The games screen's Random plays a game, then the next each time a round is over (README, Random mode). A game played
-alone calls `roundOver("<id>")` from `random.js` in its own end-of-round code, the moment the result is final and after
-counting it (random mode leaves the page three seconds later); a game on `seats.js` gives each view to `seatRounds`. A
-new game goes in `random-core.js`'s `ROUNDS` with what its round is, or `LEFT_OUT` with why: `tests/random.mjs` fails
-until it's one or the other (Party's own games are out by themselves). Never import `random.js` from a module a Node
-test loads.
-
-## Playing together
-
-Players pair once on the games screen; a duo match is the game opened with `?room=CODE` (the pair's room), which the
-partner sheet and the request banner do. Don't add room setup (start, join, share a code) to a game's menu: a game
-only joins the room in its address, and offers "Back to solo" while in it. A request's yes adds `&new=` (its time):
-`together.js` then deals a new table, and seats belong to players, not devices (`sitDown` in `rooms.js`). Don't run
-the solo game while a room in the address is being joined (Hong, Tribute: `busy` until the room's state is drawn).
-A game that gets a duo match goes in `DUO_GAMES` in `suite.js`. A finished duo match is recorded for the pair: on `together.js`,
-give `createTogether` a `result(state)` returning `{ match, score, won, coop, lower }` once the match is over; otherwise
-call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on each player's device.
-
-A duo match can seat up to six (a party's table; the request's `people`): give `createTogether`
-`slots: g => g?.people || 2` and deal for `people` in `fresh`. `together.others()` and `together.slot` say who's at the
-table (away: asleep, or on another page; nobody away holds a table up), each player's colour is `--p<slot>`
-(`style.css`), a round's standings are `leaderboard()` from `standings.js`, and the loader says `joiningWords()`
-(`rooms.js`). Chart, Quote and Punt show everyone's answer and the standings after each question; follow one.
-
-An offline party (`lan.html`, README "Offline party") plays every page in a frame on the host phone's database,
-through `net.js`: reach the database only through `getSync()`'s calls, keep a page's state in the party's room, and
-never navigate `window.top` (the links live on the page round the frame). `lan` from `net.js` says a page is in one.
-
-A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush,
-Blend, Survey, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
-`createDuel({ game, name, deal, play, describe, compare, extra, line, accent, onLobby, onLeave })` does the lobby,
-the countdown, the others' scores and the result; the game deals from the match's seed in `play`, sends
-`report({ score, text, done })` as it goes (done the moment the result is final), keeps the match's run with `keep()`,
-never in its solo run, bests or today's, joins with `duel.join()` instead of starting solo, and is listed in
-`DUO_GAMES` and, unless it's too long and quiet for a table of friends (Blend, Refinery), in Party's `ELSEWHERE`
-(`race: true`, up to six). A match's clock doesn't stop for the menu.
-
-## Tables
-
-Several people in one place, each on their own phone (README, "Tables"): `table.js` is the table (no page in it, so
-it's tested in Node on `tests/fake-db.js`, the database in memory with many devices, on `memdb.js`), `table-ui.js` what a page needs
-round it (the name a guest goes by, the QR invitation, the screen kept awake, the narrator). Playing with others
-goes through a party (README, "Party"): a game's Invite players opens Party with it chosen
-(`party.html?game=<id>&invite=1`), the party's host starts it and every phone comes to the table in the party's room
-(`?table=CODE&party=CODE&at=…`; `party-link.js` follows the host from there, through the menu's party part). A new
-game a party can play goes in `ELSEWHERE` in `party-core.js`. A game sits down at the table in its address
-(`?table=CODE`). Computer players fill the seats nobody has, moved by the device `drive()`
-picks; every change is an `act` transaction (pass `{ rev }` when a move was worked out on what was on the table);
-what everyone does at once goes through `send` (inputs/<uid>). The database keeps no empty arrays or objects and may
-return a list with holes: a table's state must survive that (check with `roundTrip` from `tests/rtdb.js`, which
-fake-db applies to every write). Card, dice and board games for a few seats run on `seats.js` (README, "Seats"):
-the game a module of pure functions (`deal`, `toMove`, `act`, `bot`, `over`), the runner moving it solo or at a table,
-`seats-ui.js` wiring the page; `tests/seats.mjs` shows how to test one. Party's games are modules listed in
-`party-core.js` (`start` and `advance` pure, `view` draws); test one with `tests/party-harness.js`, which plays a table
-in Node with the host's phone moving it on.
-
-## Full screen
-
-Korbi, 3 November 2026: "all games should be full screen by default ... too much "stuff" on all of these screens ... no
-title etc, settings icon in the top right is used to navigate back to menu always ... buttons exist inside the full
-screen, not outside." And later that evening: "I may have gone too far asking every game to be full screen without the
-title. in reality, a lot of the games look better with the title there - just maybe not some of the card and idle games
-that should be a bit more ambient. the puzzles however, should probably keep the title layout." So every game page is full
-screen (`docs/full-screen.md`; `tests/full-screen.mjs` fails for a page with a header that isn't), in one of two states:
-- **`full`** is ambient, no title: card and dice games, board games, idle games, pictures. **`full titled`** is the same
-  band with the game's name in it (the page's own title element, in the suite's name lettering): puzzles, quizzes, text and
-  form pages, courses, tools, party. A page opts in by adding `titled` to its `#app`; a new game takes its family's state
-  (a puzzle or quiz page `full titled`, a card table, board or picture `full`; a brief that says only `full` means the
-  ambient one), and goes in the `TITLED` or `FULL` list of `tests/full-screen.mjs`. A titled page's status row
-  (`full-pull`) is an ordinary line under the band, not beside the button.
-  A titled page shows its game's logo left of the title, a tap goes back to the games, from `menu.js` (Korbi, 4 November 2026).
-Everything below holds for both:
-- **`#app` has the class `full`** (with `fit-screen` / `beside` as before). The header stays in the markup (`.top`:
-  `#appsBtn`, `#menuBtn`, its other buttons, even a hidden `<select class="pool">`) but is a quiet empty band: the title,
-  logo, partner pill and every header button but `#menuBtn` are `display: none`; `#menuBtn` is the Codex mark (three
-  rules in Office), fixed top right inside the safe area. `style.css`, "Full screen".
-- **menu.js does the rest**: the menu's first entry is **Back to menu** (it clicks the hidden `#appsBtn`: no party, no
-  watching frame), then the header's own buttons (Rules, Learn, Help… named as they were; not one the menu already has),
-  then your partner's line. A game's menu code needs no change; a header `<select>` has its choice in the menu already
-  (`mirror`), and the 3D modes' `View` choice goes in the game's own menu part.
-- **Claim the freed height.** A thin row of live status (score, time, lives, the round) goes beside the button: give that
-  first element `full-pull` (it sits in the band, `padding-right` keeps clear of the button; held sideways it's an ordinary
-  row again) and keep it one line of text, not a flex box (a flex box drops the spaces in "Deal <b>1</b> of 6"). A game
-  with no such row leaves the band empty. A picture that wants the very top, a 3D scene say, adds `over` (no band; keep
-  its own corner clear of the button, 2.5rem square at `--full-edge`). Controls are drawn inside the picture; nothing
-  essential is lost: a clock stays visible, a header choice is in the menu.
-- **Over a dark picture** (a night sky, the Earth from space, any canvas with its own night picture) the button sits on
-  a plate (a see-through sheet disc with a brass hairline): add `plate` to `#app` (Columbiad, Landfall and Almanac are
-  named in `style.css`), or the mark's navy vanishes against it by day. A header's clock or lives (a `span` or `p` in
-  `.top-right`) stay beside the mark; widen `--full-slot` for the row that keeps clear of them (Crossword).
-- `full` is the shared frame's class: a game's own switch must not use it (Hong, Tribute and Trumps' "Full screen"
-  choice, the cloth filling the screen with the header's buttons on it, is `ontable`).
-- Check a new page at 390×664, 390×844 and sideways in the two looks: Codex day, Codex night and Office.
-
-## Header dropdowns
-
-A game's header `<select class="pool">` is shown as the suite's dropdown: link `dropdown.css`, give the select
-`data-accent` (its logo prefix: cr, sl, d, pt, bl, br, pa, rf, ru, sv…) and call `dropdown(select)` from `dropdown.js`
-once. The select stays the one place the choice lives; its options, value and events work as before.
-
-## Menus
-
-Every game's menu is the same popup (`menu.js`, loaded by every page): a sheet from the bottom on a phone, a card on
-a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody` as before, but:
-- **Build with `menu.js`'s controls:** `part(body, name)` for each part, `choice(label, [[value, text]…], value, onChange)` for one of several (a segmented row when it's three short options or fewer, else a grid under the label), `ticks(label, options, values, onChange, max)` for some of several, `mirror(label, select)` for a header select, `toggle(label, on, onChange)` for on or off, `action(text, fn, "primary" | "" | "link")` for buttons (the menu closes, then fn runs), `line(text)` for a status line. Every game's menu is built this way now; follow one (Quote's is the fullest).
-- **Mark the parts** (`part(body, name)` from `menu.js`, or `data-part` on a container); they're laid out in this order
-  under the same small heading: `play` (new run, where you are: no heading), `content` (daily or random, difficulty or
-  level, topics, chapters), `together` (only what's specific to this game's duo match: pairing, watching and asking
-  live on the games screen), `settings` (learning mode, length, the game's own options), `about` (stats, sources).
-- **Content choices come in three kinds** and should look the same in every game: one of (a dropdown or segmented
-  control), include (tick boxes with All/None), progression (chapters in order: done, current, locked, with Continue).
-  Topics are not a content choice of a game's: they are Settings' one set of subjects (`topics.js`, `topics-on.js`,
-  `topics-ui.js`), each on or off. A game maps its topics to subjects with `TOPIC_OF`, derives its mix when it deals with
-  `mixFromSubjects` (all on is its old Balanced, seed for seed), and its menu shows `topicsPart` (a line and a link).
-- **No Difficulty, Strength or Size picker:** `ramp(game, steps, { start })` from `ramp.js` is the hidden level (up after a clean win with `ramp.won(clean)`, down after a loss with `ramp.lost()`, kept as `<game>:ramp`; `start` is the old saved choice); Korbi, 4 November 2026: the menu is the minimum it needs to be.
-- **No instructions in the menu.** A line longer than about two sentences is folded into a closed "How it works" at
-  the bottom by `menu.js`; better still, cut it. Keep a menu to choices, buttons and a short status line.
-
-## Themes
-
-Two looks, set by `theme.js` on `<html data-theme data-mode>`: **Codex** (the default, no `data-theme`; day and night,
-following the phone unless set in Settings) and **Office** (`data-theme="office"`, night only: `theme.js` forces
-`data-mode="night"` and ignores `suite:mode`). Modern and Kontor were removed (Korbi, 4 November 2026: "it's time to
-fully ditch the modern and kontor themes. we only have one office theme (dark), and codex (light and dark)"); a device
-that still has one saved becomes Codex. `tests/themes.mjs` fails if a stylesheet or script names either as a theme.
-- Write styles that follow them: colours from the variables (`--yard`, `--ink`, `--sheet`, `--tile`, `--brass`,
-  `--plate`…), never fixed hex for the page, panels or buttons (a game's own board colours are fine); spaced capitals
-  as `text-transform: var(--caps); letter-spacing: calc(.1em * var(--track))`, wide lettering as `var(--wide)`.
-- Dark rules go in `@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) … }` plus a copy under
-  `html[data-mode="night"] …` (every stylesheet is written that way now). Office is always `data-mode="night"`, so those
-  night rules are its rules too.
-- Codex's ornaments (ticks, inset frames, gilt) are Codex's: if you add one, undo it for Office with a
-  `html[data-theme="office"]` rule (night values only; Office has no day) in the game's stylesheet or `themes.css`.
-  A new game needs an Office line icon in `apps.js` (`OFFICE_ICONS`, `class="k-ico"`; else it shows Codex's logo).
-- A 3D skin table (`SKINS`) has `codex` and `office`; Office's is night.
-- Check a new screen in Codex day, Codex night and Office.
-
-## Checking syntax
-
-`node --check file.js` does NOT catch a syntax error in an ES module on Node 22 (it falls back quietly and exits 0).
-Check with `node --experimental-default-type=module --check file.js`, or run `node tests/syntax.mjs`, which does that
-for every script and runs in CI. A missing brace in solo.js once passed every test and stopped Crates at "Loading".
-
-## The pause
-
-A game stands still while its menu, rules or the games screen is open. A game with a clock, a countdown, an animation
-that scores, or a computer that moves by itself must listen: `onPause(pause, resume)` from `menu.js` (resume gets the
-milliseconds it stood, to move a start or deadline on), and not start its clock while `isPaused()`. Duo clocks don't stop.
-
-## Writing questions
-
-A right option must not give itself away: make every wrong option as long, as specific and as plausible as the right
-one (a neighbouring idea, or the answer with one thing changed), and don't let the answer be the only option with a
-formula or a number. Put the extra detail in the explanation (`x`), not the answer. `tests/banks.mjs` fails otherwise.
-Banks built from the knowledge base (art, chm, cities, cs, eco, flags, phil, phy, refining, rel) are edited in
-`kb/items/choice/<bank>.js`, then `node tools/build-kb.mjs`; maths, wine, words, reasoning and patterns are edited in place.
-
-## Keeping the build fast
-
-`tools/build-kb.mjs` runs in under a second; CI fails it after 30. Never scan `LINKS` or `ENTITIES` inside a loop or a
-sort comparator: index what you need once (a Map by id, or by id and relation) and look it up. One such scan in the
-architecture section once made the build take two minutes, and every push's pipeline five.
+## Knowledge and questions
+- `kb/` is the one source for Crates' pairs, Punt, Quote and Chart: edit `kb/`, run `node tools/build-kb.mjs` (under 30 s; index `LINKS`/`ENTITIES` once, never scan them in a loop), never edit a built bank (`node tools/adopt-banks.mjs` rescues an edit). Crates' answers and clues are append-only (shared board codes point at positions). `kb/MIGRATION.md` and `kb/KINDS.md` list what needs a person.
+- Question banks: every wrong option as long, specific and plausible as the right one; extra detail goes in the explanation (`tests/banks.mjs`).

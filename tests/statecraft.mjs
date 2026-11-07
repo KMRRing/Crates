@@ -14,7 +14,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 // ---------- the shape ----------
-check(COURSE.chapters.length === 10, "ten chapters, as in docs/political-theory-outline.md section 10");
+check(COURSE.chapters.length === 10, "ten chapters");
 check(new Set(LESSON_IDS).size === LESSON_IDS.length && lessonsOf(COURSE).length === LESSONS.length + 1, `${LESSONS.length} lessons (and the review), each id once`);
 check(LESSONS.length >= 56, `at least 40 lessons (${LESSONS.length})`);
 check(LESSONS.every(l => l.steps.some(s => s.kind === "text") && l.steps.filter(s => s.kind !== "text").length >= 2), "every lesson has words and at least two questions");

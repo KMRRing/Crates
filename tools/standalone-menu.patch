@@ -1,0 +1,54 @@
+--- a/menu.js
++++ b/menu.js
+@@ -204,7 +204,7 @@
+   // "Rules" and "The rules on one page" are one button, and so are "Learn" and "Learn Big Two, from the rules"
+   const same = t => { t = t.trim().toLowerCase(); return /^learn\b/.test(t) ? "learn" : /^(the )?rules\b/.test(t) ? "rules" : t; };
+   const have = new Set([...body.querySelectorAll("button")].map(b => same(b.textContent)));
+-  if (games && !IN_PARTY && !IN_FRAME && !have.has("back to menu")) box.append(action("Back to menu", () => games.click()));   // Almanac's own, if the page still has one
++  // (a standalone game has no games screen to go back to: no Back to menu)
+   const row = el("div", "menu-full-row");
+   for (const b of app.querySelectorAll(":scope > .top .top-right > button:not(#menuBtn, .dd)")) {   // .dd: a header dropdown, which the menu has as its own choice
+     const text = (b.textContent || b.getAttribute("aria-label") || "").trim();
+@@ -212,11 +212,23 @@
+     row.append(action(text, () => b.click()));
+   }
+   if (row.children.length) box.append(row);
+-  const pill = app.querySelector(".partner-pill")?.textContent.trim();
+-  if (pill) box.append(line(pill));
+   return box.children.length ? box : null;
+ }
+ 
++/** A standalone game's way to get the newest copy: the version running, and a button that empties the offline copy and fetches afresh. */
++async function updatePart(body) {
++  if (body.querySelector(":scope > [data-refresh]")) return;
++  const box = el("div", "menu-refresh"), keys = await (window.caches ? caches.keys().catch(() => []) : []);
++  box.dataset.refresh = "1"; box.dataset.part = "about";
++  const v = keys.find(k => k.startsWith("crates-"))?.slice(7);
++  box.append(line(`Version ${v || "not stored on this device"}`), action("Refresh game", async () => {
++    try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* none */ }
++    try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* none */ }
++    location.replace(`${location.pathname}?fresh=${Date.now()}`);
++  }, "link"));
++  if (!body.querySelector(":scope > [data-refresh]")) body.append(box);
++}
++
+ let shaping = false;
+ /** Lays out what the game just put in the menu: parts in order, under their headings; long explanations folded away. */
+ function shape(body) {
+@@ -229,6 +241,7 @@
+       if (part) { part.dataset.head = name; body.prepend(part); }
+     }
+     if (partyPart && !body.querySelector(":scope > [data-party]")) body.prepend(partyPart());
++    if (body.id === "menuBody") updatePart(body);   // (its append sets shape off once more, which finds it there)
+     if (!body.querySelector(":scope > [data-full]")) { const head = fullHead(body); if (head) body.prepend(head); }   // first of all
+     // parts in the standard order, each with its heading (Play needs none: it's the top), after anything unmarked
+     for (const box of body.querySelectorAll(":scope > [data-part]")) {
+@@ -305,6 +318,8 @@
+ // that only watches) there is no logo either. Pages without a title get none. style.css, "Full screen", the title's logo.
+ function titleLogo() {
+   const app = document.querySelector("#app.full"), top = app?.querySelector(":scope > .top"), games = document.getElementById("appsBtn");
++  return;   // a standalone game has no games screen for the logo to open
++  // eslint-disable-next-line no-unreachable
+   if (!app || !top || !games || IN_PARTY || IN_FRAME) return;
+   let btn = null, apps = null;
+   const drop = () => { btn?.remove(); btn = null; top.classList.remove("has-logo"); };

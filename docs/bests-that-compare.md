@@ -1,5 +1,0 @@
-# Bests that compare
-A best is only worth comparing if everyone played the same thing. So in the ranked games (Punt, Chart, Quote, Crates; `RANKED` in `suite.js`) the best on the games screen, and the one your partner sees, counts only comparable runs: the daily, and a run on one of the game's presets (Punt's with every difficulty, Chart's worldwide, Quote's with learning off; Crates counts its daily alone). Other runs still play, learning mode keeps its review in them, and they keep their own bests in each game.
-
-- A daily is dealt on the device from the date (`today()` in `suite.js`, the UTC date, one for every game) with nothing of yours in it: no questions due from your pile, no name-it from your history, no narrowed selection. That is what makes it the same for everyone; a daily that reads your history is no longer comparable.
-- `noteComparable(app, score, day)` keeps a game's comparable best and today's daily under `GAME:ranked`, synced like any best; the games screen shows both (Best +41% · Today +12%).

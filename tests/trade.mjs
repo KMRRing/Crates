@@ -12,7 +12,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 // ---------- the shape ----------
-check(COURSE.chapters.length === 14, "fourteen chapters, as in docs/history-of-trade-outline.md");
+check(COURSE.chapters.length === 14, "fourteen chapters");
 check(new Set(LESSON_IDS).size === LESSON_IDS.length && lessonsOf(COURSE).length === LESSONS.length, `${LESSONS.length} lessons, each id once`);
 check(LESSONS.length >= 40, `at least 40 lessons (${LESSONS.length})`);
 check(LESSONS.every(l => l.steps.some(s => s.kind === "text") && l.steps.filter(s => s.kind !== "text").length >= 2 || l.id === "t13a"), "every lesson has words and two questions (Geneva's lesson has two)");
@@ -60,7 +60,7 @@ check(!away.length, `no question gives its answer away${away.length ? `: ${away.
 const contestedAsked = quiz.filter(s => /^(how many|what was the (number|total|toll)|what is the (number|total|toll))/i.test(s.say));
 check(!contestedAsked.length, "no question asks for a contested number as a bare figure");
 
-// no fact marked (check) in the outline appears in a question: these are the ones not yet verified (docs/history-of-trade-notes.md)
+// no fact marked (check) appears in a question: these are the ones not yet verified
 const unchecked = [/\b348\b/, /\b23,000\b/, /\b60,000\b/, /\b7 million sesterces\b/, /\b200,000\b/, /\b45 percent\b/, /5\.86/, /\b22 billion\b/, /\b5,600\b/, /two thirds/, /\b23 million barrels\b/];
 check(!quiz.some(s => unchecked.some(re => re.test(`${s.say} ${s.quiz.join(" ")}`))), "no question rests on a figure still marked (check)");
 
