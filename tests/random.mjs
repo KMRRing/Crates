@@ -4,7 +4,7 @@
 // played while another is chosen; a choice of nothing can't start it; the choice kept on the device, the run kept in
 // the session, the solo-only address and a seats game's round as its step changes.
 import fs from "fs";
-import { ROUNDS, LEFT_OUT, ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound } from "../random-core.js";
+import { ROUNDS, LEFT_OUT, ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound, savedOver, clearOver } from "../random-core.js";
 import { pick } from "../tools/pick-tests.mjs";
 
 let bad = 0;
@@ -107,6 +107,21 @@ check(/sessionStorage\.setItem\(RUN/.test(page) && /localStorage\.setItem\(CHOIC
 check(/IN_FRAME/.test(page) && /\blan\b/.test(page) && /soloAddress\(location\.search\)/.test(page), "random.js asks the frame, the offline party and the address before anything");
 check(/bindRandom\(\{[^}]*row: dlg\.querySelector\("\[data-random\]"\)/.test(apps) && /class="rd-cell" data-random/.test(apps), "the games screen has its Random cell, beside Deck's");
 check(["random.js", "random-core.js"].every(f => pick([f], 0, { slow: true }).includes("tests/random.mjs")), "a change to random mode runs its own test");
+
+// ---------- a saved round that is over is not shown again ----------
+// Korbi, 7 November 2026: random mode opens a new puzzle or match where the game was saved on a finished one, and resumes one still going
+{
+  const j = JSON.stringify;
+  check(savedOver(j({ done: true, entries: {} })) && savedOver(j({ run: { done: true } })) && savedOver(j({ G: { over: 1 }, S: {}, R: {} })) && savedOver(j({ solved: true })) && savedOver(j({ over: true })),
+    "a saved round says it is over: done, over or solved, in the round, its run, or the game inside it");
+  check(!savedOver(j({ done: false })) && !savedOver(j({ done: 0, run: { done: false } })) && !savedOver(j({ run: { done: [] } })) && !savedOver("{") && !savedOver("null") && !savedOver(j([1])) && !savedOver(j({ ms: 5 })),
+    "a round still going, or nothing readable, isn't over");
+  const store = (items) => { const m = new Map(Object.entries(items)); return { get length() { return m.size; }, key: i => [...m.keys()][i] ?? null, getItem: k => m.get(k) ?? null, removeItem: k => m.delete(k), has: k => m.has(k) }; };
+  const s = store({ "sudoku:run": j({ done: 5 }), "sudoku:best": j({ done: true }), "hong:game": j({ G: { over: 1 } }), "mines:run": j({ run: { done: false } }), "mines:best": "5", "glyph:run": j({ done: true }) });
+  check(same(clearOver("sudoku", s), ["sudoku:run"]) && !s.has("sudoku:run") && s.has("sudoku:best"), "a finished run goes, the game's other keys stay");
+  check(same(clearOver("hong", s), ["hong:game"]) && same(clearOver("mines", s), []) && s.has("mines:run"), "a finished game goes; a run still going stays");
+  check(same(clearOver("slate", s), ["glyph:run"]), "Slate's saves are under glyph:");
+}
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log(`random: ${ELIGIBLE.length} games dealt, each saying when its round is over; the pick, the choice and the run as they should be`);

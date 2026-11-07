@@ -172,3 +172,28 @@ export function runOf(text) {
     return r && typeof r.game === "string" && IN.has(r.game) ? { game: r.game, at: Number(r.at) || 0 } : null;
   } catch { return null; }
 }
+
+// ---------- a game's saved round that is already over ----------
+// Korbi, 7 November 2026: random mode sometimes sent you to a game saved on a finished puzzle or match, and showed it. It
+// goes to a new one: a saved round that is over is taken out before the game opens. A round still going is resumed.
+/** Where a game keeps its saved round: <id>:run (most), <id>:game or <id>:match (the board and card games). */
+const SAVES = ["run", "game", "match"], SAVED_AS = { slate: "glyph" };
+const isOn = v => v === true || (typeof v === "number" && v > 0) || (typeof v === "string" && v !== "");
+/** Whether a saved round (its JSON) is over: the round itself, or the run, game or table inside it, says done, over or solved. */
+export function savedOver(text) {
+  let s;
+  try { s = JSON.parse(text); } catch { return false; }
+  if (!s || typeof s !== "object") return false;
+  return [s, s.run, s.G, s.S, s.game].some(x => x && typeof x === "object" && !Array.isArray(x) && ["done", "over", "solved"].some(k => isOn(x[k])));
+}
+/** Takes a game's finished saved rounds out of storage (a Storage, or anything with length, key, getItem and removeItem);
+ *  the ids of the keys taken out. */
+export function clearOver(id, store) {
+  const head = `${SAVED_AS[id] || id}:`, gone = [];
+  for (let i = 0; i < store.length; i++) {
+    const k = store.key(i);
+    if (k && k.startsWith(head) && SAVES.includes(k.slice(head.length)) && savedOver(store.getItem(k))) gone.push(k);
+  }
+  for (const k of gone) store.removeItem(k);
+  return gone;
+}

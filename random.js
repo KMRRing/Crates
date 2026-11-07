@@ -9,7 +9,7 @@
 import { IN_FRAME, dailyDue, notePlayed } from "./suite.js";
 import { lan } from "./net.js";
 import { ticks, line, menuHead, dropMenuHead, PAUSERS } from "./menu.js";
-import { ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound } from "./random-core.js";
+import { ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound, clearOver } from "./random-core.js";
 
 const CHOICE = "suite:random", RUN = "suite:random-run";
 const LEAD = 600, COUNT = 3000;          // ms: the round's result shows a moment before the banner, which counts three seconds
@@ -39,6 +39,7 @@ function go(id) {
   const app = appOf(id);
   if (!app) return;
   keepRun(id);
+  if (!dailyDue(id)) { try { clearOver(id, localStorage); } catch { /* private mode */ } }   // a finished puzzle or match isn't shown again: the game deals a new one
   const to = new URL(dailyDue(id) ? `${app.href}#today` : app.href, location.href);
   // this same page again (the only game chosen): an address that differs only after # wouldn't open it afresh
   if (to.pathname === location.pathname && to.search === location.search) {
