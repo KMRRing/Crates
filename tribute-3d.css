@@ -273,6 +273,27 @@ html[data-mode="night"] #app.tb3 .tb-table { background: radial-gradient(ellipse
 }
 @media (orientation: landscape) and (min-width: 700px) { .t3-lvplate { flex-wrap: wrap; } }
 
-/* wave 2 (7 Nov 2026): the cloth is the shared mahogany top under brass (table3d.css's --tk-wood), the cloth's weave and rays gone */
-#app.tb3 .tb-table.tk-mahogany .t3-mat { background: var(--tk-wood); border-color: var(--tk-brass);
-  box-shadow: inset 0 0 0 .28rem rgba(20, 8, 2, .55), inset 0 0 0 calc(.28rem + 1px) color-mix(in srgb, var(--tk-brass) 80%, transparent), inset 0 .5rem 1.4rem rgba(0, 0, 0, .45), 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .5); }
+/* wave 2 (7 Nov 2026): the cloth is the shared mahogany top under brass (table3d.css's --tk-top), the cloth's weave and rays gone.
+   Korbi, 7 Nov 2026: "lines running through the desk, and where is the 3 dimensionality" - so no plank seams (they read as scratches
+   once tipped), a steeper tilt, the top given a thickness (a brass rim, then dark wood, stacked below the near edge), a lamp's gloss
+   across it, and the far end sinking into shadow. */
+#app.tb3 { --t3-tilt: 34deg; }
+#app.tb3 .t3-mat { height: 168%; }
+#app.tb3 .tb-table.tk-mahogany { background: radial-gradient(ellipse 90% 70% at 50% 100%, #2B1D17, #0F0B0A 80%); border-color: var(--tk-brass); }
+#app.tb3 .tb-table.tk-mahogany .t3-mat { border-color: var(--tk-brass); border-radius: .35rem;
+  background:
+    linear-gradient(180deg, rgba(8, 3, 1, .62), rgba(8, 3, 1, 0) 46%),
+    linear-gradient(115deg, transparent 38%, rgba(255, 226, 180, .13) 47%, transparent 56%),
+    radial-gradient(ellipse 66% 46% at 50% 58%, rgba(255, 208, 150, .2), transparent 78%),
+    var(--tk-grain) 0 0 / 260px 260px, var(--tk-top);
+  box-shadow: inset 0 0 0 .28rem rgba(20, 8, 2, .55), inset 0 0 0 calc(.28rem + 1px) color-mix(in srgb, var(--tk-brass) 80%, transparent), inset 0 .5rem 1.4rem rgba(0, 0, 0, .45),
+    0 .22rem 0 color-mix(in srgb, var(--tk-brass) 70%, #000), 0 .44rem 0 #2A1208, 0 .66rem 0 #1E0D05, 0 .88rem 0 #150903, 0 1.5rem 1.4rem -.2rem rgba(0, 0, 0, .65); }
+html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: linear-gradient(180deg, rgba(0, 0, 0, .45), transparent 46%), var(--tk-grain) 0 0 / 260px 260px, var(--tk-top);
+  box-shadow: inset 0 0 0 1px var(--tk-brass), 0 .22rem 0 #1A1D22, 0 .44rem 0 #111317, 0 1.5rem 1.4rem -.2rem rgba(0, 0, 0, .6); }
+/* the levels plate runs the table's whole width, its sides to the right, so it lines up with the table under it */
+#app.tb3 > .tb-strip { display: block; padding: 0; }   /* (full-pull keeps a gap for the menu mark; here the mark has its own row above) */
+#app.tb3 > .tb-strip .t3-lvplate { width: 100%; box-sizing: border-box; }
+/* the taller, steeper plane: the seats and the play sit lower on it, so the near half isn't an empty top */
+#app.tb3 .t3-plate.at-left, #app.tb3 .t3-plate.at-right { top: 38%; }
+#app.tb3 .t3-centre { top: 28%; bottom: 25%; }
+#app.tb3 .t3-inlay { top: 56%; }
