@@ -127,7 +127,12 @@ function drawStage(v, rolled) {
   if (three) { three.set({ ...d, key: `${v.G.seq}:${s.turn}:${roundOf(s, s.turn)}:${s.left}`, seed: v.G.seed }); return; }
   let box = $("stage").firstElementChild;
   if (!box?.classList.contains("ya-dice")) { box = document.createElement("div"); box.className = "ya-dice"; box.addEventListener("click", onDiceClick); $("stage").replaceChildren(box); }
-  box.innerHTML = d.dice.map((f, i) => `<button type="button" class="ya-die-btn${d.held[i] ? " held" : ""}${d.blank ? " blank" : ""}${rolled && !d.held[i] ? " rolling" : ""}" data-i="${i}" ${d.canHold ? "" : "disabled"} aria-pressed="${!!d.held[i]}" aria-label="${f ? `Die showing ${f}${d.held[i] ? ", held" : ""}` : "Die, not rolled"}">${die(d.blank ? 0 : f)}</button>`).join("");
+  // the dice thrown lie scattered, each a little askew; the ones you keep stand in a row along the near edge, under a brass rule
+  const TILT = [-8, 6, -4, 9, -6], LIFT = [0, .5, -.3, .4, -.2];
+  const btn = (f, i) => `<button type="button" class="ya-die-btn${d.held[i] ? " held" : ""}${d.blank ? " blank" : ""}${rolled && !d.held[i] ? " rolling" : ""}" data-i="${i}" style="--tilt:${d.held[i] ? 0 : TILT[i]}deg;--lift:${d.held[i] ? 0 : LIFT[i]}rem" ${d.canHold ? "" : "disabled"} aria-pressed="${!!d.held[i]}" aria-label="${f ? `Die showing ${f}${d.held[i] ? ", kept" : ""}` : "Die, not rolled"}">${die(d.blank ? 0 : f)}</button>`;
+  const free = [], kept = [];
+  d.dice.forEach((f, i) => (d.held[i] ? kept : free).push(btn(f, i)));
+  box.innerHTML = `<div class="ya-pool">${free.join("")}</div>${kept.length ? `<div class="ya-kept"><span class="ya-kept-tag">Kept</span>${kept.join("")}</div>` : ""}`;
 }
 function onDiceClick(e) {
   const b = e.target.closest(".ya-die-btn");
