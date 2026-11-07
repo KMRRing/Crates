@@ -6,6 +6,7 @@ Codex: browser games, plain HTML/CSS/JS. Repos under github.com/KMRRing/: **Crat
 2. Read `CLAUDE.md` in Crates (about 25 bullets). The small repos have no rules of their own: same code, copied.
 3. Prefer working in the small repo (far less context). To carry game changes into Crates or back: `node tools/standalone.mjs status|in|from <dir>` (header of that file); never move menu code.
 4. Run the quick tests, `git pull --rebase`, push, check Actions is green. Never commit `sw.js` in Crates.
-5. Old per-game notes were deleted: `git show e2c62ef8:docs/<game>.md`.
+5. Tuesday work: read `TUESDAY.md` (one wave at a time).
+6. Old per-game notes were deleted: `git show e2c62ef8:docs/<game>.md`.
 
 My ask: <one task, one repo>
