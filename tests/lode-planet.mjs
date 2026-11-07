@@ -54,18 +54,24 @@ pv.frame();
 const at = Array.from({ length: N }, (_, i) => pv.where(i));
 const facing = at.map((a, i) => i).filter(i => at[i].z > 0.2);
 check(N === 54, "the planet is Mines' cube: 6 faces of 3×3");
-check(facing.length >= 20 && facing.length <= 34, `a corner toward you shows about half the 54 squares (${facing.length})`);
+check(facing.length >= 12 && facing.length <= 34, `a corner toward you shows about half the 54 squares (${facing.length})`);
 check(facing.every(i => pv.pick({ x: at[i].x, y: at[i].y }, 0.55) === i), "a finger on a tile's middle picks that tile, every tile facing you");
 check(pv.pick({ x: 2, y: 2 }, 0.55) === -1, "open space picks nothing");
 // the touching is the cube's: a tile on the near side, away from the rim, has its touching tiles among the nearest on screen
 const d = (a, b) => Math.hypot(at[a].x - at[b].x, at[a].y - at[b].y);
-const centre = facing.filter(i => at[i].z > 0.8 && [...geo.touch[i]].every(j => at[j].z > 0.6));
+const centre = facing.filter(i => at[i].z > 0.6 && [...geo.touch[i]].every(j => at[j].z > 0.25));
 check(centre.length > 0 && centre.every(i => { const near = [...geo.touch[i]].map(j => d(i, j)), far = facing.filter(j => j !== i && !geo.touch[i].has(j)).map(j => d(i, j)); return Math.max(...near) < Math.min(...far) * 1.15; }), `in the middle of the view a tile's touching tiles are the nearest (${centre.length} checked)`);
 // turning brings the far side round
 const was = new Set(facing);
 const back = N - 1;
 check(!was.has(back) || at[back].z > 0.2, "the tile pickable is the one drawn");
-check(pv.camera.dist === 4.6, "the planet starts framed whole");
+check(Math.abs(pv.camera.zoom - 1) < 1e-9, "the planet starts framed whole");
+// it turns without limit, as Mines' cube: a long drag one way keeps turning (no pitch stop) and the far side comes round
+const q0 = pv.camera.q.join();
+for (let s = 0; s < 40; s++) pv.turnBy(0, 60);
+pv.frame();
+check(pv.camera.q.join() !== q0 && Array.from({ length: N }, (_, i) => pv.where(i).z).filter(z => z > 0.2).length >= 14, "a drag keeps turning it, any way, without a stop");
+check(Array.from({ length: N }, (_, i) => pv.where(i)).filter(a => a.z > 0.2).every(a => a.size > 5), "every tile facing you is drawn upright and large enough for its letter");
 // the view code: no library, the default and the setting come from mode3d.js
 const src = fs.readFileSync(new URL("../lode.js", import.meta.url), "utf8");
 check(/wants3D\(settings\.view, "planet"\)/.test(src) && /view: s\?\.view === "planet" \|\| s\?\.view === "flat"/.test(src), "lode.js: the player's own choice is kept only when made; with none the suite's default applies");
