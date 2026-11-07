@@ -3,6 +3,7 @@
 // lies on the cloth in the middle, its cards flown there from its seat's plate; what the trick is says in the middle.
 // Your cards and the buttons stay the page's own.
 import { createCloth, rectOf, fill, slotOf } from "./table3d.js";
+import { slide, mayMove } from "./cardslide.js";
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -18,23 +19,6 @@ export function plateOf({ name, seat, mine = false, turn = false, count = 0, sco
     state: [turn ? "on" : "", think ? "thinking" : "", lead ? "tobeat" : ""].filter(Boolean).join(" "),
     label: `${name}${mine ? "" : `, ${count} cards left`}${word ? `, ${word}` : ""}`,
   };
-}
-
-/** Korbi, 7 Nov 2026: a card played to the middle is the very element that stays on the cloth (as in Guandan): it is slid from the
- *  plate to where it lies, in the cloth's own plane, so what flies and what lies there are one card, and nothing flickers. The plane
- *  is in perspective, so the start is corrected by measuring where the card really lands. */
-function slide(el, from, delay) {
-  const r = el.getBoundingClientRect(), kx = r.width / (el.offsetWidth || 1) || 1, ky = r.height / (el.offsetHeight || 1) || 1;
-  const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, d = { x: (from.x - at.x) / kx, y: (from.y - at.y) / ky };
-  for (let i = 0; i < 5; i++) {
-    el.style.translate = `${d.x}px ${d.y}px`;
-    const m = el.getBoundingClientRect(), ex = from.x - (m.left + m.width / 2), ey = from.y - (m.top + m.height / 2);
-    if (Math.abs(ex) < 1 && Math.abs(ey) < 1) break;
-    d.x += ex / kx; d.y += ey / ky;
-  }
-  el.style.translate = "";
-  el.animate([{ translate: `${d.x}px ${d.y}px`, scale: Math.max(0.2, Math.min(1.4, from.h / (r.height || 1))) }, { translate: "0 0", scale: 1.06, offset: 0.85 }, { translate: "0 0", scale: 1 }],
-    { duration: 380, delay, easing: "cubic-bezier(.3, .7, .2, 1)", fill: "backwards" });
 }
 
 export function createBigTwo3d(host, { quiet = () => false } = {}) {
@@ -57,7 +41,7 @@ export function createBigTwo3d(host, { quiet = () => false } = {}) {
     // the play lies in the middle, its cards flown there from the plate of the seat that made it
     if (!fill(pile, t.pile?.html || "") || first || !t.pile) return;
     const from = rectOf(cloth.plates[slotOf(t.pile.seat, t.me, t.seats)].querySelector(".tk-med"));
-    if (!from || quiet() || document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!from || !mayMove(quiet)) return;
     [...pile.querySelectorAll(".cd")].slice(0, 5).forEach((cd, i) => slide(cd, from, i * 30));
   }
   return {
