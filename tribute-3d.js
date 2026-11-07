@@ -296,10 +296,11 @@ export function createTable3d(c) {
     g.firstElementChild.animate([{ transform: `${turn(up0)}` }, { transform: `rotateY(${up0 === up1 ? (up0 ? 0 : 180) : 90}deg) scale(1.12)`, offset: 0.5 }, { transform: `${turn(up1)}` }], t);
     const an = track(g.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s0})`, opacity: 1 }, { transform: "none", opacity: fade ? 0 : 1 }], t));
     an.onfinish = () => {
-      g.remove();
-      if (!el) return;
+      if (!el) { g.remove(); return; }
+      // Korbi, 7 Nov 2026: the card didn't vanish for a moment before it lay down: the one on the cloth fades in as the flown one fades out
       el.classList.remove("t3-coming");
-      el.animate([{ scale: 1.1 }, { scale: 1 }], { duration: 200, easing: "ease-out" });
+      el.animate([{ opacity: 0, scale: 1.05 }, { opacity: 1, scale: 1 }], { duration: 200, easing: "ease-out" });
+      g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out", fill: "forwards" }).onfinish = () => g.remove();
     };
   }
   /** The middle's old cards, swept to whoever took the trick, shrinking as they go. */
