@@ -374,3 +374,4 @@ html[data-mode="night"] #app.tb3 .tb-table { background: none; }
    cloth, always showed: hence "sometimes"). Nothing clips now, and the field stands above the hand so the card rises out of it. */
 #app.tb3 .tb-table, #app.tb3 .t3-stage { overflow: visible; }
 #app.tb3 .t3-field { z-index: 5; }
+#app.tb3 .t3-centre { pointer-events: none; z-index: 4; }   /* above the seats (z-index 3): a card flies over your seat, not under it */

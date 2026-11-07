@@ -126,8 +126,8 @@ export function createTable3d(c) {
   const box = $("board3d"), handBox = $("hand");
   box.innerHTML = `<div class="t3-field" id="t3field"><span class="t3-caption" id="t3cap" hidden></span><div class="t3-stage"><div class="t3-mat" id="t3mat">
       <div class="t3-inlay" id="t3inlay" aria-hidden="true"></div>
-      <div class="t3-centre" id="t3centre" aria-live="polite"><div class="t3-play" id="t3play"></div><div class="t3-open" id="t3open"></div></div>
       ${["top", "left", "right", "me"].map(s => `<div class="t3-plate at-${s}" id="t3-${s}"></div>`).join("")}
+      <div class="t3-centre" id="t3centre" aria-live="polite"><div class="t3-play" id="t3play"></div><div class="t3-open" id="t3open"></div></div>
     </div></div></div>`;
   document.body.insertAdjacentHTML("beforeend", '<div class="t3-fx" id="t3fx" aria-hidden="true"></div>');
   const fx = $("t3fx"), field = $("t3field"), mat = $("t3mat"), centre = $("t3centre"), playBox = $("t3play"), openBox = $("t3open"), inlay = $("t3inlay");
