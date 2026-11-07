@@ -193,7 +193,7 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
     const ends = !!p0 && [[p0.win.a0, p0.charge], [p0.win.a1, p0.charge], [p0.angle, p0.win.c0], [p0.angle, p0.win.c1]].every(([a, c]) => E.shoot(lvl, { angle: a, charge: c, t: p0.t }, [0, 0]).won);
     const tOk = !moving || (p0 && p0.t >= 0 && p0.t <= (lvl.delayMax ?? E.DELAY_MAX) && p0.tw > 0);
     // a level that moves has no one straight line (the ring is somewhere else by the time a shell gets there): a straight shot there is a lucky timing, so what is asked is that the way round the stored shot takes is not the straight one
-    const st = STRAIGHT[lvl.id], off = p0 ? Math.abs(((p0.angle - bearingOf(lvl, p0.t) + 540) % 360) - 180) : 0, straightOk = lvl.open ? st !== undefined : moving ? st <= 10 && off > 3 : st === 0;
+    const st = STRAIGHT[lvl.id], off = p0 ? Math.abs(((p0.angle - bearingOf(lvl, p0.t) + 540) % 360) - 180) : 0, straightOk = lvl.open ? st !== undefined : moving ? st <= 2 && off > 3 : st === 0;
     // 5 November 2026, Korbi: a level with a Moon must make the player use it. Zero its pull and no stored shot may still win (the ring rides the Moon, or hides behind it, so
     // the pull is part of the way there). The finder keeps only shots that fail this way. A level that launches from the Moon is no exception: the pad is on it, and its pull is still what the shot leaves under.
     const dry = hasMoon(lvl) ? withoutPull(lvl) : null, usesMoon = !dry || proofs.every(p => !E.shoot(dry, p, [0, 0]).won);

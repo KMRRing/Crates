@@ -179,7 +179,7 @@ function hazardsOf(lvl) {
   if (h) return h;
   const w = worldOf(lvl);
   h = (lvl.hazards || []).map(z => {
-    const bi = z.body ? w.bodies.findIndex(b => b.id === z.body) : -1, out = { name: z.name || "the hazard", bi, at: z.at || [0, 0], band: !!z.band };
+    const bi = z.body ? w.bodies.findIndex(b => b.id === z.body) : -1, out = { name: z.name || "the hazard", bi, at: z.at || [0, 0], band: !!z.band, off: z.off || null, follow: z.follow ?? null, out: !!z.out };
     if (z.band) { out.r0 = z.band[0] * z.band[0]; out.r1 = z.band[1] * z.band[1]; out.gaps = (z.gaps || []).map(([a, hw]) => { const d = direction(a), c = direction(hw)[0]; return [d[0], d[1], c]; }); }
     else out.r = z.r;
     return out;
@@ -303,7 +303,19 @@ export function fly(lvl, ini, o = {}) {
       if (u < uBody) { uBody = u; which = i; }
     }
     for (let hi = 0; hi < haz.length; hi++) {                      // a lethal disc is entered like a body; a band is a place the step ends in
-      const z = haz[hi], zx0 = z.bi >= 0 ? bx0[2 * z.bi] : z.at[0], zy0 = z.bi >= 0 ? bx0[2 * z.bi + 1] : z.at[1], zx1 = z.bi >= 0 ? bx1[2 * z.bi] : zx0, zy1 = z.bi >= 0 ? bx1[2 * z.bi + 1] : zy0;
+      const z = haz[hi];
+      let zx0 = z.bi >= 0 ? bx0[2 * z.bi] : z.at[0], zy0 = z.bi >= 0 ? bx0[2 * z.bi + 1] : z.at[1], zx1 = z.bi >= 0 ? bx1[2 * z.bi] : zx0, zy1 = z.bi >= 0 ? bx1[2 * z.bi + 1] : zy0;
+      if (z.follow != null) {                                      // a guard that keeps its place beside a ring (or gate) wherever that goes
+        const rg = z.follow < 0 ? lvl.target : lvl.gates[z.follow], p0 = ringAt(lvl, rg, t), p1 = moving ? ringAt(lvl, rg, nt) : p0;
+        zx0 = p0[0]; zy0 = p0[1]; zx1 = p1[0]; zy1 = p1[1];
+      }
+      if (z.off) {
+        // `out`: the offsets are written for a ring standing at the top of the sky (90 degrees about the origin) and turn with it, so a guard keeps its open side facing away from the Earth
+        if (z.out) {
+          const a0 = Math.atan2(zy0, zx0) - Math.PI / 2, a1 = Math.atan2(zy1, zx1) - Math.PI / 2, c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+          zx0 += z.off[0] * c0 - z.off[1] * s0; zy0 += z.off[0] * s0 + z.off[1] * c0; zx1 += z.off[0] * c1 - z.off[1] * s1; zy1 += z.off[0] * s1 + z.off[1] * c1;
+        } else { zx0 += z.off[0]; zy0 += z.off[1]; zx1 += z.off[0]; zy1 += z.off[1]; }
+      }
       let u = 2;
       if (z.band) {
         const qx = nx - zx1, qy = ny - zy1, d2 = qx * qx + qy * qy;

@@ -25,3 +25,17 @@ export function rocks(seed, n, cx, cy, r0, r1, size, keep = []) {
   }
   return out;
 }
+
+/**
+ * A guard round a ring (8 November 2026, Korbi: a shot aimed straight at the ring must never win): lethal rocks all round it
+ * but for an opening on the side away from the Earth, so a shell has to be bent round to come in by it. `follow` is -1 for the
+ * target or a gate's number; `gap` the opening's half-width in degrees, `rho` the guard's radius from the ring's middle, `g` a rock's size.
+ */
+export function guard(follow, ringR, { gap = 40, rho = ringR + 0.55, g = 0.3 } = {}) {
+  const out = [], step = (g * 1.6) / rho * 57.2958, n = Math.floor((360 - 2 * gap) / step) + 1, a0 = 90 + gap, span = 360 - 2 * gap;
+  for (let k = 0; k < n; k++) {
+    const a = (a0 + (n > 1 ? span * k / (n - 1) : 0)) * Math.PI / 180;
+    out.push({ follow, out: true, off: [Math.round(rho * Math.cos(a) * 100) / 100, Math.round(rho * Math.sin(a) * 100) / 100], r: g, name: "the guard", look: "rock" });
+  }
+  return out;
+}

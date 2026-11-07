@@ -181,7 +181,12 @@ export function createView(canvas, hooks = {}) {
     const w = worldOf(lvl), t = now();
     ctx.save();
     for (const z of list) {
-      const p = z.body ? bodyAt(lvl, w.bodies.findIndex(b => b.id === z.body), t) : z.at || [0, 0], x = sx(p[0]), y = sy(p[1]);
+      let p = z.follow != null ? ringAt(lvl, z.follow < 0 ? lvl.target : lvl.gates[z.follow], t) : z.body ? bodyAt(lvl, w.bodies.findIndex(b => b.id === z.body), t) : z.at || [0, 0];
+      if (z.off) {
+        const a = z.out ? Math.atan2(p[1], p[0]) - Math.PI / 2 : 0, c = Math.cos(a), sn = Math.sin(a);
+        p = [p[0] + z.off[0] * c - z.off[1] * sn, p[1] + z.off[0] * sn + z.off[1] * c];
+      }
+      const x = sx(p[0]), y = sy(p[1]);
       if (z.band) {
         const r0 = z.band[0] * cam.k, r1 = z.band[1] * cam.k, gaps = (z.gaps || []).map(([a, hw]) => [(a - hw) * 0.017453, (a + hw) * 0.017453]).sort((m, n) => m[0] - n[0]);
         // the plane's rings are arcs between the gaps; seen from above, so counter-clockwise on the screen is clockwise in the arcs' angles
@@ -202,7 +207,7 @@ export function createView(canvas, hooks = {}) {
         ctx.setLineDash([5 * u, 4 * u]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${BAD},.8)`; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
       } else {
         const R = Math.max(z.r * cam.k, 2.5 * u);
-        ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832, rr = R * (0.8 + 0.3 * hash01(Math.round(p[0] * 97 + p[1] * 53) + k)); const X = x + Math.cos(a) * rr, Y = y + Math.sin(a) * rr; if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
+        ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832, rr = R * (0.8 + 0.3 * hash01(Math.round((z.follow != null ? z.off[0] : p[0]) * 97 + (z.follow != null ? z.off[1] : p[1]) * 53) + k)); const X = x + Math.cos(a) * rr, Y = y + Math.sin(a) * rr; if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
         ctx.closePath();
         const g = ctx.createRadialGradient(x + LX * R * 0.4, y + LY * R * 0.4, R * 0.1, x, y, R * 1.1);
         g.addColorStop(0, "#a69c8c"); g.addColorStop(1, "#3f3b37"); ctx.fillStyle = g; ctx.fill();
