@@ -5,7 +5,8 @@
 import { rules, check, playsFor, countsOf, rankOf, suitOf, RANKS, TYPE_NAMES, PLAY_TALK, DEALS, cardName, SHOW_MS, THROWN_MS, BIG, SMALL } from "./landlord-rules.js";
 import { botMove, LEVEL_NAMES } from "./landlord-bot.js";
 import { seatPage } from "./seats-ui.js";
-import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { cardHtml, backHtml } from "./cards.js";
+import { plateHtml, bubble, drawHandBox, wireDrag } from "./cardroom.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { ramp } from "./ramp.js";
@@ -66,7 +67,7 @@ function rows(ids, per) {
 }
 const typeName = p => TYPE_NAMES[p.type];
 
-let V = null, sel = new Set(), selFor = "", page = null, hints = { key: "", list: [], i: 0 };
+let V = null, sel = new Set(), selFor = "", page = null, hinted = null;
 const randomRounds = seatRounds("landlord", ["shown"]);   // random mode's round: a deal (one thrown in is dealt again, no round)
 page = seatPage({
   rules, id: "landlord", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(), voice: () => opts.voice,
@@ -89,13 +90,17 @@ function draw() {
   // the picked cards stay picked while the others play; a new hand, or a move of yours, clears them
   const key = `${v.G.seq}:${s.deal}:${s.landlord}:${(s.hands[v.seat ?? 0] || []).length}`;
   if (key !== selFor) { selFor = key; sel = new Set(); }
-  $("strip").innerHTML = stripLine(s);
+  // the brass plate across the top (cardroom.js): the deal and stake, and every seat's score
+  $("strip").innerHTML = plateHtml({ title: stripLine(s), items: [0, 1, 2].map(i => ({ k: isMe(i) ? "You" : nameOf(i).slice(0, 6), v: `${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}`, on: s.step === "play" && s.turn === i })) });
   drawTable(v);
   drawCounter(v);
   drawHand(v);
   $("status").innerHTML = statusLine(v);
+  coachBubble.show(hinted && hinted.key === `${v.G.seq}:${v.G.n}` && sameSel(hinted.cards) ? `<b>Hint</b> · ${esc(hinted.say)}` : "");
   drawBar();
 }
+const coachBubble = bubble($("coach"));
+const sameSel = cards => sel.size === cards.length && cards.every(c => sel.has(c));
 
 /** The deal, and the stake as it stands: the bid (or 1, doubled by each rob), doubled by each bomb. */
 function stripLine(s) {
@@ -213,25 +218,16 @@ function drawCounter(v) {
   box.innerHTML = [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map(r => `<span class="${c[r] ? "" : "none"}${c[r] === 4 ? " all" : ""}" title="${r > 12 ? (r === 14 ? "Big joker" : "Small joker") : RANKS[r]}: ${c[r]} unseen"><i>${label(r)}</i><b>${c[r]}</b></span>`).join("");
 }
 
-/** Your cards in a row, picked ones raised: biggest first, as the apps hold them (or smallest first). */
-function sortedHand(hand) {
-  const k = id => rankOf(id) * 4 + Math.max(0, suitOf(id));
-  return [...hand].sort(opts.order === "small" ? (a, b) => k(a) - k(b) : (a, b) => k(b) - k(a));
-}
+/** Your cards (cardroom.js, as in Guandan): a column to a rank, the biggest on the left (or the smallest, as the Menu has it). */
 function drawHand(v) {
   const box = $("hand");
-  if (v.seat == null) { box.innerHTML = `<p class="ll-watch">Watching: you sit down at the next game.</p>`; return; }
-  const hand = sortedHand(v.state.hands[v.seat] || []);
-  box.innerHTML = hand.map(id => cardHtml(face(id), { cls: sel.has(id) ? "sel" : "", data: { id }, label: cardName(id) })).join("");
-  fitRow(box, hand.length, { max: 1.15 });
+  if (v.seat == null) { box.innerHTML = `<p class="ll-watch">Watching: you sit down at the next game.</p>`; box.style.height = ""; return; }
+  const byRank = new Map();
+  for (const id of v.state.hands[v.seat] || []) { const r = rankOf(id); if (!byRank.has(r)) byRank.set(r, []); byRank.get(r).push(id); }
+  const cols = [...byRank.entries()].sort((a, b) => (opts.order === "small" ? a[0] - b[0] : b[0] - a[0])).map(([, c]) => c.sort((a, b) => suitOf(b) - suitOf(a)));
+  drawHandBox(box, { cols, face, label: cardName, classes: id => (sel.has(id) ? "sel" : "") });
 }
-$("hand").addEventListener("click", e => {
-  const c = e.target.closest(".cd[data-id]");
-  if (!c || !V?.G || V.seat == null) return;
-  const id = Number(c.dataset.id);
-  if (sel.has(id)) sel.delete(id); else sel.add(id);
-  draw();
-});
+wireDrag($("hand"), { has: id => sel.has(id), toggle: (id, pick) => { if (!V?.G || V.seat == null) return; if (pick) sel.add(id); else sel.delete(id); draw(); } });
 
 function statusLine(v) {
   const s = v.state;
@@ -275,19 +271,15 @@ function drawBar() {
     <button type="button" class="btn primary ll-go ll-play-btn" data-act="play" ${c?.play ? "" : "disabled"}>${esc(c?.play ? `Play ${typeName(c.play)}` : "Play")}</button>
     ${picked.length ? `<button type="button" class="icon-btn ll-clear" data-act="clear" aria-label="Put them back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ""}`;
 }
-/** Hint: the computer's play first, then each other play that's possible, one a tap. */
+/** Hint: the best play only (the computer's), said in the coach's bubble; the cards come up picked. */
 function hint() {
   const v = V, s = v.state, key = `${v.G.seq}:${v.G.n}`;
-  if (hints.key !== key) {
-    const all = playsFor(s, v.seat).sort((a, b) => ((a.type === "bomb" || a.type === "rocket") - (b.type === "bomb" || b.type === "rocket")) || a.rank - b.rank || a.n - b.n);
-    const m = botMove(s, v.seat, { level: "hard" }), list = [];
-    if (m.t === "play") list.push(m.cards);
-    for (const p of all) if (!list.some(c => c.slice().sort().join() === p.cards.slice().sort().join())) list.push(p.cards);
-    hints = { key, list, i: 0 };
-  }
-  if (!hints.list.length) { toast(s.trick.last ? "Nothing of yours beats it: pass" : "Play anything"); return; }
-  sel = new Set(hints.list[hints.i % hints.list.length]);
-  hints.i++;
+  const m = botMove(s, v.seat, { level: "hard" });
+  if (m.t !== "play") { toast(s.trick.last ? "Nothing of yours beats it: pass" : "Play anything"); return; }
+  const type = playsFor(s, v.seat).find(p => p.cards.length === m.cards.length && p.cards.every(c => m.cards.includes(c)))?.type;
+  hinted = { key, cards: m.cards, say: type ? typeName({ type }) : "play it" };
+  sel = new Set(m.cards);
+  coachBubble.ask();
   draw();
 }
 $("bar").addEventListener("click", async e => {

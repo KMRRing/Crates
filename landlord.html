@@ -14,6 +14,7 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="cardroom.css">
 <link rel="stylesheet" href="course.css">
 <link rel="stylesheet" href="landlord.css">
 <link rel="stylesheet" href="table3d.css">
@@ -31,13 +32,13 @@
     </div>
   </header>
 
-  <p id="strip" class="ll-strip full-pull"></p>
+  <div id="strip" class="ll-strip full-pull"></div>
   <section id="table" class="ll-table fit-grow" aria-label="The table"></section>
   <section id="side" class="ll-side" aria-label="Your cards">
     <div id="counter" class="ll-counter" aria-label="Cards not yet seen, by rank"></div>
     <p id="status" class="ll-status" aria-live="polite"></p>
-    <div id="hand" class="ll-hand cd-row" role="group" aria-label="Your cards"></div>
-    <div id="bar" class="ll-bar"></div>
+    <div id="hand" class="cr-hand" role="group" aria-label="Your cards"></div>
+    <div class="cr-bar"><p id="coach" class="ll-coach" aria-live="polite" hidden></p><div id="bar" class="ll-bar"></div></div>
   </section>
 </div>
 
