@@ -40,3 +40,4 @@ html[data-theme="office"] { --cd-face: #FFFFFF; --cd-edge: #C8C6C4; --cd-red: #C
 .cd.court .cd-pip { display: none; }
 .cd-ct { position: absolute; left: 1.02em; right: .12em; top: .14em; bottom: .14em; display: block; }
 .cd-ct .court-art { display: block; width: 100%; height: 100%; }
+.cd-ct .court-art { object-fit: contain; }

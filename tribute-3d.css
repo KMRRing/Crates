@@ -338,3 +338,4 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 /* the court cards' figure fills the card's middle (the gold letter that was here is gone) */
 .t3m.court { left: .26em; right: .14em; top: .1em; bottom: .1em; padding: 0; font-size: 1em; }
 .t3m.court .court-art { display: block; width: 100%; height: 100%; }
+.t3m.court .court-art { object-fit: contain; }
