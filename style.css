@@ -347,14 +347,15 @@ html.watching-frame #app.full > .top { display: none; }                         
 /* Titled (Korbi, 3 November 2026: "a lot of the games look better with the title there ... the puzzles however, should
    probably keep the title layout"): #app.full.titled is the same quiet band with the game's name in it, set in the suite's
    name lettering, one line, kept clear of the button. The logo, the partner's pill and the Random tag stay out of
-   sight (the menu has them); the name is a label, not a button (Back to menu is in the menu). A status row (.full-pull)
+   sight (the menu has them); the name and the logo are both Back to the games. A status row (.full-pull)
    is an ordinary line under the band, not laid over it. */
 #app.full.titled > .top { justify-content: flex-start; align-items: center; }
 #app.full.titled > .top > .mark { display: block !important; flex: 0 1 auto; min-width: 0; max-width: calc(100% - var(--full-slot)); margin: 0; padding-bottom: .25rem;
   font-size: 1.05rem; font-weight: 800; letter-spacing: calc(.12em * var(--track)); line-height: 1.2; color: var(--ink); }   /* .25rem: its line centred on the button's */
-#app.full.titled > .top .mark-btn { display: block; max-width: 100%; pointer-events: none; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Korbi, 7 Nov 2026: on every titled page the name is Back to the games, as the logo beside it is (it is the same button, #appsBtn) */
+#app.full.titled > .top .mark-btn { display: block; max-width: 100%; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #app.full.titled > .top :is(.mark-icon, .partner-pill, .rd-tag) { display: none !important; }
-#app.full.titled > .top.has-logo .mark-btn { pointer-events: auto; cursor: pointer; }   /* Korbi, 7 Nov 2026: the name goes Back to the games as the logo beside it does */
+
 #app.full.titled > .full-pull { margin-top: 0; min-height: 0; padding: 0; }
 /* The title's logo (menu.js, titleLogo; Korbi, 4 November 2026): the game's own logo at the top left with its name beside it
    on its right, the settings mark top right as ever; a tap on the logo is Back to menu. Not on a page without a title. */

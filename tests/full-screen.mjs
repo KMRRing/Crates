@@ -60,5 +60,8 @@ const noLogo = [...TITLED].filter(p => !tiles.has(p));
 check(!noLogo.length, `every titled page has a tile in apps.js, so a logo above its title${noLogo.length ? `: ${noLogo.join(", ")}` : ""}`);
 const menu = fs.readFileSync(root + "menu.js", "utf8");
 check(/classList\.contains\("titled"\)\) return drop\(\)/.test(menu) && /"Back to the games"/.test(menu) && /games\.click\(\)/.test(menu), "menu.js shows the logo only on a titled page, named Back to the games, and clicks #appsBtn");
+// Korbi, 7 Nov 2026: on a titled page the name is Back to the games as well as the logo (both are #appsBtn, so the name must take taps)
+const titledRule = css.split("\n").filter(l => /#app\.full\.titled > \.top[^{]*\.mark-btn/.test(l)).join(" ");
+check(titledRule && !/pointer-events:\s*none/.test(titledRule), "a titled page's name takes taps (Back to the games), like its logo");
 check(withHeader.length >= 90, `the pages with a header (${withHeader.length})`);
 process.exit(bad ? 1 : 0);
