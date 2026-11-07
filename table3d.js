@@ -270,6 +270,11 @@ export function createParallax(el) {
   };
   const hide = () => { if (document.hidden) { tx = ty = 0; base = null; } };
   addEventListener("deviceorientation", tilt, { passive: true });
+  // an iPhone sends no tilt until a tap has asked for it (Korbi, 7 Nov 2026: the pivot with the mouse should be the phone's movement on mobile)
+  if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+    const ask = () => { removeEventListener("pointerup", ask); DeviceOrientationEvent.requestPermission().catch(() => {}); };
+    addEventListener("pointerup", ask);
+  }
   addEventListener("pointermove", point, { passive: true });
   document.addEventListener("visibilitychange", hide);
   try { navigator.getBattery?.().then(b => { const f = () => { low = b.level < 0.2 && !b.charging; }; f(); b.addEventListener("levelchange", f); b.addEventListener("chargingchange", f); }).catch(() => {}); } catch { /* no battery api */ }

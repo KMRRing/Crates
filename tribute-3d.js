@@ -9,6 +9,7 @@
 // levels on it as ever), and your hand, the coach's line and the buttons are the page's own, with the same marks on
 // every card (data-id), so a tap means what it does in the table view and tribute.js's handlers serve both.
 import { courtArt } from "./court-art.js";
+import { createParallax } from "./table3d.js";
 import * as E from "./tribute-engine.js";
 
 const FACE = ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -130,6 +131,7 @@ export function createTable3d(c) {
     </div></div></div>`;
   document.body.insertAdjacentHTML("beforeend", '<div class="t3-fx" id="t3fx" aria-hidden="true"></div>');
   const fx = $("t3fx"), field = $("t3field"), mat = $("t3mat"), centre = $("t3centre"), playBox = $("t3play"), openBox = $("t3open"), inlay = $("t3inlay");
+  createParallax(field);   // the table pivots a little with the pointer, or the phone's tilt (--tk-px, --tk-py), as the kit's tables do
   const plates = { top: $("t3-top"), left: $("t3-left"), right: $("t3-right"), me: $("t3-me") };
   const G = () => c.G(), me = () => c.me();
   let last = null, held = false, dealAt = 0, dealNext = false;
