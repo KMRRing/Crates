@@ -80,6 +80,10 @@ export function createBoard(host, { onTap }) {
       s += `<circle class="go-last ${c === BLACK ? "on-b" : "on-w"}" cx="${o + (m.last % n)}" cy="${o + Math.floor(m.last / n)}" r=".23"/>`;
     }
     if (m.ko >= 0) s += `<rect class="go-ko" x="${o + (m.ko % n) - .18}" y="${o + Math.floor(m.ko / n) - .18}" width=".36" height=".36"/>`;
+    if (m.hint >= 0) {                                   // the coach's move: a brass ring with a dot
+      const hx = o + (m.hint % n), hy = o + Math.floor(m.hint / n);
+      s += `<circle class="go-hint" cx="${hx}" cy="${hy}" r=".4"/><circle class="go-hint-dot" cx="${hx}" cy="${hy}" r=".1"/>`;
+    }
     if (m.pending >= 0) {
       s += `<circle class="go-ghost ${m.toMove === BLACK ? "gb" : "gw"}" cx="${o + (m.pending % n)}" cy="${o + Math.floor(m.pending / n)}" r=".485"/>`;
     }

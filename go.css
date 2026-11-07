@@ -49,7 +49,7 @@ html[data-mode="night"] { --go-in: #C99A45; --go-wood: #8E6E2E; --go-edge: #C99A
 .go-meter b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--go-black); transition: width .3s ease; }
 .go-meter i { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: var(--go-mark); }
 .go-ahead span { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.go-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.go-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr)); gap: .4rem; }
 .go-controls .btn { min-height: 2.9rem; }
 .go-controls .btn[hidden] { display: none; }
 
@@ -113,3 +113,6 @@ html[data-theme="office"] .go-wood { rx: .15px; }
 .gc-ring.ok { stroke: var(--go-good); }
 .gc-lib { fill: var(--go-mark); stroke: var(--go-line); stroke-width: .03; pointer-events: none; }
 .gc-board.small .go-star { display: none; }                  /* star points mean nothing on a board this small */
+/* the coach's move (Menu, Coach): a brass ring and a dot where the net would play */
+.go-hint { fill: none; stroke: var(--brass); stroke-width: .09; stroke-dasharray: .22 .14; pointer-events: none; }
+.go-hint-dot { fill: var(--brass); pointer-events: none; }

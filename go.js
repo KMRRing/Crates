@@ -25,7 +25,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const NET = "g170-b6c96-s175395328-d26788732";
 
 // opts: the next game's choices. side: "b" or "w" (the colour you play) or "two" (two people on this phone).
-let opts = { size: 9, side: "b", level: DEFAULT_LEVEL, handicap: 0, confirm: true, estimate: false, click: true, ...read(OPTS, {}) };
+let opts = { size: 9, side: "b", level: DEFAULT_LEVEL, handicap: 0, confirm: true, estimate: false, click: true, coach: "hints", ...read(OPTS, {}) };
+if (!["off", "hints", "always"].includes(opts.coach)) opts.coach = "hints";
 if (!SIZES.includes(opts.size)) opts.size = 9;
 if (!["b", "w", "two"].includes(opts.side)) opts.side = "b";
 if (!(opts.handicap === 0 || (opts.handicap >= 2 && opts.handicap <= MAX_HANDICAP))) opts.handicap = 0;
@@ -57,6 +58,7 @@ let pending = -1;                                // the point tapped once, await
 let thinking = 0;                                // the id of the request out to the worker, 0 for none
 let held = null;                                 // the computer's answer that came while the game stood still
 let paused = false;
+let hint = null, hinting = 0;                      // the coach's move for the position { at, pt }, and the position it is looking at
 let ready = false, dead = false;                 // the worker has loaded the net / could not
 
 const saveRun = () => write(RUN, run);
@@ -171,7 +173,7 @@ function undo() {
   // back to a position where a person is to move: against the computer, its reply goes too
   if (run.human !== "two" && g.moves.length) { syncReplay(); if (computerToMove()) g.moves.pop(); }
   run.dead = []; run.low = 0; run.est = null;
-  pending = -1; held = null;
+  pending = -1; held = null; hint = null;
   syncReplay();
   saveRun();
   draw();
@@ -256,9 +258,32 @@ function showEnd() {
   if (!$("endDlg").open) $("endDlg").showModal();
 }
 
+// ---------- the coach (Menu, Coach) ----------
+// Off; Hint button, the best move of a strong search when you ask (marked on the board, a pass said aloud); Always, the same
+// unasked whenever it is your move. Only against the computer: two people on one phone play without it.
+const coachOn = () => !!run && !IN_FRAME && run.human !== "two" && opts.coach !== "off";
+async function askCoach() {
+  if (!coachOn() || run.phase !== "play" || !humanToMove() || thinking || dead || !ready || hinting) return;
+  const at = run.game.moves.length;
+  if (hint?.at === at) return;
+  hinting = at + 1;
+  draw();
+  try {
+    const out = await ask({ type: "move", game: JSON.parse(JSON.stringify(run.game)), visits: visitsFor(levelOf("strong"), run.game.size), temperature: 0, seed: 1, noPass: R.pos.passes === 0 });
+    hinting = 0;
+    if (!run || run.game.moves.length !== at) { draw(); return; }
+    hint = { at, pt: out.move };
+    if (out.move === PASS) toast("Coach: pass, the game is settled");
+    draw();
+  } catch { hinting = 0; draw(); }
+}
+const wantCoach = () => { if (opts.coach === "always") askCoach(); };
+const hintPt = () => (coachOn() && hint && R && hint.at === run.game.moves.length && humanToMove() && hint.pt >= 0 ? hint.pt : -1);
+
 // ---------- the estimate (Menu, Show who is ahead) ----------
 let reading = 0;
 async function wantRead() {
+  wantCoach();
   if (!opts.estimate || !run || run.phase !== "play" || dead || !ready || reading) return;
   if (run.est?.n === run.game.moves.length) return;
   const n = run.game.moves.length;
@@ -318,7 +343,7 @@ function draw() {
   if (run.phase !== "play" && !run.game.resigned) owner = areaScore(R.pos, deadSet).owner;
   (in3d ? board3d : board).draw({
     moves: run.game.moves.length, size: n, stones: R.pos.b, last: R.made.length && R.made.at(-1).pt >= 0 ? R.made.at(-1).pt : -1, ko: R.pos.ko, dead: deadSet, owner,
-    estimate: opts.estimate && run.phase === "play" && est ? est.own : null, pending: humanToMove() ? pending : -1, toMove: R.pos.toMove,
+    estimate: opts.estimate && run.phase === "play" && est ? est.own : null, pending: humanToMove() ? (pending >= 0 ? pending : in3d ? hintPt() : -1) : -1, hint: in3d ? -1 : hintPt(), toMove: R.pos.toMove,
     locked: IN_FRAME,
   });
   // one line of text beside the menu button
@@ -339,6 +364,7 @@ function draw() {
   controls.replaceChildren();
   if (run.phase === "play") {
     const mine = humanToMove() && !thinking;
+    if (coachOn() && opts.coach === "hints") controls.append(btn(hinting ? "Thinking…" : "Hint", askCoach, "", !mine || !!hinting || hint?.at === run.game.moves.length));
     controls.append(btn("Pass", pass, "", !mine), btn("Undo", undo, "", !!thinking || !run.game.moves.length), btn("Resign", resign, "", !!thinking));
   } else if (run.phase === "scoring") {
     controls.append(btn("Play on", resume), btn("Undo marks", () => { run.dead = []; saveRun(); draw(); }, "", !deadSet.size), btn("Count", finish, "primary"));
@@ -352,7 +378,7 @@ function startGame(lesson = false) {
   const side = lesson ? "b" : opts.side;
   const g = newGame({ size: lesson ? 9 : opts.size, handicap: side === "two" ? 0 : opts.handicap });
   run = { game: g, human: side, level: lesson ? "novice" : levelNow(), lesson: lesson || undefined, phase: "play", dead: [], result: null, est: null, low: 0 };
-  pending = -1; thinking = 0; held = null; reading = 0;
+  pending = -1; thinking = 0; held = null; reading = 0; hint = null; hinting = 0;
   syncReplay();
   saveRun();
   draw();
@@ -411,7 +437,8 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
   content.append(choice("You play", [["b", "Black"], ["w", "White"], ["two", "Two on this phone"]], opts.side, v => { opts.side = v; saveOpts(); openMenu(); }));
-  content.append(line("These apply from the next game. Komi is 7.5."));
+  content.append(choice("Coach", [["off", "Off"], ["hints", "Hint button"], ["always", "Always show"]], opts.coach, v => { opts.coach = v; saveOpts(); hint = null; draw(); wantCoach(); }));
+  content.append(line("The board and who you play apply from the next game. Komi is 7.5."));
   const rec = read(RECORD, { played: 0, won: 0 }), st = read("go:streak", { now: 0, best: 0 });
   const about = part(body, "about");
   about.append(line(rec.played ? `Won ${rec.won} of ${rec.played} games against the computer${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games against the computer finished yet."));
