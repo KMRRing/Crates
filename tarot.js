@@ -14,7 +14,7 @@ import { createThinker } from "./tarot-think.js";
 import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { tarotCard, backHtml } from "./tarot-faces.js";
-import { fitRow } from "./cards.js";
+import { plateHtml, bubble, drawHandBox } from "./cardroom.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -166,16 +166,16 @@ const fmt = n => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 const sign = n => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0");
 
 function stripLine(v) {
-  const s = v.state, head = `Deal <b>${s.deal}</b> of ${s.opts.deals}`;
-  if (s.step === "thrown") return `${head} · thrown in`;
-  if (s.step === "bid") return `${head} · bidding`;
-  if (s.taker == null) return head;
-  const bits = [bidName(s.bid), `${esc(who(s.taker))} take${who(s.taker) === "You" ? "" : "s"}`];
-  if (s.step === "play" && opts.counting) {
-    const a = attPoints(s);
-    bits.push(`<b>${fmt(a.pts)}</b> of ${a.need}`);
+  const s = v.state;
+  // the brass plate across the top (cardroom.js): the deal, the contract, and each seat's score
+  const phase = s.step === "thrown" ? "thrown in" : s.step === "bid" ? "bidding" : "";
+  const bits = [];
+  if (s.taker != null && s.step !== "thrown" && s.step !== "bid") {
+    bits.push(bidName(s.bid), `${esc(who(s.taker))} take${who(s.taker) === "You" ? "" : "s"}`);
+    if (s.step === "play" && opts.counting) { const a = attPoints(s); bits.push(`${fmt(a.pts)} of ${a.need}`); }
   }
-  return `${head} · ${bits.join(" · ")}`;
+  return plateHtml({ title: `<small>Deal</small><b>${s.deal}/${s.opts.deals}</b>`,
+    items: s.scores.map((sc, i) => ({ k: who(i).slice(0, 6), v: `${sc > 0 ? "+" : ""}${sc}`, on: s.step === "play" && s.turn === i })), tail: [phase, ...bits].filter(Boolean).join(" · ") });
 }
 
 function roleChip(v, seat) {
@@ -219,13 +219,13 @@ function slotHtml(v, seat) {
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("status").textContent = ""; $("strip").textContent = ""; $("bar").innerHTML = ""; $("cover").hidden = true; return; }
+  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("strip").textContent = ""; $("bar").innerHTML = ""; $("cover").hidden = true; return; }
   const s = v.state;
   $("strip").innerHTML = stripLine(v);
   drawCover(v);
   drawTable(v);
   drawHand(v);
-  $("status").innerHTML = `<span>${statusLine(v)}</span>`;           // one box, so a flex line keeps the spaces round the coach's bold
+  coachBubble.show(statusLine(v));                                  // only the coach's word and a rule that stops a move: the buttons say the rest
   drawBar(v);
 }
 
@@ -313,7 +313,7 @@ function drawHand(v) {
   const box = $("hand"), s = v.state, w = viewer(v);
   const cards = handCards(v);
   if (cards == null) {
-    box.className = "tr-hand one";
+    box.style.height = "";
     const n = s.hands[footSeat(v)]?.length || 0;
     box.innerHTML = hot() && n ? `<p class="tr-watch">The hands are hidden: pass the phone.</p>` : `<p class="tr-watch">${page.atTable && v.seat == null ? "Watching: you sit down at the next game." : ""}</p>`;
     return;
@@ -323,21 +323,14 @@ function drawHand(v) {
   const okPick = picking ? new Set(cards.filter(c => !isBout(c) && !isKing(c) && (c >= 22 || s.hands[w].filter(x => x >= 22 && !isKing(x)).length < s.dog.length))) : null;
   const fresh = s.step === "discard" ? new Set(s.dog) : new Set();
   const shown = new Set(handful?.cards || []);
-  const html = c => tarotCard(c, {
-    cls: [sel.has(c) && "sel", fresh.has(c) && "fresh", shown.has(c) && "lit",
-      (playable && !playable.has(c) || okPick && !okPick.has(c)) && "dim", hinted?.key === `${v.G.seq}:${s.ply}` && hinted.cards?.includes(c) && "hint"].filter(Boolean).join(" "),
-    data: { id: c },
-  });
-  const two = cards.length > 9;
-  const trumps = cards.filter(c => c <= EXCUSE), suits = cards.filter(c => c > EXCUSE);
-  let rows;
-  if (!two) rows = [cards];
-  else if (trumps.length && suits.length && trumps.length <= 13 && suits.length <= 13) rows = [trumps, suits];
-  else { const half = Math.ceil(cards.length / 2); rows = [cards.slice(0, half), cards.slice(half)]; }
-  box.className = `tr-hand ${rows.length === 2 ? "two" : "one"}`;
-  box.innerHTML = rows.map(r => `<div class="tr-row cd-row">${r.map(html).join("")}</div>`).join("");
-  const longest = Math.max(...rows.map(r => r.length));
-  for (const el of box.querySelectorAll(".tr-row")) fitRow(el, Math.max(el.children.length, Math.min(longest, 9)), { max: (rows.length === 2 ? 1.3 : 1.6) * (sideways() ? 1.35 : 1) });
+  // Guandan's fan (cardroom.js): the trumps in one run and each suit in its own
+  const cols = [cards.filter(c => c <= EXCUSE)];
+  const bySuit = new Map();
+  for (const c of cards.filter(c => c > EXCUSE)) { const su = suitOf(c); if (!bySuit.has(su)) bySuit.set(su, []); bySuit.get(su).push(c); }
+  cols.push(...bySuit.values());
+  drawHandBox(box, { cols: cols.filter(c => c.length), fan: true, html: (id, o) => tarotCard(id, o), label: String,
+    classes: c => [sel.has(c) && "sel", fresh.has(c) && "fresh", shown.has(c) && "lit",
+      (playable && !playable.has(c) || okPick && !okPick.has(c)) && "dim", hinted?.key === `${v.G.seq}:${s.ply}` && hinted.cards?.includes(c) && "hint"].filter(Boolean).join(" ") });
 }
 $("hand").addEventListener("click", e => {
   const c = e.target.closest(".cd[data-id]");
@@ -357,30 +350,14 @@ $("hand").addEventListener("click", e => {
 });
 
 // ---------- status and buttons ----------
+/** What the bubble says: the coach's word, or why the cards picked to set aside won't do; the buttons carry all the rest. */
 function statusLine(v) {
   const s = v.state, w = viewer(v);
-  if (s.step === "over") return esc(finalLine(s));
-  if (s.step === "shown") return "Deal over. Next deal in a moment, or tap Next deal.";
-  if (s.step === "thrown") return "Nobody takes it.";
   if (hinted?.key === `${v.G.seq}:${s.ply}` && myTurn(v)) return hinted.words ? `<b>Coach</b> ${esc(hinted.words)}` : `<span class="tr-thinking">The coach is weighing it</span>`;
-  if (w == null) return hot() && v.toMove != null && v.toMove < opts.hot ? "" : `<span class="tr-thinking">${esc(who(v.toMove ?? 0))} to play</span>`;
-  if (!myTurn(v)) return `${esc(who(v.toMove))} ${v.seats[v.toMove]?.bot ? "is thinking…" : "to play."}`;
-  const you = page.atTable || opts.hot > 1 ? "Your" : "Your";
-  void you;
-  if (s.step === "bid") return s.high ? `Bid over ${esc(bidName(s.high))}, or pass.` : "Bid, or pass.";
-  if (s.step === "call") return "Call a king: tap one, then Call.";
-  if (s.step === "discard") {
-    if (sel.size === s.dog.length) { const why = checkDiscard(s.hands[w], [...sel], s.dog.length); return why ? esc(why) : `Discard these ${sel.size}: ${[...sel].map(c => short(c)).join(" ")}`; }
-    return `Pick ${s.dog.length} cards to set aside${s.dogSeen ? " (the dog is in your hand)" : ""}: ${sel.size} of ${s.dog.length}.`;
-  }
-  if (s.step === "announce") return "Announce a slam (every trick): 400 if you make it, −200 if not.";
-  const led = s.trick.plays.length;
-  if (!led) {
-    const ban = leadBan(s);
-    return ban ? `You lead first. Not ${SUIT_NAMES[ban.suit]}, the called suit, unless it is the king itself.` : "Your lead.";
-  }
-  return sel.size ? `Play ${esc(theCard([...sel][0]))}: tap it again.` : "Your card. A dimmed card is not allowed.";
+  if (s.step === "discard" && w != null && myTurn(v) && sel.size === s.dog.length) { const why = checkDiscard(s.hands[w], [...sel], s.dog.length); return why ? esc(why) : ""; }
+  return "";
 }
+const coachBubble = bubble($("coach"));
 
 function drawBar(v) {
   const bar = $("bar"), s = v.state, w = viewer(v);

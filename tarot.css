@@ -20,8 +20,7 @@ html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 
 .tr-mark { display: inline-block; }
 .tr-mark svg { width: 100%; height: 100%; display: block; }
-.tr-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tr-strip b { color: var(--ink); }
+#app.tarot { --cr-in: var(--tr-in); }
 
 /* ---------- the cards ---------- */
 /* a trump: its number in the corner, a small engraving in the middle and the Roman numeral at the foot; the Excuse the fool */
@@ -97,21 +96,13 @@ html[data-mode="night"] .tr-pay.down { color: #E8806F; }
 .tr-next { display: block; width: min(9rem, 80%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
 .tr-next i { display: block; height: 100%; background: var(--tr-in); transform-origin: left; animation: tr-fuse linear forwards; }
 @keyframes tr-fuse { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-@media (prefers-reduced-motion: reduce) { .tr-next i { animation: none; } .tr-calls .cd, .tr-hand .cd { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tr-next i { animation: none; } .tr-calls .cd  }
 
 /* ---------- your cards and your buttons ---------- */
 .tr-side { display: flex; flex-direction: column; gap: .3rem; padding-top: .4rem; }
 /* two lines kept, so a longer line doesn't push the cards down as it comes and goes */
-.tr-status { display: flex; align-items: center; justify-content: center; height: 2.5em; margin: 0; overflow: hidden; line-height: 1.25; text-align: center; font-size: .86rem; color: var(--ink-soft); }
-.tr-status b { color: var(--tr-in); }
-.tr-hand { display: grid; grid-template-columns: minmax(0, 1fr); align-content: end; gap: 0; height: 10.4rem; box-sizing: border-box; padding-top: .4rem; }
-.tr-hand.two { grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.tr-hand.one { align-content: end; }
-.tr-row { min-width: 0; justify-content: center; align-items: flex-end; min-height: 0; }
-.tr-hand .cd { cursor: pointer; transition: transform .1s; }
-.tr-hand .cd.sel { transform: translateY(-.4rem); border-color: var(--tr-in); box-shadow: 0 0 0 1.5px var(--tr-in); }
-.tr-hand .cd.fresh:not(.sel) { outline: 2px solid var(--tr-in); outline-offset: -3px; }
-.tr-hand .cd.hint { box-shadow: 0 0 0 2px var(--brass); }
+.cr-hand .cd.fresh:not(.sel) { outline: 2px solid var(--tr-in); outline-offset: -3px; }
+.cr-hand .cd.hint { box-shadow: 0 0 0 2px var(--brass); }
 .tr-watch { margin: auto; color: var(--ink-soft); text-align: center; }
 .tr-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; align-content: start; min-height: 5.8rem; }
 .tr-go { min-width: 0; min-height: 2.7rem; padding: .3rem .3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .86rem; }
@@ -146,6 +137,11 @@ html[data-mode="night"] .tr-pay.down { color: #E8806F; }
   #app.tarot .tr-strip { grid-column: 1 / -1; grid-row: 2; }
   #app.tarot .tr-table { grid-column: 1; grid-row: 3; }
   #app.tarot .tr-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
-  #app.tarot .tr-hand { height: 15.5rem; }
 }
 html[data-theme="office"] .tr-table { border-radius: 4px; }
+
+/* Korbi, 7 Nov 2026: the card room's proportions (Guandan's) */
+.tr-table { margin-top: .8rem; }
+.tr-side { padding-top: 0; gap: .15rem; }
+#app.tarot .cr-hand { margin-bottom: 1.7rem; }
+.tr-coach b { color: var(--tr-in); }

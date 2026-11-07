@@ -14,6 +14,7 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="cardroom.css">
 <link rel="stylesheet" href="course.css">
 <link rel="stylesheet" href="tarot.css">
 <link rel="stylesheet" href="themes.css">
@@ -28,12 +29,11 @@
     </div>
   </header>
 
-  <p id="strip" class="tr-strip full-pull"></p>
+  <div id="strip" class="tr-strip full-pull"></div>
   <section id="table" class="tr-table fit-grow" aria-label="The table"></section>
   <section id="side" class="tr-side" aria-label="Your cards">
-    <p id="status" class="tr-status" aria-live="polite"></p>
-    <div id="hand" class="tr-hand" role="group" aria-label="Your cards"></div>
-    <div id="bar" class="tr-bar"></div>
+    <div id="hand" class="cr-hand" role="group" aria-label="Your cards"></div>
+    <div class="cr-bar"><p id="coach" class="tr-coach" aria-live="polite" hidden></p><div id="bar" class="tr-bar"></div></div>
   </section>
   <div id="cover" class="tr-cover" hidden></div>
 </div>
