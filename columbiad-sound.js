@@ -66,6 +66,15 @@ const VOICES = {
     tone(c, t, { freq: 70, to: 150, gain: 0.55, dur: 0.8, attack: 0.12 });
     tone(c, t, { freq: 140, to: 300, gain: 0.18, dur: 0.6, attack: 0.1 });
   },
+  /** The charge-up before the shell leaves (8 November 2026, Korbi: a loading sound that justifies the pause): a whine that climbs over `dur` seconds with
+   *  a rising rush under it, a few ratchet ticks that speed up, and a clunk as it is ready. */
+  charge(c, t, { dur = 0.6 }) {
+    tone(c, t, { freq: 90, to: 640, gain: 0.22, dur, attack: dur * 0.5, type: "triangle" });
+    tone(c, t, { freq: 180, to: 1280, gain: 0.07, dur, attack: dur * 0.6 });
+    burst(c, t, { freq: 250, to: 2600, q: 1.1, gain: 0.2, dur, type: "bandpass", at: dur * 0.6 });
+    for (let k = 0, at = 0; k < 7; k++, at += dur * 0.42 * Math.pow(0.78, k)) burst(c, t + at, { freq: 1500 + k * 120, to: 800, q: 2.4, gain: 0.07, dur: 0.03, type: "bandpass" });
+    tone(c, t + dur - 0.02, { freq: 120, to: 60, gain: 0.3, dur: 0.12 });
+  },
   /** One unit of power passing under the thumb: a soft wooden-brass ratchet click (a few milliseconds of band-passed noise) over a quiet low sine, a touch higher the more is loaded. */
   tick(c, t, { n = 4 }) {
     burst(c, t, { freq: 1300 + n * 40, to: 700, q: 2.2, gain: 0.07, dur: 0.035, type: "bandpass" });

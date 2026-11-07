@@ -55,7 +55,7 @@ export function createView(canvas, hooks = {}) {
   // the aim view: the level's own frame, grown to hold the whole cone, so the preview is never out of sight
   const base = () => (coneBox && !lvl.frame ? { x0: Math.min(frame.x0, coneBox.x0), y0: Math.min(frame.y0, coneBox.y0), x1: Math.max(frame.x1, coneBox.x1), y1: Math.max(frame.y1, coneBox.y1) } : frame);
   let flight = null, live = null;                                     // the flight playing; the trail it leaves until the next shot
-  let flash = 0, pulse = 0;                                           // the glint at the pad when a shot leaves, and the pad's ring opening
+  let flash = 0, pulse = 0, charging = null, prepared = null;                                           // the glint at the pad when a shot leaves, and the pad's ring opening
   const smoke = [], sparks = [];
   const hash01 = i => { let h = Math.imul(i + 1, 0x9E3779B1); h ^= h >>> 15; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
   let raf = 0, last = 0, held = false, ff = false, settleAt = 0;
@@ -391,6 +391,13 @@ export function createView(canvas, hooks = {}) {
       const s = (1.5 + 2 * a) * u;
       ctx.fillRect(sx(p.x) - s / 2, sy(p.y) - s / 2, s, s);
     }
+    if (charging) {
+      // the wind-up: the pad's glow swells and brightens as the charge fills, trembling a little
+      const k = Math.min(1, charging.t / charging.ms), [mx, my] = padWorld(), X = sx(mx) + Math.sin(charging.t * 0.09) * 1.2 * k * u, Y = sy(my), r = (10 + 30 * k * k) * u;
+      const g = ctx.createRadialGradient(X, Y, 0, X, Y, r);
+      g.addColorStop(0, `rgba(255,250,225,${0.35 + 0.65 * k})`); g.addColorStop(0.35, `rgba(${BRASS_HI},${0.2 + 0.6 * k})`); g.addColorStop(1, `rgba(${BRASS},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.2832); ctx.fill();
+    }
     if (flash > 0) {
       const [mx, my] = padWorld(), X = sx(mx), Y = sy(my), r = 34 * u * flash;
       const g = ctx.createRadialGradient(X, Y, 0, X, Y, r);
@@ -460,11 +467,17 @@ export function createView(canvas, hooks = {}) {
     for (let i = 3; i < path.length; i += 3) len += Math.hypot(path[i + 1] - path[i - 2], path[i + 2] - path[i - 1]);
     return clamp(0.9 + 0.38 * len, 1.3, 4.2);
   }
+  /** The flight's arrays and length of show, made ahead (during the wind-up) so the launch itself has nothing to work out. */
+  function prepare(res) {
+    const p = res.path, n = p.length / 3, pts = new Float64Array(n * 2);
+    for (let i = 0; i < n; i++) { pts[2 * i] = p[3 * i + 1]; pts[2 * i + 1] = p[3 * i + 2]; }
+    return (prepared = { res, pts, wall: pace(p) });
+  }
   function startFlight(res, over) {
     const p = res.path, n = p.length / 3;
-    let pts = new Float64Array(n * 2);
-    for (let i = 0; i < n; i++) { pts[2 * i] = p[3 * i + 1]; pts[2 * i + 1] = p[3 * i + 2]; }
-    const t0 = p[0], T = p[3 * (n - 1)] - t0, wall = over.wall ?? pace(p);
+    const pre = prepared && prepared.res === res ? prepared : prepare(res), pts = pre.pts;
+    prepared = null;
+    const t0 = p[0], T = p[3 * (n - 1)] - t0, wall = over.wall ?? pre.wall;
     flight = { res, p, n, t0, T, rate: T / wall, gt: 0, i: 0, slow: 1, prevD: Infinity, hit: false, wall, elapsed: 0 };
     live = { pts, upto: 1, head: [pts[0], pts[1]] };
     won = false; hitAt = null; flare = 0;
@@ -493,6 +506,7 @@ export function createView(canvas, hooks = {}) {
     hooks.onHit?.(h);
   }
   function step(dt) {
+    if (charging) charging.t += dt * 1000;
     if (flash > 0) flash = Math.max(0, flash - dt / 0.3);
     if (pulse > 0) pulse = Math.max(0, pulse - dt / 0.7);
     if (flare > 0) flare = Math.max(0, flare - dt / 0.9);
@@ -534,7 +548,7 @@ export function createView(canvas, hooks = {}) {
     const e = 1 - Math.exp(-dt * 5.5);
     cam.x += (goal.x - cam.x) * e; cam.y += (goal.y - cam.y) * e; cam.k *= Math.pow(goal.k / cam.k, e);
   }
-  const moving = () => !!flight || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || pulse > 0 || flare > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
+  const moving = () => !!flight || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || !!charging || flash > 0 || pulse > 0 || flare > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
   function tick(ts) {
     raf = 0;
     if (held) return;
@@ -606,7 +620,10 @@ export function createView(canvas, hooks = {}) {
     clearLive() { live = null; hitAt = null; wake(); },
     wake,
     /** Plays a finished flight: res.path is its (t, x, y) triples. over.wall sets how long it is shown. */
-    fire(res, over = {}) { startFlight(res, over); return flight ? flight.wall : 0; },
+    fire(res, over = {}) { charging = null; startFlight(res, over); return flight ? flight.wall : 0; },
+    /** The wind-up before a shot: the glow at the pad fills over `ms`; the shot is prepared meanwhile. */
+    charge(ms, res) { charging = { t: 0, ms }; if (res) prepare(res); wake(); },
+    uncharge() { charging = null; prepared = null; wake(); },
     skip() { if (flight) { flight.gt = flight.T + 1; finishFlight(); fitTo(base(), goal); wake(); } },
     ff(on) { ff = on; },
     get flying() { return !!flight; },

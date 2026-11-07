@@ -98,6 +98,7 @@ function loadRun() {
     liveOn = false;
   } else fresh();
   phase = S.status === "won" ? "done" : "aim";
+  stopWind();
 }
 function setupLevel() {
   lvl = levelNow();
@@ -121,6 +122,7 @@ function playLevel(n) {
 function restart() {
   fresh();
   phase = "aim";
+  stopWind();
   view.setLevel(lvl);
   view.setClock(stamp());
   view.setGhosts([]);
@@ -287,12 +289,28 @@ function trailOf(res) {
   return { pts, hit: !!res.won };
 }
 
+// the audio engine is made at the first touch of the page, not at the first shot, so firing never waits for it
+addEventListener("pointerdown", () => sound.unlock(), { once: true, capture: true });
+const CHARGE_MS = 650;                                   // the wind-up: a rising whine, the glow at the pad filling; the shot is worked out and the flight prepared meanwhile
+let winding = 0;
+/** A wind-up cut short (another level, a restart): the shot it was holding is dropped. */
+function stopWind() { clearTimeout(winding); view?.uncharge?.(); }
 function fire() {
   if (phase !== "aim" || IN_FRAME || isPaused()) return;
   if (aim.charge < 0.1) { say("Pull back to add power"); return; }
   sound.unlock();
   touched();
-  const { state, res } = apply(lvl, S, { angle: aim.angle, charge: aim.charge, t: stamp() });
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches, ms = calm ? 220 : CHARGE_MS;
+  const shot = apply(lvl, S, { angle: aim.angle, charge: aim.charge, t: stamp() });     // all of it, ahead: the engine, the preview of the path, the flight's arrays
+  phase = "charge";
+  render();
+  view.charge(ms, shot.res);
+  sound.play("charge", { dur: ms / 1000 });
+  clearTimeout(winding);
+  winding = setTimeout(() => launch(shot), ms);
+}
+function launch({ state, res }) {
+  if (phase !== "charge") return;
   const prior = ghosts;
   S = state;
   ghosts = [...ghosts, trailOf(res)].slice(-4);

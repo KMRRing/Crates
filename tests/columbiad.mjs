@@ -245,5 +245,14 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   check(reach, "every aim the dial allows can be pulled to, and read back as itself");
 }
 
+
+{
+  // 8 November 2026, Korbi: firing winds up first (a charging sound, the glow filling) while the shot and its flight are prepared, so the launch itself does no work
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../columbiad.js", import.meta.url), "utf8"), snd = readFileSync(new URL("../columbiad-sound.js", import.meta.url), "utf8"), vw = readFileSync(new URL("../columbiad-view.js", import.meta.url), "utf8");
+  check(/phase = "charge"/.test(page) && /setTimeout\(\(\) => launch\(shot\)/.test(page) && /apply\(lvl, S/.test(page.slice(page.indexOf("function fire"), page.indexOf("function launch"))), "Fire winds up first, with the shot worked out ahead of the launch");
+  check(/charge\(c, t, \{ dur/.test(snd) && /sound\.play\("charge"/.test(page), "the wind-up has a sound of its own");
+  check(/function prepare\(res\)/.test(vw) && /pointerdown", \(\) => sound\.unlock\(\)/.test(page), "the flight's arrays are made in the wind-up, and the audio engine at the first touch, not at the first shot");
+}
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("columbiad: the doc's units and physics checks, a step that depends on the state alone, rings entered on the path, the dial, the cone, the contract, the levels with their winning shots, the drag-back control");
