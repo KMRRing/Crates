@@ -17,6 +17,14 @@ html[data-mode="night"] { --cx-sea: #060E15; --cx-land: #4A5A50; --cx-border: #9
 .cx-trail b { color: var(--ink); }
 .cx-mapbox { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; background: var(--cx-sea); }
 .cx-map { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+.cx-opts { flex: none; height: 8.6rem; margin-top: .6rem; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; align-content: start; }
+.cx-opts[hidden] { display: none; }
+.cx-opt { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; text-align: left; padding: .4rem .55rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; min-height: 2.6rem; }
+.cx-opt b { font-size: .82rem; line-height: 1.2; }
+.cx-opt span { font-size: .72rem; color: var(--ink-soft); line-height: 1.2; }
+.cx-opt:disabled { opacity: .4; }
+.cx-opt:not(:disabled):active { border-color: var(--cx-trail); }
+.cx-sum { grid-column: 1 / -1; margin: 0; font-size: .86rem; line-height: 1.4; }
 .cx-bar { flex: none; display: flex; gap: .6rem; margin-top: .6rem; }
 .cx-bar .btn { flex: 1 1 0; }
 .cx-bar [hidden] { display: none; }
@@ -33,10 +41,11 @@ html[data-mode="night"] { --cx-sea: #060E15; --cx-land: #4A5A50; --cx-border: #9
 
 /* held sideways (#app.beside): the map large on the left, the route, the way back and the way out in the side column */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.crossing { --beside: 22rem; grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+  #app.crossing { --beside: 22rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr); }
   .cx-mapbox { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
   .cx-strip { grid-column: 2; grid-row: 2; }
   .cx-deal { grid-column: 2; grid-row: 3; margin: 0 0 .6rem; padding: 1.1rem 1.3rem; }
   .cx-route { font-size: 1.5rem; }
-  .cx-bar { grid-column: 2; grid-row: 4; flex-direction: column; margin-top: 0; }
+  .cx-opts { grid-column: 2; grid-row: 4; margin: 0 0 .6rem; height: 13rem; }
+  .cx-bar { grid-column: 2; grid-row: 5; flex-direction: column; margin-top: 0; }
 }
