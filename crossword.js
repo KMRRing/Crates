@@ -7,14 +7,13 @@
 // the solvers crossword-solve.js's, the table crossword-table.js's; this page draws them and takes the typing.
 import { LEVELS, LEVEL_IDS, SIZES, KINDS, kindOf, POOLS, topicsOf, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
 import { span, clamp, zoomTo, squareAt, rectOf, show, fingers } from "./crossword-zoom.js";
-import { partnerMove, seeded, PACES } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
 import { kbEntry, entriesAbout, reviewCard, BANK } from "./crossword-kb.js";
 import { subjectPreset } from "./topics.js";
 import { subjectsOn, markedIn, allowed } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line, todayPart, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, todayPart, onPause, isPaused } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, noteDayTime, soloHref, IN_FRAME } from "./suite.js";
@@ -36,21 +35,19 @@ const RUN = "crossword:run", SETTINGS = "crossword:settings", TIMES = "crossword
 const APP = 1;                 // the table's version
 
 // ---------- settings ----------
-// The menu is the minimum it needs to be (Korbi, 4 November 2026): the clues (Classic, Almanac or Both), the computer
-// partner and the topics line. The level is the hidden ramp (`ramp.js`, `crossword:ramp`, first rung the level once saved), a grid
-// is its level's own size, every answer and both ways, no twist, the partner's pace quick, and nothing checks as you go.
-// computer: off, or a partner holding the Down clues of a split grid; today's is the same for everyone (dailyOptions)
-const DEFAULTS = { kind: "both", computer: "off", tableMode: "split" };
-const FIXED = { size: null, pool: "mixed", asks: "both", mode: "classic", pace: "quick", autocheck: false };
+// The menu is the minimum it needs to be (Korbi, 4 November 2026): the clues (Classic: ordinary words alone; Almanac: the knowledge section's
+// alone; Both: a mix) and the topics line. The level is the hidden ramp (`ramp.js`, `crossword:ramp`, first rung the level once saved), a grid
+// is its level's own size (an Almanac grid at most 11), every answer and both ways, no twist, and nothing checks as you go.
+// (8 November 2026: the computer partner, which held the Down clues of a split grid played alone, is gone.)
+const DEFAULTS = { kind: "both", tableMode: "split" };
+const FIXED = { size: null, pool: "mixed", asks: "both", mode: "classic", autocheck: false };
 const kept = read(SETTINGS, {});
 const settings = () => {
   const s = { ...DEFAULTS, ...read(SETTINGS, {}), ...FIXED };
-  return { ...s, kind: kindOf(s.kind), computer: s.computer === "partner" ? "partner" : "off", level: ramp("crossword", LEVEL_IDS, { start: kept.level }) };
+  return { ...s, kind: kindOf(s.kind), level: ramp("crossword", LEVEL_IDS, { start: kept.level }) };
 };
 /** The squares across a random grid of yours: its level's own. */
 const sizeOf = s => LEVELS[s.level]?.size || 13;
-/** The computer player a new grid of yours gets: { kind, level } or null (never on today's, which is the same for everyone). */
-const computerFor = daily => (daily || settings().computer !== "partner" ? null : { kind: "partner", level: PACES[settings().pace] ? settings().pace : "quick" });
 const setSetting = (k, v) => write(SETTINGS, { ...settings(), [k]: v });
 // The topics are the suite's one set (Settings; topics-on.js), read when a grid is dealt, never once at start-up: a change
 // reaches the next grid, and a grid already dealt keeps what it was dealt. A mix of your own doesn't count for your best.
@@ -108,7 +105,7 @@ function dueEntries(s, w) {
 }
 
 // ---------- the run: your own grid, or the table's ----------
-// S: your own run { v, puzzle, play, daily (its day) or null, ranked, opts, partner ({ level, seed }) or null }
+// S: your own run { v, puzzle, play, daily (its day) or null, ranked, opts }
 let S = read(RUN, null);
 if (S && (S.v !== 1 || !S.puzzle?.rows)) S = null;
 let G = null;                  // the table as last seen (null: playing alone)
@@ -140,8 +137,6 @@ function tick() {
   }
   lastTick = now;
   drawClock();
-  partnerTick();
-  if (partner && !G) drawStrip();
 }
 function startClock() { lastTick = performance.now(); clearInterval(ticking); ticking = setInterval(tick, 500); }
 /** The seconds on the clock now (before any penalty). */
@@ -171,8 +166,8 @@ function fitLayout() {
   const vh = window.visualViewport?.height || window.innerHeight;
   const width = app.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
   document.documentElement.style.setProperty("--key", `${Math.round(Math.max(MIN_KEY, Math.min(MAX_KEY, vh / 17.5)) * k)}px`);
-  // a short phone's strip is the grid's room: it shows only with something live in it (a table, a partner)
-  $("strip").hidden = !side && vh / k < 700 && !G && !S?.partner;
+  // a short phone's strip is the grid's room: it shows only with something live in it (a table)
+  $("strip").hidden = !side && vh / k < 700 && !G;
   // a grid of C squares is C squares and C + 1 hairlines across (its ruled ground shows through a pixel round each)
   const fits = (w, h) => Math.floor(Math.min((w - (C + 1)) / C, (h - (R0 + 1)) / R0));
   let cell;
@@ -428,8 +423,8 @@ function paint() {
   const p = puzzle(), pl = play();
   if (!p || !pl) return;
   const e = current(), word = new Set(e ? e.cells : []), wrong = new Set(pl.wrong), shown = new Set(pl.revealed);
-  // who wrote each letter: at a split table everyone's colour; alone with a partner, the computer's letters in its own
-  const by = G?.mode === "split" ? writers(G) : !G && S?.partner ? pl.by || {} : null;
+  // who wrote each letter: at a split table everyone's colour
+  const by = G?.mode === "split" ? writers(G) : null;
   const peers = G?.mode === "split" ? peerCells() : new Map();
   const solved = finished() && solvedBy(pl, p);
   cells.forEach((c, k) => {
@@ -563,13 +558,6 @@ function drawStrip() {
   where.textContent = bits.join(" · ");
   who.replaceChildren();
   if (G) drawTable(who);
-  else if (S?.partner) {
-    // the partner's badge in its colour, and how many of its Down clues it has right
-    const { right, of } = partnerScore(), span = el("span", "cw-race"), b = el("i", "cw-by", (PACES[S.partner.level]?.name || "P")[0]);
-    b.style.setProperty("--who", "var(--p1)");
-    span.append(b, ` ${right}/${of} down`);
-    who.append(span);
-  }
 }
 
 // ---------- moving about ----------
@@ -646,7 +634,7 @@ function backspace() {
 function setLetter(k, ch) {
   if (G?.mode === "split") { pending[k] = ch; flushSoon(); return; }
   const pl = play();
-  if (put(pl, puzzle(), k, ch) && pl.by) delete pl.by[k];       // over a partner's letter: yours now
+  put(pl, puzzle(), k, ch);
 }
 /** After every change: draw, keep, and see whether the grid is done. */
 function changed() {
@@ -716,7 +704,7 @@ function solvedSolo() {
     t[p.level] = lv;
     write(TIMES, t);
   }
-  if (!S.daily && !S.partner && p.level === settings().level) {      // the ramp: up after a grid with no help, down after giving up
+  if (!S.daily && p.level === settings().level) {      // the ramp: up after a grid with no help, down after giving up
     if (pl.gaveUp) ramp.lost(); else ramp.won(!pl.reveals && !pl.checks);
   }
   learnFrom(p, pl, ownClue);
@@ -748,7 +736,7 @@ function showDone() {
   const total = team ? G.done?.total ?? secs : race ? secs + pl.reveals * REVEAL_COST + pl.checks * CHECK_COST : pl.done?.total ?? charged(pl);
   const reveals = team ? G.reveals : pl.reveals, checks = team ? G.checks : pl.checks, gaveUp = !team && pl.gaveUp;
   $("doneTitle").textContent = gaveUp ? "Revealed" : team ? "Solved together" : race ? (raceOver(G, present()) ? raceVerdict() : "You've finished")
-    : S?.partner ? `Solved with ${PACES[S.partner.level]?.name || "your partner"}` : "Solved";
+    : "Solved";
   body.replaceChildren();
   const sum = el("p", "cw-sum");
   sum.append(gaveUp ? "Given up after " : "", el("b", "", clock(gaveUp ? secs : total)));
@@ -756,7 +744,7 @@ function showDone() {
   else if (!gaveUp) sum.append(" with no help");
   body.append(sum);
   if (race) body.append(raceRows());
-  // what it was about: every knowledge entry with its link (a partner's too, now it can be read), those of yours
+  // what it was about: every knowledge entry with its link, those of yours
   // that go to the review pile marked
   const kb = lessons(p, pl), theme = p.entries.find(e => e.kind === "key");
   if (kb.length) {
@@ -797,20 +785,17 @@ async function newGrid(daily, { ask = true } = {}) {
     if (!p && !daily && opts.kind !== "classic") { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
     if (!p) { toast("Couldn't set a grid: try again"); return; }
     if (!daily) pile.dealt("crossword", p.entries.map(e => e.key).filter(Boolean));
-    const comp = computerFor(daily);
     S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, size: opts.size, kind: opts.kind, pool: opts.pool, asks: opts.asks, mode: opts.mode },
       // a best is a grid you played alone, today's or one like it: the level's own size, both kinds of entry, on a
       // preset, both ways, mixed answers, no twist
-      ranked: comp?.kind !== "partner" && (daily || (!markedIn() && !narrow && preset && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
-        && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed")),
-      partner: comp?.kind === "partner" ? { level: comp.level, seed: p.seed } : null };
+      ranked: daily || (!markedIn() && !narrow && preset && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
+        && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed") };
     if (narrow) setTimeout(() => toast("Your choices were too narrow for a grid: this one has every topic"), 300);
     afterNewRun();
     save();
   } finally { done(); dealing = false; }
 }
 function afterNewRun() {
-  partner = S?.partner && !S.play.done ? { rnd: seeded(S.partner.seed ^ Math.floor(S.play.ms)), tried: new Map(), plan: null, idle: 0 } : null;
   drawnFor = null;
   buildBoard();
   const p = puzzle(), first = p?.entries[0], at = S?.at;
@@ -819,35 +804,6 @@ function afterNewRun() {
   paint(); drawStrip(); drawClock();
 }
 
-// ---------- the computer as your partner ----------
-// A split grid played alone: you hold the Across clues, the computer the Down ones, which you see as its, and it
-// writes its answers in its colour at a person's pace: the grading solver at its level, reading a clue, getting it
-// from the clue or the letters in, and when it can't get any, waiting for your crossings (crossword-solve.js).
-let partner = null;            // { rnd, tried, plan: { n, at } (an answer it's writing, done at `at` ms on the clock), idle }
-const partnerHolds = () => puzzle().entries.map(e => e.dir === "down");
-function partnerTick() {
-  if (!partner || G || !S?.partner || S.play.done || IN_FRAME) return;
-  const pl = S.play, p = S.puzzle;
-  if (partner.plan) {
-    if (pl.ms < partner.plan.at) return;
-    const e = p.entries[partner.plan.n];
-    partner.plan = null;
-    pl.by ||= {};
-    e.cells.forEach((k, i) => { if (!pl.revealed.includes(k) && pl.letters[k] !== e.letters[i]) { put(pl, p, k, e.letters[i]); pl.by[k] = 1; } });
-    changed();
-    return;
-  }
-  if (pl.ms < partner.idle) return;
-  const move = partnerMove(p, pl.letters, partnerHolds(), S.partner.level, partner.rnd, partner.tried);
-  if (move) partner.plan = { n: move.n, at: pl.ms + move.at * 1000 };
-  else partner.idle = pl.ms + 3000;           // nothing it can get: it looks again in a moment, and as your letters come
-}
-/** How many of its clues the partner has right: { right, of }. */
-function partnerScore() {
-  const pl = S.play, hold = partnerHolds();
-  const its = S.puzzle.entries.filter((_, n) => hold[n]);
-  return { right: its.filter(e => entryRight(pl, e)).length, of: its.length };
-}
 /** Today's grid, still to play: asks before leaving one you've started. */
 function openToday() {
   if (S?.daily === today()) { afterNewRun(); return; }
@@ -878,20 +834,17 @@ function people() {
 const present = () => people().filter(p => p.here).map(p => p.slot);
 const nameOfSlot = slot => { const p = people().find(x => x.slot === slot); return p?.me ? "You" : first(p?.name || `Seat ${slot + 1}`); };
 function holderName(e) {
-  if (!G) return PACES[S?.partner?.level]?.name || "Your partner";
   const s = holders(G.puzzle, G.people || 2)[e.n];
   return nameOfSlot(s);
 }
-/** Whether this phone can read an entry's clue: alone, all but a computer partner's; racing, all; split, its own and
- *  those of seats nobody's in. */
+/** Whether this phone can read an entry's clue: alone, all; racing, all; split, its own and those of seats nobody's in. */
 function canRead(e) {
-  if (!G) return !S?.partner || e.dir === "across";
+  if (!G) return true;
   if (G.mode !== "split") return true;
   return readable(G, together.slot, present())[e.n];
 }
-/** Whether an entry's clue is this player's own: alone, all but a computer partner's; racing, all; split, the ones
- *  dealt to their seat. */
-const ownClue = e => (!G ? !S?.partner || e.dir === "across" : G.mode !== "split" || holders(G.puzzle, G.people || 2)[e.n] === together.slot);
+/** Whether an entry's clue is this player's own: alone, all; racing, all; split, the ones dealt to their seat. */
+const ownClue = e => (!G || G.mode !== "split" || holders(G.puzzle, G.people || 2)[e.n] === together.slot);
 function badge(slot) {
   const p = people().find(x => x.slot === slot), b = el("i", "cw-by", initial(p?.name));
   b.style.setProperty("--who", `var(--p${slot % 6})`);
@@ -1127,7 +1080,6 @@ function openMenu() {
   content.append(choice("Clues", Object.entries(KINDS), s.kind, v => { setSetting("kind", v); openMenu(); }),
     // Settings' topics, in a sheet from here, for the next random grid (today's takes every topic)
     ...(knowledge ? topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do") : []));
-  part(body, "settings").append(toggle("Computer partner", s.computer === "partner", on => setSetting("computer", on ? "partner" : "off")));
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);
   part(body, "about").append(line(bests.length ? `Best: ${bests.join(" · ")} · ${solvedN} solved` : "No grid solved yet"),

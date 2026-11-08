@@ -31,7 +31,7 @@ const game = (puzzle, mode, now) => ({ mode, puzzle, begun: now, cells: {}, reve
 export function tidy(g) {
   g.cells ||= {}; g.revealed ||= {}; g.wrong ||= {}; g.runs ||= {};
   g.checks ||= 0; g.reveals ||= 0; g.done ||= null;
-  delete g.rival;                              // a table dealt when a computer player could race
+  delete g.rival;                              // a table dealt when a computer player could race (an old field)
   const p = g.puzzle;
   if (p) {
     p.rows = values(p.rows);

@@ -8,7 +8,6 @@
 //    difficulty, and the crossings then make others certain (one word of the language fits the letters) or likelier
 //    (a pattern jogs the memory), round after round, until nothing more comes. A grid's difficulty is how such
 //    solvers fare on it: how many finish, how much of it they get, how many rounds of crossings it takes.
-//  - partnerMove: the computer as a partner on a split grid, the same model paced like a person.
 import { wordsOf } from "./wordlist.js";
 import { answerNames } from "./crossword-kb.js";
 
@@ -123,7 +122,7 @@ const withLetters = (p, e, f) => p + (1 - p) * (e.kind === "rev" || e.kind === "
 
 /**
  * One solver's go at the puzzle: { finished, share (of entries solved), rounds (of crossings it took), order (the
- * entries in the order they came) }. `model` is the chances above (TYPICAL, or a computer player's); `rnd` seeded.
+ * entries in the order they came) }. `model` is the chances above (TYPICAL); `rnd` seeded.
  */
 export function simulate(puzzle, model, rnd) {
   const E = puzzle.entries, known = new Array(puzzle.rows.length * puzzle.rows[0].length).fill(null);
@@ -164,37 +163,4 @@ export function grade(puzzle, { runs = 24, seed = 1, model = TYPICAL } = {}) {
   return { finish: fin / runs, share: share / runs, rounds: fin ? rounds / fin : null };
 }
 
-// ---------- the computer player ----------
-/**
- * The computer players, by how well they know things and how quickly they read: each a typical solver's chances,
- * raised or lowered, and a pace (seconds to read a clue, and a letter's typing).
- */
-export const PACES = {
-  steady: { name: "Steady", lift: -0.12, read: 7, letter: 0.5 },
-  quick: { name: "Quick", lift: 0, read: 5, letter: 0.4 },
-  sharp: { name: "Sharp", lift: 0.15, read: 3.6, letter: 0.3 },
-};
-const lifted = lift => Object.fromEntries(Object.entries(TYPICAL).map(([k, row]) => [k, row.map(p => Math.min(0.98, Math.max(0, p + lift * (k === "key" ? 0 : 1))))]));
 export const REVEAL_COST = 30, CHECK_COST = 15;             // seconds: a letter revealed, a wrong letter a check finds
-/**
- * The computer as a partner on a split grid (README, Crossword): its next answer among the entries it holds
- * (`holds[n]`), the first in clue order it gets now, from its clue or the letters in the grid, as the grading solver
- * would, at its level; null while it can't get any (it waits for your crossings). Only right letters help it (a wrong
- * one is no clue), and it tries an entry again only once its letters have changed (`tried`: entry index → the
- * pattern it last tried). Returns { n, at } (the entry, and the seconds it took to read and write it).
- */
-export function partnerMove(puzzle, letters, holds, level, rnd, tried) {
-  const R = PACES[level] || PACES.quick, model = lifted(R.lift);
-  for (let n = 0; n < puzzle.entries.length; n++) {
-    const e = puzzle.entries[n];
-    if (!holds[n]) continue;
-    const pat = e.cells.map((k, i) => (letters[k] === e.letters[i] ? e.letters[i] : ".")).join("");
-    if (pat === e.letters || tried.get(n) === pat) continue;
-    tried.set(n, pat);
-    const known = pat.replace(/\./g, "").length, p = chanceOf(model, e, false);
-    if (certain(e, pat) || rnd() < (known ? withLetters(p, e, known / e.len) : p)) {
-      return { n, at: R.read * (0.6 + Math.min(1.2, (e.text || "").length / 60)) * (0.7 + 0.6 * rnd()) + R.letter * (e.len - known) };
-    }
-  }
-  return null;
-}

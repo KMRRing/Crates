@@ -30,7 +30,9 @@ html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806
 .ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
 .ch-maps { min-height: 0; }
 .ch-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 5px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.ch-map.globe { background: var(--ch-space); cursor: grab; }   /* the globe is seen from space */
+.ch-map.globe { background: var(--ch-space); cursor: grab; border-radius: 0;
+  /* soft edges: the sky melts into the card, so only the ball and its glow are left (Korbi, 8 Nov 2026) */
+  -webkit-mask-image: radial-gradient(ellipse farthest-corner at 50% 50%, #000 62%, transparent 100%); mask-image: radial-gradient(ellipse farthest-corner at 50% 50%, #000 62%, transparent 100%); }   /* the globe is seen from space */
 .ch-actions { display: grid; gap: .45rem; }
 .ch-actions.two { grid-template-columns: 1fr 1fr; }
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }

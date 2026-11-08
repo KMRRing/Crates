@@ -123,8 +123,10 @@ E.SIZE_IDS.forEach((size, i) => ["both", "classic", "lexicon"].forEach((kind, j)
 })));
 check(sized.every(x => x.p), `a puzzle at every size (${E.SIZE_IDS.join(", ")}) of every kind`);
 const sizedOk = sized.filter(x => x.p), kbOf = p => p.entries.filter(e => e.kind !== "word").length;
-check(sizedOk.every(({ p, size }) => p.rows.length === size && p.rows.every(r => r.length === size) && !gridProblems(p.rows.map(r => r.replace(/[A-Z]/g, "."))).length
-  && halfCrossed(slotsOf(p.rows.map(r => r.replace(/[A-Z]/g, "."))))), "each is a valid British grid of its size, every entry half crossed");
+check(sizedOk.every(({ p, size, kind }) => { const n = kind === "lexicon" ? Math.min(size, 11) : size; return p.rows.length === n && p.rows.every(r => r.length === n) && !gridProblems(p.rows.map(r => r.replace(/[A-Z]/g, "."))).length
+  && halfCrossed(slotsOf(p.rows.map(r => r.replace(/[A-Z]/g, ".")))); }), "each is a valid British grid of its size (an Almanac one at most 11), every entry half crossed");
+// (Korbi, 8 Nov 2026: an Almanac grid is knowledge alone: not one ordinary word in it, at any level, and a size over 11 is dealt as 11)
+check(sizedOk.filter(x => x.kind === "lexicon").every(x => x.p.entries.every(e => e.kind !== "word")), "an Almanac grid has no ordinary word in it");
 check(sizedOk.every(({ p, size }) => p.entries.every(e => e.len <= E.SIZES[size].longest)), "no entry is longer than its size allows (15 by 15: twelve letters, the clue bank's longest)");
 check(sizedOk.every(({ p, kind }) => E.uniquelySolved(p) && !giveaway(p) && (kind === "lexicon" || kbApart(p))),
   "each has exactly one fill, no clue giving another away, a mixed grid's knowledge entries apart");
@@ -179,8 +181,8 @@ check(lexCountry.entries.every(e => e.kind === "word" || e.cat === "country") &&
 // twelve of five and seven letters, each its own answer (several of one answer's links would be one word in a grid)
 const ofLength = n => [...new Map(all.filter(e => !e.mk && e.letters.length === n && e.dir === "rev").map(e => [e.letters, e])).values()].filter((e, i) => i % 11 === 0);
 const dueSix = [...ofLength(5).slice(0, 6), ...ofLength(7).slice(0, 6)].map(e => e.key);
-const lexLearned = [0, 1].map(i => E.makePuzzle({ seed: 1500 + i, level: "medium", size: 13, kind: "lexicon", due: dueSix }));
-check(lexLearned.every(p => p && p.entries.filter(e => dueSix.includes(e.key)).length >= 3), `a Lexicon grid deals what's due (${lexLearned.map(p => p.entries.filter(e => dueSix.includes(e.key)).length).join(" and ")} of twelve)`);
+const lexLearned = [0, 1].map(i => E.makePuzzle({ seed: 1500 + i, level: "medium", size: 11, kind: "lexicon", due: dueSix }));
+check(lexLearned.every(p => p && p.entries.filter(e => dueSix.includes(e.key)).length >= 2), `an Almanac grid (knowledge words alone, 11 by 11) deals what's due (${lexLearned.map(p => p.entries.filter(e => dueSix.includes(e.key)).length).join(" and ")} of twelve)`);
 const tooLong = all.filter(e => e.letters.length > E.SIZES[9].longest).slice(0, 5).map(e => e.key);
 check(E.makePuzzle({ seed: 1510, level: "medium", size: 9, kind: "lexicon", due: [...tooLong, dueSix[0]] }), "what's due that a grid can't take doesn't stop one being dealt");
 // the review pile's cards from every game, by what they're about, as the entries that revise them

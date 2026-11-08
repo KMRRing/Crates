@@ -72,7 +72,7 @@ let pin = null;      // the provisional pin { lat, lon }
 let clues = 0;       // clues taken on the current place (alone; at a table they're in its state, by seat)
 let views = { world: worldView() };                // what the map shows: pan and pinch move it
 const SIZES = { world: [360, Math.round(360 / worldAspect())] };
-const GLOBE = [360, 360];                          // the globe is round: its canvas is square, and fills the box the map had
+const GLOBE = SIZES.world;                         // the globe sits centred in the same wide box as the flat map (like Origin's), filling its height
 const inRoom = () => !!together.room;
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -356,15 +356,15 @@ function revealPoints(p) {
 function mapNow() {
   if (!mode3d) return projFor("world");
   const [w, h] = GLOBE;
-  return { proj: globe.camera(cameraNow(), w), w, h };
+  return { proj: globe.camera(cameraNow(), w, h), w, h };
 }
 /** The Earth from space: a dark sky, a thin atmosphere, the sea as a disc and the land, coasts, borders and graticule on it,
  *  shaded towards the edge so it reads as a ball. Gradients and stacked strokes only (no SVG filter: Safari blurs them). */
 function drawGlobe(ctx, cam, detail, fineBorders) {
-  const { cx, cy, R, size } = cam, a = cameraNow().a, span = 2 * a, TAU = Math.PI * 2;
+  const { cx, cy, R, size, w, h } = cam, a = cameraNow().a, span = 2 * a, TAU = Math.PI * 2;
   const disc = () => { ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); };
   ctx.fillStyle = css("--ch-space");
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0, 0, w, h);
   if (R < size / 2) {                                          // the whole near side in view: its atmosphere
     ctx.strokeStyle = css("--ch-in"); ctx.lineWidth = 2;
     for (let i = 0; i < 4; i++) { ctx.globalAlpha = 0.3 - i * 0.07; ctx.beginPath(); ctx.arc(cx, cy, R + 1 + i * 2, 0, TAU); ctx.stroke(); }
@@ -408,7 +408,7 @@ function drawGlobe(ctx, cam, detail, fineBorders) {
   ctx.stroke();
   const shade = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);          // darkening towards the edge, so it reads as a ball
   shade.addColorStop(0, "rgba(0,0,0,0)"); shade.addColorStop(0.6, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,.42)");
-  ctx.fillStyle = shade; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = shade; ctx.fillRect(0, 0, w, h);
   ctx.restore();
   if (R < size * 0.7) { disc(); ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 1; ctx.stroke(); }
 }
@@ -465,7 +465,7 @@ function gestures(name) {
   canvas.addEventListener("pointermove", e => {
     const g = touch.move(e.pointerId, ...at(e));
     if (!g) return;
-    if (mode3d) views.globe = globe.turn(g.zoom ? globe.zoom(cameraNow(), g.zoom) : cameraNow(), ...g.pan, GLOBE[0]);   // the globe turns under the fingers
+    if (mode3d) views.globe = globe.turn(g.zoom ? globe.zoom(cameraNow(), g.zoom) : cameraNow(), ...g.pan, Math.min(...GLOBE));   // the globe turns under the fingers
     else { if (g.zoom) zoomAt(g.zoom, ...g.about); pan(...g.pan); }
     drawMaps();
   });

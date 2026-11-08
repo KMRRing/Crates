@@ -1,6 +1,5 @@
 // Crossword (README, Crossword), the quick half (the generator's checks are in tests/crossword-grids.mjs): names as a grid
-// takes them and the knowledge entries both ways round with the giveaways kept out; the solver that counts fills and the
-// computer player; the zoom; the play rules and what they charge; saved state through JSON; what a grid teaches; and the
+// takes them and the knowledge entries both ways round with the giveaways kept out; the solver that counts fills; the zoom; the play rules and what they charge; saved state through JSON; what a grid teaches; and the
 // table split so the parts make the whole, played through the database's round trip, and the race.
 // Run: node tests/crossword.mjs
 import fs from "fs";
@@ -58,29 +57,6 @@ const tiny = { rows: ["CAT", "A#O", "BOW"], entries: [
 check(S.countSolutions(tiny, [["CAT"], ["BOW"], ["CAB"], ["TOW"]]) === 1, "a grid whose clues each allow one word has one fill");
 check(S.countSolutions(tiny, [["CAT", "BAT"], ["BOW"], ["CAB"], ["TOW"]]) === 1, "a second word the crossings rule out (BAT: its B isn't CAB's C) changes nothing");
 check(S.countSolutions(tiny, [["CAT", "CUT"], ["BOW"], ["CAB"], ["TOW"]]) === 2, "two words that differ only where nothing crosses make two fills (CAT and CUT)");
-// the computer as a partner on a split grid alone: it holds the Down clues
-{
-  const pp = ok[1].p, holds = pp.entries.map(e => e.dir === "down"), downs = holds.filter(Boolean).length;
-  let letters = pp.rows.join("").replace(/[A-Z]/g, ".");
-  const write = e => { letters = [...letters].map((ch, k) => (e.cells.includes(k) ? e.letters[e.cells.indexOf(k)] : ch)).join(""); };
-  const right = () => pp.entries.filter((e, n) => holds[n] && e.cells.every((k, i) => letters[k] === e.letters[i])).length;
-  const run = (lv, seed) => {
-    letters = pp.rows.join("").replace(/[A-Z]/g, ".");
-    const tried = new Map(), rnd = S.seeded(seed), moves = [];
-    for (let m; (m = S.partnerMove(pp, letters, holds, lv, rnd, tried)); ) { moves.push(m); write(pp.entries[m.n]); }
-    const alone = right();
-    for (const e of pp.entries.filter(x => x.dir === "across")) write(e);   // your half in
-    for (let m; (m = S.partnerMove(pp, letters, holds, lv, rnd, tried)); ) { moves.push(m); write(pp.entries[m.n]); }
-    return { alone, after: right(), moves };
-  };
-  const q = run("quick", 3);
-  check(q.moves.every(m => holds[m.n]) && q.moves.every(m => m.at > 0), "the partner answers only its own clues, each taking it a while");
-  check(q.alone > 0 && q.alone < downs && q.after > q.alone, `it gets some of its clues alone (${q.alone} of ${downs}) and more once your crossings are in (${q.after})`);
-  check(S.partnerMove(pp, pp.rows.join(""), holds, "quick", S.seeded(1), new Map()) === null, "with its half right it has nothing more to do");
-  const avg = lv => [1, 2, 3, 4, 5, 6, 7, 8].reduce((s, seed) => s + run(lv, seed).alone, 0) / 8;
-  check(avg("sharp") > avg("steady"), "a sharper partner knows more of its clues on its own");
-}
-
 // ---------- the zoom (crossword-zoom.js) ----------
 {
   const C = 13, R = 13, fit = 26, win = { w: Z.span(C, fit), h: Z.span(R, fit) };

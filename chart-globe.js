@@ -44,13 +44,13 @@ const angleBetween = (u, v) => Math.acos(clamp(u[0] * v[0] + u[1] * v[1] + u[2] 
 export const radiusFor = (a, size) => FILL * size / 2 / Math.sin(Math.min(a, A_MAX) * RAD);
 
 /**
- * A camera on a size × size canvas: toXY(lon, lat) gives the canvas point, or null when it is round the back; toLonLat(x, y)
+ * A camera on a w × h canvas (the globe fills the shorter side, centred): toXY(lon, lat) gives the canvas point, or null when it is round the back; toLonLat(x, y)
  * the place under a point, or null off the globe; shape(path, ring) adds a filled outline (the part of a ring that turns
  * out of sight follows the horizon, so the land fills right to the edge); edge(path, pts, closed) adds a line, broken
  * where it goes out of sight.
  */
-export function camera({ lon, lat, a }, size) {
-  const R = radiusFor(a, size), cx = size / 2, cy = size / 2;
+export function camera({ lon, lat, a }, w, h = w) {
+  const size = Math.min(w, h), R = radiusFor(a, size), cx = w / 2, cy = h / 2;
   const cl = Math.cos(lon * RAD), sl = Math.sin(lon * RAD), cp = Math.cos(lat * RAD), sp = Math.sin(lat * RAD);
   // a unit vector in the camera's frame: x right, y up, z towards the viewer (visible when z >= 0)
   const rot = (X, Y, Z, out) => { const x = X * cl - Z * sl, z1 = X * sl + Z * cl; out[0] = x; out[1] = Y * cp - z1 * sp; out[2] = Y * sp + z1 * cp; return out; };
@@ -137,7 +137,7 @@ export function camera({ lon, lat, a }, size) {
   }
   /** How far a place is from the middle, in degrees (past 90 it is out of sight). */
   const away = (plon, plat) => angleBetween(unit(plon, plat), unit(lon, lat)) / RAD;
-  return { R, cx, cy, size, toXY, toLonLat, shape, edge, away, globe: true };
+  return { R, cx, cy, size, w, h, toXY, toLonLat, shape, edge, away, globe: true };
 }
 
 /** The points of the great circle between two places (for a line that follows the sphere). */
@@ -167,7 +167,7 @@ export function frame(points, minSpan = 12) {
   return { lon, lat: clamp(lat, -85, 85), a: clamp(Math.max(minSpan / 2, reach * 1.45), A_MIN, A_MAX) };
 }
 /** Turned by a drag of dx, dy canvas units: the surface follows the finger at the middle. */
-export function turn(g, dx, dy, size) {
+export function turn(g, dx, dy, size) {   // size: the canvas's shorter side
   const R = radiusFor(g.a, size), k = 1 / RAD / R;
   return { ...g, lon: wrapLon(g.lon - dx * k / Math.max(0.2, Math.cos(g.lat * RAD))), lat: clamp(g.lat + dy * k, -85, 85) };
 }

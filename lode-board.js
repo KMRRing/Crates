@@ -31,7 +31,7 @@ export const coord = i => `${"ABCDEF"[i % COLS]}${Math.floor(i / COLS) + 1}`;
  * The board in `host`. onTrace(cells) as a trace grows or shrinks; onSubmit(cells) when one is let go of (or its last
  * letter tapped again); usable(cell) whether a letter can be traced (one found or shown can't).
  */
-export function createBoardView(host, { onTrace = () => {}, onSubmit = () => {}, usable = () => true } = {}) {
+export function createBoardView(host, { onTrace = () => {}, onSubmit = () => {}, usable = () => true, auto = () => false } = {}) {
   const svg = el("svg", { class: "lo-board", role: "img", "aria-label": "The letters", preserveAspectRatio: "xMidYMid meet" });
   host.replaceChildren(svg);
   const layer = name => el("g", { class: name }, svg);
@@ -118,7 +118,7 @@ export function createBoardView(host, { onTrace = () => {}, onSubmit = () => {},
   }
   const finger = createTracer({
     touch: () => geo.touch, pick: (q, reach) => cellAt(q, board.shape === "hex" ? reach * 1.05 : reach), usable, step: 0.25,
-    changed: p => { path = p; drawTrace(); }, onTrace, onSubmit,
+    changed: p => { path = p; drawTrace(); }, onTrace, onSubmit, auto,
   });
   svg.addEventListener("pointerdown", e => {
     if (!board || e.button > 0) return;

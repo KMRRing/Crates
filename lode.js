@@ -91,7 +91,7 @@ let spare = null;                    // the next random board, dealt ahead for t
 // The board: flat (lode-board.js), or the planet (lode-planet.js: a cube of 54 squares drawn as a world; Korbi, 7 Nov 2026), by the
 // board's own shape. `settings.view` is the player's choice for the boards to come, "planet" or "flat", written only when they make
 // one; with none the suite's 2D / 3D default applies (mode3d.js). A daily is always the flat board, the same for everyone.
-const fingers = { onTrace, onSubmit, usable: cell => usable(cell) };
+const fingers = { onTrace, onSubmit, usable: cell => usable(cell), auto: cells => lockedIn(cells) };
 const flat = createBoardView($("stage"), fingers), planet = createPlanetView($("stage"), fingers);
 planet.show(false);
 let shownView = flat, frozenNow = false;
@@ -177,6 +177,17 @@ function onTrace(cells) {
   drawWord(text);
   if (ctx.team) shareTrace(cells);
 }
+/**
+ * Whether a trace is already an answer to lock in without letting go (Korbi, 8 Nov 2026): it spells a word of the board still to find, and no
+ * other word still to find goes on from it (PORT on the way to PORTUGAL waits for the finger to lift). Words that only earn a hint still wait for it.
+ */
+function lockedIn(cells) {
+  const ctx = context();
+  if (!ctx || ctx.run.done || IN_FRAME || cells.length < MIN_WORD) return false;
+  const text = cells.map(c => ctx.board.letters[c]).join(""), words = ctx.board.words, left = i => !ctx.run.found.includes(i) && !ctx.run.revealed.includes(i);
+  const w = words.findIndex(x => x.text === text);
+  return w >= 0 && left(w) && !words.some((x, i) => i !== w && left(i) && x.text.length > text.length && x.text.startsWith(text));
+}
 function onSubmit(cells) {
   const ctx = context();
   if (!ctx || ctx.run.done || cells.length === 0) return;
@@ -186,6 +197,7 @@ function onSubmit(cells) {
   said(out, ctx);
   if (out.kind === "span" || out.kind === "theme") {
     lastFound = out.w;
+    peek = -1;                                  // the title again: the clue just answered is off the banner's list
     if (ctx.clues === "every") clueAt = nextClue(ctx);
     navigator.vibrate?.(18);
   }
@@ -239,7 +251,8 @@ function drawTheme(ctx) {
   const b = ctx.board, spanFound = ctx.run.found.includes(0) || ctx.run.done;
   const every = ctx.clues === "every";
   $("clueNav").hidden = !every;
-  $("peekPrev").hidden = $("peekNext").hidden = every;
+  const open = openClues(ctx);
+  $("peekPrev").hidden = $("peekNext").hidden = every || !open.length;
   if (!every) {
     $("kind").textContent = spanFound ? `Theme · ${b.name}` : ctx.level === "hard" ? "Theme" : `Theme · ${kindWords[b.kind]}`;
     // Korbi, 7 Nov 2026: a title shows the item it is about, its topic, and the description (not the description alone). A board
@@ -248,13 +261,13 @@ function drawTheme(ctx) {
     $("title").classList.remove("lo-clue");
     $("title").classList.toggle("lo-item", !!t.word);
     const head = el("div", "lo-head");
-    const order = clueOrder(ctx), k = peek >= 0 ? peek % order.length : -1;
+    const k = peek >= 0 && open.length ? peek % open.length : -1;
     if (k >= 0) {
-      // Korbi, 8 Nov 2026: the banner's ends step through the clues, each with its length, in the title's own box
-      const w = order[k], word = b.words[w], got = ctx.run.found.includes(w) || ctx.run.revealed.includes(w);
-      head.append(el("b", "", got ? word.text : `${word.text.length} letters`), el("small", "", `Clue ${k + 1} of ${order.length}`));
+      // Korbi, 8 Nov 2026: the banner's ends step through the clues still to answer, each with its length, in the title's own box
+      const word = b.words[open[k]];
+      head.append(el("b", "", `${word.text.length} letters`), el("small", "", `Clue ${k + 1} of ${open.length}`));
       $("title").classList.add("lo-item");
-      $("title").replaceChildren(head, el("span", "lo-desc", w === 0 ? "“the theme, from side to side”" : `“${word.hint}”`));
+      $("title").replaceChildren(head, el("span", "lo-desc", `“${word.hint}”`));
       return;
     }
     head.append(el("b", "", t.word || ""), ...(label ? [el("small", "", label)] : []));
@@ -271,6 +284,8 @@ function drawTheme(ctx) {
   $("title").textContent = w === 0 ? `${got ? word.text : `${word.text.length} letters`}: the theme, from side to side`
     : `${got ? word.text : `${word.text.length} letters`}: ${word.hint}`;
 }
+/** The clues the banner steps through: each word still to find but the spanning one, whose clue is the title. */
+const openClues = ctx => [...ctx.board.words.keys()].filter(i => i && !ctx.run.found.includes(i) && !ctx.run.revealed.includes(i));
 /** Every word's clue, the spanning word's last. */
 const clueOrder = ctx => [...ctx.board.words.keys()].filter(i => i).concat(0);
 function nextClue(ctx) {
@@ -574,7 +589,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>A board of ${CELLS} letters hides a theme's words. Each word is a path of touching letters (sideways, up and down, or diagonally), no letter used twice, and between them the words use every letter on the board exactly once. One of them, the mother lode, names the theme and spans the board, touching two opposite sides. On the planet (Menu, Board) the board is a cube of ${geometry("cube").n} squares wrapped round a world, three by three on each of six faces; a letter touches those it shares a corner with, round the edges too, and the mother lode runs from a face to the one opposite. Turn the planet with a finger on the sea, trace on the letters.</p>
     <p><b>The theme.</b> A country from the knowledge base, and its words are its own clues: a city, a dish, a person, a firm. The title over the board is a clue to the theme.</p>
-    <p><b>Playing.</b> Drag a finger through a word's letters, or tap them one at a time and tap the last again; slide back to take a letter off, and tap away from the letters to clear. A theme word found turns blue, the mother lode gold, and the line under the board says what links it to the theme. Words lists what you've found, and how long the rest are.</p>
+    <p><b>Playing.</b> Drag a finger through a word's letters, or tap them one at a time and tap the last again; a theme word locks in the moment its last letter is traced (no need to lift); slide back to take a letter off, and tap away from the letters to clear. A theme word found turns blue, the mother lode gold, and the line under the board says what links it to the theme. Words lists what you've found, and how long the rest are.</p>
     <p><b>Hints.</b> Any other English word of ${inWords(MIN_WORD)} letters or more counts towards a hint, ${inWords(PER_HINT)} words to a hint, as in Strands: the dots on the Hint button fill as they come. A hint rings the letters of the hardest word still hidden; a second while they're ringed numbers them in order. Each hint adds ${HINT_COST} seconds.</p>
     <p><b>Score.</b> Your time plus the hints' seconds, lower being better. Show the words still hidden, in the menu, ends the board at ${SHOW_COST} seconds a word, more than a hint ever costs. Playing alone, the clock stands still while the menu or these rules are open.</p>
     <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards. The menu chooses the region the countries come from (the world or a continent); which topics the words are of is set once for every game, in Settings.</p>
@@ -748,7 +763,7 @@ $("nextBtn").addEventListener("click", () => { if (G?.mode === "race") openRace(
 /** The banner's ends: the title, then each word's clue and length, round and round. */
 function peekBy(d) {
   const ctx = context(); if (!ctx || ctx.clues === "every") return;
-  const n = clueOrder(ctx).length + 1, at = peek + 1;
+  const n = openClues(ctx).length + 1, at = peek + 1;
   peek = ((at + d + n) % n) - 1;
   drawTheme(ctx);
 }

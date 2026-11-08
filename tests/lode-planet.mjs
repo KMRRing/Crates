@@ -29,6 +29,18 @@ const { createTracer } = await import("../lode-trace.js");
   check(f.path.length === 0 && !f.down({ x: 0, y: 0 }, 6), "frozen: the finger does nothing");
 }
 
+// (Korbi, 8 Nov 2026: a trace that is already its word locks in without letting go; `auto` says so, and the stroke ends there)
+{
+  const touch = [new Set([1]), new Set([0, 2]), new Set([1, 3]), new Set([2])], sub = [];
+  const f = createTracer({ touch: () => touch, pick: (q, reach) => { const i = Math.round(q.x); return Math.abs(q.x - i) < reach && i >= 0 && i < 4 ? i : -1; }, usable: () => true, step: 0.25,
+    changed: () => {}, onTrace: () => {}, onSubmit: c => sub.push(c.join()), auto: cells => cells.join() === "0,1,2" });
+  f.down({ x: 0, y: 0 }, 1);
+  f.move({ x: 3, y: 0 }, 1);                                     // one quick stroke over the word and past its end
+  check(sub.join("|") === "0,1,2" && f.path.length === 0, "a trace that is its word is submitted with the finger still down, and the stroke ends there");
+  f.up(1);
+  check(sub.length === 1, "lifting after that submits nothing more");
+}
+
 // ---------- the planet ----------
 // the engine reads the knowledge base (as tests/lode.mjs sets it up)
 globalThis.atob = b => Buffer.from(b, "base64").toString("binary");

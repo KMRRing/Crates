@@ -429,7 +429,7 @@ export const APPS = [
   // its page keeps its name and logo here
   { id: "deck", name: "Codex", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
   { id: "tribute", sec: "cards", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
-  { id: "nexus", sec: "knowledge", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
+  { id: "nexus", sec: "appendix", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
   { id: "survey", within: "nonogram", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
   { id: "stow", sec: "minigames", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), players: [1, 6] },
   { id: "arthistory", sec: "appendix", name: "Art history", href: "./arthistory.html", logo: LOGO("arthistory", ARTHISTORY_LOGO), players: [1, 1] },

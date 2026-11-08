@@ -15,7 +15,6 @@ export const ROUNDS = {
   origin: "a run of five countries, its last one decided",
   order: "a run, its last card placed or its lives gone",
   chart: "a set, its last pin in",
-  nexus: "a run of five rounds, its last one checked",
   crossword: "a grid, solved or revealed",
   // Courses
   // Puzzles
@@ -100,7 +99,7 @@ export const LEFT_OUT = {
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
   sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX, music: APPENDIX,
   // Korbi, 8 Nov 2026: "all courses to the annex"; "Acrostic to annex", "cull, annex"
-  acrostic: APPENDIX, hitori: APPENDIX,
+  acrostic: APPENDIX, hitori: APPENDIX, nexus: APPENDIX,
   calibre: APPENDIX, arthistory: APPENDIX, statecraft: APPENDIX, trade: APPENDIX, constitutions: APPENDIX, wine: APPENDIX, firmament: APPENDIX, parley: APPENDIX, maths: APPENDIX,
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   shoe: "a deck of cards on a table with no rules or rounds, for people in one room",

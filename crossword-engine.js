@@ -22,15 +22,15 @@ export const BLACK = "#", EMPTY = ".";
  * hardClassic in a grid of ordinary words alone, where the harder clues are all there is to make it hard (measured:
  * so a Classic grid's figures sit in its level's bands as a mixed one's do); finish and share: what a deal is held
  * to, as typical solvers fare on it (crossword-solve.js: grade), the share of them who finish it unaided and how much
- * of it the average one fills; lexShare: the share band of a Lexicon grid, every entry a name to know, which few
+ * of it the average one fills (8 Nov 2026: Almanac's bands moved up, its grids being knowledge words alone, no ordinary words to make them hard); lexShare: the share band of a Lexicon grid, every entry a name to know, which few
  * solvers finish unaided at any level (a Lexicon grid's first try, measured over 120 at each level, every size: the
  * average solver filled a median of 63% of an Easy one, 51% of a Medium one and 34% of a Hard one, nine in ten above
  * 56%, 45% and 28%).
  */
 export const LEVELS = {
   easy: { name: "Easy", size: 11, more: 0, rev: 0.1, kbD: [3, 1, 0.1], hardClue: 0, hardClassic: 0, finish: [0.25, 1], share: [0.93, 1], lexShare: [0.56, 1] },
-  medium: { name: "Medium", size: 13, more: 0, rev: 0.25, kbD: [1.5, 1, 0.4], hardClue: 0.2, hardClassic: 0.35, finish: [0.04, 0.5], share: [0.88, 0.97], lexShare: [0.44, 0.58] },
-  hard: { name: "Hard", size: 13, more: 1, rev: 0.5, kbD: [0.3, 1, 2], hardClue: 0.6, hardClassic: 1, finish: [0, 0.15], share: [0.74, 0.9], lexShare: [0.25, 0.42] },
+  medium: { name: "Medium", size: 13, more: 0, rev: 0.25, kbD: [1.5, 1, 0.4], hardClue: 0.2, hardClassic: 0.35, finish: [0.04, 0.5], share: [0.88, 0.97], lexShare: [0.46, 0.62] },
+  hard: { name: "Hard", size: 13, more: 1, rev: 0.5, kbD: [0.3, 1, 2], hardClue: 0.6, hardClassic: 1, finish: [0, 0.15], share: [0.74, 0.9], lexShare: [0.36, 0.55] },
 };
 export const LEVEL_IDS = Object.keys(LEVELS);
 /**
@@ -276,8 +276,11 @@ export const themeFits = ({ level, size, kind = "both" }) => spec(level, size, k
  * depend on its size, so the share band stands. A Lexicon grid is held to its own share band alone: every entry a
  * name to know, few solvers finish one unaided at any level.
  */
+const ALMANAC_MAX = 11;
 function spec(level, size, kind) {
-  const lv = LEVELS[level] || LEVELS.medium, n = SIZES[size] ? Number(size) : lv.size, Z = SIZES[n], lexicon = kind === "lexicon";
+  // (Korbi, 8 Nov 2026: an Almanac grid is all knowledge, no ordinary words. The knowledge words alone fill an 11 by 11 grid or smaller every
+  // time and a 13 by 13 one one time in eight, so an Almanac grid is at most 11.)
+  const lexicon = kind === "lexicon", lv = LEVELS[level] || LEVELS.medium, n = Math.min(SIZES[size] ? Number(size) : lv.size, lexicon ? ALMANAC_MAX : 99), Z = SIZES[n];
   const kb = kind === "classic" ? 0 : Z.kb + lv.more;
   const finish = lexicon ? [0, 1] : n === lv.size ? lv.finish : lv.finish.map(x => x ** (Z.entries / SIZES[lv.size].entries));
   return { ...lv, size: n, longest: Z.longest, cut: Z.cut, budget: Z.budget || 24000, kb, least: kb && Math.max(Math.min(3, kb - 1), kb - 2),
@@ -292,7 +295,7 @@ function spec(level, size, kind) {
  * revised first, and entities other games found you weak on), upto (the clue bank's tier it draws on: WHOLE_BANK, or
  * today's DAILY_BANK).
  */
-export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, avoid = [], upto = WHOLE_BANK, marked = false } = {}) {
+function makeOne({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, avoid = [], upto = WHOLE_BANK, marked = false } = {}) {
   const L = spec(level, size, kind), rnd = seeded(mix(seed, 0xC205)), bank = bankTo(upto);
   // a Lexicon grid of country and commodity names alone can't be filled (there are too few of them): it names both ways
   if (L.lexicon && asks === "fwd") asks = "both";
@@ -356,6 +359,13 @@ export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "bo
     if (!off && (!missing || attempt >= 2)) break;
   }
   return best?.puzzle || null;
+}
+/** A puzzle for these options, or null (makeOne's; an Almanac grid that no knowledge fill came for is tried one size smaller). */
+export function makePuzzle(opts = {}) {
+  const p = makeOne(opts);
+  if (p || opts.kind !== "lexicon") return p;
+  const n = Math.min(SIZES[opts.size] ? Number(opts.size) : (LEVELS[opts.level] || LEVELS.medium).size, ALMANAC_MAX);
+  return n > 9 ? makeOne({ ...opts, size: 9 }) : null;
 }
 /** The words (three letters or more) a set of entries' clues say: kept out of the grid, or a clue would give one away. */
 const saidBy = entries => new Set(entries.flatMap(e => textOf(e).toLowerCase().replace(/[^a-z]+/g, " ").split(" ").filter(w => w.length >= 3)));
@@ -460,7 +470,6 @@ function lexiconFill(grid, { theme, early, words, rnd, seed, attempt, L, bank })
   // when they can't, the fill goes on with ordinary words after them, so the grid has as many knowledge entries as it
   // can and the rest are plain words (docs/crossword.md, Lexicon).
   let fill = fillRound(placed, FILL_BUDGET, filler);
-  if (!fill && !filler && attempt >= (L.size <= 11 ? PURE_TRIES * 4 : PURE_TRIES)) { filler = true; fill = fillRound(placed, FILL_BUDGET, true); }
   if (!fill) return null;
   for (const e of early) {
     if (placed.some(p => clash(p.e, e))) continue;
@@ -469,8 +478,7 @@ function lexiconFill(grid, { theme, early, words, rnd, seed, attempt, L, bank })
     for (const s of open.slice(0, 2)) {
       const list = [...placed, { slot: s, e }];
       // (what's due is worth ordinary words round it: the thin pool alone seldom leaves room for more than a word or two)
-      let f = filler ? fillRound(list, TRY_BUDGET, true) : fillRound(list, TRY_BUDGET);
-      if (!f && !filler) { f = fillRound(list, TRY_BUDGET, true); if (f) filler = true; }
+      const f = fillRound(list, TRY_BUDGET, filler);
       if (f) { placed.push({ slot: s, e }); fill = f; break; }
     }
   }

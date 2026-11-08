@@ -77,7 +77,7 @@ const INK = "#1b2430", HALO = "rgba(250,247,238,.75)", CORE = "rgb(12,14,22)";
 /** A cell's name where a team's sealed letter asks for it: its face (A to F) and its place on the face, 1 to 9. */
 export const coordOf = i => `${"ABCDEF"[Math.floor(i / 9)]}${(i % 9) + 1}`;
 
-export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}, usable = () => true } = {}) {
+export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}, usable = () => true, auto = () => false } = {}) {
   const canvas = document.createElement("canvas");
   canvas.className = "lo-planet";
   canvas.setAttribute("role", "img");
@@ -362,7 +362,7 @@ export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}
     }
     return best;
   }
-  const finger = createTracer({ touch: () => geo.touch, pick, usable, step: 5, changed: p => { path = p; schedule(); }, onTrace, onSubmit });
+  const finger = createTracer({ touch: () => geo.touch, pick, usable, step: 5, changed: p => { path = p; schedule(); }, onTrace, onSubmit, auto });
   const follow = () => k * B.front * D / (D - B.front);       // how far the surface facing you moves on screen for a turn of one radian
   function panBy(dx, dy) {
     const d = Math.hypot(dx, dy);
