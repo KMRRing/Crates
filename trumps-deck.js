@@ -146,9 +146,9 @@ const mix = (a, b, t) => { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i,
 /** A guide line with a gentle wave across it, as a lock of hair flows. */
 function wave(p, amp, ph) {
   const out = [];
-  for (let i = 0; i < p.length - 1; i++) for (let k = 0; k < 3; k++) {
-    const t = k / 3;
-    out.push([p[i][0] + (p[i + 1][0] - p[i][0]) * t + amp * Math.sin((i * 3 + k) * 1.15 + ph), p[i][1] + (p[i + 1][1] - p[i][1]) * t]);
+  for (let i = 0; i < p.length - 1; i++) for (let k = 0; k < 2; k++) {
+    const t = k / 2;
+    out.push([p[i][0] + (p[i + 1][0] - p[i][0]) * t + amp * Math.sin((i * 2 + k) * 1.5 + ph), p[i][1] + (p[i + 1][1] - p[i][1]) * t]);
   }
   return [...out, p[p.length - 1]];
 }
