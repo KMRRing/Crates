@@ -6,11 +6,10 @@ import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, flags, outlines, dealR
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as FLAGS } from "./flags-bank.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
-import { FLAGS as FLAG_DRAWINGS, COLOURS, rasterFlag } from "./nonogram-flags.js";
 import { pictureUrls } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, todayPart, isPaused } from "./menu.js";
+import { part, action, line, choice, todayPart, isPaused } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
@@ -18,13 +17,13 @@ import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "spyglass:run", BEST = "spyglass:best", DAILY = "spyglass:daily";
+const RUN = "spyglass:run", BEST = "spyglass:best", DAILY = "spyglass:daily", LOOK = "spyglass:look";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-const POOLS = { painting: paintings(ART), flag: flags(FLAGS).filter(f => FLAG_DRAWINGS[f.id]), outline: outlines(COUNTRIES, REGION_OF) };
+const POOLS = { painting: paintings(ART), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF) };
 const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outline: "Which country is this?" };
 
 // ---------- the run ----------
@@ -48,17 +47,19 @@ let reveal = { from: 0, at: 0 };                   // after an answer the focus 
 let token = 0;
 
 const load = url => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
-/** A flag painted from Nonogram's own flag drawings, not its emoji: where the device has no flag emoji (Windows) the emoji is two letters. */
-function flagSource(it) {
-  const flag = FLAG_DRAWINGS[it.id], W = 640, H = Math.round(W / flag.r), cols = 320, rows = Math.round(cols / flag.r), cell = W / cols;
-  const c = document.createElement("canvas"); c.width = 640; c.height = 427;
+/** The flag as its own SVG (spyglass-flags.js), drawn at twice the lens's size, so a crest or a star is still sharp zoomed in. The emoji is no use here:
+ *  where the device has no flag emoji (Windows) it is two letters. */
+async function flagSource(it) {
+  const svg = (await import("./spyglass-flags.js")).FLAG_SVG[it.id];
+  if (!svg) return null;
+  const img = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '))}`);
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 960;      // as tall as the lens is, so the flag fills it
   const x = c.getContext("2d");
-  x.fillStyle = "#EFE6CF"; x.fillRect(0, 0, 640, 427);
-  const { letters } = rasterFlag(flag, cols, rows, 2);
-  const fit = Math.min(1, 427 / H), k = fit;        // (a tall flag is shrunk to the lens)
-  const ox = (640 - W * k) / 2, oy = (427 - H * k) / 2;
-  letters.forEach((l, i) => { if (l === "_") return; x.fillStyle = COLOURS[l]; x.fillRect(ox + (i % cols) * cell * k, oy + Math.floor(i / cols) * (H / rows) * k, cell * k + 1, (H / rows) * k + 1); });
-  return { img: c, w: 640, h: 427 };
+  x.fillStyle = "#EFE6CF"; x.fillRect(0, 0, c.width, c.height);
+  const w = c.width * 0.96, h = w * 3 / 4;                                        // (all in the 4:3 set)
+  x.imageSmoothingQuality = "high";
+  x.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+  return { img: c, w: c.width, h: c.height };
 }
 function outlineSource(name) {
   const c = document.createElement("canvas"); c.width = 640; c.height = 427;
@@ -76,12 +77,29 @@ function outlineSource(name) {
   x.fill("evenodd"); x.stroke();
   return { img: c, w: 640, h: 427 };
 }
+/** The picture as the look has it: greyscale, or ink (black or white by brightness, so only the shapes are left). A picture the browser won't let
+ *  us read (a painting from another site without permission) stays as it is. */
+function looked(src) {
+  const look = read(LOOK, "colour");
+  if (!src || look === "colour") return src;
+  try {
+    const c = document.createElement("canvas"); c.width = src.w; c.height = src.h;
+    const x = c.getContext("2d"); x.drawImage(src.img, 0, 0, src.w, src.h);
+    const im = x.getImageData(0, 0, c.width, c.height), d = im.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], v = look === "ink" ? (y > 118 ? 245 : 20) : y;
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    x.putImageData(im, 0, 0);
+    return { img: c, w: src.w, h: src.h };
+  } catch { return src; }
+}
 async function sourceFor(it) {
-  if (it.kind === "flag") return flagSource(it);
-  if (it.kind === "outline") return outlineSource(it.name);
+  if (it.kind === "flag") return looked(await flagSource(it));
+  if (it.kind === "outline") return looked(outlineSource(it.name));
   const urls = await pictureUrls(it.pic, 960);
   if (!urls) return null;
-  for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return { img, w: img.naturalWidth, h: img.naturalHeight }; } catch { /* try the original */ } }
+  for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return looked({ img, w: img.naturalWidth, h: img.naturalHeight }); } catch { /* try the original */ } }
   return null;
 }
 
@@ -245,6 +263,8 @@ function openMenu() {
     app: "spyglass", done: got != null, result: got != null ? `${got} of ${ROUNDS * FULL}` : "",
     play: () => { $("menuDlg").close(); newRun(true); }, playing: !!S?.daily && S.day === today() && !S.over, busy: !!S && !S.over && S.index > 0,
   });
+  part(body, "content").append(choice("Pictures", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
+    line("Black and white takes the colour out; Ink leaves only light and dark, so a flag is told by its shapes. From the next picture."));
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
