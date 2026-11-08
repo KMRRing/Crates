@@ -9,6 +9,7 @@ import { PILES } from "./pile.js";
 import { part, action, line } from "./menu.js";
 import { sure } from "./sure.js";
 import { bindSwitcher, APPS, SECTIONS } from "./apps.js";
+import { codexTabs } from "./codex-tabs.js";
 import { MARKS } from "./suite.js";
 import { waitMark } from "./loading.js";
 import "./pwa.js";
@@ -342,8 +343,9 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), "ledger");
-document.querySelector(".lg-mark").innerHTML = APPS.find(a => a.id === "ledger").logo;
+bindSwitcher($("appsBtn"), "deck");
+document.querySelector(".lg-mark").innerHTML = APPS.find(a => a.id === "deck").logo;   // (Korbi, 8 Nov 2026: Ledger is a part of Codex, with Deck)
+codexTabs("ledger");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 addEventListener("storage", () => draw());   // another tab, or a synced device

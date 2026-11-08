@@ -427,7 +427,7 @@ export const APPS = [
   { id: "hong", sec: "board", name: "Mahjong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), players: [1, 4] },
   // Deck: no tile (31 October 2026, Korbi): the banner under the head opens it, as a third choice beside Random and Choose, and
   // its page keeps its name and logo here
-  { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
+  { id: "deck", name: "Codex", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
   { id: "tribute", sec: "cards", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
   { id: "nexus", sec: "knowledge", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
   { id: "survey", within: "nonogram", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
@@ -447,7 +447,7 @@ export const APPS = [
   { id: "acrostic", sec: "appendix", name: "Acrostic", href: "./acrostic.html", logo: LOGO("acrostic", ACROSTIC_LOGO), players: [1, 6], team: "time" },
   { id: "nonogram", sec: "knowledge", name: "Nonogram", href: "./nonogram.html", logo: LOGO("nonogram", NONOGRAM_LOGO), players: [1, 6], team: "time" },
   { id: "lexicon", sec: "knowledge", name: "Almanac", href: "./almanac.html", logo: LOGO("lexicon", ALMANAC_LOGO), players: [1, 1] },
-  { id: "ledger", sec: "knowledge", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), players: [1, 1] },
+  { id: "ledger", within: "deck", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), players: [1, 1] },
   // The canonical puzzle genres, by their usual rules (README, Classics); Korbi, 8 Nov 2026: one section with the rest of the puzzles, called Puzzles
   { id: "sudoku", sec: "puzzle", name: "Nonet", href: "./sudoku.html", logo: LOGO("sudoku", SUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "mines", sec: "puzzle", name: "Mines", href: "./mines.html", logo: LOGO("mines", MINES_LOGO), players: [1, 6], team: "time" },

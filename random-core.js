@@ -103,7 +103,6 @@ export const LEFT_OUT = {
   acrostic: APPENDIX, hitori: APPENDIX,
   calibre: APPENDIX, arthistory: APPENDIX, statecraft: APPENDIX, trade: APPENDIX, constitutions: APPENDIX, wine: APPENDIX, firmament: APPENDIX, parley: APPENDIX, maths: APPENDIX,
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
-  ledger: "the record of how well you learn, not a game",
   shoe: "a deck of cards on a table with no rules or rounds, for people in one room",
   party: "a room for people round a table, each on their own phone",
   cue: "a word to act, draw or describe for the people round you",

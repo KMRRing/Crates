@@ -18,6 +18,7 @@ import { QUOTES } from "./quote-bank.js";
 import { tiersOf, withUnit, tierText } from "./quote-engine.js";
 import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { codexTabs } from "./codex-tabs.js";
 import { setRich } from "./rich.js";
 import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
@@ -579,6 +580,7 @@ function speakButton(text, lang) {
   return b;
 }
 document.querySelector(".dk-mark").innerHTML = APPS.find(a => a.id === "deck").logo;
+codexTabs("deck");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("reviewBtn").addEventListener("click", startReview);

@@ -1,0 +1,5 @@
+/* Codex's two parts, Deck and Ledger, under the header (codex-tabs.js) */
+.cx-tabs { display: flex; gap: .2rem; flex: none; margin: .1rem 0 .45rem; border-bottom: 1px solid var(--rule); }
+.cx-tab { padding: .35rem .9rem .3rem; border: 0; border-bottom: 2px solid transparent; color: var(--ink-soft); font-size: .76rem; font-weight: 800;
+  font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); text-decoration: none; }
+.cx-tab[aria-current="page"] { color: var(--ink); border-bottom-color: var(--brass); }
