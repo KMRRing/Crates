@@ -381,3 +381,8 @@ html[data-mode="night"] #app.tb3 .tb-table { background: none; }
 #app.tb3 .t3-field { z-index: 5; }
 #app.tb3 .t3-centre { pointer-events: none; z-index: 4; }   /* above the seats (z-index 3): a card flies over your seat, not under it */
 .t3-pivot, .t3-mat { will-change: transform; }   /* its own compositing layers from the first paint (the table started flat on an iPhone until the view was switched) */
+
+/* Korbi, 8 Nov 2026: the cloth's tilt carried in its own transform, for a browser that lost the stage's perspective (tribute-3d.js, heal) */
+.t3-own .t3-stage { perspective: none; }
+.t3-own .t3-pivot { transform: none; }
+.t3-own .t3-mat { transform: perspective(calc(var(--fh, 31rem) * 1.7)) rotateX(var(--t3-tilt)); }

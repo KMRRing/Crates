@@ -426,10 +426,24 @@ export function createTable3d(c) {
 
   // ---------- the whole ----------
   /** Draw the table; `was`: what before() saw of the screen, for the cards' flights. */
+  /** Korbi, 8 Nov 2026 (15:39, iPhone, every load): the table stood flat, its far end up under the levels plate. The tilt was in the CSS
+   *  and no browser here ever drops it, but WebKit sometimes never builds the 3D layer chain until the view is switched. So the page
+   *  looks at what it drew: a tipped cloth is shorter on screen than it is, a flat one is not. If flat, the box is re-shown (what
+   *  switching view did); if still flat, the tilt is put into the cloth's own transform, perspective and all, which needs no chain. */
+  let healing = 0, looks = 0;
+  const tipped = () => { const r = mat.getBoundingClientRect(); return !r.height || r.height < mat.offsetHeight * 0.97; };
+  function heal() {
+    if (box.hidden || !field.getBoundingClientRect().height || tipped()) return;
+    if (++healing === 1) { box.hidden = true; void box.offsetHeight; box.hidden = false; }
+    else if (healing === 2) field.classList.add("t3-own");
+    else return;
+    setTimeout(heal, 250);
+  }
   function draw(was) {
     const g = G();
     if (!g || box.hidden) return;
     size();
+    if (!healing && looks++ < 8) { requestAnimationFrame(() => requestAnimationFrame(heal)); setTimeout(heal, 600); }
     drawPlates();
     const cards = drawMiddle();
     dealIn();
