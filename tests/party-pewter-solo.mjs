@@ -27,7 +27,7 @@ const stored = g => JSON.parse(JSON.stringify(g));                      // what 
   }
   check(true, "1 to 5 computer players at each level: you and them at the table, four coins each, no clock, named by their tempers");
   check(deal(9, 7, seeded(1), 0).foes === MOST && deal(0, 0, seeded(1), 0).foes >= 1 && deal(2, 7, seeded(1), 0).level === 2 && MOST === 5, "the number of opponents is kept within one to five, the level within three");
-  check(typeof pewter.solo === "function" && /1–5 computer/.test(pewter.soloText), "Coins has a way to be played alone");
+  check(typeof pewter.solo === "function" && /1–5 computer/.test(pewter.soloText), "Counterfeit has a way to be played alone");
   check(seatsText(playable("pewter")) === "Alone against 1–5 computer players, or 2–6 on their own", `its card says so (“${seatsText(playable("pewter"))}”)`);
   check(GAMES.includes(pewter) && fs.existsSync(new URL(`../${pewter.css}`, import.meta.url)), "the stylesheet is there");
   const apps = fs.readFileSync(new URL("../apps.js", import.meta.url), "utf8");

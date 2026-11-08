@@ -259,7 +259,7 @@ const seatsFor = (n, options) => Math.max(n, Math.min(MAX_SEATS, Number(options?
 
 export default {
   id: "pewter",
-  name: "Coins",
+  name: "Counterfeit",
   css: "party-pewter.css",
   min: 2,                                                  // the lobby lists it from two people; need() lets one alone start it with computer players
   max: MAX_SEATS,
@@ -280,8 +280,8 @@ export default {
 
   need(players, options) {
     const n = players.length, seats = seatsFor(n, options);
-    if (n > MAX_SEATS) return `Coins takes at most ${MAX_SEATS}`;
-    if (seats < 3) return `Coins needs 3 players: ${3 - n} more to join, or add computer players`;
+    if (n > MAX_SEATS) return `Counterfeit takes at most ${MAX_SEATS}`;
+    if (seats < 3) return `Counterfeit needs 3 players: ${3 - n} more to join, or add computer players`;
     return "";
   },
 
@@ -296,7 +296,7 @@ export default {
       step: "lay#1", phase: "lay", n: 1, seats, names: Object.fromEntries(all.map(p => [p.uid, p.name])),
       hand: Object.fromEntries(seats.map(u => [u, shuffle(COINS, rng)])), wins: Object.fromEntries(seats.map(u => [u, 0])),
       first, turn: first, clock, log: [`${nameOf(all, first)} starts.`],
-      say: `Coins. Everyone lay a coin face down. ${nameOf(all, first)} starts.`,
+      say: `Counterfeit. Everyone lay a coin face down. ${nameOf(all, first)} starts.`,
     };
     if (bots.length) s.bots = Object.fromEntries(bots.map(b => [b.uid, [1, 2, 3].includes(Number(options.level)) ? Number(options.level) : 2]));   // the level: 1 simple, 2 medium, 3 hard
     if (!clock) delete s.clock; else s.deadline = now + clock;

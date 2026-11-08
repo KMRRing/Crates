@@ -323,7 +323,7 @@ const counted = (s, start) => s.seats.every(u => total(s, u) === (start?.[u] ?? 
 // ---------- a whole game at a table ----------
 {
   const t = await partyTable(["Korbi", "Mei", "Ana"]);
-  check(await t.start("pewter", { clock: "0", fill: "5" }) && t.state.step === "lay#1" && t.state.seats.length === 5 && /Coins/.test(t.branch.say.text), "Party starts Coins for three, two computer players in the empty seats, and the phone says so");
+  check(await t.start("pewter", { clock: "0", fill: "5" }) && t.state.step === "lay#1" && t.state.seats.length === 5 && /Counterfeit/.test(t.branch.say.text), "Party starts Coins for three, two computer players in the empty seats, and the phone says so");
   let moves = 0;
   const humanSeat = u => t.seatOf(u);
   while (t.state.step !== "over" && moves++ < 600) {

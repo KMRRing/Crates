@@ -130,7 +130,7 @@ export function play(stage, { back }) {
       { picked: String(level), label: "Level", onPick: u => { level = clampLevel(u); save(); show(); } });
     levelPick.classList.add("three");
     root.replaceChildren(h("div", { class: "pa-home fit-col fit-grow" },
-      h("p", { class: "pa-intro" }, "Coins against the computer: Quant, Gambler, Hedger, Sceptic and Wildcat each bid in their own way. Choose how many sit down with you, and how well they play."),
+      h("p", { class: "pa-intro" }, "Counterfeit against the computer: Quant, Gambler, Hedger, Sceptic and Wildcat each bid in their own way. Choose how many sit down with you, and how well they play."),
       h("p", { class: "pw-solo-label" }, foes === 1 ? "1 opponent" : `${foes} opponents`),
       foesPick,
       h("p", { class: "pw-solo-label" }, `Level: ${CHOICES_NAME[level]}`),

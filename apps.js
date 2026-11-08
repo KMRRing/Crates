@@ -485,7 +485,7 @@ export const APPS = [
   { id: "gallery", sec: "party", name: "Gallery", href: "./party.html?game=gallery", logo: LOGO("gallery", GALLERY_LOGO), players: [3, 10], party: true },
   { id: "hilo", sec: "party", name: "Higher or Lower", href: "./party.html?game=hilo", logo: LOGO("hilo", HILO_LOGO), players: [1, 24], party: true },
   { id: "coup", sec: "cards", name: "Cabal", href: "./party.html?game=coup", logo: LOGO("coup", COUP_LOGO), players: [1, 6], party: true },
-  { id: "pewter", sec: "party", name: "Coins", href: "./party.html?game=pewter", logo: LOGO("pewter", PEWTER_LOGO), players: [1, 6], party: true },
+  { id: "pewter", sec: "party", name: "Counterfeit", href: "./party.html?game=pewter", logo: LOGO("pewter", PEWTER_LOGO), players: [1, 6], party: true },
   { id: "beacon", sec: "party", name: "Cryptic", href: "./party.html?game=beacon", logo: LOGO("beacon", BEACON_LOGO), players: [2, 10], party: true },
   { id: "cue", sec: "party", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO), players: [2, 12] },
   { id: "river", sec: "board", name: "Xiangqi", href: "./river.html", logo: LOGO("river", RIVER_LOGO), players: [1, 2] },
@@ -667,7 +667,7 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
-export const SECTIONS = [["knowledge", "Knowledge"], ["puzzle", "Puzzles"], ["minigames", "Minigames"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["puzzle", "Puzzles"], ["minigames", "Minigames"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party games"], ["appendix", "Appendix"]];
 /** The Appendix shows only on the owner's own solo code (Korbi, 4 November 2026: "don't appear unless the user is logged in as ?solo=KORBIRUN"). */
 const APPENDIX_CODE = "KORBIRUN";
 const appendixOpen = () => soloCode() === APPENDIX_CODE && markedIn();   // and only while Settings includes content marked for removal (Korbi, same evening: "when content marked for removal is set to exclude, hide the appendix even if it's solo=korbirun")
