@@ -386,3 +386,7 @@ html[data-mode="night"] #app.tb3 .tb-table { background: none; }
 .t3-own .t3-stage { perspective: none; }
 .t3-own .t3-pivot { transform: none; }
 .t3-own .t3-mat { transform: perspective(calc(var(--fh, 31rem) * 1.7)) rotateX(var(--t3-tilt)); }
+/* Korbi, 8 Nov 2026: the ally's icon left of the name (the hand under both), the seat low enough to clear the levels banner */
+#app.tb3 .t3-plate.at-top { top: calc(6% + 1.9rem); display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: .5rem; row-gap: .2rem; }
+#app.tb3 .t3-plate.at-top .t3-tally { grid-column: 1 / -1; justify-self: center; }
+#app.tb3 .t3-plate.at-top .t3-info { text-align: left; }
