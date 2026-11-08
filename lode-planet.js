@@ -35,6 +35,7 @@ function between(u, v) {
 const D = 4;                                  // the eye's distance from the middle, in the planet's radius: a gentle perspective
 const RAISE = 0.15, GAP = 0.06, BEVEL = 0.1;  // as Mines' cube: a tile stands this many cells up; its foot is inset by GAP, its top by BEVEL more
 const MOST = 2.2;                             // the most it zooms in, times the whole planet's size
+const START = 0.6;                            // where it opens and where a double tap puts it: the whole planet, with room round it (Korbi, 8 November 2026: "start much more zoomed out")
 const LEAST = 0.5;                            // the most it zooms out: half the fitted size, the planet small in the middle (Korbi, 8 November 2026: "scroll out more")
 const SPIN_MS = 420;                          // how fast a flick's spin dies away (its time constant)
 const GLYPH = 0.8;                            // a letter's size over its tile's size on screen
@@ -87,6 +88,7 @@ export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}
   let board = null, view = {}, path = [], owner = [];
   let W = 1, H = 1, dpr = 1, raf = 0, shown = true, font = "sans-serif", sky = null;
   let k = 1, q = [1, 0, 0, 0], ox = 0, oy = 0;   // the zoom (px a planet radius at its middle's depth), how it is turned, and where its middle is from the box's
+  let opened = false;                            // whether the first real size has placed the zoom
   let spin = null, frame = 0;                    // a flick's spin { axis, w (rad a ms), at }
   const drags = [];                              // the last moves of a drag, for a flick's speed
 
@@ -133,7 +135,7 @@ export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}
   }
   const HOME = () => facingTurn(4);              // the middle of the first face
   q = HOME();
-  function home() { spin = null; q = HOME(); k = fitK(); ox = 0; oy = 0; clamp(); schedule(); }
+  function home() { spin = null; q = HOME(); k = fitK() * START; ox = 0; oy = 0; clamp(); schedule(); }
 
   function resize() {
     dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -142,7 +144,7 @@ export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}
       W = w; H = h;
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       sky = null;
-      k = was * fitK(); clamp();
+      k = (opened ? was : START) * fitK(); opened = true; clamp();
     }
     font = getComputedStyle(canvas).fontFamily || "sans-serif";
   }

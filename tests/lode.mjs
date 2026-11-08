@@ -191,7 +191,7 @@ const boards = [], timings = [];
 {
   const b = makeBoard({ seed: 31337, theme: "colombia", level: "medium", shape: "square" }), run = newRun();
   const theme1 = b.words[1], out1 = submit(b, run, theme1.cells);
-  check(out1.kind === "theme" && out1.w === 1 && run.found.includes(1) && submit(b, run, theme1.cells).kind === "bad", "a theme word traced is found, and its letters lock (they can't be traced again)");
+  check(out1.kind === "theme" && out1.w === 1 && run.found.includes(1) && submit(b, run, theme1.cells).kind === "again", "a theme word traced is found, and its letters lock (it is found once)");
   const span = submit(b, run, b.words[0].cells);
   check(span.kind === "span" && run.found.includes(0), "the spanning word is found as the mother lode");
   // an English word on the board that isn't a theme word, traced through free cells
@@ -206,6 +206,9 @@ const boards = [], timings = [];
   };
   for (let i = 0; i < geo.n && !other; i++) if (!locked[i]) seek([i], b.letters[i]);
   check(!!other, "the board holds other English words to find");
+  // Korbi, 8 November 2026: the letters of found answers can still spell the other words that earn hints
+  const spent = lockedCells(b, run), through = (() => { for (let i = 0; i < geo.n; i++) if (spent[i]) for (const j of geo.nbrs[i]) if (spent[j]) return [i, j]; return null; })();
+  check(!!through && submit(b, tidyRun(JSON.parse(JSON.stringify(run))), [...through, ...through]).kind === "bad" && submit(b, tidyRun(JSON.parse(JSON.stringify(run))), through).kind === "short", "a trace may run over the letters of found words (short here, not barred)");
   const w1 = submit(b, run, other);
   check(w1.kind === "word" && run.extra.length === 1 && run.meter === 1 && submit(b, run, other).kind === "had", "another word counts towards a hint, once");
   const near = { ...tidyRun(JSON.parse(JSON.stringify(run))), extra: [], meter: PER_HINT - 1 };

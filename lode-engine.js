@@ -661,10 +661,11 @@ export function lockedCells(board, run) {
   return out;
 }
 const sameCells = (a, b) => a.length === b.length && [...a].sort((x, y) => x - y).join() === [...b].sort((x, y) => x - y).join();
-/** Whether `cells` is a trace a finger could make: touching cells, none twice, none locked. */
+/** Whether `cells` is a trace a finger could make: touching cells, none twice. Cells of found words are no bar (Korbi, 8 November 2026: the
+ *  letters spent on answers can still spell the other words that earn hints); only a theme word has to lie on free cells (submit). */
 export function traceable(board, run, cells) {
-  const geo = geometry(board.shape), locked = lockedCells(board, run);
-  return cells.length > 0 && new Set(cells).size === cells.length && cells.every((c, k) => c >= 0 && c < geo.n && !locked[c] && (!k || geo.touch[cells[k - 1]].has(c)));
+  const geo = geometry(board.shape);
+  return cells.length > 0 && new Set(cells).size === cells.length && cells.every((c, k) => c >= 0 && c < geo.n && (!k || geo.touch[cells[k - 1]].has(c)));
 }
 /**
  * A trace submitted (the run changes): { kind, text, w, moved }. kind: "span" or "theme" (a word of the board, w its
@@ -680,6 +681,8 @@ export function submit(board, run, cells) {
   const w = board.words.findIndex(x => x.text === text);
   if (w >= 0) {
     if (run.found.includes(w) || run.revealed.includes(w)) return { kind: "again", text, w };
+    const locked = lockedCells(board, run);
+    if (cells.some(c => locked[c])) return { kind: "bad" };      // an answer's own letters are used once
     run.found.push(w);
     if (run.hint?.w === w) run.hint = null;
     if (run.found.length + run.revealed.length >= board.words.length) run.done = true;

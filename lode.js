@@ -7,7 +7,7 @@
 // (each sees only theirs) or as a race, everyone on their own phone.
 import { REGION_LIST } from "./lode-continents.js";
 import { CELLS, geometry, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
-  scoreOf, missesOf, lockedCells } from "./lode-engine.js";
+  scoreOf, missesOf } from "./lode-engine.js";
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
   standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
 import { createBoardView } from "./lode-board.js";
@@ -163,7 +163,7 @@ const counting = () => !!G && serverNow() < G.start;           // a table's coun
 function usable(cell) {
   const ctx = context();
   if (!ctx || ctx.run.done || IN_FRAME || counting() || (ctx.race && !runOf(G, together.slot)?.begun)) return false;
-  return !lockedCells(ctx.board, ctx.run)[cell];
+  return true;                      // found words' letters can still spell the words that earn hints
 }
 
 // ---------- tracing ----------
