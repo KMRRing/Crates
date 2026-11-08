@@ -507,11 +507,15 @@ const section = k => (k < 27 ? Math.floor(k / 9) : k < 31 ? 3 : 4);
  * the one drawn), not from what it holds this moment (the row used to shrink a tenth as you drew and grow back as you
  * let a tile go). `melds`: the sets it's sized with (the table's tiles are kept no larger than a hand's without any).
  */
+/** Whether your sets stand on a row above your tiles (upright, in one row) rather than beside them. */
+const stackedSets = () => rowsOf() === "one" && !sideways();
 function handSize(melds = G.seats[me].melds) {
   const box = $("hand");
   const layout = rowsOf(), rows = layout === "two" ? 2 : layout === "suits" ? 3 : 1;
-  const slots = 13 - 3 * melds.length, meldUnits = melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0);
-  const units = rows === 1 ? slots + 1.35 + meldUnits + (melds.length ? 0.3 : 0)
+  // Korbi, 8 Nov 2026: upright, your sets stand on a row of their own above the hand, so the hand's tiles are as large as its width
+  // allows from the first deal to the last (they no longer shrink as a set is made)
+  const above = stackedSets(), slots = above ? 13 : 13 - 3 * melds.length, meldUnits = above ? 0 : melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0);
+  const units = rows === 1 ? slots + 1.35 + meldUnits + (!above && melds.length ? 0.3 : 0)
     // in rows, the columns the most the hand can need, fixed for the layout so the tiles keep their size: two rows, seven
     // columns, the drawn tile's and the sets'; by suit, about eight and the gaps between sections
     : rows === 2 ? 9 : 10.5;
@@ -536,10 +540,13 @@ function drawHand() {
   if (myTurn && G.drawn !== null && tiles.includes(G.drawn)) { drawn = G.drawn; tiles.splice(tiles.lastIndexOf(drawn), 1); }
   // the coach's tile: in a puzzle, the best, once you've answered
   const rec = rush ? rushBest()?.k ?? null : coachOn() && advice?.key === keyNow() && advice.decision?.action?.t === "discard" ? advice.decision.action.k : null;
+  box.classList.toggle("stack", stackedSets());                   // (before the size is worked out: it takes the room the class gives)
   const { tw, rows } = handSize(), rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   box.style.setProperty("--hk-t", `${tw.toFixed(1)}px`);
   box.style.setProperty("--rows", rows);
   box.classList.toggle("grid", rows > 1);
+  box.classList.toggle("stack", stackedSets());
+  box.style.setProperty("--hk-r", tileRatio().toFixed(3));
   if (low()) $("app").style.setProperty("--hk-reserve", `${(tw * tileRatio() + 1.25 * rem).toFixed(1)}px`);
   const btn = (k, extra = "") => {
     const cls = ["hk-tile"];
@@ -561,7 +568,8 @@ function drawHand() {
     if (drawn >= 0) html += `<span class="hk-grid">${btn(drawn, " drawn")}</span>`;
     html += "</span>";
   }
-  if (s.melds.length) html += `<span class="hk-melds">${s.melds.map(meld).join("")}</span>`;
+  if (stackedSets()) html = `<span class="hk-melds">${s.melds.map(meld).join("")}</span>${html}`;   // (always there, empty or not: the row keeps its room)
+  else if (s.melds.length) html += `<span class="hk-melds">${s.melds.map(meld).join("")}</span>`;
   box.innerHTML = html;
 }
 // The coach: "off", silent; "hints", a Hint asks it about one decision; "check", a Hint too, and once you've moved, a
@@ -1422,7 +1430,7 @@ installTiles();
 table3d = createTable3d({
   state: () => G, me: () => me, nameOf, meldTiles, busy: () => busyWith, quiet: IN_FRAME,
   gl: () => viewNow() === "gl", labels: () => opts.numbers !== false, glFailed: () => { opts.view = "3d"; write(OPTS, opts); applyLook(); toast("3D needs WebGL, which this device doesn't have; showing the angled table."); },
-  cap: () => Math.min(handSize([]).tw, 2.4 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)),
+  cap: () => Math.min(handSize([]).tw, 3.1 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)),
   headerOver, answering: () => !!G && E.legal(G, me).some(a => a.t !== "pass"),
   hand: () => [...$("hand").querySelectorAll(".hk-tile")], melds: () => [...$("hand").querySelectorAll(".hk-meld")],
 });

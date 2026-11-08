@@ -19,10 +19,10 @@ import { load3d } from "./loading.js";
 // of the ring and of the strips beyond it; a discard's width d is the unit of the pools inside it.
 export const WT = 4 / 3;                                         // a wall stack's depth in its widths: a tile lies 22 across and 29 long
 export const SR = SLAB_H / TILE_W;                               // a slab's height over its width
-const STRIP = { top: 1.75, side: 1.5, foot: 0.3 };               // the room outside the ring (the player across, the others, your edge), in p
-const PAD = 0.2;                                                 // between the ring and the pools, in p
-const DISC = { px: 1.05, py: 1.5 };                              // a discard's pitch across and down, in its widths (a row tucks under the last's thickness)
-const GAP = 0.42, PLATE = 2.6;                                   // between the pools and the plate, and the least plate, in discard widths
+const STRIP = { top: 1.2, side: 1.1, foot: 0.3 };               // the room outside the ring (the player across, the others, your edge), in p
+const PAD = 0.12;                                                 // between the ring and the pools, in p
+const DISC = { px: 1.03, py: 1.5 };                              // a discard's pitch across and down, in its widths (a row tucks under the last's thickness)
+const GAP = 0.34, PLATE = 2.6;                                   // between the pools and the plate, and the least plate, in discard widths
 export const RIVER = 24;                                         // the most discards on a table in 1,800 of the computer players' hands
 export const TILT = 17, EYE = 2.3;                               // the plane's tilt (degrees) and the eye's distance (in field heights)
 /** How the pools can lie: [discards to a row in the middle (yours and the player across's), in a side pool]. */
@@ -108,7 +108,7 @@ export function compose(pl, box) {
     { x: ox + STRIP.side * p, y: oy, w: nTop * p, h: STRIP.top * p, axis: "x" },
     { x: ox, y: oy + STRIP.top * p, w: STRIP.side * p, h: (nSide + 2 * WT) * p, axis: "y" },
   ];
-  return { p, d, t: 0.9 * p, stacks, pools, plate, strips, nTop, nSide, box: { x: ox, y: oy, w: Wc, h: Hc } };
+  return { p, d, t: 0.8 * p, stacks, pools, plate, strips, nTop, nSide, box: { x: ox, y: oy, w: Wc, h: Hc } };
 }
 
 /**
@@ -120,19 +120,22 @@ export function compose(pl, box) {
 export function stripItems(strip, rel, t, info) {
   const along = strip.axis === "x", cells = [];
   const turn = rel === 3 ? 90 : -90;                              // a hidden tile on a side stands across its strip
+  // Korbi, 8 Nov 2026: the others' open tiles lie with their tops toward the middle of the table (not square to you), so a side's
+  // lie turned a quarter and the player across's half round; a turned tile takes its width, not its height, of the strip's length
+  const toward = rel === 1 ? -90 : rel === 3 ? 90 : 180;
   const cell = (len, pre, ...tiles) => cells.push({ len, pre, tiles });
   info.hand.forEach((tile, i) => {
     const up = info.show, w = up ? 0.9 * t : t, h = w * SR, apart = info.apart && i === info.hand.length - 1;
-    cell(along ? w * 1.02 : up ? h * 0.96 : t * 0.62, apart ? 0.45 * t : 0, { key: `h${i}`, k: up ? tile : -1, w, h, v: 0, rot: !up && !along ? turn : 0, won: info.won === i });
+    cell(along ? w * 1.02 : up ? w * 1.02 : t * 0.62, apart ? 0.45 * t : 0, { key: `h${i}`, k: up ? tile : -1, w, h, v: 0, rot: up ? toward : !along ? turn : 0, won: info.won === i });
   });
   info.melds.forEach((m, j) => m.forEach((k, i) => {
     const w = 0.9 * t, h = w * SR;
-    cell(along ? w * 1.02 : h * 0.96, i === 0 ? 0.5 * t : 0, { key: `m${j}:${i}`, k, w, h, v: 0, rot: 0 });
+    cell(w * 1.02, i === 0 ? 0.5 * t : 0, { key: `m${j}:${i}`, k, w, h, v: 0, rot: toward });
   }));
   const fw = 0.52 * t, fh = fw * SR;
   for (let i = 0; i < info.flowers.length; i += 2) {
-    const pair = info.flowers.slice(i, i + 2).map((k, j) => ({ key: `f${i + j}`, k, w: fw, h: fh, v: (j ? 0.5 : -0.5) * (along ? fh : fw) * 1.04, rot: 0, small: true }));
-    cell(along ? fw * 1.06 : fh * 0.98, i === 0 ? 0.5 * t : 0, ...pair);
+    const pair = info.flowers.slice(i, i + 2).map((k, j) => ({ key: `f${i + j}`, k, w: fw, h: fh, v: (j ? 0.5 : -0.5) * fh * 1.04, rot: toward, small: true }));
+    cell(fw * 1.06, i === 0 ? 0.5 * t : 0, ...pair);
   }
   const total = cells.reduce((n, c) => n + c.len + c.pre, 0);
   const length = along ? strip.w : strip.h, f = Math.min(1, (length * 0.98) / (total || 1));

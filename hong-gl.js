@@ -347,7 +347,7 @@ export function createGL({ host, onFrame = () => {} }) {
       for (const it of list) {
         const cy = it.y + it.h / 2, last = cells.at(-1);
         if (last && Math.abs(last.cy - cy) < 0.5 && it.g3.small) { last.items.push(it); continue; }       // the second flower of a pair
-        const hidden = it.g3.k < 0, len = hidden ? it.w * 1.25 : it.h * 0.98;
+        const hidden = it.g3.k < 0, len = hidden ? it.w * 1.25 : it.rot ? it.w * 1.02 : it.h * 0.98;   // (an open tile lies turned toward the middle: its width runs along the strip)
         cells.push({ cy, items: [it], len, gap: last && last.part !== it.g3.part ? it.w * 0.5 : 0, part: it.g3.part });
       }
       const strip = s.strips[r], total = cells.reduce((n, c) => n + c.len + c.gap, 0), f = Math.min(1, (strip.h * 0.97) / (total || 1));
