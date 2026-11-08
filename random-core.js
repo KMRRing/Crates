@@ -16,6 +16,7 @@ export const ROUNDS = {
   order: "a run, its last card placed or its lives gone",
   chart: "a set, its last pin in",
   crossing: "a run of five routes, its last one finished or given up",
+  spyglass: "a run of five pictures, its last one named or passed",
   crossword: "a grid, solved or revealed",
   // Courses
   // Puzzles

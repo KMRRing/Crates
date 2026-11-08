@@ -56,6 +56,7 @@ const RUNTIME = [
   ["pwa.js", /^fetch\(u, \{ cache: "reload"/, "Update's full refresh, when the worker's own update fails: the page's files from the network, online only"],
   ["pwa.js", /^fetch\(`\.\/sw\.js\?check=/, "Update's check of the site's version: the network, on purpose"],
   ["pics.js", /^fetch\(file \?/, "Wikipedia's answer naming a picture: remembered by pics.js once seen"],
+  ["spyglass.js", /^i\.src = url$/, "a painting from Wikipedia, at an address pics.js found: kept by sw.js once shown, or by Settings' Keep pictures offline"],
   ["pics.js", /^img\.src = tries\[/, "a Wikipedia picture: kept by sw.js once shown, or by Settings' Keep pictures offline"],
   ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
   ["sync.js", /^fetch\(url \+/, "Firebase: playing together, watching and syncing need a connection"],

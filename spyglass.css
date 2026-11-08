@@ -1,0 +1,44 @@
+/* Spyglass: the question and what a right answer is worth now, the brass-bound lens with the picture coming into focus, the
+   answers underneath (buttons, or a line to type in), Pass and Next at the foot */
+.spyglass .sg-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
+.sg-score { font-variant-numeric: tabular-nums; }
+.sg-deal { flex: none; display: flex; justify-content: space-between; align-items: baseline; gap: .8rem; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .55rem .8rem; margin-bottom: .6rem; }
+.sg-ask { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.sg-worth { margin: 0; font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; }
+.sg-worth b { color: var(--ink); }
+.sg-lens { position: relative; min-height: 0; border: .4rem solid var(--brass); border-radius: 6px; overflow: hidden; background: var(--yard);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .45), inset 0 .25rem 1.1rem rgba(0, 0, 0, .35); }
+.sg-lens canvas { display: block; width: 100%; height: 100%; }
+.sg-caption { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: .45rem .7rem; font-size: .8rem; line-height: 1.3; background: rgba(16, 24, 31, .78); color: #F3ECDC; }
+.sg-caption[hidden] { display: none; }
+.sg-opts { flex: none; height: 10.6rem; margin-top: .6rem; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; align-content: start; }
+.sg-opt { text-align: left; padding: .4rem .6rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .86rem; min-height: 2.3rem; line-height: 1.2; }
+.sg-opt:disabled { opacity: .45; }
+.sg-opt.right { background: var(--c1, #2E6B4A); color: #fff; opacity: 1; border-color: transparent; }
+.sg-opt.wrong { border-color: var(--cx-nope, #A8382B); text-decoration: line-through; }
+.sg-type { grid-column: 1 / -1; display: flex; gap: .5rem; }
+.sg-type input { flex: 1 1 auto; min-width: 0; font: inherit; padding: .55rem .7rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink); }
+.sg-type input.wrong { border-color: #A8382B; }
+.sg-type .btn { flex: none; }
+.sg-hint { grid-column: 1 / -1; margin: 0; color: var(--ink-soft); font-size: .8rem; }
+.sg-bar { flex: none; display: flex; gap: .6rem; margin-top: .6rem; }
+.sg-bar .btn { flex: 1 1 0; }
+.sg-bar [hidden] { display: none; }
+.sg-mark { display: inline-block; }
+.sg-mark svg { width: 100%; height: 100%; display: block; }
+.sg-result { margin: .2rem 0 .8rem; padding: 0; display: grid; gap: .3rem; }
+.sg-result li { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem .7rem; border-radius: 5px; background: var(--yard); list-style: none; }
+.sg-result span { color: var(--ink-soft); font-size: .86rem; }
+.sg-result b { font-variant-numeric: tabular-nums; }
+.sg-best { margin: .2rem 0 .8rem; color: var(--ink-soft); font-size: .86rem; }
+
+/* held sideways: the lens large on the left, the question, the answers and the buttons in the side column */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.spyglass { --beside: 22rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr); }
+  .sg-lens { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
+  .sg-strip { grid-column: 2; grid-row: 2; }
+  .sg-deal { grid-column: 2; grid-row: 3; margin: 0 0 .6rem; padding: 1.1rem 1.3rem; }
+  .sg-ask { font-size: 1.3rem; }
+  .sg-opts { grid-column: 2; grid-row: 4; margin: 0 0 .6rem; height: 14rem; }
+  .sg-bar { grid-column: 2; grid-row: 5; flex-direction: column; margin-top: 0; }
+}
