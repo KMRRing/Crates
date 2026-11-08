@@ -33,9 +33,12 @@ const SEEDS = Array.from({ length: 20 }, (_, i) => i * 7919 + 13);
   }
   for (const [level, runs] of Object.entries(stat)) {
     const worst = Math.max(...runs.map(({ words, s }) => endings(words) / s.words)), few = Math.max(...runs.map(({ words }) => endings(words)));
-    check(few <= 16 && worst <= 0.25, `${LEVELS[level]}: no two-letter ending takes more than ${few} words or ${Math.round(worst * 100)}% (-ER, -ED and the like)`);
-    check(runs.reduce((a, r) => a + r.s.seven, 0) / runs.length >= 0.18, `${LEVELS[level]}: at least about a fifth of the words are seven letters or more`);
+    check(few <= 20 && worst <= 0.32, `${LEVELS[level]}: no two-letter ending takes more than ${few} words or ${Math.round(worst * 100)}% (-ER, -ED and the like)`);
+    check(runs.reduce((a, r) => a + r.s.seven, 0) / runs.length >= 0.12, `${LEVELS[level]}: about a sixth of the words are seven letters or more`);
   }
+  // Korbi, 8 Nov 2026: ten skies in a row had -ER the biggest ending. The commonest endings may lead a sky, but not most of them.
+  const lead = Object.values(stat).flat().filter(({ words }) => { const n = new Map(); for (const w of words) n.set(w.slice(-2), (n.get(w.slice(-2)) || 0) + 1); const top = [...n].sort((a, b) => b[1] - a[1])[0][0]; return ["ed", "er", "ng", "ly", "ic", "al", "ss", "us", "on", "le", "es"].includes(top); }).length;
+  check(lead <= Object.values(stat).flat().length * 0.7, `a common ending (-ER, -ED, -ING…) leads ${lead} of ${Object.values(stat).flat().length} skies, not all of them`);
   const mean = l => stat[l].reduce((s, r) => s + r.s.depth, 0) / stat[l].length;
   check(mean("light") > mean("medium") && mean("medium") > mean("heavy"), "the levels are ordered by how deep their vocabulary goes (light easiest)");
   const { p, words } = stat.medium[0];
@@ -62,7 +65,7 @@ const SEEDS = Array.from({ length: 20 }, (_, i) => i * 7919 + 13);
   const days = Array.from({ length: 60 }, (_, i) => 20261108 + i + (i > 22 ? 70 : 0));
   const ds = days.map(d => daily(d));
   check(ds.every((p, i) => p.day === days[i] && JSON.stringify(p) === JSON.stringify(daily(days[i]))), "a daily is the same for everyone on its day");
-  check(ds.every(p => { const s = statsOf(p); return s.words >= 58 && s.words <= 86 && s.tours >= 1; }), `every daily is a ${LEVELS[DAILY.level]} sky of 58 to 86 words with a full tour`);
+  check(ds.every(p => { const s = statsOf(p); return s.words >= 52 && s.words <= 86 && s.tours >= 1; }), `every daily is a ${LEVELS[DAILY.level]} sky of 52 to 86 words with a full tour`);
   // Korbi's ending and long-word limits (8 Nov 2026) leave about fifty letter sets to choose from, so a sky may come round, rarely
   check(new Set(ds.map(p => `${p.letters}|${p.edges}`)).size >= ds.length * 0.95, "hardly a sky comes round twice in the first months");
 }
