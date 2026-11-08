@@ -15,6 +15,7 @@ export const ROUNDS = {
   origin: "a run of five countries, its last one decided",
   order: "a run, its last card placed or its lives gone",
   chart: "a set, its last pin in",
+  crossing: "a run of five routes, its last one finished or given up",
   crossword: "a grid, solved or revealed",
   // Courses
   // Puzzles

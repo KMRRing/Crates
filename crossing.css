@@ -1,0 +1,42 @@
+/* Crossing: the route above, the map below it (tap the country to cross into), the way back and the way out underneath */
+:root {
+  --cx-sea: #C9D7DC; --cx-land: #F3ECDC; --cx-border: #BFA97A; --cx-ink: #4A3F2A;
+  --cx-trail: #2C5B8A; --cx-goal: #A8382B; --cx-nope: #A8382B; --cx-near: #E6D7AE;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --cx-sea: #060E15; --cx-land: #4A5A50; --cx-border: #9C8A5C; --cx-ink: #E7E0CC; --cx-trail: #79A9D6; --cx-goal: #E8806F; --cx-nope: #E8806F; --cx-near: #5E6F63; }
+}
+html[data-mode="night"] { --cx-sea: #060E15; --cx-land: #4A5A50; --cx-border: #9C8A5C; --cx-ink: #E7E0CC; --cx-trail: #79A9D6; --cx-goal: #E8806F; --cx-nope: #E8806F; --cx-near: #5E6F63; }
+
+.crossing .cx-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
+.cx-score { font-variant-numeric: tabular-nums; }
+.cx-deal { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .6rem .8rem; margin-bottom: .6rem; }
+.cx-route { margin: 0; font-size: 1.15rem; line-height: 1.25; }
+.cx-route .cx-arrow { color: var(--ink-soft); padding: 0 .25rem; }
+.cx-trail { margin: .25rem 0 0; font-size: .82rem; line-height: 1.35; color: var(--ink-soft); min-height: 2.2em; }
+.cx-trail b { color: var(--ink); }
+.cx-mapbox { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; background: var(--cx-sea); }
+.cx-map { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+.cx-bar { flex: none; display: flex; gap: .6rem; margin-top: .6rem; }
+.cx-bar .btn { flex: 1 1 0; }
+.cx-bar [hidden] { display: none; }
+.cx-mark { display: inline-block; }
+.cx-mark svg { width: 100%; height: 100%; display: block; }
+.cx-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: 90vw; background: var(--ink); color: var(--sheet); padding: .5rem .9rem; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; text-align: center; }
+.cx-toast.on { opacity: 1; }
+.cx-result { margin: .2rem 0 .8rem; display: grid; gap: .3rem; }
+.cx-result li { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem .7rem; border-radius: 5px; background: var(--yard); list-style: none; }
+.cx-result span { color: var(--ink-soft); font-size: .86rem; }
+.cx-result b { font-variant-numeric: tabular-nums; }
+.cx-result { padding: 0; }
+.cx-best { margin: .2rem 0 .8rem; color: var(--ink-soft); font-size: .86rem; }
+
+/* held sideways (#app.beside): the map large on the left, the route, the way back and the way out in the side column */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.crossing { --beside: 22rem; grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+  .cx-mapbox { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
+  .cx-strip { grid-column: 2; grid-row: 2; }
+  .cx-deal { grid-column: 2; grid-row: 3; margin: 0 0 .6rem; padding: 1.1rem 1.3rem; }
+  .cx-route { font-size: 1.5rem; }
+  .cx-bar { grid-column: 2; grid-row: 4; flex-direction: column; margin-top: 0; }
+}
