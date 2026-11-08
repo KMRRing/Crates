@@ -645,8 +645,25 @@ function drawPowers(n, mine) {
   }
   return out;
 }
-function newGame() {
+/** The first screen of a new game: which power to sit as (Random is one choice). Resolves to its id, or null when cancelled. */
+function choosePower() {
+  const dlg = $("powerDlg"), list = $("powerList");
+  const row = (id, name, text) => `<button type="button" class="btn cr-power${opts.mine === id ? " primary" : ""}" data-id="${id}"><b>${esc(name)}</b><span>${esc(text)}</span></button>`;
+  list.innerHTML = row("random", "Random", "Dealt by chance.") + POWERS.map(p => row(p.id, p.name, SPECIAL[p.id].split(". ")[0] + ".")).join("");
+  return new Promise(done => {
+    const end = v => { dlg.removeEventListener("close", onClose); list.onclick = null; if (dlg.open) dlg.close(); done(v); };
+    const onClose = () => end(null);
+    list.onclick = e => { const b = e.target.closest("button"); if (b) end(b.dataset.id); };
+    $("powerClose").onclick = () => end(null);
+    dlg.addEventListener("close", onClose);
+    dlg.showModal();
+  });
+}
+async function newGame() {
   if ($("endDlg").open) $("endDlg").close();
+  const mine = await choosePower();
+  if (!mine) return;
+  opts.mine = mine; saveOpts();
   ui.tab = "orders"; ui.roundKey = ""; ui.draftKey = "";
   write(DRAFT, null);
   page.deal({ powers: drawPowers(opts.n, opts.mine) }, opts.n);
@@ -723,9 +740,8 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Carrack, from the first year", () => course.open()));
   play.append(action("First game: a walkthrough", openWalk, "link"));
   const content = part(body, "content");
-  content.append(choice("Your power", [["random", "Random"], ...POWERS.map(p => [p.id, p.name])], opts.mine, v => { opts.mine = v; saveOpts(); }));
   content.append(choice("Powers at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.n, v => { opts.n = Number(v); saveOpts(); }));
-  content.append(line("Both apply from the next game. At a table the other seats go to the friends who sit down."));
+  content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
   set.append(choice("Coach help", COACH, opts.coach, v => { opts.coach = v; coach.key = ""; coach.r = null; saveOpts(); draw(); }));
   set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], mapNow(), v => { look.view = v; saveLook(); draw(); }));

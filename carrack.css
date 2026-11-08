@@ -204,3 +204,10 @@ dialog.ln-sheet.cr { --ln-in: var(--cr-in); }
 .cl-dia { stroke: var(--ink); stroke-width: .6; }
 .cl-key { display: flex; flex-wrap: wrap; gap: .1rem .7rem; margin: .25rem .4rem; font-size: .74rem; color: var(--ink-soft); }
 .cl-key i { display: inline-block; width: .6rem; height: .6rem; margin-right: .25rem; vertical-align: -.05rem; border: 1px solid var(--ink-soft); box-sizing: border-box; }
+
+/* the first screen of a new game: pick a power, or leave it to chance (Korbi, 9 Nov 2026) */
+.cr-powers { display: grid; gap: .45rem; margin-top: .6rem; max-height: min(60vh, 32rem); overflow-y: auto; }
+.cr-power { display: grid; gap: .15rem; text-align: left; padding: .6rem .75rem; }
+.cr-power b { letter-spacing: .08em; text-transform: uppercase; font-size: .85rem; }
+.cr-power span { font-size: .8rem; color: var(--ink-soft); text-transform: none; letter-spacing: 0; font-weight: 400; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cr-power.primary span { color: inherit; opacity: .8; }
