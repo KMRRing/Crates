@@ -18,3 +18,8 @@
 #app.tarot .tr3c .tk-plate .tk-name, .tr3c .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .84rem; }
 .tr3c .tk-plate:is(.at-l, .at-r) { width: 6.6rem; }
 @container (max-height: 420px) { .tr3c .tk-mat { height: 122%; } }
+/* Korbi, 8 Nov 2026: the seats at the sides were "too far away" (out on the rim, an even distance from the middle neither side), so
+   they stand in from the rim and lower, as Jass's do */
+#app.tarot .tr3c .tk-plate.at-l { left: max(19%, 4.6rem); }
+#app.tarot .tr3c .tk-plate.at-r { left: min(81%, calc(100% - 4.6rem)); }
+#app.tarot .tr3c .tk-plate:is(.at-l, .at-r) { top: 60%; }

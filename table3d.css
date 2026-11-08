@@ -29,15 +29,16 @@
 :is(.tk-n3, .tk-n5) .tk-centre { top: 40%; }
 
 /* ---------- the seats: a medallion, a name, a fan of backs and a count; each player's colour has a pattern too ---------- */
+/* Korbi, 8 Nov 2026: seats stood unevenly (a negative side margin shifted every plate left of its place by the margin), and the one across sat on the clip edge. */
 /* (its padding and the margin taking it back leave room for the glow and the crown, which a plate on the plane would clip) */
 .tk-plate { --seat: var(--p0); position: absolute; left: var(--x); top: var(--y); z-index: 3; display: flex; align-items: center; gap: .45rem; width: max-content; max-width: 94%;
-  padding: 2rem .6rem .5rem; margin: -2rem -.6rem -.5rem; color: var(--tk-text); pointer-events: none;
+  padding: 2rem .6rem .5rem; margin: -2rem 0 -.5rem; color: var(--tk-text); pointer-events: none;
   transform-origin: 50% 100%; transform: translate(-50%, -100%) rotateX(calc(var(--tk-tilt) * -1)); }
-.tk-plate.at-t { padding: .9rem .6rem 1.9rem; margin: -.9rem -.6rem -1.9rem; top: max(var(--y), 15.4rem); }
+.tk-plate.at-t { padding: .9rem .6rem 1.9rem; margin: -.9rem 0 -1.9rem; top: max(var(--y), 16.6rem); }
 /* the hand (the fan and its count) under whoever sits across, as it is under those at the sides (Korbi, 8 November 2026) */
 .tk-plate.at-t { flex-direction: column; gap: .2rem; text-align: center; }
 .tk-plate.at-t .tk-info { text-align: center; }   /* (the seat stands above its place: room above it, or the stage clips it; its hand now stands under it, so more of it) */
-.tk-plate:is(.at-l, .at-r) { width: 4.9rem; flex-direction: column; gap: .2rem; text-align: center; padding: .9rem .4rem 1.9rem; margin: -.9rem -.4rem -1.9rem; }
+.tk-plate:is(.at-l, .at-r) { width: 4.9rem; flex-direction: column; gap: .2rem; text-align: center; padding: .9rem .4rem 1.9rem; margin: -.9rem 0 -1.9rem; }
 /* a column keeps off the cloth's rim, whatever its share says */
 .tk-plate.at-l { left: max(var(--x), 3.6rem); }
 .tk-plate.at-r { left: min(var(--x), calc(100% - 3.6rem)); }
@@ -60,6 +61,8 @@
   background: #F5F0E2; color: #1E2730; font-size: .6rem; font-style: normal; font-weight: 800; line-height: 1; text-shadow: none; }
 .tk-info { display: grid; gap: .08rem; min-width: 0; text-align: left; }
 .tk-plate:is(.at-l, .at-r) .tk-info { text-align: center; max-width: 100%; }
+/* a seat stands from its foot, so a seat with a tag under its name (dealer, trump) stood higher than one without: every column keeps room for the tag (Korbi, 8 Nov 2026: seating "asymmetric") */
+.tk-plate:is(.at-l, .at-r, .at-t) .tk-info { min-height: 1.75rem; align-content: start; }
 /* beside the cloth's edge a name has two lines before it is cut */
 .tk-plate:is(.at-l, .at-r) .tk-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; line-height: 1.05; }
 .tk-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 800; font-stretch: var(--wide); line-height: 1.1;
@@ -171,7 +174,7 @@ html[data-theme="office"][data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-w1
    plates compact, a fan beside the count rather than over it ---------- */
 @container (max-height: 420px) {
   .tk-mat { height: 104%; }
-  .tk-plate.at-t { top: calc(var(--y) + 17%); }
+  .tk-plate.at-t { top: max(calc(var(--y) + 17% + 1rem), 12rem); }   /* (never above its own height: the stage clips the medallion) */
   .tk-plate:is(.at-l, .at-r) { gap: .1rem; padding-top: .6rem; margin-top: -.6rem; }
   .tk-plate:is(.at-l, .at-r) .tk-tally { flex-direction: row; justify-content: center; gap: .2rem; }
   .tk-plate:is(.at-l, .at-r) .tk-med { width: 1.9rem; height: 1.9rem; font-size: .92rem; }

@@ -6,7 +6,7 @@
 //
 // This file only renders and unprojects. solitaire-board.js keeps the 2D rules of touch: it hands over each frame's layout
 // (`set`), asks which card is under a finger (`pick`) and where a pointer is on the table (`toTable`), and moves the camera
-// for a two-finger drag (`orbitBy`). The felt is not drawn: the canvas is see-through over the table's baize, so the baize
+// for a one-finger drag from bare baize (`orbitBy`), and zooms and pans for two fingers (`pinch`). The felt is not drawn: the canvas is see-through over the table's baize, so the baize
 // and its brass frame are the 2D page's own. Faces are textures painted on canvases (CanvasTexture, from vendor/three-tex.js,
 // which the trimmed three.js leaves out) in the page's card colours.
 // It draws only while something moves, at most a frame per animation tick, so a settled table costs nothing.
@@ -100,6 +100,7 @@ export function createView(host, opts = {}) {
   let W = 0, H = 0, cw = 0, ch = 0, thick = 1, em = 16, dpr = Math.min(devicePixelRatio || 1, 2);
   let frame = null, held = false, shown = true, rafId = 0, lastDraw = 0, lastNow = 0;
   let tilt = 0, yaw = 0, tTilt = 0, tYaw = 0, dist = 600, pose = null, camBusy = false, headroom = 0;
+  let zoom = 1, panX = 0, panZ = 0;          // pinch zoom (1 = the whole table) and where the camera looks, board pixels from the middle (Korbi, 8 Nov 2026: zoom and pan with two fingers)
   let four = false, won = false, wonAt = 0;
   const cards = new Map();                 // uid → { mesh, shadow, rank, suit, tgt, cur, delay, ring }
   const slotMeshes = [], dropMeshes = [], hintMeshes = [], rings = new Map();
@@ -425,14 +426,17 @@ export function createView(host, opts = {}) {
     if (Math.abs(tYaw - yaw) < 0.03) yaw = tYaw;
     camBusy = tilt !== tTilt || yaw !== tYaw;
     const aspect = W / H;
-    dist = fitDistance(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom);
+    dist = fitDistance(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom) / zoom;
     pose = poseOf(tilt, yaw, dist);
+    const reach = k => (k / 2 + margin()) * (1 - 1 / zoom);
+    panX = Math.max(-reach(W), Math.min(reach(W), panX)); panZ = Math.max(-reach(H), Math.min(reach(H), panZ));
+    pose.pos = [pose.pos[0] + panX, pose.pos[1], pose.pos[2] + panZ];
     const near = dist * 0.1, top = near * Math.tan(FOV / 2), right = top * aspect;
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, dist * 4);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     camera.position.set(...pose.pos);
     camera.up.set(...pose.up);
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(panX, 0, panZ);
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     if (table) {
@@ -482,11 +486,24 @@ export function createView(host, opts = {}) {
   function orbitBy(dx, dy) {
     setCamera(tTilt - dy * 0.3, tYaw - dx * 0.08, false);
   }
+  /** Two fingers moved: the table follows them (the point under the midpoint stays under it) and `ratio` of the distance between them zooms (1 to 3.5 times). */
+  function pinch(from, to, ratio) {
+    if (!pose) return;
+    const [ax, ay] = ndc(from.x, from.y), a = groundAt(pose, ax, ay, W / H);
+    zoom = Math.max(1, Math.min(3.5, zoom * ratio));
+    aim(true);
+    const [bx, by] = ndc(to.x, to.y), b = a && groundAt(pose, bx, by, W / H);
+    if (a && b) { panX += a.x - b.x; panZ += a.z - b.z; aim(true); }
+    wake();
+  }
+  /** Back to the whole table. */
+  function unzoom() { if (zoom === 1 && !panX && !panZ) return; zoom = 1; panX = panZ = 0; aim(true); wake(); }
   /** The gesture is over: the page keeps the pick. */
   function commit() { opts.onCamera?.(tTilt, tYaw); }
   /** The camera's button: straight above, or at the angle. → which. */
   function preset() {
     const top = tTilt >= ANGLED / 2;
+    unzoom();
     setCamera(top ? 0 : ANGLED, 0);
     commit();
     return top ? "top" : "angled";
@@ -685,10 +702,10 @@ export function createView(host, opts = {}) {
 
   readColours();
   return {
-    canvas, build, set, wake, pick, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, commit, preset, setCamera, hold, restyle, setFourColour, resize, dispose,
+    canvas, build, set, wake, pick, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, hold, restyle, setFourColour, resize, dispose,
     camera: () => ({ tilt: tTilt, yaw: tYaw }),
     /** For tests: the camera's state, and where a card's face is on the page. */
-    get state() { return { tilt, yaw, dist, W, H, cards: cards.size, moving: camBusy || !!rafId }; },
+    get state() { return { tilt, yaw, zoom, dist, W, H, cards: cards.size, moving: camBusy || !!rafId }; },
     /** Where a card is going (its middle, in board pixels, and how many cards up it lies), or null. */
     placeOf(uid) { const t = cards.get(uid)?.tgt; return t ? { x: t.x + W / 2, y: t.z + H / 2, e: t.e } : null; },
     screenOf(uid) {

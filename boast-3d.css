@@ -30,7 +30,7 @@
 
 /* Korbi, 7 Nov 2026: the table nearer the title, the opponent across with its bet underneath (larger), and the two beside you closer to you */
 .bo-table.bo3 { margin-top: -.5rem; }
-.tk-plate.at-t { top: calc((max(24cqh, 8.5rem) + 28cqh) / 1.28);   /* (the foot a fixed way down the visible field: the plane's far end runs above it, so a share of the plane clipped Wei on a tall screen) */
+.tk-plate.at-t { top: calc((max(24cqh, 8.5rem) + 28cqh) / 1.28 - 1.3rem);   /* (the foot a fixed way down the visible field: the plane's far end runs above it, so a share of the plane clipped Wei on a tall screen) */
   display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; row-gap: .2rem; }
 .tk-plate.at-t .tk-tally { grid-column: 1 / -1; justify-self: center; }
 .tk-n4 .tk-plate:is(.at-l, .at-r) { top: 68%; }

@@ -2,9 +2,9 @@
 #app.landlord { --tk-felt: color-mix(in srgb, var(--ll-in) 80%, #0B1E2A); }
 .ll-table.ll3 { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
 .ll-table.ll3 .tk-field { flex: 1 1 0; }
-.ll3 .tk-centre { --cd-line: clamp(.6rem, min(3.4cqh, 3cqw), 1.5rem); --tk-side: .6rem; top: 40%; bottom: 14%; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; gap: .2rem; }
+.ll3 .tk-centre { --cd-line: clamp(.7rem, min(4.6cqh, 4.2cqw), 1.9rem); --tk-side: .6rem; top: 40%; bottom: 14%; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; gap: .2rem; }
 .ll3-top { display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 0; }
-.ll3-top .cd-line { font-size: calc(var(--cd-line) * .7); }
+.ll3-top .cd-line { font-size: calc(var(--cd-line) * 1.1); }   /* (Korbi, 8 Nov 2026: "tiny cards on table") */
 .ll3-top .cd-line > .cd + .cd { margin-left: -.9em; }
 .ll3 .ll-beat { margin: 0; font-size: .8rem; color: var(--tk-text); text-align: left; }
 .ll3 .ll-next { background: color-mix(in srgb, var(--tk-text) 30%, transparent); }

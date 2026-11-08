@@ -26,7 +26,7 @@ const AT = /translate\(([-\d.]+)px, ([-\d.]+)px\)/;
  * `setView(view)` (solitaire-3d.js) draws the table in 3D instead: the DOM cards stay as they are, the one source of where
  * everything is and of the rules of touch, but invisible; the view is handed each layout, says which card is under a finger
  * (a tilted table's card is not where the flat one's would be) and where a pointer is on the table, and turns the camera
- * for a two-finger drag, a drag from bare baize or a right-button drag. Everything else is this file's, unchanged.
+ * for a two-finger pinch and drag (zoom and pan), a drag from bare baize or a right-button drag. Everything else is this file's, unchanged.
  */
 export function createBoard(root, opts = {}) {
   let variant = null, V = null, T = null, G = null, extra = {};
@@ -285,13 +285,14 @@ export function createBoard(root, opts = {}) {
 
   const grab = ev => { try { root.setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ } };
   const mid = () => { const v = [...ptrs.values()].slice(0, 2); return { x: (v[0].x + v[1].x) / 2, y: (v[0].y + v[1].y) / 2 }; };
+  const span = () => { const v = [...ptrs.values()].slice(0, 2); return Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y); };
   const startOrbit = ev => { ev.preventDefault(); grab(ev); orbit = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, lx: ev.clientX, ly: ev.clientY, moved: false }; };
   function down(ev) {
     if (readonly || !G) return;
     if (ev.isPrimary) { ptrs.clear(); two = null; orbit = null; ignoring = false; }       // a first finger or the mouse: nothing else is down
     ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (view) {
-      if (ptrs.size >= 2) { cancel(true); orbit = null; two = mid(); ignoring = true; ev.preventDefault(); grab(ev); return; }
+      if (ptrs.size >= 2) { cancel(true); orbit = null; two = { ...mid(), s: span() }; ignoring = true; ev.preventDefault(); grab(ev); return; }
       if (ignoring) return;
       if (ev.button === 2) { startOrbit(ev); return; }
     }
@@ -327,7 +328,10 @@ export function createBoard(root, opts = {}) {
   }
   function move(ev) {
     if (ptrs.has(ev.pointerId)) ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    if (two) { if (ptrs.size >= 2) { const m = mid(); view.orbitBy(m.x - two.x, m.y - two.y); two = m; } return; }
+    if (two) {                                                       // two fingers: pinch to zoom, drag to pan (Korbi, 8 Nov 2026)
+      if (ptrs.size >= 2) { const m = mid(), s = span(); view.pinch(two, m, two.s ? s / two.s : 1); two = { ...m, s }; }
+      return;
+    }
     if (orbit && ev.pointerId === orbit.id) {
       if (!orbit.moved && Math.hypot(ev.clientX - orbit.x, ev.clientY - orbit.y) <= DRAG * scale()) return;
       orbit.moved = true;
@@ -410,6 +414,7 @@ export function createBoard(root, opts = {}) {
     orbit = null;
     cancel(true);
   });
+  root.addEventListener("wheel", ev => { if (!view) return; ev.preventDefault(); const p = { x: ev.clientX, y: ev.clientY }; view.pinch(p, p, Math.exp(-ev.deltaY * 0.0022)); }, { passive: false });
   root.addEventListener("contextmenu", e => e.preventDefault());
   const ro = new ResizeObserver(() => { if (G) { seen.clear(); render(G, { ...extra, instant: true }); } });
   ro.observe(root);
