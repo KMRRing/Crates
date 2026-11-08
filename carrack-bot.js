@@ -18,6 +18,15 @@ import {
 
 const bit = seat => 1 << seat;
 
+/** What valueOf weighs (the planners' judgment): ports and factors and monopolies and grievance as the standing counts them, the
+ *  rest the planners' own reading of what a position will earn. The expert may carry its own set (tools/carrack-tune.mjs finds them). */
+export const BASE_W = { port: 2, factor: 1, mono: 3, grief: 2, income: 0.22, incomeYears: 5, fleet: 1, fort: 0.4, pen: 0.8, ocean: 0.3 };
+let W = BASE_W;
+/** Runs f with the weights `w` (over the base ones) in force, then puts the old back: synchronous, so nothing else sees them. */
+export function withWeights(w, f) {
+  const was = W; W = w ? { ...BASE_W, ...w } : BASE_W;
+  try { return f(); } finally { W = was; }
+}
 /** How good a position is for a seat, in standing points. */
 export function valueOf(w, seat, mono = monopolies(w, w.mono)) {   // mono: the position's, when a caller asks for every seat's
   const left = w.opts.rounds - w.round + 1;
@@ -34,9 +43,9 @@ export function valueOf(w, seat, mono = monopolies(w, w.mono)) {   // mono: the 
   let monos = 0;
   for (const m of mono) if (m === seat) monos++;
   const inc = incomeOf(w, seat, mono)[0];
-  const stand = 2 * hd + fc + 3 * monos + w.si[seat] / SILVER_PER_POINT - 2 * w.gr[seat];
-  const fleetVal = Math.min(0.9, 0.1 + 0.2 * left);
-  return stand + inc * Math.min(left, 5) * 0.22 + fleetVal * Math.min(fleets, 8) + forts * 0.4 * Math.min(1, left / 3) - 0.8 * pen + (w.oc[seat] ? 0.3 : 0);
+  const stand = W.port * hd + W.factor * fc + W.mono * monos + w.si[seat] / SILVER_PER_POINT - W.grief * w.gr[seat];
+  const fleetVal = W.fleet * Math.min(0.9, 0.1 + 0.2 * left);
+  return stand + inc * Math.min(left, W.incomeYears) * W.income + fleetVal * Math.min(fleets, 8) + forts * W.fort * Math.min(1, left / 3) - W.pen * pen + (w.oc[seat] ? W.ocean : 0);
 }
 
 const costOf = (w, seat, o) => {

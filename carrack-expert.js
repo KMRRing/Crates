@@ -7,7 +7,7 @@
 // (carrack-bot.js's `valueOf`, the final standing once the game is over) against the strongest rival. Time-boxed: it stops looking when its budget in milliseconds is spent.
 // TUNING is what tools/carrack-arena.mjs tunes; a level given as an object overrides it.
 import { copy, resolveRound, checkOrders, held, factors, monopolies } from "./carrack-rules.js";
-import { valueOf, potential, plan, openings, lcg } from "./carrack-bot.js";
+import { valueOf, potential, plan, openings, lcg, withWeights } from "./carrack-bot.js";
 import { bookOrders } from "./carrack-book.js";
 
 export const TUNING = { budget: 450, scenarios: 6, pool: 3, noise: 0.5, noisy: 4, deep: 4, rivalMax: 0.6, rivalMean: 0.1, worst: 0.15, second: 0.65, hold: 0.55, book: true };
@@ -29,7 +29,11 @@ const keyOf = os => os.map(o => `${o.t}:${o.port ?? ""}:${o.from ?? ""}:${o.to ?
 const orNone = os => (os.length ? os : [{ t: "pass" }]);
 
 /** The orders the expert sets for a seat, and (with `report`) how it weighed them: { orders, options: [{ orders, score }] }. */
-export function expertOrders(s, seat, { rng = Math.random, report = false, extra = [], ...over } = {}) {
+// Tuned by self-play, 8 Nov 2026: income 0.22 -> 0.132 beat the old expert 55.7% over 600 games (2v2, budget 100); the other weights were at
+// a local optimum (each x1.6 / x0.6 lost). Only the expert uses it: the Medium and Hard bots keep BASE_W, which the balance test is set on.
+const EXPERT_W = { income: 0.132 };
+export function expertOrders(s, seat, opts = {}) { return withWeights(opts.weights || EXPERT_W, () => plan1(s, seat, opts)); }
+function plan1(s, seat, { rng = Math.random, report = false, extra = [], weights, ...over } = {}) {
   const T = { ...TUNING, ...over }, t0 = performance.now(), late = () => performance.now() - t0 > T.budget;
   const pf = potential(copy(s), seat);
   // my candidates
