@@ -76,7 +76,7 @@
 .t3-act.pass { background: transparent; border-style: dashed; border-color: var(--t3-soft); color: var(--t3-soft); }
 .t3-plate.at-me .t3-act { bottom: auto; top: .3rem; max-width: 16rem; }
 /* beside the cloth's edge a word has the plate's width and breaks into lines, rather than run off the plane */
-.t3-plate:is(.at-left, .at-right) .t3-act { width: max-content; max-width: 100%; white-space: normal; text-align: center; line-height: 1.15; overflow: visible; }
+.t3-plate:is(.at-left, .at-right) .t3-act { width: max-content; max-width: none; white-space: nowrap; text-align: center; line-height: 1.15; overflow: visible; font-size: .7rem; letter-spacing: 0; }   /* Korbi, 8 Nov 2026: one line always, under the count (it wrapped over it) */
 
 /* ---------- the middle: the play to beat, its label; or how the hand opens or ended ---------- */
 .t3-centre { color: var(--t3-text); position: absolute; left: 5.2rem; right: 5.2rem; top: 19%; bottom: 17%; display: grid; place-items: center; padding: 0 .1rem; pointer-events: none; }

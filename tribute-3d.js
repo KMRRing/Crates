@@ -259,6 +259,7 @@ export function createTable3d(c) {
       // Korbi, 7 Nov 2026: the cards don't vanish. Every play of the trick stays where it was set down, at the size of a card in
       // your hand, a little turned, near the seat that played it; the newest lies on top, the play to beat labelled. When the trick is
       // won they are swept to the winner.
+      // Korbi, 8 Nov 2026: a 10's corner is two digits wide, so its cards lie further apart than the rest (else the next card's 10 ran into it)
       const at = { me: [0, 17], right: [9, 4], top: [0, -17], left: [-9, 4] };
       const pile = [];
       const from = g.log.map(e => e.e).lastIndexOf("trick") + 1;     // a trick that's over is swept away (Korbi: "the tricks should disappear after the round")
@@ -266,7 +267,7 @@ export function createTable3d(c) {
       const shown = pile.slice(-PILE);
       play = shown.map(([e, i], k) => {
         const r = E.classify(e.cards, g.level).find(x => x.type === e.type && x.key === e.key), groups = r ? arrange(e.cards, g.level, r) : [e.cards];
-        const fit = { ...fitPlay(groups, { w: room.w, h: 1e4 }, hw, hw * 0.6), step: 0.34, gap: 0.2 }, gapped = groups.some(x => x.length > 1), h = Math.imul(i + 1, 2654435761) >>> 0;
+        const fit = { ...fitPlay(groups, { w: room.w, h: 1e4 }, hw, hw * 0.6), step: e.cards.some(id => E.rankOf(id) === 10) ? 0.5 : 0.34, gap: 0.2 }, gapped = groups.some(x => x.length > 1), h = Math.imul(i + 1, 2654435761) >>> 0;
         const jit = k => ((h >>> k) % 1000) / 1000 - 0.5, [dx, dy] = at[slotOf(e.seat, me())];
         let n = 0;
         const cards = groups.map(grp => grp.map((id, k) => {
