@@ -5,7 +5,7 @@
 const RAD = Math.PI / 180, TAU = 2 * Math.PI;
 export const A_MIN = 0.8, A_MAX = 90;
 /** The share of the canvas the whole near side fills: room left round it for the atmosphere. */
-const FILL = 0.94;
+const FILL = 0.74;   // leaves the sky room to fade out before the box's edge (Korbi, 9 Nov 2026)
 const FLUSH = 1.5 * RAD;      // a closing arc this close to a full turn is none (see shape)
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const wrapLon = lon => ((((lon + 180) % 360) + 360) % 360) - 180;

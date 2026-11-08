@@ -12,7 +12,7 @@ const [px, py] = cam.toXY(12, 52), back = cam.toLonLat(px, py);
 check(Math.abs(back[0] - 12) < 1e-6 && Math.abs(back[1] - 52) < 1e-6 && px > 180 && py < 180, "a place to the north-east lands up and right, and a tap on it gives its coordinates back");
 check(cam.toXY(-173.86, -46.2) === null && G.camera({ lon: 0, lat: 0, a: 90 }, 360).toLonLat(2, 2) === null, "the far side is out of sight, and a tap in the sky is no place");
 const whole = G.camera({ lon: 0, lat: 0, a: 90 }, 360);
-check(whole.R > 160 && whole.R < 180 && whole.toLonLat(180 + whole.R * 0.999, 180) !== null && whole.toLonLat(180 + whole.R * 1.01, 180) === null, "a = 90 shows the whole near side with room for its atmosphere");
+check(whole.R > 120 && whole.R < 140 && whole.toLonLat(180 + whole.R * 0.999, 180) !== null && whole.toLonLat(180 + whole.R * 1.01, 180) === null, "a = 90 shows the whole near side with room for its atmosphere");
 check(G.camera({ lon: 0, lat: 0, a: 10 }, 360).R > 5 * whole.R, "closing in grows the globe");
 
 // land over the horizon: a ring that dips out of sight and back (Libya's coast seen from the Americas, as it once drew the sea as land)
