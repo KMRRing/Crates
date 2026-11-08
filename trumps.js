@@ -355,7 +355,7 @@ function drawCloth(s) {
   const sides = GAMES[s.game].teams === "fixed";
   const plates = [0, 1, 2, 3].map(seat => {
     const last = [...s.bidlog].reverse().find(b => b.seat === seat), weis = weisTotal(s, seat), turn = rules.toMove(s) === seat;
-    return plate3({ name: nameOf(seat), seat, mine: seat === mine, turn, count: s.hands[seat].length, role: roleOf(s, seat), dealer: seat === s.dealer,
+    return plate3({ name: nameOf(seat), seat, mine: seat === mine, turn, count: s.hands[seat].length, role: roleOf(s, seat), dealer: seat === s.dealer, showCount: s.game !== "schafkopf",   // (Korbi, 8 Nov 2026: Schafkopf, everyone holds the same)
       word: s.step === "bid" && last ? bidWords(s, last) : weis ? `Weis ${weis}` : "", mate: sides && seat !== mine && teamOf(seat) === teamOf(mine), think: turn && seat !== mine && !over });
   });
   const trick = s.step === "bid" || over ? [] : s.trick, win = s.step === "trick" ? s.tricks.at(-1)?.winner : null;

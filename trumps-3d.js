@@ -6,16 +6,16 @@ import { createCloth, createMotion, rectOf, fill, slotOf } from "./table3d.js";
 import { slide, mayMove } from "./cardslide.js";
 
 /**
- * One seat's plate (pure): `count` the cards it holds, `word` what it last said (a bid, a Weis), `role` the part it plays
+ * One seat's plate (pure): `count` the cards it holds (`showCount` false: not said, where every seat holds the same), `word` what it last said (a bid, a Weis), `role` the part it plays
  * this hand ("trump", "plays", "took"), `dealer`, `mate` your partner in a game with sides.
  */
-export function plateOf({ name, seat, mine = false, turn = false, count = 0, word = "", role = "", dealer = false, mate = false, think = false }) {
+export function plateOf({ name, seat, mine = false, turn = false, count = 0, word = "", role = "", dealer = false, mate = false, think = false, showCount = true }) {
   const meta = `${role ? `<i class="tr3-role">${role}</i>` : ""}${dealer ? `<i class="tr3-deal" title="Dealer">dealer</i>` : ""}`;
   return {
-    seat, name, meta, tally: mine ? "" : `<b class="tk-count" title="Cards left">${count}</b>`,
+    seat, name, meta, tally: mine || !showCount ? "" : `<b class="tk-count" title="Cards left">${count}</b>`,
     fan: mine ? 0 : Math.min(count, 5), crown: false, act: word, pass: false,
     state: [turn ? "on" : "", think ? "thinking" : "", mate ? "mate" : ""].filter(Boolean).join(" "),
-    label: `${name}${mine ? "" : `, ${count} cards left`}${role ? `, ${role}` : ""}${word ? `, ${word}` : ""}`,
+    label: `${name}${mine || !showCount ? "" : `, ${count} cards left`}${role ? `, ${role}` : ""}${word ? `, ${word}` : ""}`,
   };
 }
 
