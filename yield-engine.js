@@ -242,7 +242,7 @@ function distance(level, s, strict = true) {
 }
 
 // ---------- dealing ----------
-const TRIES = 12000, STEPS = 60, WANDER = 12, MAX_LINES = 13;      // no more than 14 sight-lines: more cross too much to read
+const TRIES = 12000, STEPS = 60, WANDER = 60, MAX_LINES = 13;      // no more than 14 sight-lines: more cross too much to read
 /** The lines the three commonest of the common endings, among every word these letters make, need: two letters each. */
 function bannedFor(letters) {
   const n = new Map();
@@ -257,15 +257,17 @@ function wander(level, p, base, on, rest, r, strict) {
   let at = p;
   // first the lines it can do without come away (Korbi, 8 Nov 2026: less polyhedron, a few stars hanging off the ends), then a few
   // swaps of one line for another, so that two seeds that settle on the same letters don't deal the same sky
-  for (const k of shuffled([...on], r)) {
+  if (r() < 0.5) for (const k of shuffled([...on], r)) {
     const next = new Set(on); next.delete(k);
     const q = make(next);
     if (suits(level, statsOf(q), strict)) { at = q; on = next; }
   }
   for (let i = 0; i < WANDER; i++) {
     const out = [...on], k = rest[Math.floor(r() * rest.length)];
-    if (!out.length || on.has(k)) continue;
-    const next = new Set(on); next.delete(out[Math.floor(r() * out.length)]); next.add(k);
+    if (on.has(k) || (!out.length && base.size + on.size >= MAX_LINES)) continue;
+    const next = new Set(on);
+    if (base.size + on.size >= MAX_LINES || r() < 0.5) next.delete(out[Math.floor(r() * out.length)]);   // a swap, or (with room) just one more line
+    next.add(k);
     const q = make(next);
     if (suits(level, statsOf(q), strict)) { at = q; on = next; }
   }
