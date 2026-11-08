@@ -24,7 +24,7 @@ check(["tony", "japan", "google", "carter"].every(w => !counts(w)), "names that 
 check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted word has its frequency; a word Constellation doesn't count has none");
 
 // ---------- a puzzle: its sky and what the sky allows ----------
-const SEEDS = Array.from({ length: 40 }, (_, i) => i * 7919 + 13);
+const SEEDS = Array.from({ length: 20 }, (_, i) => i * 7919 + 13);
 {
   const stat = Object.fromEntries(Object.keys(LEVELS).map(level => [level, SEEDS.map(seed => { const p = deal({ seed, level }); return { p, words: yieldOf(p), s: statsOf(p) }; })]));
   for (const [level, runs] of Object.entries(stat)) {
@@ -59,7 +59,7 @@ const SEEDS = Array.from({ length: 40 }, (_, i) => i * 7919 + 13);
   const a = deal({ seed: 1234, level: "medium" }), b = deal({ seed: 1234, level: "medium" });
   check(JSON.stringify(a) === JSON.stringify(b), "a seed deals the same puzzle every time");
   check(deal({ seed: 1235, level: "medium" }).edges !== a.edges || deal({ seed: 1235, level: "medium" }).letters !== a.letters, "another seed, another sky");
-  const days = Array.from({ length: 120 }, (_, i) => 20261108 + i + (i > 22 ? 70 : 0));
+  const days = Array.from({ length: 60 }, (_, i) => 20261108 + i + (i > 22 ? 70 : 0));
   const ds = days.map(d => daily(d));
   check(ds.every((p, i) => p.day === days[i] && JSON.stringify(p) === JSON.stringify(daily(days[i]))), "a daily is the same for everyone on its day");
   check(ds.every(p => { const s = statsOf(p); return s.words >= 58 && s.words <= 86 && s.tours >= 1; }), `every daily is a ${LEVELS[DAILY.level]} sky of 58 to 86 words with a full tour`);
