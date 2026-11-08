@@ -307,8 +307,13 @@ export function createView(host, opts = {}) {
       c.strokeStyle = brass; c.lineWidth = m; c.strokeRect(m * 2, m * 2, w - 4 * m, h - 4 * m);
     });
   }
-  /** The table's margin round the layout, in board pixels: none seen straight down (the 2D table exactly), a card's width tipped away. */
-  const margin = () => W * 0.05 * Math.min(1, tilt / ANGLED);
+  /**
+   * The table's margin round the layout, in board pixels. Never none: seen straight down the cards stand higher than the table
+   * (a stack, a carried card), so a perspective lens magnifies them past the table's edge, and a table cut to the layout's size
+   * has them overhanging it (Korbi, 8 November 2026: "the cards get bigger in top down view ... larger than the table"). A card's
+   * width tipped away, the margin widens so the far rows keep clear of the edge.
+   */
+  const margin = () => W * (0.03 + 0.02 * Math.min(1, tilt / ANGLED));
 
   // ---------- the cards ----------
   let faces = [], texSize = 0;
