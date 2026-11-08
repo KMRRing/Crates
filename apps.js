@@ -448,29 +448,29 @@ export const APPS = [
   { id: "nonogram", sec: "knowledge", name: "Nonogram", href: "./nonogram.html", logo: LOGO("nonogram", NONOGRAM_LOGO), players: [1, 6], team: "time" },
   { id: "lexicon", sec: "knowledge", name: "Almanac", href: "./almanac.html", logo: LOGO("lexicon", ALMANAC_LOGO), players: [1, 1] },
   { id: "ledger", sec: "knowledge", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), players: [1, 1] },
-  // Classics: the canonical puzzle genres, by their usual rules (README, Classics)
-  { id: "sudoku", sec: "classics", name: "Nonet", href: "./sudoku.html", logo: LOGO("sudoku", SUDOKU_LOGO), players: [1, 6], team: "time" },
-  { id: "mines", sec: "classics", name: "Mines", href: "./mines.html", logo: LOGO("mines", MINES_LOGO), players: [1, 6], team: "time" },
-  { id: "hitori", sec: "classics", name: "Cull", href: "./hitori.html", logo: LOGO("hitori", HITORI_LOGO), players: [1, 6], team: "time" },
-  { id: "bulls", sec: "classics", name: "Conjunction", href: "./bulls.html", logo: LOGO("bulls", BULLS_LOGO), players: [1, 6], score: "guesses", rows: 10 },
-  { id: "assay", sec: "classics", name: "Assay", href: "./assay.html", logo: LOGO("assay", ASSAY_LOGO), players: [1, 6], score: "guesses", rows: 6, team: "guesses" },
-  { id: "yield", sec: "classics", name: "Constellation", href: "./yield.html", logo: LOGO("yield", YIELD_LOGO), players: [1, 6] },
-  { id: "ladder", sec: "classics", name: "Ladder", href: "./ladder.html", logo: LOGO("ladder", LADDER_LOGO), players: [1, 6], team: "time" },
+  // The canonical puzzle genres, by their usual rules (README, Classics); Korbi, 8 Nov 2026: one section with the rest of the puzzles, called Puzzles
+  { id: "sudoku", sec: "puzzle", name: "Nonet", href: "./sudoku.html", logo: LOGO("sudoku", SUDOKU_LOGO), players: [1, 6], team: "time" },
+  { id: "mines", sec: "puzzle", name: "Mines", href: "./mines.html", logo: LOGO("mines", MINES_LOGO), players: [1, 6], team: "time" },
+  { id: "hitori", sec: "puzzle", name: "Cull", href: "./hitori.html", logo: LOGO("hitori", HITORI_LOGO), players: [1, 6], team: "time" },
+  { id: "bulls", sec: "puzzle", name: "Conjunction", href: "./bulls.html", logo: LOGO("bulls", BULLS_LOGO), players: [1, 6], score: "guesses", rows: 10 },
+  { id: "assay", sec: "puzzle", name: "Assay", href: "./assay.html", logo: LOGO("assay", ASSAY_LOGO), players: [1, 6], score: "guesses", rows: 6, team: "guesses" },
+  { id: "yield", sec: "puzzle", name: "Constellation", href: "./yield.html", logo: LOGO("yield", YIELD_LOGO), players: [1, 6] },
+  { id: "ladder", sec: "puzzle", name: "Ladder", href: "./ladder.html", logo: LOGO("ladder", LADDER_LOGO), players: [1, 6], team: "time" },
   // Crates' Classic (Lots until 2 November 2026, when Korbi had it "simply a subgroup of crates"): no
   // tile, reached from Crates' header (Countries | Classic), under Crates' header and logo; its name is for what your partner
   // is playing, the requests and Party
   { id: "lots", within: "crates", name: "Crates Classic", href: "./lots.html", logo: LOGO("crates", CRATES_LOGO), players: [1, 6] },
   { id: "codeword", sec: "knowledge", name: "Codeword", href: "./codeword.html", logo: LOGO("codeword", CODEWORD_LOGO), players: [1, 6], team: "time" },
-  { id: "calcudoku", sec: "classics", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
-  { id: "kakuro", sec: "classics", name: "Tally", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
+  { id: "calcudoku", sec: "puzzle", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
+  { id: "kakuro", sec: "puzzle", name: "Tally", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
   // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)
-  { id: "bridges", sec: "classics", name: "Bridges", href: "./bridges.html", logo: LOGO("bridges", BRIDGES_LOGO), players: [1, 6] },
+  { id: "bridges", sec: "puzzle", name: "Bridges", href: "./bridges.html", logo: LOGO("bridges", BRIDGES_LOGO), players: [1, 6] },
   { id: "masyu", sec: "appendix", name: "Pearl", href: "./masyu.html", logo: LOGO("masyu", MASYU_LOGO), players: [1, 2] },
-  { id: "nurikabe", sec: "classics", name: "Dujiang", href: "./nurikabe.html", logo: LOGO("nurikabe", NURIKABE_LOGO), players: [1, 2] },
-  { id: "lanterns", sec: "classics", name: "Lanterns", href: "./lanterns.html", logo: LOGO("lanterns", LANTERNS_LOGO), players: [1, 1] },
-  { id: "slitherlink", sec: "classics", name: "Portolan", href: "./slitherlink.html", logo: LOGO("slitherlink", SLITHERLINK_LOGO), players: [1, 2] },
-  { id: "moor", sec: "classics", name: "Moor", href: "./moor.html", logo: LOGO("moor", MOOR_LOGO), players: [1, 1] },
-  { id: "asterism", sec: "classics", name: "Asterism", href: "./asterism.html", logo: LOGO("asterism", ASTERISM_LOGO), players: [1, 1] },
+  { id: "nurikabe", sec: "puzzle", name: "Dujiang", href: "./nurikabe.html", logo: LOGO("nurikabe", NURIKABE_LOGO), players: [1, 2] },
+  { id: "lanterns", sec: "puzzle", name: "Lanterns", href: "./lanterns.html", logo: LOGO("lanterns", LANTERNS_LOGO), players: [1, 1] },
+  { id: "slitherlink", sec: "puzzle", name: "Portolan", href: "./slitherlink.html", logo: LOGO("slitherlink", SLITHERLINK_LOGO), players: [1, 2] },
+  { id: "moor", sec: "puzzle", name: "Moor", href: "./moor.html", logo: LOGO("moor", MOOR_LOGO), players: [1, 1] },
+  { id: "asterism", sec: "puzzle", name: "Asterism", href: "./asterism.html", logo: LOGO("asterism", ASTERISM_LOGO), players: [1, 1] },
   { id: "party", sec: "party", name: "Party", href: "./party.html", logo: LOGO("party", PARTY_LOGO), players: [2, 24] },
   // Party's games, each with a tile of its own: it opens Party on that game (the room's made there)
   { id: "undercover", sec: "party", name: "Undercover", href: "./party.html?game=undercover", logo: LOGO("undercover", UNDERCOVER_LOGO), players: [3, 12], party: true },
@@ -667,7 +667,7 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
-export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["idle", "Idle"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
 /** The Appendix shows only on the owner's own solo code (Korbi, 4 November 2026: "don't appear unless the user is logged in as ?solo=KORBIRUN"). */
 const APPENDIX_CODE = "KORBIRUN";
 const appendixOpen = () => soloCode() === APPENDIX_CODE && markedIn();   // and only while Settings includes content marked for removal (Korbi, same evening: "when content marked for removal is set to exclude, hide the appendix even if it's solo=korbirun")
