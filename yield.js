@@ -65,7 +65,13 @@ function derive() {
   P = { words, set: new Set(words), total, need: needed(total), sky: skyOf(S.p) };
 }
 const foundSet = () => new Set(S?.found || []);
-const pointsNow = () => (S && P ? totalOf(S.p, S.found.filter(w => P.set.has(w))) : 0);
+// Korbi, 8 Nov 2026: a word in the dictionary counts ("opine" was refused as too rare). The sky's own words fix the total and the
+// ranks; any other dictionary word found scores like one, but Galaxy still needs every word of the sky.
+const pointsNow = () => (S && P ? totalOf(S.p, S.found) : 0);
+const rankNow = () => {
+  const r = rankOf(pointsNow(), P.total);
+  return r < TOP || P.words.every(w => S.found.includes(w)) ? r : TOP - 1;
+};
 const isOver = () => !!S?.over;
 const raceLeft = () => (S?.kind === "race" ? S.secs - (duel.now() - S.begun) / 1000 : Infinity);
 const canType = () => !!S && !!P && !isOver() && !IN_FRAME && !paused && !(S.kind === "race" && raceLeft() <= 0);
@@ -211,11 +217,12 @@ async function enter() {
   }
   S.typed = "";
   switch (r.kind) {
+    case "bonus":
     case "word": {
-      const before = rankOf(pointsNow(), P.total);
+      const before = rankNow();
       S.found.push(word);
       if (S.pin?.w === word) S.pin = null;
-      const after = rankOf(pointsNow(), P.total);
+      const after = rankNow();
       say(r.full ? "Full tour!" : after > before ? `${RANKS[after][1]}!` : CALLS[Math.min(CALLS.length - 1, word.length - MIN_LEN)], "good", r.points);
       sfx.found(trailOf(S.p, word), { rank: after > before, full: r.full });
       found();
@@ -226,7 +233,6 @@ async function enter() {
     case "line": refuse(`No sight-line from ${up(word[r.at - 1])} to ${up(word[r.at])}`); break;
     case "found": refuse("Already found"); break;
     case "variant": noteExtra(word); refuse("One side of the Atlantic's spelling only: not counted", ""); break;
-    case "rare": noteExtra(word); refuse("A word, but rarer than Constellation counts", ""); break;
     default: refuse("Not in Constellation's list");
   }
   drawWord(); drawTrail(); render(); save();
@@ -241,7 +247,7 @@ function refuse(text, tone = "bad") {
 }
 /** A word that counts: the daily's figure, the record, the table, and the end once everything is found. */
 function found() {
-  const pts = pointsNow(), rank = rankOf(pts, P.total), have = foundSet(), all = P.words.every(w => have.has(w));
+  const pts = pointsNow(), rank = rankNow(), have = foundSet(), all = P.words.every(w => have.has(w));
   const master = S.top < MASTER && rank >= MASTER;                 // the rank to aim for, reached with this word
   if (S.kind === "day") noteDaily(pts);
   if (rank > S.top) { noteRank(S.top, rank); S.top = rank; }
@@ -300,7 +306,7 @@ const scale = $("scale"), scaleTicks = RANKS.map((_, i) => { const t = el("i", `
 const myIndex = el("i", "yd-index"), theirIndexes = el("span", "yd-them");
 scale.replaceChildren(...scaleTicks, myIndex, theirIndexes);
 function drawGauge() {
-  const pts = pointsNow(), total = P?.total || 0, rank = S && P ? rankOf(pts, total) : 0;
+  const pts = pointsNow(), total = P?.total || 0, rank = S && P ? rankNow() : 0;
   $("rank").textContent = RANKS[rank][1];
   $("points").replaceChildren(String(pts), ...(total ? [el("small", "", ` / ${total}`)] : []));
   scaleTicks.forEach((t, i) => t.classList.toggle("on", !!total && pts >= P.need[i]));
@@ -436,7 +442,7 @@ function finish(how) {
   if (S.kind === "day" || S.kind === "run") roundOver("yield");
 }
 function openDone() {
-  const pts = pointsNow(), rank = rankOf(pts, P.total), got = S.found.filter(w => P.set.has(w)), tours = P.words.filter(w => isFull(S.p, w));
+  const pts = pointsNow(), rank = rankNow(), got = S.found.filter(w => P.set.has(w)), tours = P.words.filter(w => isFull(S.p, w));
   const body = sheet(RANKS[rank][1]);
   body.append(el("p", "yd-sum", `${plural(P.words.length, "word")} · ${plural(P.total, "point")}${tours.length ? ` · ${plural(tours.length, "full tour")}` : ""}`));
   body.append(stats([[pts, `of ${P.total} points`], [got.length, `of ${P.words.length} words`], ...(tours.length ? [[got.filter(w => isFull(S.p, w)).length, `of ${plural(tours.length, "full tour")}`]] : [])]));
@@ -500,12 +506,13 @@ function openWords() {
   const body = sheet("Your words");
   body.append(el("p", "yd-sum", `${plural(got.length, "word")} of ${P.words.length}, ${pointsNow()} of ${P.total} points. Tap a word for what it means.`));
   body.append(wordList(P.words, have, { missed: isOver() }));
-  if (S.extra.length) body.append(el("h4", "yd-h", "Also words, not counted"), el("p", "yd-note", S.extra.map(up).join(", ")));
+  const more = S.found.filter(w => !P.set.has(w));
+  if (more.length) body.append(el("h4", "yd-h", "Also words, not in the sky's list"), el("p", "yd-note", more.map(up).join(", ")));
   openSheet();
 }
 function openRanks() {
   if (!S || !P) return;
-  const pts = pointsNow(), rank = rankOf(pts, P.total), body = sheet("Ranks");
+  const pts = pointsNow(), rank = rankNow(), body = sheet("Ranks");
   body.append(el("p", "yd-note", `From the dark sky to the galaxy: each rank a share of the puzzle's points. ${RANKS[MASTER][1]} is the one to aim for; ${RANKS[TOP][1]} is every word.`));
   const ul = el("ul", "yd-ranks");
   RANKS.forEach(([, name], i) => { const li = el("li", `${i === rank ? "on" : ""}${i < rank ? " done" : ""}`); li.append(el("b", "", name), el("span", "", String(P.need[i]))); ul.append(li); });
@@ -541,7 +548,7 @@ function playMatch(m, { begun, kept, done, run, n }) {
 /** What this player's run tells the table: points (a race's score) and every word with when it was found. */
 function tell(done = false) {
   if (!S || S.kind !== "race" || !duel.playing) return;
-  const mine = S.found.filter(w => P.set.has(w)), pts = totalOf(S.p, mine);
+  const mine = S.found, pts = totalOf(S.p, mine);
   S.times ??= {};
   for (const w of mine) S.times[w] ??= Math.max(0, Math.round(duel.now() - S.begun));
   const words = Object.fromEntries(mine.map(w => [w, S.times[w]]));
@@ -567,7 +574,7 @@ function onTable(g) {
 function raceExtra() {
   if (S?.kind !== "race" || !P) return null;
   const alone = onlyMine(duel.together.room?.data, duel.together.slot);
-  const box = el("div"), mine = S.found.filter(w => P.set.has(w)).sort();
+  const box = el("div"), mine = [...S.found].sort();
   const ul = el("ul", "yd-words");
   for (const w of mine) ul.append(el("li", isFull(S.p, w) ? "full" : "", `${up(w)}${alone.has(w) ? " ★" : ""}`));
   box.append(el("p", "yd-note", "★ nobody else found it."), ul);

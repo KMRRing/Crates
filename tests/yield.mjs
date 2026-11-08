@@ -85,6 +85,9 @@ const SEEDS = Array.from({ length: 20 }, (_, i) => i * 7919 + 13);
   const r = missing && judge(p, missing, { have: none });
   check(!missing || (r.kind === "line" && !canStep(p, missing[r.at - 1], missing[r.at])), "a word a sight-line short is refused at the step that fails");
   check(judge(p, "ssss", { dict }).kind === "letters", "the letters are checked before the dictionary");
+  // Korbi, 8 Nov 2026: "opine" was refused as "rarer than Constellation counts"; any dictionary word the sky can trace scores (a bonus word).
+  const rare = all.find(x => !counts(x) && isWord(x) && !isVariant(x) && traces(p, x));
+  check(!rare || judge(p, rare, { dict }).kind === "bonus", "a traceable dictionary word the sky does not list is a bonus word, never refused as rare");
   check(!words.some(x => !isWord(x)) && words.every(x => !isVariant(x)), "every word is a word, the same on both sides of the Atlantic");
 }
 

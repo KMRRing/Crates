@@ -510,7 +510,7 @@ export function rankOf(points, total) {
  * What a traced word is, for a puzzle: { kind, points, full, at }. kind is one of
  *   short (fewer than four letters), letters (a letter that is not a star), line (a step with no sight-line: at is the
  *   index of the step), found (already found), word (it counts: its points), variant (one side of the Atlantic's
- *   spelling only), rare (a word, but rarer than Constellation counts), unknown (not in the list).
+ *   spelling only), bonus (a dictionary word the sky does not list: it scores all the same), unknown (not in the list).
  * have: what's been found (a Set); dict: wordlist.js's isWord and isVariant, once loaded (else every word that isn't
  * counted is unknown).
  */
@@ -523,7 +523,7 @@ export function judge(p, typed, { have = new Set(), dict = null } = {}) {
   if (counts(w)) return { kind: "word", points: pointsOf(p, w), full: isFull(p, w) };
   if (index().blocked.has(w) || !dict) return { kind: "unknown" };
   if (dict.isVariant(w)) return { kind: "variant" };
-  return { kind: dict.isWord(w) ? "rare" : "unknown" };
+  return dict.isWord(w) ? { kind: "bonus", points: pointsOf(p, w), full: isFull(p, w) } : { kind: "unknown" };
 }
 /** How a word is grouped in the lists: by its length, four to seven then eight and more (an index). */
 export const groupOf = w => Math.min(4, Math.max(0, w.length - MIN_LEN));
