@@ -51,14 +51,14 @@ const RIM = new Set([4, 5, 6]);
 // euro: counts toward the cap of three European or Mediterranean powers at a table. sea: the home seas (regions): +1 to
 // every die there.
 export const POWERS = [
-  { id: "hanse", name: "Hanse", euro: 1, sea: [0, 1], homes: ["LUB", "REV"], fleets: { LUB: 1, REV: 1 }, factors: [], silver: 6, ocean: 0, base: -1, baseName: "league dues" },
+  { id: "hanse", name: "Hanse", euro: 1, sea: [0, 1], homes: ["LUB", "REV"], fleets: { LUB: 1, REV: 1 }, factors: [], silver: 8, ocean: 0, base: 2, baseName: "league dues" },
   { id: "portugal", name: "Portugal", euro: 1, sea: [1, 3], homes: ["LIS", "ELM"], fleets: { LIS: 1, ELM: 1 }, factors: [], silver: 7, ocean: 1, base: -3, baseName: "the Estado's upkeep" },
   { id: "venice", name: "Venice", euro: 1, sea: [2], homes: ["VEN"], fleets: { VEN: 3 }, factors: ["ALE", "CON"], silver: 7, ocean: 0, base: 3, baseName: "the Republic's revenue" },
   { id: "ottomans", name: "Ottomans", euro: 1, sea: [2], homes: ["CON"], fleets: { CON: 3 }, factors: [], silver: 8, ocean: 0, base: 2, baseName: "the sultan's revenue" },
-  { id: "ming", name: "Ming China", euro: 0, sea: [7, 8], homes: ["GUA", "NIN", "YUE"], fleets: { GUA: 1, NIN: 1 }, factors: ["NAH", "MNL"], silver: 2, ocean: 0, base: 0, baseName: "the empire's revenue" },
-  { id: "gujarat", name: "Gujarat", euro: 0, sea: [5], homes: ["CAM"], fleets: { CAM: 1 }, factors: ["MLC", "CAL", "ADE"], silver: 8, ocean: 0, base: 0, baseName: "cloth exports" },
-  { id: "malacca", name: "Malacca", euro: 0, sea: [6], homes: ["MLC"], fleets: { MLC: 2 }, factors: ["ACE", "BAN"], silver: 9, ocean: 0, base: 1, baseName: "harbour dues" },
-  { id: "ryukyu", name: "Ryukyu", euro: 0, sea: [7], homes: ["NAH"], fleets: { NAH: 2 }, factors: ["GUA", "YUE", "NIN"], silver: 5, ocean: 0, base: 0, baseName: "tribute missions" },
+  { id: "ming", name: "Ming China", euro: 0, sea: [7, 8], homes: ["GUA", "NIN", "YUE"], fleets: { GUA: 1, NIN: 1 }, factors: ["NAH", "MNL"], silver: 6, ocean: 0, base: 2, baseName: "the empire's revenue" },
+  { id: "gujarat", name: "Gujarat", euro: 0, sea: [5], homes: ["CAM"], fleets: { CAM: 1 }, factors: ["MLC", "CAL", "ADE"], silver: 10, ocean: 0, base: 3, baseName: "cloth exports" },
+  { id: "malacca", name: "Malacca", euro: 0, sea: [6], homes: ["MLC"], fleets: { MLC: 2 }, factors: ["ACE", "BAN"], silver: 9, ocean: 0, base: 2, baseName: "harbour dues" },
+  { id: "ryukyu", name: "Ryukyu", euro: 0, sea: [7], homes: ["NAH"], fleets: { NAH: 2 }, factors: ["GUA", "YUE", "NIN"], silver: 10, ocean: 0, base: 3, baseName: "tribute missions" },
   { id: "swahili", name: "Swahili coast", euro: 0, sea: [4], homes: ["KIL", "MOM", "MAL"], fleets: { KIL: 1, MOM: 1 }, factors: ["SOF"], silver: 8, ocean: 0, base: 3, baseName: "inland trade" },
 ];
 export const POWER_IDX = Object.fromEntries(POWERS.map((p, i) => [p.id, i]));

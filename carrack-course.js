@@ -169,7 +169,7 @@ export const COURSE = {
         ["swahili", "The Swahili city-states earn 2 for each of Sofala and Kilwa they hold (gold). The east-coast enslavement event lands on the coast's holders as grievance.", "How many fleets does the Swahili coast start with?"],
       ].map(([id, say, qs]) => {
         const i = POWER_IDX[id], pw = POWERS[i];
-        const ans = { hanse: [String(pw.silver), ["4", "6", "8", "9"]], portugal: [String(pw.silver), ["5", "7", "8", "10"]], venice: [String(Object.values(pw.fleets).reduce((a, b) => a + b, 0)), ["1", "2", "3", "4"]], ottomans: [String(pw.silver), ["6", "8", "9", "12"]], ming: [String(pw.silver), ["0", "2", "5", "8"]], gujarat: ["1", ["1", "2", "3", "4"]], malacca: [String(pw.silver), ["5", "7", "9", "11"]], ryukyu: [String(pw.factors.length), ["1", "2", "3", "4"]], swahili: [String(Object.values(pw.fleets).reduce((a, b) => a + b, 0)), ["1", "2", "3", "4"]] }[id];
+        const ans = { hanse: [String(pw.silver), ["4", "6", "8", "9"]], portugal: [String(pw.silver), ["5", "7", "8", "10"]], venice: [String(Object.values(pw.fleets).reduce((a, b) => a + b, 0)), ["1", "2", "3", "4"]], ottomans: [String(pw.silver), ["6", "8", "9", "12"]], ming: [String(pw.silver), ["0", "2", "6", "8"]], gujarat: ["1", ["1", "2", "3", "4"]], malacca: [String(pw.silver), ["5", "7", "9", "11"]], ryukyu: [String(pw.factors.length), ["1", "2", "3", "4"]], swahili: [String(Object.values(pw.fleets).reduce((a, b) => a + b, 0)), ["1", "2", "3", "4"]] }[id];
         return { id: `p-${id}`, title: pw.name, zh: "", steps: [
           { say, scene: V(id, { alone: true }) },
           { say: qs, scene: V(id, { alone: true }), quiz: ans[1], answer: ans[1].indexOf(ans[0]), calc: s => {
