@@ -5,7 +5,10 @@
 // and the strokes, names the picture, plays the computer (a partner with half the clues)
 // and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
-import { PICTURES, TOPICS, topicsOf, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
+import { PICTURES, TOPICS, topicsOf, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember, ringsOf } from "./nonogram-pictures.js";
+import { drawGlobe } from "./nonogram-globe.js";
+import { factFor, warm } from "./nonogram-fact.js";
+import { KB_TOPICS, TOPIC_OF, mixFromSubjects } from "./topics.js";
 import { hexGrid, hexOwner, lineName } from "./nonogram-hex.js";
 import { PACES, createMind, botMove } from "./nonogram-bot.js";
 import { ramp } from "./ramp.js";
@@ -168,6 +171,7 @@ async function begin(s, run = null, at = {}) {
   if (mine !== beginning) return null;
   if (!pz) { toast(`That picture can't be drawn at this size${s.hex ? " on hexes" : ""}`); return false; }
   P = pz; pic = pictureOf(s.id);
+  if (pic.topic === "countries" || pic.topic === "flags") warm();            // the fact shown when it is done comes from Crates' bank: fetch it now
   const r = rules();
   S = run || { v: 1, id: s.id, size: s.size, hex: !!s.hex, mode: s.mode, day: s.day ?? null, play: s.play || "solo", grid: emptyGrid(P), undo: [], redo: [], ms: 0, mistakes: 0, hints: 0,
     name: null, done: false, rules: s.rules || { ...r } };
@@ -662,12 +666,32 @@ function drawStrip() {
     else r.hidden = true;
   }
 }
+// ---------- the payoff: once it is drawn and named, what it is, one thing to know of it, and where it is ----------
+let fact = { id: null, text: "" }, globeFor = null;
+/** Whether the picture is drawn and named (or naming is off): the answer may show. */
+const revealed = () => !!S?.done && !askingName && !$("nameDlg").open;
+function factText() {
+  if (fact.id === pic.id) return fact.text;
+  const id = pic.id;
+  fact = { id, text: "" };
+  factFor(pic, { marked: markedIn(), mix: mixFromSubjects([...KB_TOPICS.country, ...KB_TOPICS.commodity], TOPIC_OF.kb, subjectsOn()) }).then(t => { if (pic?.id === id) { fact = { id, text: t }; drawLine(); } });
+  return "";
+}
+function drawReveal() {
+  const key = revealed() ? pic.id : null;
+  if (key === globeFor) return;
+  globeFor = key;
+  const c = $("globe"), cs = getComputedStyle(document.documentElement);
+  if (!key) { c.getContext("2d").clearRect(0, 0, c.width, c.height); return; }
+  const col = n => cs.getPropertyValue(n).trim() || "#888";
+  drawGlobe(c, ringsOf(pic), { sea: `color-mix(in srgb, ${col("--ng-water")} 28%, transparent)`, land: `color-mix(in srgb, ${col("--ink")} 16%, transparent)`, lit: col("--ng-land"), ink: col("--ink") });
+}
 function drawLine() {
   const l = $("line");
   let text = message?.text;
   if (!text) {
     if (!S) text = "The same picture for everyone at the table.";
-    else if (S.done) text = "";
+    else if (S.done) text = revealed() ? factText() : "";
     else if (COOP) text = "One grid for both of you. Tap a clue to point your partner at that line.";
     else if (S.play === "split") text = S.mode === "duel" ? split.help()
       : P.hex ? "You read the lines with numbers: fill what they tell you, and the computer works the shaded ones from what you draw."
@@ -683,6 +707,7 @@ function drawResult() {
   const done = !!S?.done && !$("nameDlg").open;
   $("controls").hidden = done;
   $("result").hidden = !done;
+  drawReveal();                                                     // (after the panel shows: a hidden canvas has no size to draw into)
   if (!done) return;
   const v = $("verdict"), head = document.createElement("b");
   head.textContent = askingName ? "Solved" : `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}`;

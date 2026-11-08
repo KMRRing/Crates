@@ -170,6 +170,11 @@ export const PICTURES = [
 ];
 const byId = new Map(PICTURES.map(p => [p.id, p]));
 export const pictureOf = id => byId.get(id) || null;
+/** The rings a picture is drawn from, for showing where it is: a country's, a lake's, a part's; a flag's, its country's. */
+export function ringsOf(pic) {
+  const s = shapes.get(pic.id) || (pic.topic === "flags" ? shapes.get(`c-${pic.about}`) : null);
+  return s?.rings || null;
+}
 
 /** The names a picture may be given: its own, without "Lake" or "the", and what else it goes by; for a flag, any flag
  *  that looks the same. */

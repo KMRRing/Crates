@@ -46,7 +46,7 @@ html[data-mode="night"] { --ng-in: #6FA0D2; --ng-good: #7FC2A8; --ng-bad: #E8806
 .ng-side { display: grid; align-content: start; margin-top: .55rem; min-height: 8.6rem; }
 .ng-side > .ng-line { grid-area: 1 / 1; }
 .ng-side > .ng-controls, .ng-side > .ng-result { grid-area: 2 / 1; }
-.ng-line { margin: 0 0 .45rem; min-height: 2.6em; font-size: .86rem; line-height: 1.3; color: var(--ink-soft); }
+.ng-line { margin: 0 0 .45rem; min-height: 2.6em; max-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; font-size: .86rem; line-height: 1.3; color: var(--ink-soft); }
 .ng-line b { color: var(--ink); font-weight: 800; }
 .ng-line.bad { color: var(--ng-bad); }
 .ng-line.good { color: var(--ng-good); }
@@ -70,7 +70,9 @@ html[data-mode="night"] { --ng-in: #6FA0D2; --ng-good: #7FC2A8; --ng-bad: #E8806
 .ng-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); padding: 0 1.2rem;
   outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.ng-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-self: start; gap: .8rem; min-height: 6.2rem; }
+.ng-result { display: grid; grid-template-columns: 5.4rem minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; align-self: start; gap: .4rem .8rem; min-height: 6.2rem; }
+.ng-globe { grid-row: 1 / 3; width: 5.4rem; height: 5.4rem; align-self: center; }
+.ng-result .ng-go { grid-column: 2; }
 .ng-verdict { margin: 0; font-size: .95rem; font-weight: 700; line-height: 1.3; }
 .ng-verdict b { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); }
 .ng-verdict .good { color: var(--ng-good); }
@@ -122,5 +124,5 @@ dialog.ng-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.nonogram .ng-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
   #app.nonogram .ng-tools { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(3.4rem, 1fr)); }
   #app.nonogram .ng-acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #app.nonogram .ng-result { grid-template-columns: 1fr; align-self: end; }
+  #app.nonogram .ng-result { align-self: end; }
 }
