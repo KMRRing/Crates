@@ -68,8 +68,9 @@ const tablesFor = base => {
 };
 
 // a tile's own colour: the world's, then the state of its word. Pale, so the letters read; a found word's is stronger.
-const WORLD = { sea: [150, 188, 216], land: [182, 202, 150], sand: [214, 196, 150], ice: [226, 234, 244] };
-const TILE = { theme: [96, 190, 170], span: [246, 196, 70], shown: [186, 184, 204], sealed: [96, 104, 128], picked: [140, 224, 255] };
+// Korbi, 8 Nov 2026: every tile blue until it is part of a found word, then green (the world's sea/land/sand/ice tints made them hard to tell apart)
+const BLUE = [136, 172, 228];
+const TILE = { theme: [92, 188, 120], span: [246, 196, 70], shown: [186, 184, 204], sealed: [96, 104, 128], picked: [140, 224, 255] };
 const SLOTS = [[224, 122, 95], [61, 153, 112], [224, 184, 74], [122, 162, 227], [181, 141, 224], [224, 122, 168]];   // a team's words, in their finders' colours (the flat board's --p0..5)
 const INK = "#1b2430", HALO = "rgba(250,247,238,.75)", CORE = "rgb(12,14,22)";
 /** A cell's name where a team's sealed letter asks for it: its face (A to F) and its place on the face, 1 to 9. */
@@ -104,9 +105,7 @@ export function createPlanetView(host, { onTrace = () => {}, onSubmit = () => {}
         FOOT[3 * (off[i] + j) + a] = cell.c[a] + (p[a] - cell.c[a]) * (1 - GAP - BEVEL);
       }
     });
-    // the world's tint, by a smooth turbulence of where the cell lies, ice at the poles
-    const c = cell.c, w = Math.sin(c[0] * 3.1 + 1.3) * Math.cos(c[1] * 2.7 + 0.4) + Math.sin(c[2] * 4.1 - 0.7) * 0.8 + Math.sin(c[0] * 5.3 + c[1] * 3.3) * 0.4;
-    tint[i] = Math.abs(c[1]) > 0.8 ? WORLD.ice : w > 0.55 ? WORLD.sand : w > -0.15 ? WORLD.land : WORLD.sea;
+    tint[i] = BLUE;
   });
   const lift = RAISE * B.size;
   const VC = new Float64Array(3 * n), VN = new Float64Array(3 * n), facing = new Float64Array(n);
