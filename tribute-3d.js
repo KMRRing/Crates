@@ -10,6 +10,7 @@
 // every card (data-id), so a tap means what it does in the table view and tribute.js's handlers serve both.
 import { courtArt } from "./court-art.js";
 import { createParallax } from "./table3d.js";
+import { SIDEWAYS } from "./wide.js";
 import * as E from "./tribute-engine.js";
 
 const FACE = ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -222,8 +223,11 @@ export function createTable3d(c) {
     capEl.innerHTML = html;
     const fr = field.getBoundingClientRect(), cards = [...playBox.querySelectorAll(".t3-lay")].map(e => e.getBoundingClientRect());
     if (!cards.length || !fr.width) return;
-    capEl.style.left = `${(Math.min(...cards.map(r => r.left)) / 2 + Math.max(...cards.map(r => r.right)) / 2 - fr.left).toFixed(1)}px`;
-    capEl.style.top = `${(Math.max(...cards.map(r => r.bottom)) - fr.top + 6).toFixed(1)}px`;
+    const side = matchMedia(SIDEWAYS).matches, left = Math.min(...cards.map(r => r.left)), right = Math.max(...cards.map(r => r.right));
+    // held sideways there is width to spare and no height: the words stand beside the cards, not under them (they met your own word there)
+    capEl.style.translate = side ? "0 -50%" : "";
+    capEl.style.left = `${(side ? right + 10 - fr.left : left / 2 + right / 2 - fr.left).toFixed(1)}px`;
+    capEl.style.top = `${(side ? (Math.min(...cards.map(r => r.top)) + Math.max(...cards.map(r => r.bottom))) / 2 - fr.top : Math.max(...cards.map(r => r.bottom)) - fr.top + 6).toFixed(1)}px`;
   }
   /** Korbi, 7 Nov 2026: the card animation was sometimes there and sometimes not. Any redraw that changed the pile's markup even slightly
    *  (a card's size follows your hand's) rebuilt every card and ended a flight half-way. The pile is now patched in place: a play

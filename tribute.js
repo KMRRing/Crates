@@ -72,10 +72,9 @@ const who = seat => (seat === me ? "You" : nameOf(seat));
 const keyNow = () => (G ? `${G.handNo}:${G.log.length}` : "");
 /** A phone held sideways (tribute.css's last query): the table takes the screen, your cards lie along its edge. */
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
-/** Held sideways, your cards in a row along the table's edge or stacked in columns as upright (Menu): on a phone (its
- *  short side a phone's, whichever way it's held, so the menu says the same either way) in a row, on a tablet stacked,
- *  unless you choose. */
-const sideOf = () => opts.side || (Math.min(innerWidth, innerHeight) <= 500 ? "row" : "stack");
+/** Held sideways, your cards stacked in columns (the default) or, by the Settings choice, in a row along the table's edge. */
+// Korbi, 8 Nov 2026: stacked by default, a phone held sideways too; "Spread out" (Settings) is the row.
+const sideOf = () => opts.side || "stack";
 const FACE = r => (r === 15 ? "lvl" : ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"][r] || "");
 
 // ---------- the computer players and the coach, each in a worker ----------
@@ -460,7 +459,7 @@ function columns(hand, level) {
 /** Upright, or a tablet's height: a column to a rank, its cards each showing at least their corner. A tablet held
  *  sideways draws them larger, with the width to spare; a phone held sideways (stacked, by choice) at a phone's size. */
 function stacked(cols, rem, room) {
-  const big = sideways() && !low(), W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
+  const big = sideways() && !low(), tiny = sideways() && low(), W = (big ? 3.2 : tiny ? 2.3 : 2.6) * rem, H = (big ? 4.4 : tiny ? 3.2 : 3.6) * rem;   // (tiny: a phone on its side, stacked: the table needs the height)
   const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
   const deepest = Math.max(1, ...cols.map(c => c.length));
   // each card behind another shows its whole corner, the rank and the suit under it: with the rank alone, a straight
@@ -468,8 +467,8 @@ function stacked(cols, rem, room) {
   // its corners drawn smaller (tight), so it doesn't take the table's room.
   // Korbi, 7 Nov 2026: the table's size must not change as the cards are rearranged (a rank's stack growing from four to five). The hand
   // always takes the room of its deepest possible stack, and a deeper column has its corners drawn closer to fit it.
-  const index = 2.1 * rem, reach = 7.2 * rem;
-  const drop = deepest > 1 ? Math.min(index, Math.max(0.9 * rem, reach / (deepest - 1))) : 0, tight = deepest > 1 && drop < index;
+  const index = 2.1 * rem, reach = (tiny ? 5.2 : 7.2) * rem;
+  const drop = deepest > 1 ? Math.min(index, Math.max((tiny ? 0.7 : 0.9) * rem, reach / (deepest - 1))) : 0, tight = deepest > 1 && drop < index;
   const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
   const at = [];
   cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
@@ -1113,6 +1112,7 @@ function openMenu() {
   const rule = (k, v) => { set(k, v); if (together.room) together.act(g => { if (!g.table) return false; g.table[k] = v; }); };
   part(body, "settings").append(
     choice("View", VIEWS, wants3D(opts.view, "3d") ? "3d" : "flat", v => { opts.view = v; write(OPTS, opts); showView(); render(); }),
+    choice("Your cards, held sideways", [["stack", "Stacked"], ["row", "Spread out"]], sideOf(), v => { opts.side = v; write(OPTS, opts); render(); }),
     setsRules() ? toggle("Coach", coach() !== "off", v => { rule("coach", v ? "hints" : "off"); hint = null; advise(); render(); })
       : line(`Coach ${coach() === "off" ? "off" : "on"}, as ${party?.partyHost()?.name || "the host"} set it for the table.`),
   );
@@ -1353,7 +1353,11 @@ onPause(() => { clearTimeout(timer); table3d?.hold(true); render(); }, () => { t
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 let resizeTimer = null;
-addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 60); });
+// Korbi, 8 Nov 2026: turning the phone back upright left the page scrolled up under the status bar (the sideways layout is taller than
+// the upright one for a moment, and iOS keeps the offset), so the banner sat behind the island: every turn puts the page back at the top.
+const unscroll = () => { scrollTo(0, 0); for (const e of [document.scrollingElement, document.body, $("app")]) if (e && e.scrollTop) e.scrollTop = 0; };
+addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { unscroll(); render(); }, 60); setTimeout(unscroll, 350); });
+addEventListener("orientationchange", () => { unscroll(); setTimeout(unscroll, 350); });
 
 /** The view chosen in Menu: the cloth as it was (#table's seats), or the table tipped away in perspective (#board3d, tribute-3d.js).
  *  Your cards, the coach's line and the buttons are the same elements in both; so is the table itself, so the header and the

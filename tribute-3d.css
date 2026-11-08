@@ -390,3 +390,16 @@ html[data-mode="night"] #app.tb3 .tb-table { background: none; }
 #app.tb3 .t3-plate.at-top { top: calc(6% + 1.9rem); display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: .5rem; row-gap: .2rem; }
 #app.tb3 .t3-plate.at-top .t3-tally { grid-column: 1 / -1; justify-self: center; }
 #app.tb3 .t3-plate.at-top .t3-info { text-align: left; }
+
+/* Korbi, 8 Nov 2026 (held sideways, your cards stacked): the ally's hand beside its name rather than under it, so it never reaches the
+   play; what you played stands beside your seat, and the play to beat beside the cards (tribute-3d.js, caption), so no word hides another.
+   (These come last because the #app.tb3 rules above would win over a media block earlier on.) */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.tb3 .t3-plate.at-top { top: 2.1rem; grid-template-columns: auto auto auto; column-gap: .45rem; }
+  #app.tb3 .t3-plate.at-top .t3-tally { grid-column: auto; flex-direction: row; align-items: center; gap: .35rem; }
+  #app.tb3 .t3-plate.at-top .t3-fan { margin-bottom: 0; }
+  #app.tb3 .t3-plate.at-top .t3-act { left: 50%; bottom: auto; top: 100%; translate: -50% .1rem; }
+  #app.tb3 .t3-plate.at-me .t3-act { top: 50%; left: 100%; translate: .3rem -50%; }
+  #app.tb3 .t3-plate.at-me { padding-top: .6rem; margin-top: -.6rem; }
+  #app.tb3 .t3-centre { top: 27%; bottom: 31%; }
+}
