@@ -18,6 +18,7 @@ import { isMoving } from "./columbiad-engine.js";
 import { FAR } from "./columbiad-levels-far.js";
 
 const EARTH = { id: "earth", mu: 34, r: 4.2 };
+const MOON = (x, y, r, mu) => ({ id: "moon", at: [x, y], mu, r });
 const moon = (x, y) => ({ id: "moon", at: [x, Math.round((y + 0.2) * 100) / 100], mu: 7.5, r: 1.35 });
 const WORLD = { barrels: 16, dial: [2.0, 4.4], dt: 1 / 60, tMax: 30, bounds: 40, site: 90, goal: { type: "hit" }, scatter: { v: 0.002, deg: 0.15 }, cone: { len: 12 }, par: 1,
   frame: [-3.9, 2.9, 3.9, 12.8], band: { lean: 60, charge: [0.5, 16] } };
@@ -25,35 +26,38 @@ const S2 = { scatter: { v: 0.003, deg: 0.2 } };                  // the later se
 const HOME = r => ({ at: [0, 4.2], r });                    // a ring on the ground at the pad: where a shot that has been round the Moon comes down
 
 const CORE = [
+  // Korbi, 8 November 2026: the first chapters were all one picture (a Moon in the middle, a ring just past its shoulder) and every
+  // solution a gentle bend. Their layouts are now found by search (a Moon of any size and place, the pad at the side or the top, a
+  // ring wherever it takes a real swing round the Moon to reach), each proved by the finder: the Moon's pull is what wins it.
   { id: 1, name: "Beside the Moon", idea: "The Moon pulls: aim wide of it and be drawn in", levels: [
-    { ...WORLD, id: "1-1", name: "Beside the Moon", note: "The ring lies beyond the Moon's shoulder. The Moon pulls the shot: aim wide of it and let it bend you in.",
-      bodies: [EARTH, moon(0.6, 8.7)], target: { at: [2.2, 10.6], r: 0.6 }, aim: { angle: 72, charge: 10 } },
-    { ...WORLD, id: "1-2", name: "The other shoulder", note: "The same from the left. Power sets how flat the arc is; the angle then has to follow.",
-      bodies: [EARTH, moon(-0.4, 8.9)], target: { at: [-1.9, 11.1], r: 0.55 }, aim: { angle: 108, charge: 10 } },
-    { ...WORLD, id: "1-3", name: "High shoulder", note: "A ring higher up the Moon's far side.",
-      bodies: [EARTH, moon(0, 9)], target: { at: [1.3, 11.2], r: 0.5 }, cone: { len: 11 }, aim: { angle: 72, charge: 10 } },
-    { ...WORLD, id: "1-4", name: "Close pass", note: "Hugging the Moon: its pull is strongest here.",
-      bodies: [EARTH, moon(0.8, 8.6)], target: { at: [2.4, 10.2], r: 0.45 }, cone: { len: 10 }, aim: { angle: 72, charge: 10 } },
+    { ...WORLD, id: "1-1", name: "Beside the Moon", note: "The ring is up and to the left, the Moon low on the right. The Moon pulls the shot: aim past it and let it bend you in.",
+      bodies: [EARTH, MOON(1.87, 6.9, 1.35, 7.95)], target: { at: [1.26, 9.35], r: 0.62 }, aim: { angle: 90, charge: 10 } },
+    { ...WORLD, id: "1-2", name: "The other shoulder", note: "From the pad's other side: power sets how flat the arc is, and the angle then has to follow.",
+      site: 105, bodies: [EARTH, MOON(-1.65, 6.5, 1.1, 5.77)], target: { at: [-0.66, 9.25], r: 0.58 }, aim: { angle: 105, charge: 10 } },
+    { ...WORLD, id: "1-3", name: "A small moon", note: "A small Moon pulls less: the shot has to pass closer to be turned.",
+      bodies: [EARTH, MOON(0.04, 8.42, 0.9, 3.14)], target: { at: [1.48, 11.1], r: 0.54 }, aim: { angle: 90, charge: 10 } },
+    { ...WORLD, id: "1-4", name: "Wide of the Moon", note: "The ring is out at the edge: a long way across, the Moon's pull bending the whole of it.",
+      site: 105, bodies: [EARTH, MOON(-0.24, 6.87, 1.1, 4.91)], target: { at: [-2.84, 10.13], r: 0.5 }, aim: { angle: 105, charge: 10 } },
   ] },
   { id: 2, name: "Behind the Moon", idea: "The ring is hidden by the Moon: there is no straight line, only a way round", levels: [
-    { ...WORLD, ...S2, id: "2-1", name: "Eclipse", note: "Dead behind the Moon. Go round either side.",
-      bodies: [EARTH, moon(0.6, 8.7)], target: { at: [0.6, 11.5], r: 0.4 }, aim: { angle: 70, charge: 10 } },
-    { ...WORLD, ...S2, id: "2-2", name: "Moonshadow", note: "Tucked close behind it.",
-      bodies: [EARTH, moon(-0.8, 8.5)], target: { at: [-0.8, 11.0], r: 0.38 }, cone: { len: 10 }, aim: { angle: 110, charge: 10 } },
-    { ...WORLD, ...S2, id: "2-3", name: "Off the line", note: "Behind the Moon as the pad sees it, which is not straight up.",
-      bodies: [EARTH, moon(1.2, 9)], target: { at: [1.8, 11.7], r: 0.36 }, cone: { len: 10 }, aim: { angle: 70, charge: 10 } },
-    { ...WORLD, ...S2, id: "2-4", name: "Far behind", note: "Well out in its shadow: a long way round.",
-      bodies: [EARTH, moon(0.2, 8.4)], target: { at: [0.5, 12.1], r: 0.34 }, cone: { len: 9 }, aim: { angle: 70, charge: 10 } },
-    { ...WORLD, ...S2, id: "2-5", name: "Needle", note: "A small ring behind a heavy Moon.",
-      bodies: [EARTH, moon(-0.4, 8.8)], target: { at: [-0.5, 11.4], r: 0.3 }, cone: { len: 8 }, aim: { angle: 110, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-1", name: "Eclipse", note: "Dead behind the Moon. Go round either side.", site: 60,
+      bodies: [EARTH, MOON(0.54, 8.9, 1.1, 5.46)], target: { at: [-0.14, 11.21], r: 0.45 }, aim: { angle: 60, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-2", name: "Moonshadow", note: "A small Moon, and the ring tucked close behind it as the pad sees it.", site: 120,
+      bodies: [EARTH, MOON(-0.95, 7.14, 0.9, 3.8)], target: { at: [-0.28, 9.18], r: 0.42 }, aim: { angle: 120, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-3", name: "Off the line", note: "Behind the Moon as the pad sees it, which is not straight up.", site: 75,
+      bodies: [EARTH, MOON(1.79, 7.05, 1.7, 10.77)], target: { at: [2.57, 10.36], r: 0.4 }, aim: { angle: 75, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-4", name: "Far behind", note: "A heavy Moon, low and close: the way round it is long.",
+      bodies: [EARTH, MOON(0.4, 7.41, 1.7, 12.21)], target: { at: [0.77, 10.35], r: 0.35 }, aim: { angle: 90, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-5", name: "Needle", note: "A small ring behind a heavy Moon, out at the edge.", site: 60,
+      bodies: [EARTH, MOON(-1.05, 7.5, 1.7, 12.42)], target: { at: [-2.76, 9.6], r: 0.32 }, aim: { angle: 60, charge: 10 } },
   ] },
   { id: 3, name: "Round and home", idea: "Out by one side of the Moon and back: a free return", levels: [
     { ...WORLD, ...S2, id: "3-1", name: "Free return", note: "Through the gate beside the Moon, then home to the ring at the pad.",
-      bodies: [EARTH, moon(0.6, 8.7)], gates: [{ at: [-1.6, 9.8], r: 0.65 }, HOME(0.8)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 9 }, aim: { angle: 70, charge: 10 } },
-    { ...WORLD, ...S2, id: "3-2", name: "Figure of eight", note: "The gate is on the other shoulder: the way out is the right-hand side.",
-      bodies: [EARTH, moon(-0.4, 8.9)], gates: [{ at: [1.7, 9.9], r: 0.6 }, HOME(0.7)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 8 }, aim: { angle: 110, charge: 10 } },
-    { ...WORLD, ...S2, id: "3-3", name: "Apollo", note: "A tight gate and a small ring at home.",
-      bodies: [EARTH, moon(0.4, 9)], gates: [{ at: [-1.4, 10.5], r: 0.5 }, HOME(0.6)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 7 }, aim: { angle: 70, charge: 10 } },
+      bodies: [EARTH, MOON(0.54, 7.25, 1.35, 8.89)], gates: [{ at: [2.36, 8.24], r: 0.63 }, HOME(0.79)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 9 }, aim: { angle: 90, charge: 10 } },
+    { ...WORLD, ...S2, id: "3-2", name: "Figure of eight", note: "A Moon high on the right, the gate above it: out one side, round, and back down the other.", site: 75,
+      bodies: [EARTH, MOON(1.71, 8.8, 1.35, 7.55)], gates: [{ at: [1.96, 10.96], r: 0.59 }, HOME(0.81)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 8 }, aim: { angle: 75, charge: 10 } },
+    { ...WORLD, ...S2, id: "3-3", name: "Apollo", note: "A heavy Moon, a tight gate and a small ring at home.",
+      bodies: [EARTH, MOON(-0.36, 7.53, 1.7, 12.02)], gates: [{ at: [-1.23, 9.75], r: 0.58 }, HOME(0.71)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 7 }, aim: { angle: 90, charge: 10 } },
   ] },
 ];
 export const SECTIONS = [...CORE, ...FAR];

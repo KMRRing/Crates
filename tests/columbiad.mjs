@@ -158,7 +158,8 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
     check(E.clampAim(lvl, a).t === 3.2 && E.clampAim(lvl, { ...a, t: 99 }).t === E.DELAY_MAX && E.clampAim(lvl, { ...a, t: 3.14159 }).t === 3.1 && E.clampAim(CORE[0], { angle: 80, charge: 9 }).t === undefined && r1.x === r2.x && r1.y === r2.y && (r1.x !== r3.x || r1.y !== r3.y),
       "the launch countdown is kept in tenths of a second up to its limit, a level without motion has none, and the same angle, power and countdown fly the same shot (a tenth later is another)");
   }
-  check(CORE.every(l => { const w = E.worldOf(l), e = w.bodies[0], m = w.bodies[1]; return e.r >= 4 && m.r >= 1.2 && m.r / e.r > 0.25 && m.mu / e.mu > 0.15 && m.mu / e.mu < 0.3 && !m.rail; }), "the first chapters have a large Earth and Moon (the Moon over a quarter of the Earth's radius, its pull a fifth of the Earth's)");
+  // Korbi, 8 November 2026: the first chapters' Moons vary in size, place and pull (a small one, a heavy one), found by search, no longer one picture
+  check(CORE.every(l => { const w = E.worldOf(l), e = w.bodies[0], m = w.bodies[1]; return e.r >= 4 && m.r >= 0.9 && m.r / e.r > 0.2 && m.mu / e.mu > 0.08 && m.mu / e.mu < 0.4 && !m.rail; }), "the first chapters have a large Earth and a Moon of a fair size (Moons of every size since 8 Nov 2026, Korbi: no longer one picture; the pull between a twelfth and two fifths of the Earth's)");
   check(LEVELS.every(l => l.dial && l.dial[0] < l.dial[1] + 1e-9 && E.dialSpeed(l, 0) === 0 && E.dialSpeed(l, l.barrels) === l.dial[1] && E.dialSpeed(l, l.barrels * 0.5) < E.dialSpeed(l, l.barrels * 0.6)), "a level's dial is a straight line from its slowest to its fastest speed");
   const sec = SECTIONS.slice(0, 2).map(s => s.levels.map(l => l.target.r));
   check(sec[0].every((r, i) => i === 0 || r <= sec[0][i - 1]) && sec[1].every((r, i) => i === 0 || r <= sec[1][i - 1]) && Math.max(...sec[1]) < Math.min(...sec[0]), `a gentle ramp: rings shrink within a chapter (${sec[0].join(", ")}; ${sec[1].join(", ")}) and the second chapter's are smaller than the first's`);
@@ -214,13 +215,13 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
     const first = (lvl.gates || [lvl.target])[0], moon = E.worldOf(lvl).bodies[1], s = E.direction(lvl.site ?? 90), re = E.worldOf(lvl).re;
     const px = s[0] * re, py = s[1] * re, dx = first.at[0] - px, dy = first.at[1] - py, len = rad(dx, dy), perp = Math.abs((moon.x - px) * dy - (moon.y - py) * dx) / len, along = ((moon.x - px) * dx + (moon.y - py) * dy) / len;
     const p0 = PROOFS[lvl.id][0], win = windowOf(lvl, p0);
-    check((!!lvl.gates || (perp < moon.r && along > 0 && along < len + moon.r)) && win.da === p0.win.da && win.dc === p0.win.dc && PROOFS[lvl.id].length >= 2, `${lvl.id}: ${lvl.gates ? "a gate and a ring at the pad" : `the Moon is in the way of the straight line (it passes ${perp.toFixed(2)} from the Moon's middle)`}, two ways round, and the window the bots measure is the stored one`);
+    check((!!lvl.gates || lvl.id.startsWith("1-") || (perp < moon.r && along > 0 && along < len + moon.r)) && win.da === p0.win.da && win.dc === p0.win.dc && PROOFS[lvl.id].length >= 2, `${lvl.id}: ${lvl.gates ? "a gate and a ring at the pad" : lvl.id.startsWith("1-") ? "the ring is beside the Moon" : `the Moon is in the way of the straight line (it passes ${perp.toFixed(2)} from the Moon's middle)`}, two ways round, and the window the bots measure is the stored one`);
   }
 }
 
 // ---------- the drag-back control ----------
 {
-  const lvl = LEVELS[1], full = 144;
+  const lvl = LEVELS[0], full = 144;
   const aim = { angle: 66, charge: 10.4 }, p = A.pullOf(lvl, aim, full), back = A.aimOf(lvl, p, full, aim);
   check(p[0] < 0 && p[1] > 0 && near(back.angle, aim.angle, 0.06) && near(back.charge, aim.charge, 0.02), "the pull is opposite the shot (down and to the left for a shot up and to the right), and gives its aim back");
   const into = A.constrain(lvl, [30, -80], full);
