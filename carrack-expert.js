@@ -6,22 +6,23 @@
 // ahead; the best few are played a second year (everyone greedy) and judged there. A position is judged by `worth`
 // (carrack-bot.js's `valueOf`, the final standing once the game is over) against the strongest rival. Time-boxed: it stops looking when its budget in milliseconds is spent.
 // TUNING is what tools/carrack-arena.mjs tunes; a level given as an object overrides it.
-import { copy, resolveRound, checkOrders, held, factors } from "./carrack-rules.js";
+import { copy, resolveRound, checkOrders, held, factors, monopolies } from "./carrack-rules.js";
 import { valueOf, potential, plan, openings, lcg } from "./carrack-bot.js";
 import { bookOrders } from "./carrack-book.js";
 
 export const TUNING = { budget: 450, scenarios: 6, pool: 3, noise: 0.5, noisy: 4, deep: 4, rivalMax: 0.6, rivalMean: 0.1, worst: 0.15, second: 0.65, hold: 0.55, book: true };
 
 /** How good a position is for a seat, in standing points, as a planner reads it. */
-export function worth(w, seat) {
+export function worth(w, seat, mono) {
   if (w.step === "over") return w.res.stand[seat] + (w.res.winners.includes(seat) ? 2 : 0);
-  return valueOf(w, seat);
+  return valueOf(w, seat, mono);
 }
 /** A seat's worth against the field: its own less a share of the strongest rival's and of the rest's. */
 function against(w, seat, T) {
   let top = -1e9, sum = 0, nr = 0;
-  for (let k = 0; k < w.n; k++) if (k !== seat) { const v = worth(w, k); top = Math.max(top, v); sum += v; nr++; }
-  return worth(w, seat) - (nr ? T.rivalMax * top + T.rivalMean * sum / nr : 0);
+  const mono = w.step === "over" ? null : monopolies(w, w.mono);       // one reading of the goods for every seat's worth
+  for (let k = 0; k < w.n; k++) if (k !== seat) { const v = worth(w, k, mono); top = Math.max(top, v); sum += v; nr++; }
+  return worth(w, seat, mono) - (nr ? T.rivalMax * top + T.rivalMean * sum / nr : 0);
 }
 
 const keyOf = os => os.map(o => `${o.t}:${o.port ?? ""}:${o.from ?? ""}:${o.to ?? ""}:${o.n ?? ""}:${o.atk ?? ""}`).sort().join("|");

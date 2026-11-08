@@ -26,6 +26,23 @@ export const COST = { factor: 2, build: 3, fort: 3, refit: 4, claim: 4, redress:
 export const LEVELS = ["easy", "medium", "hard", "expert"];
 
 const P = id => IDX[id];
+// the ports named in the rules, looked up once (the hot loops of the planners ask for them a million times)
+const I_ADE = IDX.ADE;
+const I_BDA = IDX.BDA;
+const I_CAL = IDX.CAL;
+const I_CON = IDX.CON;
+const I_ELM = IDX.ELM;
+const I_GOA = IDX.GOA;
+const I_GUA = IDX.GUA;
+const I_HAK = IDX.HAK;
+const I_LON = IDX.LON;
+const I_MLC = IDX.MLC;
+const I_MNL = IDX.MNL;
+const I_NAG = IDX.NAG;
+const I_NIN = IDX.NIN;
+const I_NOV = IDX.NOV;
+const I_SEV = IDX.SEV;
+const I_YUE = IDX.YUE;
 /** Regions where ocean ships matter (the Atlantic, the Indian Ocean and its seas). */
 const OCEAN_REGIONS = new Set([1, 3, 4, 5, 6]);
 const RIM = new Set([4, 5, 6]);
@@ -87,27 +104,27 @@ export const seatOfPower = (s, id) => s.pw.indexOf(POWER_IDX[id]);
 const nm = (s, seat) => (seat >= 0 ? powerOf(s, seat).name : "the port's people");
 
 /** Ports where the Hanse founds a factor without a fleet: the Baltic and the North Sea (London, Antwerp). */
-export const kontorPort = p => PORTS[p].region === 0 || p === P("LON");
+export const kontorPort = p => PORTS[p].region === 0 || p === I_LON;
 /** Is the port in play (Nagasaki only after 1571)? */
-export const active = (s, p) => !(p === P("NAG") && !s.F.naga);
+export const active = (s, p) => !(p === I_NAG && !s.F.naga);
 /** Is the port shut to this seat's fleets and factors? (the sea ban, Japan, Banda, the Peterhof) */
 export function closedTo(s, seat, p) {
   const pi = s.pw[seat];
   if (!active(s, p)) return true;
-  if (p === P("BDA") && s.F.banda) return true;
-  if ((p === P("GUA") || p === P("YUE")) && s.F.ban && pi !== MING && pi !== RYUKYU) return true;
-  if (p === P("NIN") && pi !== MING && pi !== RYUKYU) return true;
-  if ((p === P("HAK") || p === P("NAG")) && s.F.japan && pi !== MING && pi !== RYUKYU) return true;
-  if (p === P("NOV") && s.F.peter && pi === HANSE) return true;
+  if (p === I_BDA && s.F.banda) return true;
+  if ((p === I_GUA || p === I_YUE) && s.F.ban && pi !== MING && pi !== RYUKYU) return true;
+  if (p === I_NIN && pi !== MING && pi !== RYUKYU) return true;
+  if ((p === I_HAK || p === I_NAG) && s.F.japan && pi !== MING && pi !== RYUKYU) return true;
+  if (p === I_NOV && s.F.peter && pi === HANSE) return true;
   return false;
 }
 /** What a held port pays a round. */
 export function portValue(s, p) {
   let v = PORTS[p].value;
-  if (p === P("BDA") && s.F.banda) return 0;
-  if (p === P("HAK") && s.F.iwami) v++;
-  if (p === P("SEV") && s.F.potosi) v++;
-  if (p === P("MNL") && s.F.manila) v++;
+  if (p === I_BDA && s.F.banda) return 0;
+  if (p === I_HAK && s.F.iwami) v++;
+  if (p === I_SEV && s.F.potosi) v++;
+  if (p === I_MNL && s.F.manila) v++;
   return v;
 }
 export const fleetsAt = (s, p) => s.fl.reduce((a, f) => a + f[p], 0);
@@ -120,7 +137,7 @@ export function sourcesOf(s, g) {
   return G.ports.filter((p, i) => {
     const late = G.late?.[G.src[i]];
     if (late && !s.F[late]) return false;
-    if (p === P("BDA") && s.F.banda) return false;
+    if (p === I_BDA && s.F.banda) return false;
     return active(s, p);
   });
 }
@@ -134,8 +151,10 @@ export function presence(s, g, seat) {
 export function monopolies(s, prev = s.mono) {
   return GOODS.map((_, g) => {
     let best = 1, who = -1, tie = [];
+    const src = sourcesOf(s, g);                                  // once a good, not once a seat (the planners ask a million times)
     for (let k = 0; k < s.n; k++) {
-      const c = presence(s, g, k);
+      let c = 0;
+      for (let i = 0; i < src.length; i++) if (s.own[src[i]] === k || hasFactor(s, src[i], k)) c++;
       if (c > best) { best = c; who = k; tie = [k]; } else if (c === best && c >= 2) tie.push(k);
     }
     if (who < 0) return -1;
@@ -158,7 +177,7 @@ export function incomeOf(s, seat, mono = s.mono) {
   let ports = 0, fac = 0;
   for (let p = 0; p < N_PORTS; p++) {
     if (s.own[p] === seat) ports += portValue(s, p);
-    else if (hasFactor(s, p, seat) && active(s, p) && !(p === P("BDA") && s.F.banda)) fac++;
+    else if (hasFactor(s, p, seat) && active(s, p) && !(p === I_BDA && s.F.banda)) fac++;
   }
   add(ports, "ports"); add(Math.floor(fac / 2), "factors");
   let goods = 0;
@@ -172,7 +191,7 @@ export function incomeOf(s, seat, mono = s.mono) {
   if (pi === OTTOMANS) add((H("CON") ? 1 : 0) + (H("ALE") ? 1 : 0) + (H("ADE") ? 1 : 0) + (H("ALP") ? 1 : 0), "straits and Red Sea");
   if (pi === MING && !s.F.mingfall) { add(3 * ((H("GUA") ? 1 : 0) + (H("NIN") ? 1 : 0)), "the great market"); if (s.F.ban) add(-1, "the sea ban"); }
   if (pi === GUJARAT) add(Math.min(2, ["MLC", "CAL", "ADE", "HOR", "CAM"].reduce((a, i) => a + (F(i) ? other(P(i), seat) : 0), 0)), "carrying for others");
-  if (pi === MALACCA && H("MLC")) add(1 + Math.min(3, other(P("MLC"), seat)), "the strait");
+  if (pi === MALACCA && H("MLC")) add(1 + Math.min(3, other(I_MLC, seat)), "the strait");
   if (pi === RYUKYU) add(["GUA", "YUE", "NIN"].filter(F).length * (s.F.ban ? 2 : 1), "the go-between");
   if (pi === SWAHILI) add(2 * ["SOF", "KIL"].filter(i => H(i)).length, "gold");
   add(POWERS[pi].base, POWERS[pi].baseName);
@@ -190,7 +209,7 @@ export function reach(s, seat, from) {
   const east = s.round % 2 === 1;
   const ott = seatOfPower(s, "ottomans");
   const own = pi === OTTOMANS || pi === GUJARAT;
-  const mlcHolder = s.own[P("MLC")];
+  const mlcHolder = s.own[I_MLC];
   const freeMalacca = pi === MALACCA || pi === GUJARAT || pi === RYUKYU;
   function sail(a, e) {
     if (!active(s, e.to)) return false;
@@ -217,8 +236,8 @@ export function reach(s, seat, from) {
       if (d > 3 || !sail(p, e)) continue;
       const q = e.to;
       if (q === from || path.includes(q)) continue;
-      const ot = ottoll || (!own && ott >= 0 && ott !== seat && ((e.f.includes("r") && s.F.egypt) || p === P("CON") || q === P("CON")));
-      const mt = malToll || (!freeMalacca && mlcHolder >= 0 && mlcHolder !== seat && q === P("MLC"));
+      const ot = ottoll || (!own && ott >= 0 && ott !== seat && ((e.f.includes("r") && s.F.egypt) || p === I_CON || q === I_CON));
+      const mt = malToll || (!freeMalacca && mlcHolder >= 0 && mlcHolder !== seat && q === I_MLC);
       const pr = pir + (e.f.includes("p") ? 1 : 0);
       const closed = closedTo(s, seat, q);
       path.push(q);
@@ -237,7 +256,7 @@ const isInt = v => Number.isInteger(v);
 const buildCost = (s, seat, p) => {
   const pi = s.pw[seat];
   if (pi === GUJARAT) return COST.build + 1;
-  if (pi === OTTOMANS && PORTS[p].region !== 2 && p !== P("ADE")) return 2 * COST.build;
+  if (pi === OTTOMANS && PORTS[p].region !== 2 && p !== I_ADE) return 2 * COST.build;
   return COST.build;
 };
 const refitCost = s => (s.F.voc ? 2 : COST.refit);
@@ -274,7 +293,7 @@ export function checkOrders(s, seat, orders) {
         else if (o.atk !== owner && s.fl[o.atk][o.to] < 1) return `${nm(s, o.atk)} has nothing at ${PORTS[o.to].name}`;
         if ((pi === MING && s.pw[o.atk] === RYUKYU) || (pi === RYUKYU && s.pw[o.atk] === MING)) return "Ryukyu and Ming do not fight";
         if (!active(s, o.to)) return "That port isn't open yet";
-        if (o.to === P("BDA") && s.F.banda) return "Banda is closed to all";
+        if (o.to === I_BDA && s.F.banda) return "Banda is closed to all";
       } else if (r.closed) return `${PORTS[o.to].name} is shut to your ships`;
       for (const [holder, n] of r.tolls) { silver -= n; void holder; }
       arrive[o.to] += o.n;
@@ -284,7 +303,7 @@ export function checkOrders(s, seat, orders) {
       if (s.own[o.port] === seat) return "You hold that port: no factor needed";
       if (hasFactor(s, o.port, seat)) return "You already have a factor there";
       if (closedTo(s, seat, o.port)) return `${PORTS[o.port].name} is shut to you`;
-      const kontor = pi === HANSE && kontorPort(o.port) && !(o.port === P("LON") && s.F.steel);
+      const kontor = pi === HANSE && kontorPort(o.port) && !(o.port === I_LON && s.F.steel);
       if (!kontor && s.fl[seat][o.port] < 1 && !dest.has(o.port) && !orders.some(m => m.t === "move" && m.to === o.port)) return "A factor needs a fleet in the port";
       silver -= COST.factor;
     } else if (o.t === "build") {
@@ -470,7 +489,7 @@ export function resolveRound(s, all, rng, opt = {}) {
   for (let k = 0; k < s.n; k++) {
     const pi = s.pw[k];
     for (const o of ord(k, "factor")) {
-      const kontor = pi === HANSE && kontorPort(o.port) && !(o.port === P("LON") && s.F.steel);
+      const kontor = pi === HANSE && kontorPort(o.port) && !(o.port === I_LON && s.F.steel);
       const there = s.fl[k][o.port] > 0;
       if (s.own[o.port] === k || hasFactor(s, o.port, k) || closedTo(s, k, o.port) || (!there && !kontor)) continue;
       const c = COST.factor;
@@ -572,21 +591,21 @@ function apply(s, id, rng, log) {
   const pt = seatOfPower(s, "portugal"), ott = seatOfPower(s, "ottomans"), han = seatOfPower(s, "hanse"), ming = seatOfPower(s, "ming"),
     ryu = seatOfPower(s, "ryukyu");
   switch (id) {
-    case "elmina": if (pt >= 0 && s.own[P("ELM")] === pt && !s.fort[P("ELM")]) { s.fort[P("ELM")] = 1; say("Portugal builds the fort of São Jorge da Mina at Elmina."); } else say(ev.name + ": no one raises it."); break;
-    case "peterhof": s.F.peter = 1; if (han >= 0) s.fac[P("NOV")] &= ~bit(han); say("Ivan III closes the Hanse's Peterhof at Novgorod; its factor is lost until 1514."); break;
-    case "calicut": if (pt >= 0 && s.own[P("CAL")] !== pt && !hasFactor(s, P("CAL"), pt)) { s.fac[P("CAL")] |= bit(pt); say("Portugal founds a factor at Calicut."); } break;
+    case "elmina": if (pt >= 0 && s.own[I_ELM] === pt && !s.fort[I_ELM]) { s.fort[I_ELM] = 1; say("Portugal builds the fort of São Jorge da Mina at Elmina."); } else say(ev.name + ": no one raises it."); break;
+    case "peterhof": s.F.peter = 1; if (han >= 0) s.fac[I_NOV] &= ~bit(han); say("Ivan III closes the Hanse's Peterhof at Novgorod; its factor is lost until 1514."); break;
+    case "calicut": if (pt >= 0 && s.own[I_CAL] !== pt && !hasFactor(s, I_CAL, pt)) { s.fac[I_CAL] |= bit(pt); say("Portugal founds a factor at Calicut."); } break;
     case "kilwa": if (pt >= 0) {
       for (const id2 of ["KIL", "MOM"]) {
         const o = s.own[P(id2)];
         if (o >= 0 && o !== pt) { const pay = Math.min(2, s.si[o]); s.si[o] -= pay; s.si[pt] += pay; if (s.fl[o][P(id2)] > 0) s.fl[o][P(id2)]--; s.gr[pt]++; say(`Portugal demands tribute from ${PORTS[P(id2)].name} (${pay} silver) and attacks it: one grievance token for Portugal.`); }
       }
     } break;
-    case "goa": if (pt >= 0 && s.own[P("GOA")] === -1) { s.own[P("GOA")] = pt; s.gr[pt]++; say("Portugal takes Goa: one grievance token."); } break;
+    case "goa": if (pt >= 0 && s.own[I_GOA] === -1) { s.own[I_GOA] = pt; s.gr[pt]++; say("Portugal takes Goa: one grievance token."); } break;
     case "malacca": if (pt >= 0) {
-      const o = s.own[P("MLC")];
+      const o = s.own[I_MLC];
       const mk = seatOfPower(s, "malacca");
-      if (o >= 0 && o === mk && factors(s, mk) < 3) { s.own[P("MLC")] = pt; s.fort[P("MLC")] = 1; s.gr[pt]++; say("Malacca falls to Portugal, which fortifies it: one grievance token."); }
-      else if (o === -1) { s.own[P("MLC")] = pt; s.gr[pt]++; say("Portugal takes Malacca: one grievance token."); }
+      if (o >= 0 && o === mk && factors(s, mk) < 3) { s.own[I_MLC] = pt; s.fort[I_MLC] = 1; s.gr[pt]++; say("Malacca falls to Portugal, which fortifies it: one grievance token."); }
+      else if (o === -1) { s.own[I_MLC] = pt; s.gr[pt]++; say("Portugal takes Malacca: one grievance token."); }
       else say("Portugal does not take Malacca.");
     } break;
     case "egypt": s.F.egypt = 1; if (ott >= 0) { setOwnerIfFree(s, ott, "ALE"); setOwnerIfFree(s, ott, "ALP"); say("The Ottomans take Egypt and Syria: Alexandria and Aleppo are theirs, and their toll runs on the Red Sea lane."); } else say("The Mamluks fall; Egypt changes hands."); break;
@@ -594,14 +613,14 @@ function apply(s, id, rng, log) {
     case "afonso": for (const id2 of ["SAO", "ELM", "MPI"]) { const o = s.own[P(id2)]; if (o >= 0) { s.gr[o]++; say(`${nm(s, o)} runs the trade at ${PORTS[P(id2)].name}: one grievance token.`); } } break;
     case "potosi": s.F.potosi = 1; say("Seville becomes a silver source."); break;
     case "eastafrica": for (const id2 of ["SOF", "KIL", "MOM", "MAL"]) { const o = s.own[P(id2)]; if (o >= 0) { s.gr[o]++; say(`${nm(s, o)} holds ${PORTS[P(id2)].name}, where people are shipped: one grievance token.`); } } break;
-    case "manila": s.F.manila = 1; for (let k = 0; k < s.n; k++) if (s.own[P("MNL")] === k || hasFactor(s, P("MNL"), k)) { s.si[k] += 3; say(`${nm(s, k)} shares in the galleon silver: 3 silver.`); } break;
+    case "manila": s.F.manila = 1; for (let k = 0; k < s.n; k++) if (s.own[I_MNL] === k || hasFactor(s, I_MNL, k)) { s.si[k] += 3; say(`${nm(s, k)} shares in the galleon silver: 3 silver.`); } break;
     case "ban": s.F.ban = 0; say("Yuegang opens to Chinese merchants; the sea ban no longer binds Ming."); break;
     case "nagasaki": s.F.naga = 1; say("Nagasaki opens."); break;
-    case "mita": if (s.F.potosi) for (let k = 0; k < s.n; k++) if (s.own[P("SEV")] === k || hasFactor(s, P("SEV"), k)) { s.gr[k]++; say(`${nm(s, k)} takes silver from Potosí: forced labour, one grievance token.`); } break;
-    case "steelyard": s.F.steel = 1; if (han >= 0) s.fac[P("LON")] &= ~bit(han); say("The Steelyard is closed; the Hanse loses London."); break;
+    case "mita": if (s.F.potosi) for (let k = 0; k < s.n; k++) if (s.own[I_SEV] === k || hasFactor(s, I_SEV, k)) { s.gr[k]++; say(`${nm(s, k)} takes silver from Potosí: forced labour, one grievance token.`); } break;
+    case "steelyard": s.F.steel = 1; if (han >= 0) s.fac[I_LON] &= ~bit(han); say("The Steelyard is closed; the Hanse loses London."); break;
     case "voc": s.F.voc = 1; say("Ocean ships are cheap (1 silver) and Portugal's lead ends."); break;
     case "satsuma": if (ryu >= 0) { s.si[ryu] = Math.max(0, s.si[ryu] - 2); say("Ryukyu pays Satsuma: 2 silver."); } break;
-    case "banda": s.F.banda = 1; for (let k = 0; k < s.n; k++) { s.fac[P("BDA")] &= ~bit(k); if (s.fl[k][P("BDA")]) s.fl[k][P("BDA")] = 0; } if (s.own[P("BDA")] >= 0) { s.own[P("BDA")] = -1; s.fort[P("BDA")] = 0; } say("Banda is closed to all, and its holders lose it."); break;
+    case "banda": s.F.banda = 1; for (let k = 0; k < s.n; k++) { s.fac[I_BDA] &= ~bit(k); if (s.fl[k][I_BDA]) s.fl[k][I_BDA] = 0; } if (s.own[I_BDA] >= 0) { s.own[I_BDA] = -1; s.fort[I_BDA] = 0; } say("Banda is closed to all, and its holders lose it."); break;
     case "japan": s.F.japan = 1; for (const id2 of ["HAK", "NAG"]) { const p = P(id2); for (let k = 0; k < s.n; k++) { const pi = s.pw[k]; if (pi === MING || pi === RYUKYU) continue; s.fac[p] &= ~bit(k); s.fl[k][p] = 0; if (s.own[p] === k) { s.own[p] = -1; s.fort[p] = 0; } } } say("Japan closes to all but the Chinese and Ryukyu."); break;
     case "mingfall": s.F.mingfall = 1; if (ming >= 0) { s.si[ming] = Math.max(0, s.si[ming] - 3); say("Ming loses its great market and 3 silver."); } break;
     case "typhoon": {

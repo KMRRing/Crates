@@ -19,9 +19,8 @@ import {
 const bit = seat => 1 << seat;
 
 /** How good a position is for a seat, in standing points. */
-export function valueOf(w, seat) {
+export function valueOf(w, seat, mono = monopolies(w, w.mono)) {   // mono: the position's, when a caller asks for every seat's
   const left = w.opts.rounds - w.round + 1;
-  const mono = monopolies(w, w.mono);
   let hd = 0, fc = 0, forts = 0, pen = 0, fleets = 0;
   for (let p = 0; p < N_PORTS; p++) {
     if (w.own[p] === seat) {
