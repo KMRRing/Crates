@@ -99,6 +99,7 @@ function arm(id, button) {
 export function roundOver(app) {
   try {
     if (!IN_FRAME) notePlayed(app === "glyph" ? "slate" : app);      // a round counted is a day played (ledger:played), Random or not
+    dispatchEvent(new CustomEvent("round-over", { detail: { app } }));   // sfx.js chimes for a page with no sound of its own
     if (!here || fired || (ALIAS[app] || app) !== here.id) return false;
     if (!soloNow()) { stop(); return false; }
     if (!acted) return false;

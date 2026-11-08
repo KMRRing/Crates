@@ -59,6 +59,7 @@ const RUNTIME = [
   ["pics.js", /^img\.src = tries\[/, "a Wikipedia picture: kept by sw.js once shown, or by Settings' Keep pictures offline"],
   ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
   ["sync.js", /^fetch\(url \+/, "Firebase: playing together, watching and syncing need a connection"],
+  ["hong-gl.js", /^img\.src = `data:image\/svg\+xml/, "a tile face drawn from an inline svg: a data: URL, nothing from the network"],
   ["timegrapher.js", /^img\.src = url$/, "a photo of a watch chosen on the phone (a blob: URL), read to be made small: nothing from the network"],
   ["theme.js", /^img\.src = l\[0\]$/, "the loader's mark: nine files named in the list beside it, every one kept"],
   ["lan-ui.js", /^frame\.src = (`party\.html\?table=\$\{partyCode\}`|url)$/, "an offline party's frame: Party and the pages it goes to, every one kept"],
