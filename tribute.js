@@ -467,12 +467,14 @@ function stacked(cols, rem, room) {
   // its corners drawn smaller (tight), so it doesn't take the table's room.
   // Korbi, 7 Nov 2026: the table's size must not change as the cards are rearranged (a rank's stack growing from four to five). The hand
   // always takes the room of its deepest possible stack, and a deeper column has its corners drawn closer to fit it.
-  const index = 2.1 * rem, reach = (tiny ? 5.2 : 7.2) * rem;
+  // Korbi, 8 Nov 2026: a phone on its side stacks closer (a corner is still rank and suit) and the cards stand on the screen's bottom edge.
+  const index = (tiny ? 1.5 : 2.1) * rem, reach = (tiny ? 4.2 : 7.2) * rem;
   const drop = deepest > 1 ? Math.min(index, Math.max((tiny ? 0.7 : 0.9) * rem, reach / (deepest - 1))) : 0, tight = deepest > 1 && drop < index;
   const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
   const at = [];
-  cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
-  return { W, H, at, tight, height: H + reach + 0.3 * rem };
+  const y0 = tiny ? reach - (deepest - 1) * drop : 0;            // on its side the hand sits on the foot of its room, whatever the deepest stack
+  cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: y0 + i * drop, z: i + 1 })));
+  return { W, H, at, tight, height: H + reach + (tiny ? 0 : 0.3 * rem) };
 }
 /** Held sideways, in a row (a phone's way, by choice a tablet's): the hand fanned along the table's edge, each card
  *  showing its corner, a little more room between ranks than within one, as a hand is held. On a phone, larger in full
