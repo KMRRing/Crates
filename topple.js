@@ -12,7 +12,7 @@
 // it was, replayed, or skipped back to, beating one only opens the next, and the only word of it is a line at the first win.
 // A table of several floors (a stream that goes over an edge, a gallery, a cave) shows one floor whole and the others faint; a
 // press, a drag and a laid piece mean the floor in play, which the buttons at the table's side choose (kept as topple:floor).
-import { CELLS, AXES, WAYS, PIECES, VERSION, rulesOf, newGame, migrate, coverFor, colourAt, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy, gateOf } from "./topple-engine.js";
+import { labShapes, CELLS, AXES, WAYS, PIECES, VERSION, rulesOf, newGame, migrate, coverFor, colourAt, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy, gateOf } from "./topple-engine.js";
 import { LEVELS, levelRules, COLOUR_NAMES } from "./topple-levels.js";
 import { mapSvg } from "./topple-map.js";
 import { heading, hexAt, SH, ZOOM, bounds, pieceSvg, floorYs, floorName } from "./topple-slab.js";
@@ -92,6 +92,7 @@ function savedGame() {
   return valid(g) && (inLevels() ? g.level === camp.at : g.level === undefined) ? g : null;
 }
 function save() {
+  if (S.lab) return;                                           // the Lab saves nothing, and leaves the game it came from as it was
   if (inLevels()) write(RUNS, { ...read(RUNS, {}), [camp.at + 1]: S });
   else write(RUN, S);
 }
@@ -318,7 +319,7 @@ function drawStrip(shown = { score: S.score, stars: S.stars || 0, best: Math.max
   }
   const k = $("knock");
   k.className = `tp-knock${S.due && !S.over ? " now" : ""}`;
-  k.textContent = S.over ? "" : knockWords();
+  k.textContent = S.over ? "" : S.lab ? "Lab: slide a domino to knock it" : knockWords();
   k.title = S.over ? "" : "A knock: press a domino and slide it along its axis, the way it should fall";
   // a due knock may be skipped, for a hundred per cent more on the next; while that stands, the badge says so (and no second skip)
   $("skipBtn").hidden = S.over || !S.due || !!S.boost || newcomer();            // a first knock is for pushing: Skip comes with the second
@@ -410,7 +411,7 @@ floorsBox.addEventListener("click", e => {
 floorsBox.addEventListener("pointerdown", e => e.stopPropagation());
 
 // ---------- choosing a domino, and turning it ----------
-function setSel(i) { sel = i; write(SEL, i); }
+function setSel(i) { sel = i; if (!S?.lab) write(SEL, i); }
 /** The way along a domino's axis that points down the screen, towards you: where its handle sits, clear of it. */
 function facingYou(i) {
   const a = S.ax[i], [cx, cz] = view.centre(i), [, y0] = view.project(cx, 0, cz);
@@ -487,12 +488,12 @@ function slidWay(h, e) {
 function showPress(h) {
   const { at, way } = h, rules = rulesOf(S), tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell, rules, S.boost, S.mod || null)]));
   if (way < 0) {
-    setMarks({ compass: [at, -1, new Map([...tries].map(([w, k]) => [w, k.gain]))], tag: [S.due ? "Slide it along its axis to push" : `Slide to see a push: ${knockWords().toLowerCase()}`, at] });
+    setMarks({ compass: [at, -1, new Map([...tries].map(([w, k]) => [w, k.gain]))], tag: [S.due || S.lab ? "Slide it along its axis to push" : `Slide to see a push: ${knockWords().toLowerCase()}`, at] });
     return;
   }
   const k = tries.get(way), fell = new Set(ringed(k)), stay = group(S.cells, at, rules, S.mod || null).filter(j => !fell.has(j));
   const words = `${k.fell.length}${k.rolls.length ? ` and ${plural(k.rolls.length, "ball")}` : ""} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${k.crossed ? ", crossing" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
-  setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due ? words : `${words} (${knockWords().toLowerCase()})`, at] });
+  setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due || S.lab ? words : `${words} (${knockWords().toLowerCase()})`, at] });
 }
 
 // ---------- a piece laid, a knock ----------
@@ -522,6 +523,7 @@ onPause(() => {
 });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 function settle() {
+  if (S.lab) return;
   if (!inLevels() && S.score > read(BEST, 0)) write(BEST, S.score);          // Classic's best is Classic's: a level's scores are another measure
   if (S.laid >= 3) write(SEEN, true);
   if (inLevels() && S.stars > camp.stars[S.level]) { camp.stars[S.level] = S.stars; write(CAMP, camp); }
@@ -548,7 +550,7 @@ async function commitLay(slot, q, r, onFloor = floor) {
   await wait(260);
   playing = false;
   checkHelp();
-  if (S.over) roundOver("topple");
+  if (S.over && !S.lab) roundOver("topple");
 }
 /** Skips the knock that's due: nothing falls, and the next knock's points are doubled (the bell's 500 comes on top). */
 function commitSkip() {
@@ -560,13 +562,13 @@ function commitSkip() {
   toast("Skipped: the next knock scores double (the bell's 500 still comes on top)");
 }
 async function commitKnock(i, way) {
-  if (playing || S.over || !S.due) return;
+  if (playing || S.over || (!S.due && !S.lab)) return;
   playing = true;
   setSel(-1);
   const before = S, first = inLevels() && camp.stars[S.level] < 1, firstEver = newcomer(), shown = { score: S.score, stars: S.stars || 0, best: Math.max(read(BEST, 0), S.score) }, done = knock(S, i, way);
   S = done.state;
   settle();
-  if (firstEver) write(KNOCKED, true);
+  if (firstEver && !S.lab) write(KNOCKED, true);
   // the table as it stood, then the dominoes fall one after another, each along its own axis; the bell leaves where it
   // hung when they've passed it; the score stays what it was until they have fallen and the points rise
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
@@ -579,9 +581,9 @@ async function commitKnock(i, way) {
   render();
   playing = false;
   if (first && S.stars >= 1 && S.level === level) toast(beatenWords());
-  else if (firstEver) toast("A domino turns: tap one to choose it, then drag its brass handle round.");
+  else if (firstEver && !S.lab) toast("A domino turns: tap one to choose it, then drag its brass handle round.");
   checkHelp();
-  if (S.over) roundOver("topple");
+  if (S.over && !S.lab) roundOver("topple");
 }
 /** The strip's score, brought up to the game's as a fall's points rise: counted up, the number swelling, the meter and stars following. */
 function landScore(from) {
@@ -736,14 +738,14 @@ function lift(e, cancelled = false) {
   if (h.kind === "spent" || cancelled || playing || S.over) { if (h.kind === "turn") knob = h.knob0; redraw(); return; }
   if (h.kind === "turn") {
     // slid along its own axis with the knock due, it was most likely meant as a push: say how
-    const meant = h.moved && !h.onKnob && h.far >= DEAD && h.axis === S.ax[sel] && S.due;
+    const meant = h.moved && !h.onKnob && h.far >= DEAD && h.axis === S.ax[sel] && S.due && !S.lab;
     if (h.moved && h.axis !== S.ax[sel]) { S = turnDomino(S, sel, h.axis); save(); }
     if (!h.moved && !h.onKnob) step();
     else showChosen();
     if (meant) toast("A chosen domino turns: tap the table to let it go, then push it");
   } else if (h.kind === "press") {
     if (!h.moved) choose(h.at);
-    else if (h.way >= 0 && S.due) commitKnock(h.at, h.way);
+    else if (h.way >= 0 && (S.due || S.lab)) commitKnock(h.at, h.way);
     else {
       redraw();
       if (h.way >= 0) toast(`The knock comes ${untilKnock(S) === 1 ? "after this hand" : `in ${untilKnock(S)} hands`}`);
@@ -871,7 +873,63 @@ function levelList() {
   });
   return list;
 }
+// ---------- the Lab: any table, any block (Korbi, 8 November 2026: "test every level and block") ----------
+// A testbed reached from the menu: the table of any level (or Classic), the hand always three of the block chosen (any shape,
+// plain, rainbow, bridge, twin, heavy or gate, in any of the table's colours), a knock whenever you slide a domino, and
+// nothing saved or scored for the stars. Leaving it picks the game up where it was.
+const KINDS = [["plain", "Plain"], ["rainbow", "Rainbow"], ["bridge", "Bridge"], ["twin", "Twin"], ["heavy", "Heavy"], ["gate", "Gate"]];
+let labPick = { level: -1, kind: "plain", piece: null, colour: 0, colour2: 1 };
+const colourName = (rules, c) => (rules.palette === "levels" ? COLOUR_NAMES[c] : ["gold", "green", "blue"][c]);
+function startLab() {
+  const rules = labPick.level >= 0 ? levelRules(labPick.level) : rulesOf({ level: -1 }), shapes = labShapes(labPick.kind);
+  if (!shapes.includes(labPick.piece)) labPick.piece = shapes[0];
+  if (!rules.colours.includes(labPick.colour)) labPick.colour = rules.colours[0];
+  if (!rules.colours.includes(labPick.colour2) || labPick.colour2 === labPick.colour) labPick.colour2 = rules.colours.find(c => c !== labPick.colour) ?? labPick.colour;
+  epoch++;
+  drag?.float.remove();
+  drag = null;
+  sel = -1;
+  S = newGame(Math.floor(Math.random() * 2 ** 31), labPick.level, { piece: labPick.piece, kind: labPick.kind, colour: labPick.colour, colour2: labPick.colour2 });
+  setFloor(0);
+  render();
+}
+function leaveLab() { resume(); }
+function labMenu() {
+  const body = $("menuBody"), rules = rulesOf(S), shapes = labShapes(labPick.kind), cols = rules.colours;
+  body.replaceChildren();
+  const play = part(body, "play");
+  play.append(action("Clear the table", startLab, "primary"), action("Leave the lab", leaveLab, "link"));
+  const content = part(body, "content"), redo = () => { startLab(); labMenu(); };
+  content.append(line("The Lab: nothing here is saved. Slide any domino to knock it, whenever you like."));
+  content.append(choice("Table", [[-1, "Classic"], ...LEVELS.map((L, n) => [n, String(n + 1)])].map(([v, t]) => [String(v), t]), String(labPick.level), v => { labPick.level = Number(v); redo(); }));
+  if (labPick.level >= 0) content.append(line(`${LEVELS[labPick.level].name}: ${LEVELS[labPick.level].about}`));
+  content.append(choice("Block", KINDS, labPick.kind, v => { labPick.kind = v; redo(); }));
+  const grid = document.createElement("div");
+  grid.className = "tp-shapes";
+  for (const k of shapes) {
+    const b = document.createElement("button"), art = pieceSvg({ piece: k, colour: labPick.colour }, false, 0, rules.palette === "levels");
+    b.type = "button";
+    b.className = k === labPick.piece ? "on" : "";
+    b.setAttribute("aria-label", `A piece of ${PIECES[k].cells.length}`);
+    b.setAttribute("aria-pressed", String(k === labPick.piece));
+    b.append(art.svg);
+    b.addEventListener("click", () => { labPick.piece = k; redo(); });
+    grid.append(b);
+  }
+  content.append(grid);
+  const names = cols.map(c => [String(c), colourName(rules, c)]);
+  if (cols.length > 1) content.append(choice(labPick.kind === "twin" || labPick.kind === "gate" ? "First colour" : "Colour", names, String(labPick.colour), v => { labPick.colour = Number(v); redo(); }));
+  if (cols.length > 1 && (labPick.kind === "twin" || labPick.kind === "gate")) content.append(choice("Second colour", names, String(labPick.colour2), v => { labPick.colour2 = Number(v); redo(); }));
+  if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+function enterLab() {
+  labPick.level = inLevels() ? camp.at : -1;
+  startLab();
+  labMenu();
+}
+
 function openMenu() {
+  if (S.lab) return labMenu();
   const body = $("menuBody");
   body.replaceChildren();
   part(body, "play").append(inLevels() ? action(`Replay ${LEVELS[camp.at].name}`, restart, "primary") : action("New game", restart, "primary"));
@@ -884,6 +942,7 @@ function openMenu() {
     ? `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`
     : `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled, the bell rung ${plural(S.rung, "time")}${best ? `; your best ${fmt(best)}` : ""}`));
   // what this table has, to read again; a plain table (the first level) offers them all
+  if (!IN_FRAME) about.append(action("Lab", enterLab, "link"));
   if (inLevels() && !IN_FRAME) about.append(action("How things work", () => { const own = featuresOfRules(rulesOf(S)); help.open(own.length ? own : ORDER); }, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

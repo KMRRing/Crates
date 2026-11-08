@@ -209,3 +209,25 @@ check(migrate(newGame(1, 3)) !== null && migrate({ ...newGame(1), v: 5 })?.v ===
 
 console.log(bad ? `${bad} problems` : "topple rules: every check passed");
 if (bad) process.exitCode = 1;
+
+// ---------- the Lab (Korbi, 8 November 2026): any table, any block, a knock any time, never over ----------
+{
+  const { labPiece, labShapes, newGame: ng, lay: ly, knock: kn, rulesOf: ro, moves: mv, PIECES: PC } = await import("../topple-engine.js");
+  const specs = [["plain", "plain"], ["rainbow", "rainbow"], ["bridge", "bridge"], ["twin", "twin"], ["heavy", "heavy"], ["gate", "gate"]];
+  let ok = true, why = "";
+  for (let level = -1; level < 14 && ok; level++) for (const [kind] of specs) {
+    const shapes = labShapes(kind), piece = shapes[0];
+    const s = ng(7, level, { piece, kind, colour: ro({ level }).colours[0], colour2: ro({ level }).colours.at(-1) });
+    const rules = ro(s), h = labPiece(s.lab, rules);
+    if (s.hand.length !== 3 || s.hand.some(x => JSON.stringify(x) !== JSON.stringify(h)) || s.due || !shapes.length || !shapes.every(k => PC[k])) { ok = false; why = `${level} ${kind}: hand`; break; }
+    const m = mv(s)[0];
+    if (!m) { ok = false; why = `${level} ${kind}: no move`; break; }
+    let t = ly(s, m.slot, m.q, m.r, m.floor).state;
+    const i = t.cells.findIndex(c => c >= 0);
+    if (t.due || t.over || i < 0 || (kind === "bridge" && !h.bridge)) { ok = false; why = `${level} ${kind}: lay`; break; }
+    t = kn(t, i, t.ax[i]).state;
+    if (t.over || t.due) { ok = false; why = `${level} ${kind}: knock`; break; }
+  }
+  console.log(`${ok ? "ok  " : "FAIL"} the Lab deals the chosen block of every kind on every table, lets a piece be laid and a domino knocked at any time, and never ends${why ? `: ${why}` : ""}`);
+  if (!ok) process.exitCode = 1;
+}

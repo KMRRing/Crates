@@ -247,3 +247,9 @@ dialog.tp-help { max-height: 92vh; max-height: 92svh; overflow-y: auto; overscro
 .tp-hnav #tpHelpNext { justify-self: end; min-width: 6rem; }
 .tp-hnav #tpHelpBack:disabled { visibility: hidden; }
 .tp-hat { font-size: .75rem; font-weight: 750; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* the Lab's shapes: a grid of the pieces the chosen block comes in */
+.tp-shapes { display: grid; grid-template-columns: repeat(auto-fill, minmax(3.4rem, 1fr)); gap: .35rem; margin: .4rem 0; }
+.tp-shapes button { display: grid; place-items: center; height: 3.4rem; padding: .15rem; border: 1px solid var(--rule); border-radius: 4px; background: transparent; cursor: pointer; }
+.tp-shapes button.on { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.tp-shapes svg { width: 100%; height: 100%; display: block; }

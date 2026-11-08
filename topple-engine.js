@@ -253,7 +253,24 @@ function dealOne(s, rules) {
   }
   return h;
 }
-function deal(s, rules) { s.sets++; s.hand = Array.from({ length: HAND }, () => dealOne(s, rules)); }
+/**
+ * A piece of the Lab (the menu's testbed): spec { piece (a PIECES key), kind (plain, rainbow, bridge, twin, heavy or gate),
+ * colour, colour2 (a twin's second, a gate's second) } as a piece in hand. Every block of the game can be had this way, on any table.
+ */
+export function labPiece(spec, rules) {
+  const cols = rules.colours, c = spec.colour ?? cols[0], c2 = spec.colour2 ?? cols.find(x => x !== c) ?? c;
+  switch (spec.kind) {
+    case "rainbow": return { piece: spec.piece, colour: RAINBOW };
+    case "bridge": return { piece: spec.piece, colour: c, bridge: true };
+    case "twin": return { piece: spec.piece, colour: c, colours: [c, c2] };
+    case "heavy": return { piece: spec.piece, colour: c, mod: HEAVY };
+    case "gate": return { piece: spec.piece, colour: c, mod: gateMod(c, c2) };
+    default: return { piece: spec.piece, colour: c };
+  }
+}
+/** The shapes the Lab offers for a kind of block: any piece, the small ones a rainbow, heavy or gate comes in, a bridge's straight lines, a twin's pairs. */
+export const labShapes = kind => (kind === "bridge" ? BRIDGES : kind === "twin" ? PAIRS : kind === "plain" ? NAMES.slice().sort((a, b) => PIECES[a].cells.length - PIECES[b].cells.length) : SMALL);
+function deal(s, rules) { s.sets++; s.hand = Array.from({ length: HAND }, () => (s.lab ? labPiece(s.lab, rules) : dealOne(s, rules))); }
 
 /**
  * The way each domino of a piece faces, from the shape alone: its axis, 0–5, chosen so that the piece falls whole from
@@ -330,11 +347,12 @@ export function untilKnock(s) {
  * A new game from a seed: an empty table, the bell on it, three pieces, and a knock after the first hand. With a level
  * (0 on), the game of that level: its rules, and `stars` to count the goal's.
  */
-export function newGame(seed, level = -1) {
+export function newGame(seed, level = -1, lab = null) {
   const rules = level >= 0 ? levelRules(level) : FREE;
   const s = { v: VERSION, seed: seed >>> 0, n: 0, cells: new Array(rules.n).fill(-1), ax: new Array(rules.n).fill(-1), hand: [], due: false, boost: 0, credit: 0, bell: -1, rung: 0, sets: 0, laid: 0, felled: 0, score: 0, over: false };
   if (level >= 0) { s.level = level; s.stars = 0; }
-  if (rules.mods) s.mod = new Array(rules.n).fill(0);
+  if (lab) s.lab = lab;                                     // the Lab: the hand is always the chosen block, a knock is any time, nothing is saved or ends
+  if (rules.mods || lab) s.mod = new Array(rules.n).fill(0);
   deal(s, rules);
   // the dominoes a table starts with (heavy or gate ones standing where the map puts them): they take no draw
   for (const d of rules.start) { s.cells[d.i] = d.colour; s.ax[d.i] = d.axis; s.mod[d.i] = d.mod === "heavy" ? HEAVY : gateMod(...d.gate); }
@@ -593,9 +611,9 @@ export function lay(game, slot, q, r, floor = 0) {
   if (dealt) {
     deal(s, rules);
     s.credit += rate(s.sets - 1, paceOf(rules));
-    if (s.credit >= 1 - EPS) { s.credit -= 1; s.due = true; }
+    if (!s.lab && s.credit >= 1 - EPS) { s.credit -= 1; s.due = true; }
   }
-  s.over = !s.due && stuck(s);
+  s.over = !s.lab && !s.due && stuck(s);
   return { state: s, laid, dealt, due: s.due, over: s.over };
 }
 /**
@@ -617,7 +635,7 @@ export function turn(game, i, axis) {
  */
 export function knock(game, i, way) {
   const s = structuredClone(game);
-  if (s.over || !s.due) throw new Error("no knock due");
+  if (s.over || (!s.due && !s.lab)) throw new Error("no knock due");
   if (!(s.cells[i] >= 0)) throw new Error("no domino there");
   if (!pushes(s.ax, i).includes(way)) throw new Error("a domino falls only along its axis");
   const rules = rulesOf(s), k = knockOn(s.cells, s.ax, i, way, s.bell, rules, s.boost, s.mod || null);
@@ -634,7 +652,7 @@ export function knock(game, i, way) {
   s.n++;
   if (k.rings) { s.rung++; hang(s, rules); }
   topUp(s, rules);
-  s.over = stuck(s);
+  s.over = !s.lab && stuck(s);
   return { state: s, fell: k.fell, rolls: k.rolls, steps: k.steps, rang: k.rings, gilded: k.gilded, crossed: k.crossed, cups: k.cups, boosted: k.boosted, bell: k.bell, gain: k.gain, over: s.over };
 }
 /**
