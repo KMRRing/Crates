@@ -50,7 +50,7 @@ export const stackLeft = (i, head, tail) => (2 * i >= head && 2 * i < tail ? 1 :
 /**
  * The best way to lay the table out in a plane of box = { w, h } px: how long the ring's sides are (the wall is `half`
  * stacks to a pair of sides), how many discards to a row, and the discard's width, as large as it will go (no larger than
- * `cap`, your own tile's), the walls and strips and plate as large as that leaves. Of the ways within a twentieth of the
+ * `cap`, your own tile's), the walls and strips and plate as large as that leaves. Of the ways within a tenth of the
  * largest discard, the one with the largest wall, then the closest to a real table's rows of six.
  */
 export function plan(box, { half, rows = RIVER, cap = Infinity }) {
@@ -69,7 +69,9 @@ export function plan(box, { half, rows = RIVER, cap = Infinity }) {
     });
   }
   const largest = Math.max(...found.map(f => f.d));
-  return found.filter(f => f.d >= largest * 0.95).sort((a, b) => b.p - a.p || a.way - b.way)[0];
+  // Korbi, 8 Nov 2026: the wall and the others' tiles matter as much as the discards: of the ways within a tenth of the largest discard (it was a
+  // twentieth), the largest wall, so a phone's ring is narrower and longer and its strips lie nearer the cloth's edge, every tile larger.
+  return found.filter(f => f.d >= largest * 0.9).sort((a, b) => b.p - a.p || a.way - b.way)[0];
 }
 
 /**

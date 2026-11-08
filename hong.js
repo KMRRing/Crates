@@ -660,7 +660,8 @@ function moveButtons(box, legal) {
 function claimHead() {
   const head = document.createElement("p");
   head.className = "hk-claim";
-  head.innerHTML = `${esc(nameOf(G.last.seat))} ${G.phase === "rob" ? "adds to a kong" : "lets go"} ${tileSvg(G.last.k, "hk-mini")}`;
+  head.setAttribute("aria-label", `${nameOf(G.last.seat)} ${G.phase === "rob" ? "adds to a kong" : "lets go"} ${E.tileName(G.last.k)}`);
+  head.innerHTML = `${esc(nameOf(G.last.seat))} ${tileSvg(G.last.k, "hk-mini")}`;
   return head;
 }
 function goBtn(text, fn, kind = "") {
