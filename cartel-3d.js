@@ -21,7 +21,7 @@ import { DIE } from "./yacht-3d-geo.js";
 export const ZONES = {
   1: [[50, 30, 66, 30]],
   2: [[21, 46, 36, 42], [79, 46, 36, 42]],
-  3: [[17, 50, 30, 40], [50, 24, 34, 26], [83, 50, 30, 40]],
+  3: [[16, 53, 30, 46], [50, 21, 38, 32], [84, 53, 30, 46]],
   4: [[17, 66, 32, 30], [34, 27, 31, 27], [66, 27, 31, 27], [83, 66, 32, 30]],
   5: [[17, 70, 32, 26], [17, 42, 32, 24], [50, 24, 36, 24], [83, 42, 32, 24], [83, 70, 32, 26]],
 };
@@ -48,7 +48,7 @@ export function faceOf(el) {
 const tilt = k => ((k * 53 + 17) % 25) - 12;                      // each die lies at its own small angle, the same every draw
 const ELEV = 56 * Math.PI / 180, SIN = Math.sin(ELEV), COS = Math.cos(ELEV);
 const MOST = 160;                                                 // dice drawn at most (the rest are still in the page)
-const IVORY = new THREE.Color(0xfbf4e4), GOLD = new THREE.Color(0xe8b93a);
+const IVORY = new THREE.Color(0xfbf4e4), PIP_IVORY = new THREE.Color(0x1c2a34), PIP_GOLD = new THREE.Color(0x2b1a02);
 
 export function createCartel3d(host, { onLost = () => {} } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });   // throws where there is no WebGL: the page draws flat
@@ -67,13 +67,15 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
   const own = [];
   const track = o => { own.push(o); return o; };
   const std = (color, roughness, metalness = 0) => track(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
-  const matDie = std(0xffffff, 0.32), matPip = std(0x1c2a34, 0.5), matRed = std(0xc0262d, 0.5);
+  // Korbi, 8 Nov 2026: "make the dice pretty". Ivory dice are glossy; the gold ones are cast metal with dark pips, softer edges on both
+  const matDie = std(0xffffff, 0.26), matPip = std(0xffffff, 0.45), matRed = std(0xc0262d, 0.4);
+  const matGold = track(new THREE.MeshStandardMaterial({ color: 0xffc83a, roughness: 0.3, metalness: 0.62, emissive: 0x4a3200, emissiveIntensity: 0.55 }));
   const matLeather = std(0x6b3a1c, 0.62), matBrass = std(0xcaa23c, 0.34, 0.7);
 
   // ---------- the dice: one instanced body with its pips, for every die on the table ----------
-  const bodyGeo = track(roundedBox(DIE, 0.085)), pipGeo = track(pipGeometry(false)), redGeo = track(pipGeometry(true));
-  const body = new THREE.InstancedMesh(bodyGeo, matDie, MOST), pips = new THREE.InstancedMesh(pipGeo, matPip, MOST), reds = new THREE.InstancedMesh(redGeo, matRed, MOST);
-  for (const m of [body, pips, reds]) { m.frustumCulled = false; m.count = 0; scene.add(m); }
+  const bodyGeo = track(roundedBox(DIE, 0.13)), pipGeo = track(pipGeometry(false)), redGeo = track(pipGeometry(true));
+  const body = new THREE.InstancedMesh(bodyGeo, matDie, MOST), gilt = new THREE.InstancedMesh(bodyGeo, matGold, MOST), pips = new THREE.InstancedMesh(pipGeo, matPip, MOST), reds = new THREE.InstancedMesh(redGeo, matRed, MOST);
+  for (const m of [body, gilt, pips, reds]) { m.frustumCulled = false; m.count = 0; scene.add(m); }
   // a brass disc under a die of yours that you may pick, lit when it is picked
   const padGeo = track(new THREE.CylinderGeometry(0.64, 0.64, 0.04, 28));
   const pads = new THREE.InstancedMesh(padGeo, std(0xffffff, 0.4, 0.5), 40);
@@ -136,7 +138,7 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
     if (dead || !cloth) return;
     const hr = host.getBoundingClientRect();
     if (Math.round(hr.width) !== width || Math.round(hr.height) !== height) { width = Math.max(1, Math.round(hr.width)); height = Math.max(1, Math.round(hr.height)); resize(); }
-    let nd = 0, np = 0, nb = 0;
+    let nd = 0, ni = 0, ng = 0, np = 0, nb = 0;
     dice.slice(0, MOST).forEach(({ el, f, k, mine }) => {
       const r = rectOf(el, hr), s = r.w * (mine ? 0.92 : 0.9);
       if (!(s > 1)) return;
@@ -145,8 +147,8 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
       world(r.cx, r.cy - (mine ? s * 0.26 : 0) + (picked ? s * 0.1 : 0), lift, POS);   // (yours stand clear of their captions)
       const x = POS.x, z = POS.z;
       M4.compose(POS, Q.copy(showing(f.value, mine ? 0 : tilt(k) * Math.PI / 180)), SCL.setScalar(s));
-      body.setMatrixAt(nd, M4); pips.setMatrixAt(nd, M4); reds.setMatrixAt(nd, M4);
-      body.setColorAt(nd, f.kind === "gold" ? GOLD : IVORY);
+      if (f.kind === "gold") gilt.setMatrixAt(ng++, M4); else { body.setMatrixAt(ni, M4); body.setColorAt(ni++, IVORY); }
+      pips.setMatrixAt(nd, M4); reds.setMatrixAt(nd, M4); pips.setColorAt(nd, f.kind === "gold" ? PIP_GOLD : PIP_IVORY);
       nd++;
       blob(nb++, x, z, s);
       if (mine && (pickable || picked) && np < 40) {
@@ -154,9 +156,10 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
         pads.setMatrixAt(np, M4); pads.setColorAt(np, COL.set(picked ? 0xe9c46a : 0x9aa79a)); np++;
       }
     });
-    body.count = pips.count = reds.count = nd; pads.count = np;
-    for (const m of [body, pips, reds, pads]) m.instanceMatrix.needsUpdate = true;
+    body.count = ni; gilt.count = ng; pips.count = reds.count = nd; pads.count = np;
+    for (const m of [body, gilt, pips, reds, pads]) m.instanceMatrix.needsUpdate = true;
     if (body.instanceColor) body.instanceColor.needsUpdate = true;
+    if (pips.instanceColor) pips.instanceColor.needsUpdate = true;
     if (pads.instanceColor) pads.instanceColor.needsUpdate = true;
     cupPool.forEach(c => { c.group.visible = false; });
     cups.forEach(({ el, n }, i) => {
@@ -246,7 +249,11 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
       mineZone.style.setProperty("--mine-gap", `${gap}px`);
       mineZone.style.setProperty("--mine-die", `${die}px`);
       for (const svg of row.querySelectorAll("svg")) svg.style.width = svg.style.height = "var(--mine-die)";
-      mineZone.replaceChildren(row);
+      const lives = figs.filter(fig => faceOf(fig.querySelector("svg") || fig)?.kind === "gold").length, chip = document.createElement("div");
+      chip.className = "ct3-gold ct3-mine-gold";
+      chip.innerHTML = `<i aria-hidden="true"></i><span></span>`;
+      chip.querySelector("span").textContent = `${lives} gold ${lives === 1 ? "die" : "dice"}`;
+      mineZone.replaceChildren(row, chip);
       figs.forEach((fig, k2) => { const svg = fig.querySelector("svg"), f = svg && faceOf(svg); if (f) dice.push({ el: svg, f, k: k2, mine: true }); });
     } else mineZone.replaceChildren();
     redraw(700);

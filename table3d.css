@@ -132,7 +132,9 @@
   box-shadow: inset 0 1px 0 rgba(255, 235, 200, .32), inset 0 -2px 0 rgba(0, 0, 0, .4), 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .55), 0 .12rem .3rem rgba(0, 0, 0, .3); }
 .tk-mat { transform: rotateX(var(--tk-tilt)); }
 /* the pivot (the pointer's, or the phone's tilt) is a layer round the tipped cloth: a browser that refused its calc() would lose the pivot, not the tilt */
-.tk-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(calc(var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); will-change: transform; }
+/* Korbi, 8 Nov 2026: until an iPhone gave it tilt permission the table drew as a flat projection. At rest this pivot's transform was the identity,
+   which WebKit drops from the 3D chain (the stage's perspective then never reaches the cloth): the 1px lift keeps it a real 3D layer with or without a sensor */
+.tk-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transform: translateZ(1px) rotateX(calc(var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); will-change: transform; }
 /* the cloth, sunk under the rail: the brass line, a groove, then the weave */
 :is(.tk-mat, .tk-surface)::before { content: ""; position: absolute; inset: var(--tk-rail); border-radius: .35rem; pointer-events: none;
   background:

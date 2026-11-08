@@ -113,8 +113,9 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 /* your turn: the tray under the table */
 /* the turn panel keeps one height whatever it shows (the tallest move fits on most phones; it scrolls inside only on
    the smallest), so the table above never changes size */
-.ct-controls { display: grid; gap: .5rem; align-content: start; flex: 0 1 clamp(16rem, 36svh, 17.5rem); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.ct-tray { display: grid; gap: .3rem; padding: .5rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+.ct-controls { display: grid; gap: .5rem; align-content: end;   /* the buttons at the foot of the screen (Korbi, 8 Nov 2026) */ flex: 0 0 15rem; grid-template-rows: minmax(0, 1fr);   /* one height all game, the tray filling it: no empty band under the buttons */ min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ct-tray { min-height: 100%; box-sizing: border-box; align-content: end; display: grid; gap: .3rem; padding: .5rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+.ct-tray:has(> .ct-actions:last-child) { grid-template-rows: auto minmax(0, 1fr); }   /* your move: four big buttons fill the tray */
 .ct-tray-title { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
 .ct-tray-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 2.125rem; }
 .ct-tray-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
@@ -205,7 +206,8 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct-stage { display: none; }
 .ct3 { display: flex; flex-direction: column; padding: 0; border: 0; outline: 0; background: none; box-shadow: none; }
 .ct3 .ct-stage { display: block; position: relative; flex: 1 1 0; min-height: 0; }
-.ct3 .tk-field { height: 100%; }
+.ct3 .tk-field { height: 100%; --tk-tilt: 11deg; }
+.ct3 .tk-mat { height: 112%; }   /* Korbi, 8 Nov 2026: "make the table much longer and bigger": less foreshortened, so the cloth is nearer a full rectangle */
 .ct3 .ct-seats, .ct3 .tk-plate { display: none; }
 .ct3 .tk-centre { --tk-side: .8rem; left: 33%; right: 33%; top: 36%; bottom: 22%; pointer-events: auto; }
 .ct3 .ct-centre { width: 100%; }
@@ -221,8 +223,10 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3-head .tk-med { position: relative; flex: none; width: 1.7rem; height: 1.7rem; font-size: .85rem; }
 .ct3-name { font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct3-zone.on .ct3-name { color: #E9C46A; }
-.ct3-gold { display: inline-flex; align-items: center; gap: .15rem; font-size: .72rem; font-weight: 800; color: #EBC768; }
-.ct3-gold i { width: .8rem; height: .8rem; border-radius: 2px; background: #EBC768; border: 1px solid #A47A17; box-shadow: 0 .06rem .1rem rgba(0, 0, 0, .5); }
+.ct3-head { flex: none; }
+/* the gold dice a player has left (their lives), always on a row of their own under the name so no zone can lose it */
+.ct3-gold { flex: 1 0 100%; display: inline-flex; justify-content: center; align-items: center; gap: .3rem; font-size: .95rem; font-weight: 800; color: #F3CF70; text-shadow: 0 .06rem .12rem rgba(0, 0, 0, .7); }
+.ct3-gold i { width: 1.05rem; height: 1.05rem; border-radius: .2rem; background: linear-gradient(145deg, #FFE08A, #D9A21E 60%, #A8780F); border: 1px solid #7A5410; box-shadow: 0 .08rem .15rem rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 244, 200, .5); }
 .ct3-play { display: flex; flex: 1 1 auto; min-height: 0; flex-wrap: wrap; align-content: center; justify-content: center; align-items: center; gap: .3rem; }
 /* the cup stands mouth down on the cloth, a leather beaker with a brass rim; the number is the dice under it */
 .ct3-cup { width: 2.6rem; height: 2.6rem; flex: none; visibility: hidden; }   /* (the scene draws the cup where this box lies; the count is its top) */
@@ -232,6 +236,7 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3-mine { position: absolute; left: 50%; bottom: 3%; translate: -50% 0; width: 84%; padding: 0; z-index: 1; }
 .ct3-mine .ct-die { opacity: 0; }
 .ct3-mine .ct-dice { min-height: 0; padding-bottom: .1rem; }
+.ct3-mine-gold { flex-basis: auto; width: 100%; margin-top: .25rem; font-size: .82rem; }
 .ct3-mine figure { gap: .5rem; }
 .ct3-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
 .ct3 .ct-die.picked { outline: 0; }

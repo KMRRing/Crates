@@ -34,7 +34,8 @@
 .t3-plate { --seat: var(--t3-mine); position: absolute; z-index: 3; display: flex; align-items: center; gap: .45rem; max-width: 70%; transform-origin: 50% 100%; padding: .9rem .6rem 1.9rem; margin: -.9rem -.6rem -1.9rem;
   color: var(--t3-text); pointer-events: none; }
 .t3-plate.foe { --seat: var(--t3-foe); }
-.t3-plate.at-top { top: 6%; left: 50%; transform: translateX(-50%) rotateX(calc(var(--t3-tilt) * -1)); }
+.t3-plate.at-top { top: 10%; left: 50%; flex-direction: column; gap: .2rem; text-align: center;   /* the hand under whoever sits across, as at the sides (Korbi, 8 Nov 2026) */
+  transform: translateX(-50%) rotateX(calc(var(--t3-tilt) * -1)); }
 .t3-plate.at-me { padding: 2.1rem .6rem .5rem; margin: -2.1rem -.6rem -.5rem; bottom: 1.2%; left: 50%; transform: translateX(-50%) rotateX(calc(var(--t3-tilt) * -1)); }
 .t3-plate.at-left, .t3-plate.at-right { top: 32%; width: 4.7rem; flex-direction: column; gap: .2rem; text-align: center; }
 .t3-plate.at-left { left: .8rem; transform: rotateX(calc(var(--t3-tilt) * -1)); }
@@ -45,7 +46,7 @@
   box-shadow: 0 .18rem .4rem rgba(0, 0, 0, .34), inset 0 -.2rem .35rem rgba(0, 0, 0, .18); }
 .t3-plate.out .t3-med { filter: saturate(.4) brightness(.92); }
 .t3-info { display: grid; gap: .08rem; min-width: 0; text-align: left; }
-.t3-plate:is(.at-left, .at-right) .t3-info { text-align: center; max-width: 100%; }
+.t3-plate:is(.at-left, .at-right, .at-top) .t3-info { text-align: center; max-width: 100%; }
 .t3-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 800; font-stretch: var(--wide); line-height: 1.1;
   text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); }
 .t3-meta { font-size: .62rem; font-weight: 700; line-height: 1; color: var(--t3-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
@@ -362,7 +363,9 @@ html[data-theme="office"] #app.tb3 .tb-table.tk-mahogany .t3-mat { background: l
 /* Korbi, 7 Nov 2026: the slight pivot with the pointer (and, on a phone, its tilt), the kit's own */
 /* the pivot is its own layer round the tipped cloth: should a browser ever refuse its calc(), the table loses the pivot, never its tilt
    (Korbi, 7 Nov 2026: it sometimes started flat on his phone, with the tilt and the pivot in one transform) */
-.t3-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(calc(var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); }
+/* Korbi, 8 Nov 2026: until an iPhone gave it tilt permission the table drew as a flat projection. At rest this pivot's transform was the identity,
+   which WebKit drops from the 3D chain (the stage's perspective then never reaches the cloth): the 1px lift keeps it a real 3D layer with or without a sensor */
+.t3-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transform: translateZ(1px) rotateX(calc(var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); }
 
 /* Korbi, 7 Nov 2026: no box behind the table in the dark themes either (its gradient showed against the page), and the levels plate in front of the table that now rises under it */
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.tb3 .tb-table { background: none; } }
