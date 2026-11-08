@@ -114,11 +114,11 @@ check(Object.keys(AKA).every(id => by[id]) && tiles.every(a => !AKA[a.id] || AKA
 // ---------- the filter and the search together ----------
 check(hits({ section: "idle" }).length === tiles.filter(a => a.sec === "idle").length && hits({ section: "idle" }).every(i => by[i].sec === "idle"), "a section");
 check(hits({ count: "5+" }).every(i => by[i].players[1] >= 5) && hits({ count: "1" }).every(i => by[i].players[0] === 1), "players");
-check(same(hits({ section: "classics", query: "sudoku" }), ["sudoku"]) && same(hits({ section: "idle", query: "sudoku" }), []), "section and search");
+check(same(hits({ section: "puzzle", query: "sudoku" }), ["sudoku"]) && same(hits({ section: "minigames", query: "sudoku" }), []), "section and search");
 check(hits({ count: "2", query: "chess" }).join() !== "" && same(hits({ count: "5+", query: "chess" }), []), "players and search");
 const all = hits({}), reset = hits({ query: "", section: "", count: "" });
 check(same(all, reset), "clearing both restores the list exactly");
-check(nothing({ query: "xyzzy" }, SECTIONS) === "No game matches “xyzzy”." && nothing({ query: "x", section: "idle", count: "1" }, SECTIONS) === "No game matches “x” in Idle for solo."
+check(nothing({ query: "xyzzy" }, SECTIONS) === "No game matches “xyzzy”." && nothing({ query: "x", section: "minigames", count: "1" }, SECTIONS) === "No game matches “x” in Minigames for solo."
   && nothing({ count: "3-4" }, SECTIONS) === "No game matches for 3 to 4 players.", "an empty result says plainly what it was for");
 
 // ---------- the pull ----------

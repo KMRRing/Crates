@@ -420,10 +420,10 @@ export const APPS = [
   { id: "origin", sec: "knowledge", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO), players: [1, 6] },
   { id: "order", sec: "knowledge", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO), players: [1, 6] },
   { id: "calibre", sec: "courses", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO), players: [1, 1] },
-  { id: "manifest", sec: "puzzle", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO), players: [1, 6] },
+  { id: "manifest", sec: "minigames", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO), players: [1, 6] },
   { id: "chart", sec: "knowledge", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO), players: [1, 6] },
-  { id: "harbour", sec: "idle", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
-  { id: "pipes", sec: "puzzle", name: "Gears", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO), players: [1, 1] },
+  { id: "harbour", sec: "minigames", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
+  { id: "pipes", sec: "minigames", name: "Gears", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO), players: [1, 1] },
   { id: "hong", sec: "board", name: "Mahjong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), players: [1, 4] },
   // Deck: no tile (31 October 2026, Korbi): the banner under the head opens it, as a third choice beside Random and Choose, and
   // its page keeps its name and logo here
@@ -431,7 +431,7 @@ export const APPS = [
   { id: "tribute", sec: "cards", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
   { id: "nexus", sec: "knowledge", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
   { id: "survey", sec: "puzzle", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
-  { id: "stow", sec: "puzzle", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), players: [1, 6] },
+  { id: "stow", sec: "minigames", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), players: [1, 6] },
   { id: "arthistory", sec: "courses", name: "Art history", href: "./arthistory.html", logo: LOGO("arthistory", ARTHISTORY_LOGO), players: [1, 1] },
   { id: "statecraft", sec: "courses", name: "Statecraft", href: "./statecraft.html", logo: LOGO("statecraft", STATECRAFT_LOGO), players: [1, 1] },
   { id: "trade", sec: "courses", name: "History of trade", href: "./trade.html", logo: LOGO("trade", TRADE_LOGO), players: [1, 1] },
@@ -452,7 +452,7 @@ export const APPS = [
   { id: "sudoku", sec: "puzzle", name: "Nonet", href: "./sudoku.html", logo: LOGO("sudoku", SUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "mines", sec: "puzzle", name: "Mines", href: "./mines.html", logo: LOGO("mines", MINES_LOGO), players: [1, 6], team: "time" },
   { id: "hitori", sec: "puzzle", name: "Cull", href: "./hitori.html", logo: LOGO("hitori", HITORI_LOGO), players: [1, 6], team: "time" },
-  { id: "bulls", sec: "puzzle", name: "Conjunction", href: "./bulls.html", logo: LOGO("bulls", BULLS_LOGO), players: [1, 6], score: "guesses", rows: 10 },
+  { id: "bulls", sec: "minigames", name: "Conjunction", href: "./bulls.html", logo: LOGO("bulls", BULLS_LOGO), players: [1, 6], score: "guesses", rows: 10 },
   { id: "assay", sec: "puzzle", name: "Assay", href: "./assay.html", logo: LOGO("assay", ASSAY_LOGO), players: [1, 6], score: "guesses", rows: 6, team: "guesses" },
   { id: "yield", sec: "puzzle", name: "Constellation", href: "./yield.html", logo: LOGO("yield", YIELD_LOGO), players: [1, 6] },
   { id: "ladder", sec: "puzzle", name: "Ladder", href: "./ladder.html", logo: LOGO("ladder", LADDER_LOGO), players: [1, 6], team: "time" },
@@ -519,22 +519,22 @@ export const APPS = [
   { id: "go", sec: "board", name: "Go", href: "./go.html", logo: LOGO("go", GO_LOGO), players: [1, 1] },
   { id: "carrom", sec: "board", name: "Carrom", href: "./carrom.html", logo: LOGO("carrom", CARROM_LOGO), players: [1, 2] },
   { id: "carrack", sec: "board", name: "Carrack", href: "./carrack.html", logo: LOGO("carrack", CARRACK_LOGO), players: [1, 6] },
-  // Idle: as much thinking as a bubble shooter, and no more (README, Idle)
-  { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO), players: [1, 1] },
-  { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
+  // Minigames: as much thinking as a bubble shooter, and no more (README, Idle)
+  { id: "heliograph", sec: "minigames", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO), players: [1, 1] },
+  { id: "shunt", sec: "minigames", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
   { id: "polder", sec: "appendix", name: "Polder", href: "./polder.html", logo: LOGO("polder", POLDER_LOGO), players: [1, 1] },
-  { id: "topple", sec: "board", name: "Topple", href: "./topple.html", logo: LOGO("topple", TOPPLE_LOGO), players: [1, 1] },
-  { id: "columbiad", sec: "idle", name: "Columbiad", href: "./columbiad.html", logo: LOGO("columbiad", COLUMBIAD_LOGO), players: [1, 1] },
-  { id: "orrery", sec: "idle", name: "Orrery", href: "./orrery.html", logo: LOGO("orrery", ORRERY_LOGO), players: [1, 1] },
+  { id: "topple", sec: "minigames", name: "Topple", href: "./topple.html", logo: LOGO("topple", TOPPLE_LOGO), players: [1, 1] },
+  { id: "columbiad", sec: "minigames", name: "Columbiad", href: "./columbiad.html", logo: LOGO("columbiad", COLUMBIAD_LOGO), players: [1, 1] },
+  { id: "orrery", sec: "minigames", name: "Orrery", href: "./orrery.html", logo: LOGO("orrery", ORRERY_LOGO), players: [1, 1] },
   { id: "avalanche", sec: "appendix", name: "Avalanche", href: "./avalanche.html", logo: LOGO("avalanche", AVALANCHE_LOGO), players: [1, 1] },
-  { id: "netting", sec: "idle", name: "Netting", href: "./netting.html", logo: LOGO("netting", NETTING_LOGO), players: [1, 1] },
-  { id: "settle", sec: "idle", name: "Settle", href: "./settle.html", logo: LOGO("settle", SETTLE_LOGO), players: [1, 1] },
-  { id: "drift", sec: "idle", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
+  { id: "netting", sec: "minigames", name: "Netting", href: "./netting.html", logo: LOGO("netting", NETTING_LOGO), players: [1, 1] },
+  { id: "settle", sec: "minigames", name: "Settle", href: "./settle.html", logo: LOGO("settle", SETTLE_LOGO), players: [1, 1] },
+  { id: "drift", sec: "minigames", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
   { id: "slipway", sec: "appendix", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
-  { id: "loose", sec: "idle", name: "Loose cargo", href: "./stow.html?mode=loose", logo: LOGO("loose", LOOSE_LOGO), players: [1, 1] },   // Stow's Loose cargo: the same page and keys, its own tile (4 November 2026, the split review)
-  { id: "reckoning", sec: "idle", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
-  { id: "landfall", sec: "idle", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
-  { id: "ingot", sec: "idle", name: "Ingot", href: "./ingot.html", logo: LOGO("ingot", INGOT_LOGO), players: [1, 1] },
+  { id: "loose", sec: "minigames", name: "Loose cargo", href: "./stow.html?mode=loose", logo: LOGO("loose", LOOSE_LOGO), players: [1, 1] },   // Stow's Loose cargo: the same page and keys, its own tile (4 November 2026, the split review)
+  { id: "reckoning", sec: "minigames", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
+  { id: "landfall", sec: "minigames", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
+  { id: "ingot", sec: "minigames", name: "Ingot", href: "./ingot.html", logo: LOGO("ingot", INGOT_LOGO), players: [1, 1] },
   // The Appendix: what is set aside until it leaves for an app of its own or goes (README, The Appendix). Random and Start a
   // game over leave it out (3 November 2026, Korbi).
   { id: "blend", sec: "appendix", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO), players: [1, 2] },
@@ -667,7 +667,7 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
-export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["idle", "Idle"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["minigames", "Minigames"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
 /** The Appendix shows only on the owner's own solo code (Korbi, 4 November 2026: "don't appear unless the user is logged in as ?solo=KORBIRUN"). */
 const APPENDIX_CODE = "KORBIRUN";
 const appendixOpen = () => soloCode() === APPENDIX_CODE && markedIn();   // and only while Settings includes content marked for removal (Korbi, same evening: "when content marked for removal is set to exclude, hide the appendix even if it's solo=korbirun")
