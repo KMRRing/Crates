@@ -1,19 +1,16 @@
-// Yield (README, Yield): the words it counts, the rules of a word typed, points and ranks, that a puzzle's yield is
-// every word its letters make and has a full set, the generator's levels against its own measure of difficulty, the
-// daily the same everywhere and never a letter set twice in its walk, the computer player at its three levels, the
-// chart, a team's split (the parts make the whole, neither alone does) through the database's round trip, and a run
-// kept through JSON.
-import { BOARDS, LEVELS, DAILY, RANKS, MASTER, TOP, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
-  chartOf, outerOf, statsOf, depthOf, centreFor, centresIn, teamFound, onlyMine, counts, zipfOf, hiveSets, makesDaily,
-  maskOf, FIRST_DAY, MARKS, RANK_FATHOMS, markAt, lineDepth, castOf, callOf, groupOf, GROUPS } from "../yield-engine.js";
-import { W as CW, H as CH, SOUNDINGS, reachedBy, coastY } from "../yield-chart.js";
-import { WORDS, DAYS, BLOCKED } from "../yield-words.js";
-import { isWord, isVariant, tierOf } from "../wordlist.js";
+// Constellation (id yield; the on-screen name, Fathom before 8 November 2026): the words it counts, the sky (seven stars,
+// the sight-lines between them) and what it allows, that a puzzle's yield is every word its sky traces, 50 to 100 of them,
+// with a full tour among them, in every level and every daily; the layout (the same everywhere, few lines crossing); the
+// shadows and hints; points and ranks; the computer player (it finds everything, so it always reaches the galaxy); and a run
+// and a match's words through the database's round trip.
+import { LEVELS, DAILY, RANKS, MASTER, TOP, FULL_BONUS, STARS, deal, daily, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, canStep, traces,
+  trailOf, skyOf, shadowsOf, easiestLeft, statsOf, onlyMine, counts, zipfOf, groupOf, GROUPS } from "../yield-engine.js";
+import { WORDS, BLOCKED } from "../yield-words.js";
+import { isWord, isVariant } from "../wordlist.js";
 import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const median = xs => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const all = Object.entries(WORDS).flatMap(([n, [run, bands]]) => Array.from({ length: bands.length }, (_, i) => run.slice(i * n, i * n + Number(n))));
 const dict = { isWord, isVariant };
 
@@ -24,188 +21,115 @@ check(BLOCKED.split(" ").every(w => !counts(w)) && ["chink", "retard", "fucked",
 check(["online", "upcoming", "anytime", "timeline", "deployed", "nightgown", "tonight", "minority"].every(counts), "ordinary words count, the modern ones SCOWL files as rare among them");
 check(["gonging", "tenanting", "anteing", "queening", "cabbed", "leerier"].every(w => isWord(w) && !counts(w)), "odd forms of common words don't (SCOWL files them with their base word)");
 check(["tony", "japan", "google", "carter"].every(w => !counts(w)), "names that SCOWL keeps in lower case don't");
-check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted word has its frequency; a word Yield doesn't count has none");
+check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted word has its frequency; a word Constellation doesn't count has none");
 
-// ---------- a word typed, and its points ----------
+// ---------- a puzzle: its sky and what the sky allows ----------
+const SEEDS = Array.from({ length: 40 }, (_, i) => i * 7919 + 13);
 {
-  const p = { board: "hive", letters: "ailnoty", centre: "l", level: "medium", seed: 1 };
-  const j = (w, o = {}) => judge(p, w, { dict, ...o });
-  check(j("lot").kind === "short" && j("toil").kind === "word" && j("TOIL").kind === "word", "four letters or more; case doesn't matter");
-  check(j("into").kind === "centre" && j("blot").kind === "letters" && j("lo2t").kind === "letters", "the key letter in every word; only the tray's letters");
-  check(j("toil", { have: new Set(["toil"]) }).kind === "found" && j("toil", { have: new Map([["toil", 1]]) }).by === 1, "a word found once, and by whom");
-  const fullSet = yieldOf(p).find(w => isFull(p, w)), twice = yieldOf(p).find(w => w.length >= 5 && new Set(w).size < w.length);
-  check(j("toil").points === 1 && j("lotion").points === 6 && j(fullSet).points === fullSet.length + FULL_BONUS && j(fullSet).full && !j("lotion").full,
-    `four letters 1, longer one a letter, a full set seven more (${fullSet}, ${j(fullSet).points})`);
-  check(j(twice).kind === "word" && pointsOf(p, twice) === twice.length, `letters as often as you like (${twice})`);
-  check(j("loti").kind !== "word" && j("loyal").kind === "word", "only words Yield counts score");
-  const u = { board: "hive", letters: "celnoru", centre: "o", level: "medium", seed: 1 };
-  check(judge(u, "colour", { dict }).kind === "variant" && judge(u, "color", { dict }).kind === "variant", "a spelling one side of the Atlantic uses is known as one, and not counted");
-  const q = { board: "hive", letters: "acelnor", centre: "o", level: "medium", seed: 1 };
-  check(judge(q, "carol", { dict }).kind === "word" && judge(q, "coral", { dict }).kind === "word", "anagrams are both words");
-  check(judge(q, "oracle", { dict }).kind === "word" && judge(q, "lorcan", { dict }).kind === "unknown", "a word, a non-word");
-  const rare = all.length && ["coln", "cornel", "loran"].find(w => isWord(w) && !counts(w) && !isVariant(w));
-  check(!!rare && judge(q, rare, { dict }).kind === "rare" && judge(q, rare).kind === "unknown", `a real word too rare to count says so (${rare}); without the dictionary loaded it's just not counted`);
-  const slur = BLOCKED.split(" ").find(w => isWord(w) && new Set(w).size <= 7 && w.length >= 4);
-  const sp = { board: "hive", letters: [...new Set(slur + "aeioutrnl")].slice(0, 7).sort().join(""), centre: slur[0], level: "medium", seed: 1 };
-  check(!!slur && judge(sp, slur, { dict }).kind === "unknown", "a slur the word list has is never called a word");
-  // a wheel: each tile once
-  const w = { board: "wheel", letters: [..."reckoning"].sort().join(""), centre: "n", level: "medium", seed: 1 };
-  check(judge(w, "reckoning").kind === "word" && judge(w, "reckoning").points === 9 + FULL_BONUS && isFull(w, "reckoning"), "a wheel's nine-letter word uses every tile: nine and seven more");
-  check(judge(w, "ninon").kind === "tiles" && judge(w, "inner").kind === "word" && judge(w, "neon").kind === "word", "a wheel's tile is used once: two Ns, not three");
-  check(judge(w, "rock").kind === "centre", "and its centre is in every word");
+  const stat = Object.fromEntries(Object.keys(LEVELS).map(level => [level, SEEDS.map(seed => { const p = deal({ seed, level }); return { p, words: yieldOf(p), s: statsOf(p) }; })]));
+  for (const [level, runs] of Object.entries(stat)) {
+    check(runs.every(({ s }) => s.words >= 50 && s.words <= 100), `${LEVELS[level]}: every puzzle of ${runs.length} has 50 to 100 words (${Math.min(...runs.map(r => r.s.words))} to ${Math.max(...runs.map(r => r.s.words))})`);
+    check(runs.every(({ s }) => s.tours >= 1), `${LEVELS[level]}: every puzzle has a full tour`);
+  }
+  const mean = l => stat[l].reduce((s, r) => s + r.s.depth, 0) / stat[l].length;
+  check(mean("light") > mean("medium") && mean("medium") > mean("heavy"), "the levels are ordered by how deep their vocabulary goes (light easiest)");
+  const { p, words } = stat.medium[0];
+  check(p.letters.length === STARS && p.letters === [...p.letters].sort().join("") && new Set(p.letters).size === STARS, "seven different letters, alphabetical");
+  check(words.every(w => w.length >= 4 && counts(w) && traces(p, w)), "every word of the yield is counted, four letters or more, and traced along the sight-lines");
+  // exhaustive: no counted word the sky allows is missing (every counted word over these letters, traced)
+  const brute = all.filter(w => [...w].every(c => p.letters.includes(c)) && traces(p, w)).sort();
+  check(brute.length === words.length && brute.every((w, i) => w === words[i]), `the yield is every word the sky allows: ${words.length}`);
+  check(words.every(w => w.length === 4 ? pointsOf(p, w) === 1 : pointsOf(p, w) === w.length + (isFull(p, w) ? FULL_BONUS : 0)), "a four-letter word is a point, a longer one a point a letter, a full tour seven more");
+  check(totalOf(p, words) === words.reduce((s, w) => s + pointsOf(p, w), 0) && words.some(w => isFull(p, w)), "the total is the points of every word, a full tour among them");
+  const sky = skyOf(p);
+  check(JSON.stringify(skyOf({ ...p })) === JSON.stringify(sky) && sky.stars.length === STARS && sky.stars.every(s => Math.abs(s.x) <= 1.2 && Math.abs(s.y) <= 1.2), "the layout is the same every time, inside the picture");
+  const skies = SEEDS.map(seed => skyOf(deal({ seed, level: "medium" })));
+  check(skies.every(k => k.links.length <= 14 && k.through === 0) && Math.max(...skies.map(k => k.crossings)) <= 10, `no more than 14 sight-lines, none through a star, ${Math.min(...skies.map(k => k.crossings))} to ${Math.max(...skies.map(k => k.crossings))} crossing`);
+  check(sky.links.length === p.edges.split(" ").length && sky.links.every(([i, j]) => i !== j && canStep(p, p.letters[i], p.letters[j])), "every sight-line of the sky is a step the engine allows");
+  check(canStep(p, p.letters[0], p.letters[0]) && !canStep(p, "q", "z"), "a star stays on itself (a doubled letter); an unlinked pair has no step");
+}
+
+// ---------- the same everywhere ----------
+{
+  const a = deal({ seed: 1234, level: "medium" }), b = deal({ seed: 1234, level: "medium" });
+  check(JSON.stringify(a) === JSON.stringify(b), "a seed deals the same puzzle every time");
+  check(deal({ seed: 1235, level: "medium" }).edges !== a.edges || deal({ seed: 1235, level: "medium" }).letters !== a.letters, "another seed, another sky");
+  const days = Array.from({ length: 120 }, (_, i) => 20261108 + i + (i > 22 ? 70 : 0));
+  const ds = days.map(d => daily(d));
+  check(ds.every((p, i) => p.day === days[i] && JSON.stringify(p) === JSON.stringify(daily(days[i]))), "a daily is the same for everyone on its day");
+  check(ds.every(p => { const s = statsOf(p); return s.words >= 58 && s.words <= 86 && s.tours >= 1; }), `every daily is a ${LEVELS[DAILY.level]} sky of 58 to 86 words with a full tour`);
+  check(new Set(ds.map(p => `${p.letters}|${p.edges}`)).size === ds.length, "no sky comes round twice in the first months");
+}
+
+// ---------- a word traced ----------
+{
+  const p = deal({ seed: 99, level: "medium" }), words = yieldOf(p), w = words.find(x => x.length === 5), none = new Set();
+  check(judge(p, w, { have: none }).kind === "word" && judge(p, w, { have: none }).points === pointsOf(p, w), "a word the sky allows counts, for its points");
+  check(judge(p, w, { have: new Set([w]) }).kind === "found", "a word found twice says so");
+  check(judge(p, "the").kind === "short" && judge(p, "").kind === "short", "fewer than four letters is short");
+  const off = "qqqq";
+  check(judge(p, off).kind === "letters" && judge(p, "ab1d").kind === "letters", "a letter that is not a star is refused");
+  // a real word the sky does not allow: a line is missing, and where
+  const missing = all.find(x => [...x].every(c => p.letters.includes(c)) && !traces(p, x));
+  const r = missing && judge(p, missing, { have: none });
+  check(!missing || (r.kind === "line" && !canStep(p, missing[r.at - 1], missing[r.at])), "a word a sight-line short is refused at the step that fails");
+  check(judge(p, "zzzz", { dict }).kind === "letters", "the letters are checked before the dictionary");
+  check(!words.some(x => !isWord(x)) && words.every(x => !isVariant(x)), "every word is a word, the same on both sides of the Atlantic");
+}
+
+// ---------- the shadows and the hint ----------
+{
+  const p = deal({ seed: 4242, level: "medium" }), words = yieldOf(p);
+  const none = shadowsOf(p, words, new Set()), every = shadowsOf(p, words, new Set(words));
+  check(none.lines.size > 0 && none.max >= 1 && every.lines.size === 0 && every.max === 0, "the shadows light the lines the missing words use, and none once every word is found");
+  const half = new Set(words.filter((_, i) => i % 2));
+  const part = shadowsOf(p, words, half);
+  check([...part.lines].every(([k, n]) => n <= (none.lines.get(k) || 0)) && part.max <= none.max, "finding words only dims the shadows");
+  // a line's count is the words that step across it
+  const [k, n] = [...none.lines][0], [i, j] = k.split("-").map(Number), a = p.letters[i], b = p.letters[j];
+  check(n === words.filter(w => w.includes(a + b) || w.includes(b + a)).length, `a line's glow is how many words travel it (${k}: ${n})`);
+  const easy = easiestLeft(words, new Set());
+  check(words.includes(easy) && words.every(w => w === easy || zipfOf(w) - 0.2 * (w.length - 4) <= zipfOf(easy) - 0.2 * (easy.length - 4)), `the hint is about the easiest word left (${easy})`);
+  check(easiestLeft(words, new Set(words)) === null && trailOf(p, easy).every((s, x) => p.letters[s] === easy[x]), "no hint when everything is found; a trail is the word's stars");
 }
 
 // ---------- ranks ----------
-check(RANKS.length === 10 && RANKS[0][1] === "Aground" && RANKS[1][1] === "Shoal" && RANKS[MASTER][1] === "Deep sea" && RANKS[MASTER][0] === 0.7 && RANKS[TOP][1] === "Blue water" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]),
-  "ten ranks from Aground to Blue water, rising, Deep sea at 70%");
 {
-  const need = needed(200);
-  check(need[8] === 140 && need[9] === 200 && need[1] === 6, "the points each rank needs, rounded (70% of 200 is 140)");
-  check(rankOf(0, 200) === 0 && rankOf(139, 200) === 7 && rankOf(140, 200) === 8 && rankOf(199, 200) === 8 && rankOf(200, 200) === 9, "Deep sea at 70%; Blue water only with every point");
+  check(RANKS.length === 10 && RANKS[0][0] === 0 && RANKS[TOP][0] === 1 && RANKS[MASTER][1] === "Nova" && RANKS[TOP][1] === "Galaxy", "ten ranks from the dark sky to the galaxy; Nova (70%) the one to aim for");
+  const need = needed(300);
+  check(need[0] === 0 && need[TOP] === 300 && need[MASTER] === 210 && need.every((v, i) => !i || v >= need[i - 1]), "the points each rank needs, Galaxy all of them");
+  check(rankOf(0, 300) === 0 && rankOf(209, 300) === MASTER - 1 && rankOf(210, 300) === MASTER && rankOf(300, 300) === TOP, "the rank for a score");
 }
 
-// ---------- a puzzle's yield: every word its letters make ----------
+// ---------- the computer player: it finds every word, so it always reaches the galaxy ----------
 {
-  let exact = true, fullSets = true, n = 0;
-  for (const board of Object.keys(BOARDS)) for (const level of Object.keys(LEVELS)) for (let s = 1; s <= 12; s++) {
-    const p = deal({ seed: s * 7717 + level.length, level, board }), got = yieldOf(p);
-    // brute force: every counted word, tried against the letters
-    const have = [...p.letters].reduce((c, ch) => (c[ch] = (c[ch] || 0) + 1, c), {}), M = maskOf(p.letters);
-    const fits = w => w.includes(p.centre) && (maskOf(w) & ~M) === 0 && (board === "hive" || [...w].every(ch => [...w].filter(x => x === ch).length <= have[ch]));
-    const want = all.filter(fits).sort();
-    if (want.join() !== got.join()) exact = false;
-    if (!got.some(w => isFull(p, w))) fullSets = false;
-    n++;
+  let won = 0, total = 0;
+  for (const level of Object.keys(LEVELS)) for (const seed of SEEDS.slice(0, 15)) {
+    const p = deal({ seed: seed * 3 + 1, level }), have = new Set();
+    for (const w of yieldOf(p)) if (judge(p, w, { have }).kind === "word") have.add(w);
+    total++;
+    if (rankOf(totalOf(p, [...have]), totalOf(p, yieldOf(p))) === TOP) won++;
   }
-  check(exact, `a puzzle's yield is exactly the counted words its letters make (${n} puzzles, every word tried)`);
-  check(fullSets, "every one has a full set (a wheel, its nine-letter word)");
+  check(won === total, `the bot reaches the galaxy in every level, random and daily (${won} of ${total})`);
+  const dp = daily(20261201), dhave = new Set();
+  for (const w of yieldOf(dp)) if (judge(dp, w, { have: dhave }).kind === "word") dhave.add(w);
+  check(rankOf(totalOf(dp, [...dhave]), totalOf(dp, yieldOf(dp))) === TOP, "and the daily");
 }
 
-// ---------- dealing: the same puzzle from the same seed, each level as it says ----------
+// ---------- lists, a run kept, a match through the database ----------
 {
-  const a = deal({ seed: 4242, level: "heavy", board: "hive" }), b = deal({ seed: 4242, level: "heavy", board: "hive" });
-  check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(deal({ seed: 4243, level: "heavy", board: "hive" })), "a seed deals the same puzzle every time, another seed another");
-  const dep = {}, size = {};
-  let suited = 0, total = 0, quick = true;
-  for (const board of Object.keys(BOARDS)) for (const level of Object.keys(LEVELS)) {
-    const ds = [], ws = [];
-    for (let s = 1; s <= 40; s++) {
-      const t0 = performance.now(), p = deal({ seed: s * 104729 + 7, level, board });
-      if (performance.now() - t0 > 250) quick = false;
-      const words = yieldOf(p), st = statsOf(p, words);
-      ds.push(st.depth); ws.push(st.words);
-      const band = { light: [2.75, 9], medium: [2.35, 2.75], heavy: [0, 2.35] }[level];
-      if (st.depth >= band[0] && st.depth < band[1]) suited++;
-      total++;
-    }
-    dep[`${board} ${level}`] = median(ds); size[`${board} ${level}`] = median(ws);
-  }
-  check(quick, "each deal takes a moment, never a wait");
-  check(suited / total >= 0.95, `the deals are at their level's depth (${suited} of ${total})`);
-  check(["hive", "wheel"].every(b => dep[`${b} light`] > dep[`${b} medium`] && dep[`${b} medium`] > dep[`${b} heavy`]),
-    `Light's yields go least deep, Heavy's deepest (median depth ${Object.entries(dep).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(", ")})`);
-  check(size["hive light"] >= 20 && size["hive heavy"] <= 75 && size["wheel light"] >= 16, `sizes in their ranges (median words ${Object.entries(size).map(([k, v]) => `${k} ${v}`).join(", ")})`);
-}
-{
-  const p = deal({ seed: 99, level: "medium", board: "hive" }), st = statsOf(p);
-  check(st.ing <= 0.3 && st.ed <= 0.45, "a yield isn't mostly one ending (-ing or -ed)");
-  check(depthOf(p, yieldOf(p)) === st.depth, "the depth is the one the stats give");
-}
-
-// ---------- today's ----------
-{
-  const day = 20261020, a = daily(day), b = daily(day);
-  check(JSON.stringify(a) === JSON.stringify(b) && a.board === DAILY.board && a.level === DAILY.level && a.day === day, "today's puzzle is the same wherever it's dealt, a Medium hive, and knows its day");
-  const sets = new Set(), days = [];
-  for (let i = 0; i <= DAYS.length / 7; i++) { const d = new Date(Date.UTC(2026, 9, 20) + i * 864e5); days.push(d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()); }
-  let medium = 0;
-  for (const d of days.slice(0, 120)) { const p = daily(d), st = statsOf(p); sets.add(p.letters); if (st.depth >= 2.35 && st.depth < 2.75 && st.words >= 26 && st.words <= 55) medium++; }
-  check(sets.size === 120 && medium === 120, "120 days, 120 letter sets, every one a Medium puzzle");
-  check(daily(days[DAYS.length / 7]).letters === daily(FIRST_DAY).letters && daily(days[1]).letters !== daily(FIRST_DAY).letters, "a set comes back only once the walk has used every one");
-  const capable = hiveSets().filter(makesDaily), walk = DAYS.match(/.{7}/g);
-  check(walk.length === new Set(walk).size && walk.length === capable.length && capable.every(s => walk.includes(s)),
-    `the walk (yield-words.js) is every letter set that can make today's puzzle, once each (${walk.length}): rebuild it if this fails`);
-}
-
-// ---------- the computer player ----------
-// ---------- the chart ----------
-{
-  const p = deal({ seed: 5, level: "light", board: "hive" }), words = yieldOf(p), found = new Set(words.slice(0, 5)), c = chartOf(words, found);
-  const cells = c.rows.reduce((s, r) => s + Object.values(r.n).reduce((a, b) => a + b, 0), 0);
-  check(c.left === words.length - 5 && cells === c.left && c.rows.reduce((s, r) => s + r.total, 0) === c.left && c.starts.reduce((s, [, n]) => s + n, 0) === c.left,
-    "the chart counts what's left: by first letter and length, and by the first two letters");
-  check(c.rows.every(r => words.some(w => w[0] === r.letter)) && c.lengths.every(n => n >= 4 && n <= 9), "a row for every first letter, lengths from four to 9+");
-}
-
-// ---------- a team: the same letters, a centre each ----------
-{
-  let split = true, even = true, sizes = [];
-  for (let s = 1; s <= 20; s++) {
-    const p = dealTeam({ seed: s * 911, level: ["light", "medium", "heavy"][s % 3], board: "hive" });
-    const [a, b] = p.centres, wa = yieldOf(p, [a]), wb = yieldOf(p, [b]), union = yieldOf(p, centresIn(p, 2));
-    const both = new Set([...wa, ...wb]);
-    if (a === b || both.size !== union.length || !union.every(w => both.has(w)) || wa.length >= union.length || wb.length >= union.length) split = false;
-    const onlyA = wa.filter(w => !wb.includes(w)).length, onlyB = wb.filter(w => !wa.includes(w)).length;
-    if (Math.min(onlyA, onlyB) / union.length < 0.15) even = false;
-    if (new Set(p.centres).size !== p.centres.length || p.centres.length !== new Set(p.letters).size) split = false;
-    sizes.push(union.length);
-  }
-  check(split, "each player's words with their own centre: the two make the team's yield, neither alone does");
-  check(even, "and each has words only they can enter, a fair share of them");
-  const p = dealTeam({ seed: 3, level: "medium", board: "hive" });
-  check(centreFor(p, 0) === p.centres[0] && centreFor(p, 1) === p.centres[1] && centreFor(p, 9) === p.centres[9 % p.centres.length] && centresIn(p, 3).length === 3,
-    "a centre for every seat, a party's further seats taking the other letters");
-  check(JSON.stringify(dealTeam({ seed: 3, level: "medium", board: "hive" })) === JSON.stringify(p), "the same team puzzle from the same seed on every phone");
-  // the table as the database keeps it: each seat's run with its words and when; the team's yield is all of them
-  const [a, b] = p.centres, wa = yieldOf(p, [a]).filter(w => !w.includes(b)), wb = yieldOf(p, [b]).filter(w => !w.includes(a)), shared = yieldOf(p, [a]).filter(w => w.includes(b));
-  const g = roundTrip({ v: 1, n: 1, people: 2, players: { u1: { name: "Korbi", slot: 0 }, u2: { name: "Sarah", slot: 1 } },
-    runs: { s0: { begun: 1, words: { [wa[0]]: 1000, [shared[0]]: 5000 } }, s1: { begun: 1, words: { [wb[0]]: 2000, [shared[0]]: 4000 } } } });
-  const t = teamFound(g);
-  check(t.size === 3 && t.get(wa[0]) === 0 && t.get(wb[0]) === 1 && t.get(shared[0]) === 1, "through the database's round trip: every seat's words, a word both found going to whoever found it first");
-  check(teamFound(roundTrip({ v: 1, n: 1, players: { u1: { name: "K", slot: 0 } }, runs: { s0: { begun: 1 } } })).size === 0 && teamFound(null).size === 0, "a run with no words yet (the database keeps no empty object) is nothing found");
-  check(onlyMine(g, 0).has(wa[0]) && !onlyMine(g, 0).has(shared[0]) && onlyMine(g, 1).has(wb[0]), "a race's words nobody else found");
-  // a word typed at a team's table: yours, or your partner's
-  const seats = new Map([[1, b]]), word = wb[0];
-  check(judge(p, word, { centre: a, seats, dict }).kind === "centre" && judge(p, word, { centre: a, seats, dict }).by === 1 && judge(p, word, { centre: b, dict }).kind === "word",
-    "a word with only your partner's letter is theirs to enter, and says whose it is");
-}
-
-// ---------- the lead line: marks, the line's depth, the leadsman's calls ----------
-{
-  check(MARKS.slice(0, 6).map(m => `${m.at}:${m.kind}${m.tails || ""}`).join() === "2:leather2,3:leather3,5:calico,7:bunting,10:hole,13:serge", "the marks of a hand lead: leather two tails 2, three tails 3, white calico 5, red bunting 7, leather with a hole 10, blue serge 13");
-  check(RANK_FATHOMS.length === RANKS.length && RANK_FATHOMS[0] === 0 && RANK_FATHOMS.every((f, i) => !i || f > RANK_FATHOMS[i - 1]) && RANK_FATHOMS.slice(1).every(f => markAt(f)), "every rank above Aground sits at a mark, deeper each time");
-  const total = 200, need = needed(total);
-  check(lineDepth(0, total) === 0 && lineDepth(total, total) === 20 && RANK_FATHOMS.every((f, i) => lineDepth(need[i], total) === f), "the line is at each rank's mark exactly when its points are reached, at the surface with none, run out at every word");
-  let rising = true, last = -1;
-  for (let pt = 0; pt <= total; pt++) { const d = lineDepth(pt, total); if (d < last) rising = false; last = d; }
-  check(rising, "the line only pays out as points come in");
-  check(lineDepth(10, 10) === 20 && lineDepth(0, 0) === 20 && Number.isFinite(lineDepth(1, 3)), "a tiny puzzle doesn't divide by nothing");
-  check(callOf("clean") === "By the mark five" && callOf("claim") === "By the mark five" && callOf("liana") === "And a half five" && callOf("canine") === "And a half six" && callOf("planet") === "By the deep six" && callOf("graphite") === "By the deep eight" && callOf("plain") === "By the mark five",
-    "five letters by the mark, six by the deep, a letter used twice and a half");
-  check(callOf("alpine", true) === "No bottom!" && castOf("lacing").fathom === 6 && castOf("lacing").mark === null && castOf("clean").mark.name === "white calico" && castOf("pencil").fathom === 6, "a full set finds no bottom; a word's cast is its length");
-  check(castOf("ab".repeat(15)).fathom <= 15 && ["lacing", "pancakes", "caplin"].every(w => callOf(w).length > 4), "a long word still has a call");
-  check(GROUPS.length === 5 && [4, 5, 6, 7, 8, 9, 12].map(n => groupOf("a".repeat(n))).join() === "0,1,2,3,4,4,4", "words are listed by length: four to seven letters, then eight or more");
-}
-// ---------- the chart of the approach ----------
-{
-  check(SOUNDINGS.length >= 36 && SOUNDINGS.every(s => s.n >= 1 && s.n <= 20 && Number.isInteger(s.n) && s.x > 0 && s.x < CW && s.y > 0 && s.y < CH), `${SOUNDINGS.length} soundings, each a whole number of fathoms inside the chart`);
-  check(SOUNDINGS.every(s => s.y > coastY(s.x) || (s.y < 16 && s.x > 96 && s.x < 150) || (Math.abs(s.x - 122) < 8)), "every sounding is in the water: the sea, the entrance or the basin");
-  check(SOUNDINGS.every((s, i) => !i || s.n >= SOUNDINGS[i - 1].n) && SOUNDINGS.some(s => s.n <= 3) && SOUNDINGS.some(s => s.n >= 18), "from shoal water to deep, shallowest first");
-  let closest = 99;
-  for (const a of SOUNDINGS) for (const b of SOUNDINGS) if (a !== b) closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
-  check(closest >= 8, `no two overprint (closest ${closest.toFixed(1)})`);
-  check(reachedBy(0) === 0 && reachedBy(20) === SOUNDINGS.length && [2, 5, 10, 15].every((d, i, ds) => !i || reachedBy(d) > reachedBy(ds[i - 1])), "soundings fill in depth by depth, every one once the line is out");
-}
-
-// ---------- a run kept ----------
-{
-  const p = deal({ seed: 12, level: "light", board: "wheel" }), words = yieldOf(p);
-  const run = { kind: "run", p, found: words.slice(0, 3), extra: [], typed: "ab", picks: [0, 1], outer: outerOf(p, () => 0.5), used: 61234, secs: 180, rival: "sharp", top: 2, over: false };
+  const p = deal({ seed: 7, level: "light" }), words = yieldOf(p);
+  check(GROUPS.length === 5 && words.every(w => groupOf(w) >= 0 && groupOf(w) < GROUPS.length) && groupOf("abcd") === 0 && groupOf("abcdefghij") === 4, "words fall into five length groups");
+  const run = { kind: "run", p, found: words.slice(0, 5), typed: "ab", extra: ["xyzzy"], top: 2, over: false, shown: false, shadows: true, hints: 1, pin: { w: words[7], n: 3 } };
   const back = JSON.parse(JSON.stringify(run));
-  check(JSON.stringify(back) === JSON.stringify(run) && yieldOf(back.p).join() === words.join(), "a run goes through JSON whole, and its puzzle gives the same yield");
-  const outer = outerOf(p, () => 0.3);
-  check([...outer, p.centre].sort().join("") === p.letters && outer.length === p.letters.length - 1, "the letters round the centre are the board's others, a wheel's eight tiles");
+  check(JSON.stringify(back) === JSON.stringify(run) && yieldOf(back.p).length === words.length, "a run kept as JSON deals the same words");
+  const rt = roundTrip({ v: 1, n: 1, runs: { s0: { begun: 5, score: 12, words: { [words[0]]: 1200, [words[1]]: 2500 } }, s1: { begun: 6, score: 9, words: { [words[1]]: 2600, [words[2]]: 3000 } } } });
+  const alone = onlyMine(rt, 0);
+  check(alone.has(words[0]) && !alone.has(words[1]) && onlyMine(rt, 1).has(words[2]), "a race stars the words nobody else found, through the round trip");
+  check(onlyMine(null, 0).size === 0 && onlyMine({ runs: { s0: { begun: 1 } } }, 0).size === 0, "a run with no words yet is nothing found");
+  const edges = roundTrip({ p: { letters: p.letters, edges: p.edges, level: p.level, seed: p.seed } }).p;
+  check(edges.edges === p.edges && JSON.stringify(skyOf(edges)) === JSON.stringify(skyOf(p)), "a puzzle survives the database (its sky is strings), and its layout with it");
 }
 
-console.log(bad ? `\n${bad} FAILED` : "\nall ok");
-process.exit(bad ? 1 : 0);
+if (bad) { console.log(`\n${bad} failed`); process.exit(1); }
+console.log("\nall passed");
