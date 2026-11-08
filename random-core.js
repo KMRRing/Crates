@@ -27,7 +27,6 @@ export const ROUNDS = {
   harbour: "a level's plan run to delivery, or a week of a region's season",
   columbiad: "a level struck (the ring hit, the speed asked, the gate passed or the loop flown)",
   pipes: "a level solved",
-  survey: "a block cleared",
   stow: "a manifest stowed",
   // Classics
   sudoku: "a grid solved",
@@ -46,7 +45,6 @@ export const ROUNDS = {
   ladder: "a ladder climbed",
   lode: "a board finished",
   codeword: "a grid solved",
-  calcudoku: "a grid solved",
   kakuro: "a grid solved",
   // Idle: the game over, as each says it
   heliograph: "a game over",

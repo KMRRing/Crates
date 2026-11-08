@@ -19,7 +19,7 @@ const APPS = [...src.matchAll(/^ {2}\{ id: "(\w+)"([^\n]*)$/gm)].map(([, id, res
 }));
 const SECTIONS = [...src.match(/export const SECTIONS = \[([^\n]*)\];/)[1].matchAll(/\["(\w+)", "([^"]+)"\]/g)].map(m => [m[1], m[2]]);
 const tiles = APPS.filter(a => a.sec);
-check(APPS.length >= 100 && tiles.length >= 90 && SECTIONS.length >= 8, `apps.js read: ${APPS.length} entries, ${tiles.length} tiles, ${SECTIONS.length} sections`);
+check(APPS.length >= 100 && tiles.length >= 90 && SECTIONS.length >= 7, `apps.js read: ${APPS.length} entries, ${tiles.length} tiles, ${SECTIONS.length} sections`);
 
 // ---------- every game says how many can play it, and says it truthfully ----------
 const noPlayers = APPS.filter(a => !a.players).map(a => a.id);

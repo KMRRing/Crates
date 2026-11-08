@@ -53,13 +53,13 @@ applyMode(kept.mode === "cloth" ? "cloth" : kept.mode === "hex" || kept.grid ===
 const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, { together: settings.together, mode: settings.mode }); };
 // Loom's address (loom.html) comes here as ?mode=cloth: Cloth becomes the mode kept, and the address is cleared of it.
 const modeLink = new URLSearchParams(location.search);
-if (modeLink.get("mode") === "cloth" && !IN_FRAME) {
-  applyMode("cloth"); saveSettings();
+if (["picture", "hex", "cloth"].includes(modeLink.get("mode")) && !IN_FRAME) {   // (Loom's address, and Survey's Mode row back)
+  applyMode(modeLink.get("mode")); saveSettings();
   modeLink.delete("mode");
   history.replaceState(null, "", `${location.pathname}${modeLink.size ? `?${modeLink}` : ""}${location.hash}`);
 }
 let cloth = null;                      // loom-mode.js's controller, once the page is showing Cloth (loaded only then)
-const MODES = [["picture", "Pictures"], ["hex", "Hexes"], ["cloth", "Cloth"]];
+const MODES = [["picture", "Pictures"], ["hex", "Hexes"], ["cloth", "Cloth"], ["survey", "Survey"]];   // Survey (Korbi, 8 Nov 2026) is its own page, survey.html, kept as it was
 // The size is a ramp: Small, then Medium and Large as pictures are drawn without a fuss (`finish`). The first step is the size of the
 // picture last in play, so a player who chose one carries on with it. It is one predictable line, so `nonogram:times` buckets fill.
 const SIZE_STEPS = ["small", "medium", "large"];
@@ -966,6 +966,7 @@ function showRules() {
 /** Another mode: Cloth is another page's worth (made again; the picture in play and the cloth are each saved as they stand), Pictures
  *  and Hexes only change the next picture, dealt at once when the one on the board hasn't been touched. */
 function setMode(v) {
+  if (v === "survey") { location.href = "survey.html"; return; }
   if (v === (cloth ? "cloth" : settings.mode)) return;
   const toggles = v === "cloth" || cloth;
   applyMode(v); saveSettings();

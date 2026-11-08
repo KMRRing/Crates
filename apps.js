@@ -430,7 +430,7 @@ export const APPS = [
   { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
   { id: "tribute", sec: "cards", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
   { id: "nexus", sec: "knowledge", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
-  { id: "survey", sec: "puzzle", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
+  { id: "survey", within: "nonogram", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
   { id: "stow", sec: "minigames", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), players: [1, 6] },
   { id: "arthistory", sec: "appendix", name: "Art history", href: "./arthistory.html", logo: LOGO("arthistory", ARTHISTORY_LOGO), players: [1, 1] },
   { id: "statecraft", sec: "appendix", name: "Statecraft", href: "./statecraft.html", logo: LOGO("statecraft", STATECRAFT_LOGO), players: [1, 1] },
@@ -461,7 +461,7 @@ export const APPS = [
   // is playing, the requests and Party
   { id: "lots", within: "crates", name: "Crates Classic", href: "./lots.html", logo: LOGO("crates", CRATES_LOGO), players: [1, 6] },
   { id: "codeword", sec: "knowledge", name: "Codeword", href: "./codeword.html", logo: LOGO("codeword", CODEWORD_LOGO), players: [1, 6], team: "time" },
-  { id: "calcudoku", sec: "puzzle", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
+  { id: "calcudoku", within: "sudoku", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "kakuro", sec: "puzzle", name: "Tally", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
   // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)
   { id: "bridges", sec: "puzzle", name: "Bridges", href: "./bridges.html", logo: LOGO("bridges", BRIDGES_LOGO), players: [1, 6] },

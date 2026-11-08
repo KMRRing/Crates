@@ -431,6 +431,8 @@ function openMenu() {
   }
   const levels = track === "levels", content = part(body, "content");
   part(body, "play").append(action("New block", () => (levels ? confirmLevelBlock() : confirmStart("random")), "primary"));
+  // Korbi, 8 Nov 2026: Survey is a mode of Nonogram, beside Pictures, Hexes and Cloth (Nonogram's menu has the same Mode row)
+  content.append(choice("Mode", [["picture", "Pictures"], ["hex", "Hexes"], ["cloth", "Cloth"], ["survey", "Survey"]], "survey", v => { if (v !== "survey") location.href = `nonogram.html?mode=${v}`; }));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
   todayPart(body, {

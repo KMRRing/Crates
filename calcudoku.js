@@ -752,6 +752,7 @@ function openMenu() {
   }
   play.append(action("The rules", showRules, "link"));
   contentPart(body, COOP);
+  if (!COOP) part(body, "content").prepend(modeChoice());
   settingsPart(body);
   if (!COOP) todayPart(body, { app: "calcudoku", play: () => start("daily"), playing: S?.mode === "daily" && S.grid.seed === today(), busy: startedSolo() });
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
@@ -761,6 +762,8 @@ function openMenu() {
   if (!COOP) about.append(action("Copy a link to this grid", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
+// Korbi, 8 Nov 2026: Calcudoku is a mode of Nonet (Nonet's menu, Mode); this page is still its own
+const modeChoice = () => choice("Mode", [["nonet", "Nonet"], ["calcudoku", "Calcudoku"]], "calcudoku", v => { if (v === "nonet") location.href = "sudoku.html"; });
 /** The rules, size and level the next grid deals (the size from the header's select, as every game has it). */
 function contentPart(body) {
   part(body, "content").append(choice("Kind", Object.entries(RULES).map(([k, r]) => [k, r.label]), settings.rules, v => { settings.rules = v; saveSettings(); openMenu(); }));
