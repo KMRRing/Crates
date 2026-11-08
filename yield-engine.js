@@ -78,7 +78,7 @@ function index() {
 // kept if its letters make words enough (POOL_MIN, every sight-line drawn); the rarer letters (J, Q, X, Z) mostly fail that, which is
 // the only way the words tilt the draw. (A full tour, one word with every star, is no longer asked of a sky: only one set in four has
 // one, and asking made E, T and R belong to nearly every sky.)
-const POOL_MIN = 50, VOWELS = "aeiouy", CONSONANTS = "bcdfghjklmnpqrtvwxz", ALPHABET = "abcdefghijklmnopqrtuvwxyz", SIZES = [[7, 0.3], [8, 0.7], [9, 1]];   // (cumulative shares of skies; the word list has no S)
+const POOL_MIN = 50, EXTRA_WORDS = 6, VOWELS = "aeiouy", CONSONANTS = "bcdfghjklmnpqrtvwxz", ALPHABET = "abcdefghijklmnopqrtuvwxyz", SIZES = [[7, 0.3], [8, 0.7], [9, 1]];   // (cumulative shares of skies; the word list has no S)
 /** How many counted words some of a letter set (any sight-lines) makes. */
 function poolSize(mask) {
   const sets = index().sets;
@@ -89,7 +89,7 @@ function poolSize(mask) {
 // The words do tilt the draw (a sky needs 40 words, and E, T, A and R are in most of the words that make them), so each letter's chance of
 // being drawn is bent by LEAN until the skies that are kept have every vowel, and every consonant, about as often as its kind (found by
 // dealing a few hundred skies and nudging: `node tests/yield-letters.mjs --fit`).
-const LEAN = {"a":0.33,"b":1.24,"c":0.75,"d":0.69,"e":0.11,"f":1.27,"g":1.2,"h":1.97,"i":1.03,"j":2,"k":2,"l":0.18,"m":0.63,"n":0.33,"o":0.86,"p":0.92,"q":2,"r":0.11,"t":0.15,"u":2,"v":1.45,"w":1.9,"x":2,"y":1.97,"z":2};
+const LEAN = {"a":0.28,"b":0.69,"c":0.52,"d":0.87,"e":0.2,"f":1.03,"g":0.9,"h":1.41,"i":0.91,"j":2,"k":1.37,"l":0.12,"m":0.52,"n":0.18,"o":0.8,"p":0.66,"q":2,"r":0.18,"t":0.11,"u":2,"v":1.53,"w":1.2,"x":2,"y":2,"z":2};
 let lean = LEAN;
 /** For fitting (tests/yield-letters.mjs): use another table. */
 export const setLean = table => { lean = table; };
@@ -118,7 +118,12 @@ function pickLetters(r) {
     const mask = maskOf(chosen.join(""));
     if (poolSize(mask) < POOL_MIN) continue;
     const core = lettersOf(mask), y = r(), more = y < 0.3 ? 0 : y < 0.65 ? 1 : 2;
-    const extra = shuffled([...ALPHABET].filter(c => !core.includes(c)), r).slice(0, more);
+    // an extra star must earn its place: some words use it (else its one line would carry nothing, and vanish, and leave the star adrift)
+    const extra = [], base = poolSize(mask);
+    for (const c of shuffled([...ALPHABET].filter(c => !core.includes(c)), r)) {
+      if (extra.length === more) break;
+      if (poolSize(mask | maskOf(c)) - base >= EXTRA_WORDS) extra.push(c);
+    }
     return { core, letters: lettersOf(maskOf(core + extra.join(""))) };
   }
 }
@@ -247,7 +252,7 @@ function untidy(perm, here, links) {
 function tidiest(here, links, r) {
   const n = here.length;
   let best = Infinity, picks = [];
-  for (let start = 0; start < 10 && best > 0; start++) {
+  for (let start = 0; start < 24 && best > 0; start++) {
     let perm = shuffled([...Array(n).keys()], r), cur = untidy(perm, here, links);
     for (let moved = true; moved && cur > 0;) {
       moved = false;
@@ -268,7 +273,7 @@ export function skyOf(p) {
   if (skies.has(key)) return skies.get(key);
   const r = rng((p.seed ^ 0x57a25) >>> 0), links = p.edges.split(" ").filter(Boolean).map(e => [p.letters.indexOf(e[0]), p.letters.indexOf(e[1])]);
   let best = Infinity, picks = [], spots = null;
-  for (let tryNo = 0; tryNo < 5 && best > 0; tryNo++) {            // a few different scatterings; the clearest wins
+  for (let tryNo = 0; tryNo < 8 && best > 0; tryNo++) {            // a few different scatterings; the clearest wins
     const here = scatter(r, p.letters.length), found = tidiest(here, links, r);
     if (found.best < best) { best = found.best; picks = found.picks; spots = here; }
   }
@@ -307,13 +312,14 @@ export function endings(words, only = null) {
 /** What a puzzle is like: its size, points, depth, its full tours, and how much of it is one ending. */
 export function statsOf(p, words = yieldOf(p)) {
   const tours = words.filter(w => isFull(p, w)), top = endings(words), common = endings(words, COMMON_ENDS);
-  return { words: words.length, points: totalOf(p, words), depth: depthOf(p, words), tours: tours.length,
+  const used = new Set(words.join(""));
+  return { words: words.length, points: totalOf(p, words), depth: depthOf(p, words), tours: tours.length, dead: [...p.letters].filter(c => !used.has(c)).length,
     end: top, common, commonTop: top === common, seven: words.filter(w => w.length >= 7).length / (words.length || 1), six: words.filter(w => w.length >= 6).length / (words.length || 1) };
 }
 /** Whether a puzzle's stats suit a level. */
 function suits(level, s, strict = true) {
   const b = BANDS[level];
-  return (!strict || (!s.commonTop && s.common <= Math.max(6, MAX_COMMON * s.words))) && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] && s.depth < b.depth[1]
+  return (!strict || (!s.commonTop && s.common <= Math.max(6, MAX_COMMON * s.words))) && !s.dead && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] && s.depth < b.depth[1]
     && s.end <= Math.min(MAX_END_N, MAX_END * s.words) && s.seven >= (strict ? 0.1 : MIN_SEVEN) && s.six >= (strict ? 0.22 : MIN_SIX);
 }
 /**
@@ -323,13 +329,13 @@ function suits(level, s, strict = true) {
  */
 function fair(level, s, strict) {
   const b = BANDS[level];
-  return s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] - 0.3 && s.depth < b.depth[1] + 0.3
+  return !s.dead && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] - 0.3 && s.depth < b.depth[1] + 0.3
     && s.end <= Math.min(FAIR_END_N, FAIR_END * s.words) && s.seven >= FAIR_SEVEN && s.six >= FAIR_SIX && !(strict && s.commonTop);
 }
 /** How far a puzzle is from a level, for the nearest when none suits in the tries allowed. */
 function distance(level, s, strict = true) {
   const b = BANDS[level], off = (x, a, z) => (x < a ? a - x : x > z ? x - z : 0);
-  return (off(s.words, b.words[0], b.words[1]) ? 50 + off(s.words, b.words[0], b.words[1]) : 0) + off(s.depth, b.depth[0], b.depth[1] - 0.001) * 4 + Math.max(0, s.end - Math.min(MAX_END_N, MAX_END * s.words))
+  return s.dead * 30 + (off(s.words, b.words[0], b.words[1]) ? 50 + off(s.words, b.words[0], b.words[1]) : 0) + off(s.depth, b.depth[0], b.depth[1] - 0.001) * 4 + Math.max(0, s.end - Math.min(MAX_END_N, MAX_END * s.words))
     + Math.max(0, (strict ? 0.1 : MIN_SEVEN) - s.seven) * 10 + Math.max(0, (strict ? 0.22 : MIN_SIX) - s.six) * 10
     + (strict ? Math.max(0, s.common - Math.max(6, MAX_COMMON * s.words)) + (s.commonTop ? 3 : 0) : 0);
 }
@@ -406,8 +412,11 @@ function backbone(letters, core, r, banned = new Set()) {
   const w = pick[Math.floor(r() * pick.length)], base = new Set(), seen = [...new Set(w)];
   for (let i = 1; i < w.length; i++) if (w[i] !== w[i - 1]) base.add(pairKey(w[i - 1], w[i]));
   for (const c of letters) if (!seen.includes(c)) {
-    const ok = seen.filter(x => !banned.has(pairKey(c, x))), to = (ok.length ? ok : seen);   // (not on a banned line, if it can help it)
-    base.add(pairKey(c, to[Math.floor(r() * to.length)]));
+    // hung on the line the most words walk (never a banned one, if it can help it), so the star is used
+    const words = poolOf(maskOf(letters)), use = x => words.reduce((n, w) => n + (w.includes(c + x) || w.includes(x + c) ? 1 : 0), 0);
+    const ok = seen.filter(x => !banned.has(pairKey(c, x))), from = ok.length ? ok : seen, score = from.map(use), top = Math.max(...score);
+    const best = from.filter((x, i) => score[i] === top);
+    base.add(pairKey(c, best[Math.floor(r() * best.length)]));
     seen.push(c);
   }
   return base;

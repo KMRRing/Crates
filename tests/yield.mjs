@@ -30,6 +30,8 @@ const SEEDS = Array.from({ length: 20 }, (_, i) => i * 7919 + 13);
   for (const [level, runs] of Object.entries(stat)) {
     check(runs.every(({ s }) => s.words >= 40 && s.words <= 100), `${LEVELS[level]}: every puzzle of ${runs.length} has 40 to 100 words (${Math.min(...runs.map(r => r.s.words))} to ${Math.max(...runs.map(r => r.s.words))})`);
   }
+  // Korbi, 8 Nov 2026 (a screenshot with a star no line reached): every star is used by some word, so every star keeps a line on screen
+  check(Object.values(stat).flat().every(({ s }) => s.dead === 0), "every star is used by some word");
   for (const [level, runs] of Object.entries(stat)) {
     const worst = Math.max(...runs.map(({ words, s }) => endings(words) / s.words)), few = Math.max(...runs.map(({ words }) => endings(words)));
     check(few <= 20 && worst <= 0.32, `${LEVELS[level]}: no two-letter ending takes more than ${few} words or ${Math.round(worst * 100)}% (-ER, -ED and the like)`);
@@ -82,7 +84,7 @@ const SEEDS = Array.from({ length: 20 }, (_, i) => i * 7919 + 13);
   const missing = all.find(x => [...x].every(c => p.letters.includes(c)) && !traces(p, x));
   const r = missing && judge(p, missing, { have: none });
   check(!missing || (r.kind === "line" && !canStep(p, missing[r.at - 1], missing[r.at])), "a word a sight-line short is refused at the step that fails");
-  check(judge(p, "zzzz", { dict }).kind === "letters", "the letters are checked before the dictionary");
+  check(judge(p, "ssss", { dict }).kind === "letters", "the letters are checked before the dictionary");
   check(!words.some(x => !isWord(x)) && words.every(x => !isVariant(x)), "every word is a word, the same on both sides of the Atlantic");
 }
 
