@@ -101,10 +101,10 @@ check(/class="constitutions full titled fit-screen wide"/.test(html), "the page 
 check(!/alert\(|confirm\(|prompt\(|<img/.test(src), "no native pop-up and no picture of its own");
 check(plate().includes("cn-roof") && plate().includes("cn-shaft"), "the plate draws a pediment on columns");
 const apps = read("apps.js"), suite = read("suite.js"), rnd = read("random-core.js"), fs_ = read("tests/full-screen.mjs");
-check(/id: "constitutions", sec: "courses", name: "Constitutions", href: "\.\/constitutions\.html", logo: LOGO\("constitutions", CONSTITUTIONS_LOGO\), players: \[1, 1\]/.test(apps), "the tile is in the courses, for one player");
+check(/id: "constitutions", sec: "appendix", name: "Constitutions", href: "\.\/constitutions\.html", logo: LOGO\("constitutions", CONSTITUTIONS_LOGO\), players: \[1, 1\]/.test(apps), "the tile is in the Appendix, for one player");
 check(/^  constitutions: `<svg class="k-ico"/m.test(apps), "the tile has an Office line icon");
 check(/constitutions: "lessons"/.test(suite), "the games screen reads the lessons mark");
-check(/constitutions: "a course of lessons in order, not a round to repeat"/.test(rnd), "Random leaves the course out, with its reason");
+check(/constitutions: APPENDIX/.test(rnd), "Random leaves the course out (it is in the Appendix)");
 check(/ constitutions /.test(fs_), "tests/full-screen.mjs lists the page as titled");
 check(src.includes('"constitutions:lessons"') && src.includes("constitutions:course") && src.includes("constitutions:pile"), "its keys are under constitutions:");
 

@@ -18,8 +18,6 @@ export const ROUNDS = {
   nexus: "a run of five rounds, its last one checked",
   crossword: "a grid, solved or revealed",
   // Courses
-  calibre: "a level, its movement running",
-  parley: "a study session",
   // Puzzles
   glyph: "a board, solved or given up",
   delta: "a board, solved or given up",
@@ -105,7 +103,8 @@ export const LEFT_OUT = {
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
   sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX, music: APPENDIX,
-  maths: "a course of lessons, not a game with rounds",
+  // Korbi, 8 Nov 2026: "all courses to the annex"
+  calibre: APPENDIX, arthistory: APPENDIX, statecraft: APPENDIX, trade: APPENDIX, constitutions: APPENDIX, wine: APPENDIX, firmament: APPENDIX, parley: APPENDIX, maths: APPENDIX,
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
   shoe: "a deck of cards on a table with no rules or rounds, for people in one room",
@@ -113,12 +112,6 @@ export const LEFT_OUT = {
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
-  wine: "a course of lessons in order, not a round to repeat",
-  trade: "a course of lessons in order, not a round to repeat",
-  constitutions: "a course of lessons in order, not a round to repeat",
-  statecraft: "a course of lessons in order, not a round to repeat",
-  arthistory: "a course of lessons in order, not a round to repeat",
-  firmament: "a course of lessons in order, not a round to repeat",
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
 };

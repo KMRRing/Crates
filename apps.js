@@ -419,7 +419,7 @@ export const APPS = [
   { id: "quote", sec: "knowledge", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO), players: [1, 6] },
   { id: "origin", sec: "knowledge", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO), players: [1, 6] },
   { id: "order", sec: "knowledge", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO), players: [1, 6] },
-  { id: "calibre", sec: "courses", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO), players: [1, 1] },
+  { id: "calibre", sec: "appendix", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO), players: [1, 1] },
   { id: "manifest", sec: "minigames", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO), players: [1, 6] },
   { id: "chart", sec: "knowledge", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO), players: [1, 6] },
   { id: "harbour", sec: "minigames", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
@@ -432,15 +432,15 @@ export const APPS = [
   { id: "nexus", sec: "knowledge", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
   { id: "survey", sec: "puzzle", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
   { id: "stow", sec: "minigames", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), players: [1, 6] },
-  { id: "arthistory", sec: "courses", name: "Art history", href: "./arthistory.html", logo: LOGO("arthistory", ARTHISTORY_LOGO), players: [1, 1] },
-  { id: "statecraft", sec: "courses", name: "Statecraft", href: "./statecraft.html", logo: LOGO("statecraft", STATECRAFT_LOGO), players: [1, 1] },
-  { id: "trade", sec: "courses", name: "History of trade", href: "./trade.html", logo: LOGO("trade", TRADE_LOGO), players: [1, 1] },
-  { id: "constitutions", sec: "courses", name: "Constitutions", href: "./constitutions.html", logo: LOGO("constitutions", CONSTITUTIONS_LOGO), players: [1, 1] },
-  { id: "wine", sec: "courses", name: "Wine", href: "./wine.html", logo: LOGO("wine", WINE_LOGO), players: [1, 1] },
-  { id: "firmament", sec: "courses", name: "Firmament", href: "./firmament.html", logo: LOGO("firmament", FIRMAMENT_LOGO), players: [1, 1] },
+  { id: "arthistory", sec: "appendix", name: "Art history", href: "./arthistory.html", logo: LOGO("arthistory", ARTHISTORY_LOGO), players: [1, 1] },
+  { id: "statecraft", sec: "appendix", name: "Statecraft", href: "./statecraft.html", logo: LOGO("statecraft", STATECRAFT_LOGO), players: [1, 1] },
+  { id: "trade", sec: "appendix", name: "History of trade", href: "./trade.html", logo: LOGO("trade", TRADE_LOGO), players: [1, 1] },
+  { id: "constitutions", sec: "appendix", name: "Constitutions", href: "./constitutions.html", logo: LOGO("constitutions", CONSTITUTIONS_LOGO), players: [1, 1] },
+  { id: "wine", sec: "appendix", name: "Wine", href: "./wine.html", logo: LOGO("wine", WINE_LOGO), players: [1, 1] },
+  { id: "firmament", sec: "appendix", name: "Firmament", href: "./firmament.html", logo: LOGO("firmament", FIRMAMENT_LOGO), players: [1, 1] },
   { id: "music", sec: "appendix", name: "Music", href: "./music.html", logo: LOGO("music", MUSIC_LOGO), players: [1, 1] },
-  { id: "parley", sec: "courses", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO), players: [1, 1] },
-  { id: "maths", sec: "courses", name: "Maths", href: "./maths.html", logo: LOGO("maths", MATHS_LOGO), players: [1, 1] },
+  { id: "parley", sec: "appendix", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO), players: [1, 1] },
+  { id: "maths", sec: "appendix", name: "Maths", href: "./maths.html", logo: LOGO("maths", MATHS_LOGO), players: [1, 1] },
   { id: "crossword", sec: "knowledge", name: "Crossword", href: "./crossword.html", logo: LOGO("crossword", CROSSWORD_LOGO), players: [1, 6], team: "time" },
   { id: "lode", sec: "knowledge", name: "Lode", href: "./lode.html", logo: LOGO("lode", LODE_LOGO), players: [1, 6], team: "time" },
   { id: "isomer", sec: "appendix", name: "Isomer", href: "./isomer.html", logo: LOGO("isomer", ISOMER_LOGO), players: [1, 6], team: "time" },
@@ -667,7 +667,7 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
-export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["minigames", "Minigames"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["puzzle", "Puzzles"], ["minigames", "Minigames"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
 /** The Appendix shows only on the owner's own solo code (Korbi, 4 November 2026: "don't appear unless the user is logged in as ?solo=KORBIRUN"). */
 const APPENDIX_CODE = "KORBIRUN";
 const appendixOpen = () => soloCode() === APPENDIX_CODE && markedIn();   // and only while Settings includes content marked for removal (Korbi, same evening: "when content marked for removal is set to exclude, hide the appendix even if it's solo=korbirun")
