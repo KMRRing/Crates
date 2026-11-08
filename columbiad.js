@@ -477,7 +477,9 @@ function mapSvg(L) {
   const s = Math.max(x1 - x0, y1 - y0) * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   let g = "";
   for (const z of L.hazards || []) {
-    const p = z.body ? bodyAt(L, w.bodies.findIndex(b => b.id === z.body), 0) : z.at;
+    // where the view puts it: on a ring it follows (a guard), on a body, or at a place, then offset (by the level's own rule)
+    let p = z.follow != null ? ringAt(L, z.follow < 0 ? L.target : L.gates[z.follow], 0) : z.body ? bodyAt(L, w.bodies.findIndex(b => b.id === z.body), 0) : z.at || [0, 0];
+    if (z.off) { const a = z.out ? Math.atan2(p[1], p[0]) - Math.PI / 2 : 0, c = Math.cos(a), sn = Math.sin(a); p = [p[0] + z.off[0] * c - z.off[1] * sn, p[1] + z.off[0] * sn + z.off[1] * c]; }
     if (z.band) g += `<circle class="cb-map-band" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f((z.band[0] + z.band[1]) / 2)}" stroke-width="${f(z.band[1] - z.band[0])}"/>`;
     else g += `<circle class="cb-map-haz" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(z.r, s * 0.012))}"/>`;
   }
