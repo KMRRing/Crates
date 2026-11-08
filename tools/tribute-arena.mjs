@@ -30,7 +30,7 @@ function greedy(st, seat) {
 const players = {
   bot: (st, s, d) => B.decide(st, s, { skill, search, seed: s + 1 + d * 4 }).action,
   other: other ? (st, s, d) => other.decide(st, s, { seed: s + 1 + d * 4 }).action
-    : arg === "medium" || arg === "hard" ? (st, s, d) => B.decide(st, s, { skill: arg, seed: s + 1 + d * 4 }).action : greedy,
+    : arg === "easy" || arg === "medium" || arg === "hard" ? (st, s, d) => B.decide(st, s, { skill: arg, seed: s + 1 + d * 4 }).action : greedy,
 };
 let swing = 0, sq = 0, hands = 0, wins = 0, doubles = 0;
 const t0 = Date.now();
@@ -59,4 +59,4 @@ for (let d = 0; d < deals; d++) {
   process.stdout.write(`deal ${d + 1}/${deals}  ${((Date.now() - t0) / 1000).toFixed(0)} s\r`);
 }
 const mean = swing / deals, se = Math.sqrt(Math.max(0, sq / deals - mean * mean) / deals);
-console.log(`\nthe bot (${skill}${search ? `, looking ahead in ${search} deals` : ""}): ${(mean / 2).toFixed(2)} ± ${(se / 2).toFixed(2)} levels a hand, first out in ${(100 * wins / hands).toFixed(1)}% (${(100 * doubles / hands).toFixed(1)}% one-two), ${hands} hands against ${other ? arg : arg === "medium" || arg === "hard" ? `the bot at ${arg}` : "greedy players"}`);
+console.log(`\nthe bot (${skill}${search ? `, looking ahead in ${search} deals` : ""}): ${(mean / 2).toFixed(2)} ± ${(se / 2).toFixed(2)} levels a hand, first out in ${(100 * wins / hands).toFixed(1)}% (${(100 * doubles / hands).toFixed(1)}% one-two), ${hands} hands against ${other ? arg : arg === "easy" || arg === "medium" || arg === "hard" ? `the bot at ${arg}` : "greedy players"}`);

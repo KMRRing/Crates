@@ -97,8 +97,8 @@ function workerFor(role) {
   return workers[role];
 }
 /** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
-const strength = () => ramp("tribute", ["medium", "hard"], { start: OLD_BOTS });
-const skill = () => ((together.room ? S?.bots : strength()) === "medium" ? "medium" : "hard");
+const strength = () => ramp("tribute", ["easy", "medium", "hard"], { start: OLD_BOTS });
+const skill = () => { const b = together.room ? S?.bots : strength(); return b === "easy" || b === "medium" ? b : "hard"; };
 /** The computer's choice in a seat now: { action, why }; `kind`: "decide", or "hints": the plays weighed, hard's choice
  *  first, each with what speaks for and against it (tribute-bot.js's weigh). */
 async function think(state, seat, kind = "decide", extra = {}) {

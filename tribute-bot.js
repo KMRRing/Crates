@@ -25,7 +25,7 @@
 //    the hand misses least; to a partner, the most useful one it can spare.
 import { classify, beats, power, rankOf, suitOf, isWild, isJoker, valueOf, orderOf, teamOf, partnerOf, returnable, playName, rankName, cardName, readingFor, signature, SJ, BJ, asked, act, rng } from "./tribute-engine.js";
 
-export const SKILLS = ["medium", "hard"];
+export const SKILLS = ["easy", "medium", "hard"];
 /** The weights the organisation and the choices use; tools/tribute-arena.mjs plays versions of them against each other. */
 export const TUNE = {
   bomb4: 1.0, bomb5: 1.2, sf: 1.25, big: 1.35, jokers: 1.5,     // a bomb's worth, in leads
@@ -438,7 +438,7 @@ const STANDS = {                                                 // by kind: int
 };
 export function stands(r, held, lead, against = "hard") {
   if (r.bomb || held > SURE) return 1;
-  const f = STANDS[against] || STANDS.hard, k = f[r.type];
+  const f = STANDS[against === "easy" ? "medium" : against] || STANDS.hard, k = f[r.type];   // (no plays of Easy's were fitted: Medium's numbers)
   if (!k) return Math.min(0.99, held);
   const x = Math.min(1 - 1e-4, Math.max(1e-4, held));
   return Math.min(0.99, 1 / (1 + Math.exp(-(k[0] + k[1] * Math.log(x / (1 - x)) - f.sure * Math.log(1 - x) + (lead ? f.lead : 0)))));
@@ -665,6 +665,9 @@ export const SETTINGS = {
   hard: { noise: 0.08, eager: 0, table: true, block: true, breakLead: true, bombRead: true, overtake: true, slip: 0 },
   // medium: slower to contest a trick, no reading of the table, no blocking, a plainer bomb rule, and a hand that wanders
   medium: { noise: 0.55, eager: 0.75, table: false, block: false, breakLead: false, bombRead: false, overtake: false, slip: 0.12 },
+  // Korbi, 8 Nov 2026: an Easy step under Medium (the menu's Easy / Medium / Hard row): it passes a trick it could win and misjudges
+  // another a third of the time, and its hand wanders with it
+  easy: { noise: 1.1, eager: 1.5, table: false, block: false, breakLead: false, bombRead: false, overtake: false, slip: 0.3 },
   // the look-ahead's players: hard's, without the reading of the table, which costs the time of a deal's worth of plays
   rollout: { noise: 0, eager: 0, table: false, block: true, breakLead: false, bombRead: true, overtake: true, slip: 0 },
 };
@@ -672,7 +675,7 @@ const nameOf = (state, seat) => state.names?.[seat] || ["South", "East", "North"
 
 /**
  * The decision for a seat now, with its reason: { action, why } — a play ({ t: "play", cards }), a pass, or a return
- * ({ t: "return", card }). opts: skill ("hard" or "medium"), search (deals to look ahead in; hard only), seed,
+ * ({ t: "return", card }). opts: skill ("hard", "medium" or "easy"), search (deals to look ahead in; hard only), seed,
  * budget (milliseconds for the look-ahead), noise (false: the same choice every time).
  */
 export function decide(state, seat, { skill = "hard", search = 0, seed = 1, budget = Infinity, noise = true } = {}) {

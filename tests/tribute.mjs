@@ -165,7 +165,7 @@ function position(hands, { level = 2, turn = 0 } = {}) {
 }
 const choice = (st, seat, skill = "hard") => B.decide(st, seat, { skill, noise: false }).action;
 const plays = (a, s) => a.t === "play" && a.cards.length === C(s).length && C(s).every(id => a.cards.includes(id));
-for (const skill of ["hard", "medium"]) {
+for (const skill of ["hard", "medium"]) {   // (Easy leaves these refinements out on purpose)
   {
     // the next opponent down to two: lead more cards than he holds
     const st = position(["3s 3c 9d 5s 5c 5d 7h 7d", "Ks Kc", "4s 6s 8s 10s Js Qs Kd Ah", "2c 3d 4d 6d 8d 9h 10h Jh"]);
@@ -296,6 +296,16 @@ for (const skill of ["hard", "medium"]) {
     n++; swing += st.result.team === hardSide ? st.result.gain : -st.result.gain;
   }
   check(swing / n >= 0.15, `hard against medium: hard's side ${swing >= 0 ? "+" : ""}${(swing / n).toFixed(2)} levels a hand over ${n} hands`);
+}
+{
+  // Korbi, 8 Nov 2026: Easy, a step under Medium: medium's side rises over it
+  let swing = 0, n = 0;
+  for (let d = 0; d < 40; d++) for (const side of [0, 1]) {
+    const st = E.deal({ v: 1, opts: E.DEFAULTS, levels: [2, 2], declarer: -1, handNo: 0, lastOrder: null, results: [] }, 72000 + d);
+    for (let g = 0; g < 5000 && st.phase !== "over"; g++) { const seat = E.waitingOn(st)[0]; E.act(st, seat, B.decide(st, seat, { skill: E.teamOf(seat) === side ? "medium" : "easy", seed: seat + 1 + d }).action); }
+    n++; swing += st.result.team === side ? st.result.gain : -st.result.gain;
+  }
+  check(swing / n >= 0.1, `medium against easy: medium's side ${swing >= 0 ? "+" : ""}${(swing / n).toFixed(2)} levels a hand over ${n} hands`);
 }
 
 {
