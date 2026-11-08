@@ -10,6 +10,7 @@ import { cluesOf, cluedWords } from "./clues.js";
 import { kbEntries, saysWords, wordsOf, BANK } from "./crossword-kb.js";
 import { seeded, allowed, countSolutions, grade, REVEAL_COST, CHECK_COST } from "./crossword-solve.js";
 import { KB_TOPICS, TOPIC_OF, mixFromSubjects } from "./topics.js";
+import { makeNumbers } from "./crossnumber-engine.js";
 
 export { REVEAL_COST, CHECK_COST };
 export const BLACK = "#", EMPTY = ".";
@@ -55,7 +56,7 @@ export const SIZE_IDS = Object.keys(SIZES).map(Number);
  * Lexicon knows, clued by one of its links), or a few of the knowledge base's among ordinary words (Both).
  */
 // (the menu says Almanac since the Lexicon became one; the id stays lexicon, so a saved kind opens as it did)
-export const KINDS = { classic: "Classic", lexicon: "Almanac", both: "Both" };
+export const KINDS = { classic: "Classic", lexicon: "Almanac", both: "Both", numbers: "Numbers" };
 /** A kind as saved: "learning" was the kind before Lexicon (October 2026), as many knowledge entries as a grid took,
  *  apart, among ordinary words; Lexicon is what it was asked to be. */
 export const kindOf = k => (k === "learning" ? "lexicon" : KINDS[k] ? k : "both");
@@ -362,6 +363,8 @@ function makeOne({ seed = 1, level = "medium", size = null, kind = "both", pool 
 }
 /** A puzzle for these options, or null (makeOne's; an Almanac grid that no knowledge fill came for is tried one size smaller). */
 export function makePuzzle(opts = {}) {
+  // Numbers: a cross-number grown from Quote's bank, not filled (crossnumber-engine.js)
+  if (opts.kind === "numbers") return makeNumbers(opts);
   const p = makeOne(opts);
   if (p || opts.kind !== "lexicon") return p;
   const n = Math.min(SIZES[opts.size] ? Number(opts.size) : (LEVELS[opts.level] || LEVELS.medium).size, ALMANAC_MAX);
@@ -608,7 +611,7 @@ export const clueLine = e => `${e.lead ? `${e.lead}: ` : ""}${e.text} (${e.enume
  * and the letters revealed: what the time is charged for), ms (on the clock), done (once solved or given up).
  */
 export function freshPlay(puzzle) {
-  return { letters: puzzle.rows.join("").replace(/[A-Z]/g, EMPTY), revealed: [], wrong: [], checks: 0, reveals: 0, ms: 0, done: null };
+  return { letters: puzzle.rows.join("").replace(/[A-Z0-9]/g, EMPTY), revealed: [], wrong: [], checks: 0, reveals: 0, ms: 0, done: null };
 }
 const setAt = (s, k, ch) => s.slice(0, k) + ch + s.slice(k + 1);
 /** Writes a letter (or "." to empty the cell); a revealed letter stays. Whether anything changed. */

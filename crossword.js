@@ -72,7 +72,7 @@ function makePuzzleOff(opts) {
  * (dueEntries). A grid of ordinary words alone has no room for any of it.
  */
 function randomOptions(seed = Math.floor(Math.random() * 2 ** 31)) {
-  const s = settings(), w = mix(), learning = pile.learning() && s.kind !== "classic";
+  const s = settings(), w = mix(), learning = pile.learning() && s.kind !== "classic" && s.kind !== "numbers";
   return { seed, level: s.level, size: sizeOf(s), kind: s.kind, pool: s.pool, asks: s.asks, mode: s.mode, topics: w,
     due: learning ? dueEntries(s, w) : [], weak: learning ? pile.weakElsewhere("crossword") : null,
     // whatever the mode, a random grid keeps off the entries dealt lately (the mode puts what to revise back in)
@@ -782,7 +782,7 @@ async function newGrid(daily, { ask = true } = {}) {
     let opts = daily ? dailyOptions(day) : randomOptions(), narrow = false;
     const preset = onPreset();                       // as the grid is dealt, not as it is when it's made
     let p = await makePuzzleOff(opts);
-    if (!p && !daily && opts.kind !== "classic") { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
+    if (!p && !daily && opts.kind !== "classic" && opts.kind !== "numbers") { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
     if (!p) { toast("Couldn't set a grid: try again"); return; }
     if (!daily) pile.dealt("crossword", p.entries.map(e => e.key).filter(Boolean));
     S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, size: opts.size, kind: opts.kind, pool: opts.pool, asks: opts.asks, mode: opts.mode },
@@ -797,6 +797,7 @@ async function newGrid(daily, { ask = true } = {}) {
 }
 function afterNewRun() {
   drawnFor = null;
+  buildKeyboard();
   buildBoard();
   const p = puzzle(), first = p?.entries[0], at = S?.at;
   if (at && p && !isBlack(p, at.k) && entriesAt(p, at.k)[at.dir]) cur = { ...at };
@@ -1076,7 +1077,7 @@ function openMenu() {
   todayPart(body, { app: "crossword", play: () => openToday(), playing });
   if (playing) part(body, "play").append(action("Start today's again", () => restartToday(), "link"));
   const content = part(body, "content");
-  const knowledge = s.kind !== "classic";
+  const knowledge = s.kind !== "classic" && s.kind !== "numbers";
   content.append(choice("Clues", Object.entries(KINDS), s.kind, v => { setSetting("kind", v); openMenu(); }),
     // Settings' topics, in a sheet from here, for the next random grid (today's takes every topic)
     ...(knowledge ? topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do") : []));
@@ -1089,8 +1090,13 @@ function openMenu() {
 }
 // ---------- the keyboard ----------
 let keyDown = 0;               // when a finger last landed on a key
+let keysFor = null;            // which keyboard is built: "numbers" for a cross-number's digits, else letters
 function buildKeyboard() {
-  const rows = [[..."QWERTYUIOP"], ["", ..."ASDFGHJKL", ""], ["CLUES", ..."ZXCVBNM", "BACK"]];
+  const digits = puzzle()?.kind === "numbers";
+  if (keysFor === (digits ? "numbers" : "letters")) return;
+  keysFor = digits ? "numbers" : "letters";
+  // (a cross-number's three rows are as tall as the letters': nothing changes size between grids)
+  const rows = digits ? [[..."12345"], [..."67890"], ["CLUES", "BACK"]] : [[..."QWERTYUIOP"], ["", ..."ASDFGHJKL", ""], ["CLUES", ..."ZXCVBNM", "BACK"]];
   $("kbd").replaceChildren(...rows.map(keys => {
     const r = el("div", "cw-krow");
     for (const k of keys) {
@@ -1117,7 +1123,7 @@ document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
   if (!puzzle() || joining) return;
   const k = e.key;
-  if (/^[a-z]$/i.test(k)) typeLetter(k.toUpperCase());
+  if (puzzle().kind === "numbers" ? /^[0-9]$/.test(k) : /^[a-z]$/i.test(k)) typeLetter(k.toUpperCase());
   else if (k === "Backspace" || k === "Delete") backspace();
   else if (k === "ArrowLeft") arrow(0, -1);
   else if (k === "ArrowRight") arrow(0, 1);
