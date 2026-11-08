@@ -27,7 +27,7 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 .sw-tab { flex: 1 1 0; padding: .2rem 0; font-size: .8rem; }
 .sw-tab.on { background: var(--ink); color: var(--sheet); }
 .sw-gridbox { flex: 1 1 auto; min-height: 0; }
-.sw-grid { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 3px; }
+.sw-grid { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: .2rem; }
 .sw-sq { padding: 0; border: 1px solid var(--tile-edge); border-radius: 2px; background: var(--sw-wood); cursor: pointer; position: relative; display: block; font-size: .62rem; line-height: 1; color: rgba(40, 28, 12, .6); text-align: left; -webkit-tap-highlight-color: transparent; }
 .sw-sq span { position: absolute; left: .18rem; top: .15rem; }
 .sw-sq.dark { background: color-mix(in srgb, var(--sw-wood) 82%, #000); }
