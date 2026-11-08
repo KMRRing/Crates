@@ -84,6 +84,7 @@ let S = null;
 let clockFrom = null, savedAt = 0, paused = false;
 let message = null;                  // { text, tone }: what the line under the board says until the next trace
 let lastFound = null;                // the word just found, drawn fresh
+let peek = -1;                       // the clue the banner shows in place of the title (-1: the title)
 let clueAt = 0;                      // the clue showing, in Every word
 let spare = null;                    // the next random board, dealt ahead for the settings it was dealt with
 
@@ -238,6 +239,7 @@ function drawTheme(ctx) {
   const b = ctx.board, spanFound = ctx.run.found.includes(0) || ctx.run.done;
   const every = ctx.clues === "every";
   $("clueNav").hidden = !every;
+  $("peekPrev").hidden = $("peekNext").hidden = every;
   if (!every) {
     $("kind").textContent = spanFound ? `Theme · ${b.name}` : ctx.level === "hard" ? "Theme" : `Theme · ${kindWords[b.kind]}`;
     // Korbi, 7 Nov 2026: a title shows the item it is about, its topic, and the description (not the description alone). A board
@@ -246,6 +248,15 @@ function drawTheme(ctx) {
     $("title").classList.remove("lo-clue");
     $("title").classList.toggle("lo-item", !!t.word);
     const head = el("div", "lo-head");
+    const order = clueOrder(ctx), k = peek >= 0 ? peek % order.length : -1;
+    if (k >= 0) {
+      // Korbi, 8 Nov 2026: the banner's ends step through the clues, each with its length, in the title's own box
+      const w = order[k], word = b.words[w], got = ctx.run.found.includes(w) || ctx.run.revealed.includes(w);
+      head.append(el("b", "", got ? word.text : `${word.text.length} letters`), el("small", "", `Clue ${k + 1} of ${order.length}`));
+      $("title").classList.add("lo-item");
+      $("title").replaceChildren(head, el("span", "lo-desc", w === 0 ? "“the theme, from side to side”" : `“${word.hint}”`));
+      return;
+    }
     head.append(el("b", "", t.word || ""), ...(label ? [el("small", "", label)] : []));
     if (t.word) $("title").replaceChildren(head, el("span", "lo-desc", `“${t.text}”`));
     else $("title").textContent = `“${t.text}”`;
@@ -373,7 +384,7 @@ function begin(made, mode, day = null) {
   // a best is today's board, a linked one that deals every topic, or a random one dealt on a preset of the topics
   const ranked = mode === "daily" || (!markedIn() && (mode === "link" ? !made.deal.mix : onPreset()));
   S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, ranked, fresh: false };
-  lastFound = null; clueAt = 0; message = null; clockFrom = null;
+  lastFound = null; clueAt = 0; peek = -1; message = null; clockFrom = null;
   view.clear();
   if (mode !== "daily") write(SEEN, [...read(SEEN, []).filter(id => id !== made.deal.theme), made.deal.theme].slice(-30));
   history.replaceState(null, "", hashFor(S));
@@ -622,7 +633,7 @@ function onState(val) {
   const was = G;
   G = tidy(structuredClone(val));
   if (!stopOffset) stopOffset = together.room?.sync.serverOffset?.(ms => { offset = ms || 0; }) || (() => {});
-  if (was && was.n !== G.n) { lastFound = null; clueAt = 0; message = null; view.clear(); closeRace(); toast(`A new board: ${MODES[G.mode].toLowerCase()}`); }
+  if (was && was.n !== G.n) { lastFound = null; clueAt = 0; peek = -1; message = null; view.clear(); closeRace(); toast(`A new board: ${MODES[G.mode].toLowerCase()}`); }
   if (was && G.mode === "team" && was.n === G.n) {           // what the others just found, in the line under the board
     const fresh = G.team.found.filter(w => !was.team.found.includes(w));
     for (const w of fresh) { lastFound = w; const by = G.by[`w${w}`]; if (by !== together.slot) said({ kind: w ? "theme" : "span", w }, context(), nameOfSlot(by)); }
@@ -734,6 +745,15 @@ $("hintBtn").addEventListener("click", useHintNow);
 $("wordsBtn").addEventListener("click", openWords);
 $("seeBtn").addEventListener("click", openWords);
 $("nextBtn").addEventListener("click", () => { if (G?.mode === "race") openRace(); else if (G) dealForTable(); else start("random"); });
+/** The banner's ends: the title, then each word's clue and length, round and round. */
+function peekBy(d) {
+  const ctx = context(); if (!ctx || ctx.clues === "every") return;
+  const n = clueOrder(ctx).length + 1, at = peek + 1;
+  peek = ((at + d + n) % n) - 1;
+  drawTheme(ctx);
+}
+$("peekPrev").addEventListener("click", () => peekBy(-1));
+$("peekNext").addEventListener("click", () => peekBy(1));
 $("cluePrev").addEventListener("click", () => { const ctx = context(); if (!ctx) return; clueAt = (clueAt - 1 + ctx.board.words.length) % ctx.board.words.length; drawTheme(ctx); });
 $("clueNext").addEventListener("click", () => { const ctx = context(); if (!ctx) return; clueAt = (clueAt + 1) % ctx.board.words.length; drawTheme(ctx); });
 $("region").addEventListener("change", () => {

@@ -14,7 +14,7 @@ html[data-mode="night"] { --lo-in: #8EA9E0; --lo-gold: #E2B865; --lo-on: #10181F
 
 /* the theme: what the board is about, as a clue (the title), or every word's clue one at a time; always two lines high,
    so nothing under it moves as a clue changes */
-.lo-theme { margin: .6rem 0 0; padding: .5rem .75rem .55rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); }
+.lo-theme { position: relative; margin: .6rem 0 0; padding: .5rem 1.9rem .55rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); }
 .lo-kind { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: 0; min-height: 1.4rem;
   font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--lo-in); }
 .lo-nav { display: inline-flex; align-items: center; gap: .2rem; font-stretch: 100%; letter-spacing: normal; color: var(--ink-soft); }
@@ -134,7 +134,7 @@ html[data-theme="office"] .lo-toast { border-radius: 10px; }
 
 /* a short phone: everything round the board drawn closer, so the board keeps letters a thumb can hit */
 @media (orientation: portrait) and (max-height: 700px) {
-  .lo-theme { margin-top: .45rem; padding: .3rem .65rem .35rem; }
+  .lo-theme { margin-top: .45rem; padding: .3rem 1.8rem .35rem; }
   .lo-kind { min-height: 1.1rem; font-size: .64rem; }
   .lo-title { font-size: .9rem; line-height: 1.25; max-height: 2.5em; }
   .lo-title.lo-clue { height: 2.5em; }
@@ -173,3 +173,10 @@ html[data-theme="office"] .lo-toast { border-radius: 10px; }
 
 /* the planet (lode-planet.js): a canvas filling the stage, the flat board's svg hidden behind it */
 .lo-planet { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; }
+
+/* Korbi, 8 Nov 2026: the banner's two ends, an arrow each, step through the clues (and each word's length); a press anywhere on an end counts */
+.lo-flip { position: absolute; top: 0; bottom: 0; width: 24%; display: flex; align-items: center; margin: 0; padding: 0 .5rem; border: 0; background: none; color: var(--lo-in); font: inherit; font-size: 1.7rem; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.lo-flip.l { left: 0; justify-content: flex-start; }
+.lo-flip.r { right: 0; justify-content: flex-end; }
+.lo-flip[hidden] { display: none; }
+.lo-flip:active span { transform: scale(1.25); }
