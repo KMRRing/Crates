@@ -19,7 +19,7 @@ import { load3d } from "./loading.js";
 // of the ring and of the strips beyond it; a discard's width d is the unit of the pools inside it.
 export const WT = 4 / 3;                                         // a wall stack's depth in its widths: a tile lies 22 across and 29 long
 export const SR = SLAB_H / TILE_W;                               // a slab's height over its width
-const STRIP = { top: 1.2, side: 1.1, foot: 0.3 };               // the room outside the ring (the player across, the others, your edge), in p
+const STRIP = { top: 1.1, side: 1.0, foot: 0.3 };               // the room outside the ring (the player across, the others, your edge), in p   // Korbi, 8 Nov 2026: the others' hand tiles as large as the wall's (t = p), the strips as slim as they go
 const PAD = 0.12;                                                 // between the ring and the pools, in p
 const DISC = { px: 1.03, py: 1.5 };                              // a discard's pitch across and down, in its widths (a row tucks under the last's thickness)
 const GAP = 0.34, PLATE = 2.6;                                   // between the pools and the plate, and the least plate, in discard widths
@@ -110,7 +110,7 @@ export function compose(pl, box) {
     { x: ox + STRIP.side * p, y: oy, w: nTop * p, h: STRIP.top * p, axis: "x" },
     { x: ox, y: oy + STRIP.top * p, w: STRIP.side * p, h: (nSide + 2 * WT) * p, axis: "y" },
   ];
-  return { p, d, t: 0.8 * p, stacks, pools, plate, strips, nTop, nSide, box: { x: ox, y: oy, w: Wc, h: Hc } };
+  return { p, d, t: p, stacks, pools, plate, strips, nTop, nSide, box: { x: ox, y: oy, w: Wc, h: Hc } };
 }
 
 /**
