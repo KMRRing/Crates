@@ -65,7 +65,8 @@ check(centre.length > 0 && centre.every(i => { const near = [...geo.touch[i]].ma
 const was = new Set(facing);
 const back = N - 1;
 check(!was.has(back) || at[back].z > 0.2, "the tile pickable is the one drawn");
-check(Math.abs(pv.camera.zoom - 1) < 1e-9, "the planet starts framed whole");
+// Korbi, 8 November 2026: "the game on planet mode should start much more zoomed out"
+check(Math.abs(pv.camera.zoom - 0.6) < 1e-9, "the planet starts framed whole, with room round it (0.6 of the fitted size)");
 // it turns without limit, as Mines' cube: a long drag one way keeps turning (no pitch stop) and the far side comes round
 const q0 = pv.camera.q.join();
 for (let s = 0; s < 40; s++) pv.turnBy(0, 60);
