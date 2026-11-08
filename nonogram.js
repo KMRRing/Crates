@@ -1,11 +1,11 @@
 // Nonogram: a picture hidden in a grid, the runs of each row and column its clues. The pictures are the knowledge
-// base's (a country's outline, a flag in colour, a lake), each a puzzle with exactly one answer that reasoning reaches
+// base's (a country's outline, a flag in colour), each a puzzle with exactly one answer that reasoning reaches
 // (nonogram-pictures.js, nonogram-engine.js), on squares or on a hexagon of hexes (nonogram-hex.js), where every cell
 // has three lines; nonogram-board.js draws the one, nonogram-hexboard.js the other. This file keeps the run, the clock
 // and the strokes, names the picture, plays the computer (a partner with half the clues)
 // and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
-import { PICTURES, TOPICS, topicsOf, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember, ringsOf } from "./nonogram-pictures.js";
+import { PICTURES, TOPICS, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember, ringsOf } from "./nonogram-pictures.js";
 import { drawGlobe } from "./nonogram-globe.js";
 import { factFor, warm } from "./nonogram-fact.js";
 import { KB_TOPICS, TOPIC_OF, mixFromSubjects } from "./topics.js";
@@ -22,7 +22,6 @@ import { markDone } from "./today-core.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
-import { topicsPart } from "./topics-ui.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { branchPath } from "./rooms.js";
@@ -40,29 +39,35 @@ const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** Seconds as 1:05 (or 1:02:05), a minus before a score below nothing. */
 const fmt = secs => { const neg = secs < 0, s = Math.abs(Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return `${neg ? "−" : ""}${h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`}`; };
-const TOPIC_ONE = { countries: "country", flags: "flag", lakes: "lake", regions: "region" };
+const TOPIC_ONE = { countries: "country", flags: "flag" };
 const S3 = Math.sqrt(3);
 
 // ---------- settings (the menu's) ----------
-// One choice (Korbi, 4 November 2026: "the menu is the minimum it needs to be"): the mode, Pictures, Hexes or Cloth. Everything
-// else is fixed: every kind of picture (Settings' topics decide the mix), worldwide, any difficulty, mistakes shown, Name it on,
-// no computer partner; the size is the hidden ramp (`sizeNow`). The old Picture/Grid/Pictures/Region/Size/Level/Name it/
-// Mistakes/Computer/Its pace choices are ignored where they were kept.
-const FIXED = { topic: "all", region: "world", band: "any", nameIt: true, mistakes: "shown", computer: "off", pace: "medium" };
+// One choice (Korbi, 4 November 2026: "the menu is the minimum it needs to be"): the mode. Korbi, 9 November 2026: "the only
+// interesting things are countries and flags, so the modes should be square/flags, square/countries, hex/countries, cloth, survey,
+// and no topics to choose from": the mode is the kind of picture and the grid with it (lakes and regions are Chart's now). Everything
+// else is fixed: worldwide, any difficulty, mistakes shown, Name it on, no computer partner; the size is the hidden ramp (`sizeNow`).
+// The old Picture/Grid/Pictures/Region/Size/Level/Name it/Mistakes/Computer/Its pace choices are ignored where they were kept, and
+// the old mode "picture" (every kind) is Countries.
+const FIXED = { region: "world", band: "any", nameIt: true, mistakes: "shown", computer: "off", pace: "medium" };
 const kept = read(SETTINGS, {});
-const settings = { together: kept.together === "race" ? "race" : "split", mode: "picture", grid: "square", ...FIXED };
-const applyMode = m => { settings.mode = m; settings.grid = m === "hex" ? "hex" : "square"; };
-applyMode(kept.mode === "cloth" ? "cloth" : kept.mode === "hex" || kept.grid === "hex" ? "hex" : "picture");
+const settings = { together: kept.together === "race" ? "race" : "split", mode: "countries", grid: "square", topic: "countries", ...FIXED };
+const applyMode = m => {
+  settings.mode = m === "picture" ? "countries" : m;
+  settings.grid = m === "hex" ? "hex" : "square";
+  settings.topic = m === "flags" ? "flags" : "countries";
+};
+applyMode(kept.mode === "cloth" ? "cloth" : kept.mode === "flags" ? "flags" : kept.mode === "hex" || kept.grid === "hex" ? "hex" : "countries");
 const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, { together: settings.together, mode: settings.mode }); };
 // Loom's address (loom.html) comes here as ?mode=cloth: Cloth becomes the mode kept, and the address is cleared of it.
 const modeLink = new URLSearchParams(location.search);
-if (["picture", "hex", "cloth"].includes(modeLink.get("mode")) && !IN_FRAME) {   // (Loom's address, and Survey's Mode row back)
+if (["picture", "countries", "flags", "hex", "cloth"].includes(modeLink.get("mode")) && !IN_FRAME) {   // (Loom's address, and Survey's Mode row back)
   applyMode(modeLink.get("mode")); saveSettings();
   modeLink.delete("mode");
   history.replaceState(null, "", `${location.pathname}${modeLink.size ? `?${modeLink}` : ""}${location.hash}`);
 }
 let cloth = null;                      // loom-mode.js's controller, once the page is showing Cloth (loaded only then)
-const MODES = [["picture", "Pictures"], ["hex", "Hexes"], ["cloth", "Cloth"], ["survey", "Survey"]];   // Survey (Korbi, 8 Nov 2026) is its own page, survey.html, kept as it was
+const MODES = [["flags", "Flags"], ["countries", "Countries"], ["hex", "Countries on hexes"], ["cloth", "Cloth"], ["survey", "Survey"]];   // Survey (Korbi, 8 Nov 2026) is its own page, survey.html, kept as it was
 // The size is a ramp: Small, then Medium and Large as pictures are drawn without a fuss (`finish`). The first step is the size of the
 // picture last in play, so a player who chose one carries on with it. It is one predictable line, so `nonogram:times` buckets fill.
 const SIZE_STEPS = ["small", "medium", "large"];
@@ -227,12 +232,10 @@ async function coopFresh(size = sizeNow(), always = false) {
 // The next random picture is dealt (and its puzzle made) while you play this one, so Next is instant; it's dealt
 // again if the choices it was dealt for have changed by then.
 let upcoming = null;                                              // { key, got }
-// Settings' subjects (topics-on.js) are read when a picture is dealt, never once at start-up; they leave kinds out of "All"
-const mixNow = () => topicsOf(subjectsOn());
-const dealKey = size => JSON.stringify([settings.topic, settings.region, settings.band, settings.grid, size, pile.mode(), mixNow()]);
+const dealKey = size => JSON.stringify([settings.topic, settings.region, settings.band, settings.grid, size, pile.mode()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
-  return dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen, prefer, marked: markedIn() });
+  return dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, seen, prefer, marked: markedIn() });
 }
 async function nextPick(size) {
   const key = dealKey(size);
@@ -246,7 +249,7 @@ function prepare() {
   if (IN_FRAME || duel.on) return;
   const size = sizeNow(), key = dealKey(size);
   if (upcoming?.key === key) return;
-  const args = { topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
+  const args = { topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
   try {
     maker ??= new Worker(new URL("./nonogram-worker.js", import.meta.url), { type: "module" });
     const n = ++asked;
@@ -469,7 +472,7 @@ function askNameSoon() {
 // ---------- naming it ----------
 const NAME_TOPIC_NAMES = new Map();
 function namesFor(pic) {                                         // every name a picture of this kind goes by, for the list
-  const key = `${pic.topic}|${pic.topic === "regions" ? pic.of : ""}`;
+  const key = pic.topic;
   if (!NAME_TOPIC_NAMES.has(key)) NAME_TOPIC_NAMES.set(key, [...new Set(siblingsOf(pic).map(p => p.name))].sort((a, b) => a.localeCompare(b)));
   return NAME_TOPIC_NAMES.get(key);
 }
@@ -541,7 +544,7 @@ function closeName() {
 function learnt(right) {
   if (IN_FRAME) return;
   if (right) { bump("named"); pile.answer("nonogram", pic.id, true); return; }
-  const others = (pic.topic === "regions" ? siblingsOf(pic) : poolOf(pic.topic, pic.regions[0] || "world")).filter(p => p.id !== pic.id && p.name !== pic.name);
+  const others = poolOf(pic.topic, pic.regions[0] || "world").filter(p => p.id !== pic.id && p.name !== pic.name);
   const picks = [];
   while (picks.length < 3 && others.length) picks.push(others.splice(Math.floor(Math.random() * others.length), 1)[0].name);
   pile.record("nonogram", pic.id, {
@@ -586,7 +589,7 @@ function drawPicture(canvas, final) {
   const ctx = canvas.getContext("2d"), cs = getComputedStyle(canvas);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  const ink = cs.getPropertyValue("--ink").trim(), land = cs.getPropertyValue(pic.topic === "lakes" ? "--ng-water" : "--ng-land").trim(), tile = cs.getPropertyValue("--tile").trim();
+  const ink = cs.getPropertyValue("--ink").trim(), land = cs.getPropertyValue("--ng-land").trim(), tile = cs.getPropertyValue("--tile").trim();
   if (P.hex) {                                                     // hexes, the outline drawn and (final) the land inside it
     const g = hexGrid(P.R), u = Math.min(W / (S3 * (2 * P.R + 1)), H / (3 * P.R + 2)), cx = W / 2, cy = H / 2;
     for (let i = 0; i < g.n; i++) {
@@ -710,7 +713,7 @@ function drawResult() {
   drawReveal();                                                     // (after the panel shows: a hidden canvas has no size to draw into)
   if (!done) return;
   const v = $("verdict"), head = document.createElement("b");
-  head.textContent = askingName ? "Solved" : `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}`;
+  head.textContent = askingName ? "Solved" : `${pic.flag ? `${pic.flag} ` : ""}${pic.name}`;
   v.replaceChildren(head, document.createElement("br"));
   if (S.mode === "duel") {                                         // a match: the team's time, or the way to the race's result
     const pen = S.play === "split" ? split.teamPenalty() : S.score - Math.round(S.ms / 1000);
@@ -842,7 +845,7 @@ const duel = createDuel({
   },
   onLobby: match => { split.stop(); S = null; P = null; render(); },
   onLeave: () => { split.stop(); solo(); },
-  extra: () => (S && pic && (S.name || !rules().nameIt) ? Object.assign(document.createElement("p"), { textContent: `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}${S.name ? (S.name.right ? ": you named it" : ": not named") : ""}.` }) : null),
+  extra: () => (S && pic && (S.name || !rules().nameIt) ? Object.assign(document.createElement("p"), { textContent: `${pic.flag ? `${pic.flag} ` : ""}${pic.name}${S.name ? (S.name.right ? ": you named it" : ": not named") : ""}.` }) : null),
   extraTitle: "The picture",
 });
 
@@ -968,11 +971,11 @@ const split = (() => {
 // ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
 function showRules() {
   $("rulesBody").innerHTML = `
-    <p>Fill the cells the clues ask for and a picture appears: a country's outline, a flag or a lake. Every puzzle has exactly one answer, reached by reasoning.</p>
+    <p>Fill the cells the clues ask for and a picture appears: a country's outline or a flag. Every puzzle has exactly one answer, reached by reasoning.</p>
     <h4>The rules</h4>
     <p>Every row and every column has a clue: the lengths of its runs of filled cells, in order. 3 1 2 is three filled cells, a gap, one, a gap, two; a gap is one blank cell or more, and blanks may start and end the line. In a flag each run has its colour too, shown on the clue: runs of different colours may touch, runs of the same colour need a gap.</p>
     <p><b>An example.</b> In a row of 10 with the clue 8, the run pushed as far left as it goes fills cells 1 to 8, and as far right 3 to 10: cells 3 to 8 are filled whichever way it lies.</p>
-    <p>The pictures are countries, flags, lakes and regions (Settings' topics choose the mix). The size grows with you: Small (about 100 cells), then Medium (225) and Large (400) as you draw pictures cleanly, and back a step after a struggle. On Hexes (the menu's Mode) the grid is a hexagon of hexagonal cells, each on three lines (its row and two slants), every line with a clue read toward the board; there the picture is a country's or a lake's outline, one cell wide.</p>
+    <p>The pictures are countries and flags, and the menu's Mode chooses which (Flags, Countries, or Countries on hexes). The size grows with you: Small (about 100 cells), then Medium (225) and Large (400) as you draw pictures cleanly, and back a step after a struggle. On Hexes (the menu's Mode) the grid is a hexagon of hexagonal cells, each on three lines (its row and two slants), every line with a clue read toward the board; there the picture is a country's outline, one cell wide.</p>
     <h4>Playing</h4>
     <p>Fill (for a flag, its colours) and Cross are the tools. A tap fills or crosses one cell, and a drag runs along its row or column; the first cell decides what a stroke does: on an empty cell it fills, on one of its colour it clears, and a fill never covers a cell crossed out. Undo and Redo take whole strokes. A Large picture zooms (pinch, the zoom button or a mouse wheel) and pans (two fingers). On a computer, right-click crosses, X picks the cross, 1 to 7 a colour, and Ctrl+Z undoes.</p>
     <p>A finished line's clue greys, and the lines under your finger light with their clues. A wrong fill or cross is refused, the cell shows what it really is, and it costs ${MISTAKE} seconds. Hint (+${HINT}&nbsp;s) fills in the next cell the clues force and names the line that says so.</p>
@@ -1029,7 +1032,6 @@ function openMenu() {
   if (!COOP) todayPart(body, { app: "nonogram", play: () => start("daily"), playing: today0, busy: started() && !today0 });
   const c = content();
   if (!COOP) c.append(modeChoice());
-  c.append(...topicsPart(c));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const times = read(TIMES, {}), stats = read(STATS, {});
   const bests = S && pic && !COOP ? times[bestKey()] : null;

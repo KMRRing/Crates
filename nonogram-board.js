@@ -81,7 +81,7 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
   // ---------- drawing ----------
   // a cell as it's drawn in play (one colour: the ink) and as the finished picture shows it (land green, water blue)
   const cellColour = c => (P.palette ? P.palette[c] : colours.ink);
-  const finalColour = c => (P.palette ? P.palette[c] : P.topic === "lakes" ? colours.water : colours.land);
+  const finalColour = c => (P.palette ? P.palette[c] : colours.land);
   function draw() {
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(paint);

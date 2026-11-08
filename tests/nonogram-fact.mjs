@@ -13,7 +13,7 @@ const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } e
 
 const facts_ = new Map();
 const await_ = p => facts_.get(p.id);
-const kinds = ["countries", "flags", "lakes", "regions"];
+const kinds = ["countries", "flags"];
 for (const topic of kinds) {
   const list = P.PICTURES.filter(p => p.topic === topic), facts = [];
   for (const p of list) { const t = await F.factFor(p); facts.push(t); facts_.set(p.id, t); }
@@ -30,7 +30,7 @@ const seen = new Set();
 for (const p of P.PICTURES.filter(p => p.topic === "countries")) seen.add(await F.factFor(p));
 check(seen.size > 100, `the facts differ from country to country (${seen.size} different)`);
 // the rings the globe lights
-for (const topic of ["countries", "lakes", "regions"]) check(P.PICTURES.filter(p => p.topic === topic).every(p => P.ringsOf(p)?.length), `${topic}: every picture has rings to light on the globe`);
+check(P.PICTURES.filter(p => p.topic === "countries").every(p => P.ringsOf(p)?.length), "countries: every picture has rings to light on the globe");
 const flat = P.PICTURES.filter(p => p.topic === "flags" && !P.ringsOf(p)?.length);
 check(flat.length < 40 && flat.every(p => await_(p)), `flags: only the countries too small for the map (${flat.length}) have no globe, and each still has a fact`);
 console.log(bad ? `${bad} FAILED` : "all passed");

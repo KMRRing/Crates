@@ -85,8 +85,8 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
 {
   const topics = Object.keys(TOPICS);
   const count = t => PICTURES.filter(p => p.topic === t).length;
-  check(count("countries") === 168 && count("flags") >= 190 && count("lakes") === 34, `the pictures: ${count("countries")} country outlines (Chart's), ${count("flags")} flags, ${count("lakes")} lakes`);
-  check(PICTURES.every(p => (p.about || p.topic === "regions") && p.name && p.regions.length && REGIONS.some(([id]) => p.regions.includes(id))), "every picture names its knowledge-base entity (a region of a country has none yet) and a region");
+  check(count("countries") === 168 && count("flags") >= 190 && PICTURES.length === count("countries") + count("flags"), `the pictures: ${count("countries")} country outlines (Chart's) and ${count("flags")} flags, nothing else (lakes and regions are Chart's)`);
+  check(PICTURES.every(p => p.about && p.name && p.regions.length && REGIONS.some(([id]) => p.regions.includes(id))), "every picture names its knowledge-base entity and a region");
   check(new Set(PICTURES.map(p => p.id)).size === PICTURES.length && PICTURES.every(p => pictureOf(p.id) === p), "every picture's id is its own");
   check(Object.keys(FLAGS).every(id => PICTURES.some(p => p.id === `f-${id}`)), "every flag drawn is a country the flags bank knows");
   const letters = new Set(Object.values(FLAGS).flatMap(f => rasterFlag(f, 15, 10).letters));
@@ -109,7 +109,7 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
     if (Math.min(z.w, z.h) < SIZES[size].short || Math.max(z.w, z.h) > SIZES[size].long) problems.push(`${p.id}@${size} size`);
   }
   check(!problems.length, `${sample.length} puzzles (every picture at Small, half at Medium, a quarter at Large) each have exactly one answer, the one drawn, reached by reasoning within ${PROBES} contradictions${problems.length ? `: not ${problems.slice(0, 6).join(", ")}` : ""} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
-  check(made["countries:small"] >= 160 && made["flags:small"] >= 185 && made["lakes:small"] >= 25, `nearly every picture makes a puzzle at Small (countries ${made["countries:small"]}, flags ${made["flags:small"]}, lakes ${made["lakes:small"]})`);
+  check(made["countries:small"] >= 160 && made["flags:small"] >= 185, `nearly every picture makes a puzzle at Small (countries ${made["countries:small"]}, flags ${made["flags:small"]})`);
   const a = makePuzzle("c-italy", "medium"), b = makePuzzle("c-italy", "medium"), f1 = makePuzzle("f-south-africa", "large"), f2 = makePuzzle("f-south-africa", "large");
   check(same(a.answer, b.answer) && same(a.clues, b.clues) && same(f1.answer, f2.answer) && same(f1.palette, f2.palette), "a picture always makes the same puzzle at a size (made twice afresh)");
   check(f1.colours >= 4 && f1.palette.length === f1.colours + 1 && f1.palette.every(c => !c || /^#[0-9A-F]{6}$/i.test(c)), "a flag is a colour puzzle: its colours, and the blank's for the finished flag");
@@ -127,7 +127,7 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
   check(depthOf(flat).depth === 1 && depthOf(flat).first === 1, "a full grid is shallow: the first round of reasoning settles it all");
   const hard = dealPicture({ topic: "countries", region: "europe", size: "large", band: "hard", rand: rng(3) }), z = puzzleOf(hard.id, "large");
   check(!hard.nearest && z.band === "hard", "a hard picture is dealt when one is asked for");
-  const none = dealPicture({ topic: "lakes", region: "oceania", size: "small", band: "easy", rand: rng(4) });
+  const none = dealPicture({ topic: "countries", region: "oceania", size: "small", band: "easy", rand: rng(4) });
   check(!none || none.nearest || puzzleOf(none.id, "small").band === "easy", "where a region has nothing of a band, the nearest is dealt and says so");
 }
 
@@ -217,7 +217,6 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
 {
   const name = (id, t) => typed(t, namesOf(pictureOf(id))).right;
   check(name("c-czech-republic", "Czechia") && name("c-uk", "UK") && name("f-ivory-coast", "Ivory Coast") && name("c-myanmar", "Burma"), "a place answers to what else it goes by (Czechia, the UK, Ivory Coast, Burma)");
-  check(name("l-lake-geneva", "Léman") && name("l-lake-baikal", "baikal") && name("l-dead-sea", "dead sea"), "a lake answers without its Lake and its the, and Lake Geneva to Léman");
   check(name("f-chad", "Romania") && name("f-romania", "Chad") && !name("c-chad", "Romania"), "flags no one could tell apart answer to either name; their outlines don't");
   check(name("c-france", "frnace") && !name("c-france", "Germany"), "a slip of a letter is forgiven, another country isn't");
 }
@@ -283,8 +282,8 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
     if (n.count !== 1 || n.gaveUp || !gr.solved || !same(Array.from(gr.st, colourOf), z.answer) || !same(cluesFor(z.lines, z.answer), z.clues)) problems.push(`${p.id}@${size}`);
     if (z.R !== HEX_SIZES[size].R || z.answer.length !== hexGrid(z.R).n || z.band !== bandOf(z.level, z.depth) || z.answer.some((v, i) => v && !z.land[i])) problems.push(`${p.id}@${size} shape`);
   }
-  check(!problems.length, `${sample.length} outlines on hexes (a third of the countries and lakes at Small, a quarter at Medium, half at Large) each have exactly one answer, reached by reasoning, the outline inside its land${problems.length ? `: not ${problems.slice(0, 6).join(", ")}` : ""} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
-  check(made.small >= 55 && made.medium >= 40 && made.large >= 80, `nearly every country and lake makes a hex puzzle (${made.small} small, ${made.medium} medium, ${made.large} large of the sample)`);
+  check(!problems.length, `${sample.length} outlines on hexes (a third of the countries at Small, a quarter at Medium, half at Large) each have exactly one answer, reached by reasoning, the outline inside its land${problems.length ? `: not ${problems.slice(0, 6).join(", ")}` : ""} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
+  check(made.small >= 50 && made.medium >= 40 && made.large >= 80, `nearly every country makes a hex puzzle (${made.small} small, ${made.medium} medium, ${made.large} large of the sample)`);
   check(bands.medium >= 20 && bands.hard >= 3, `at Large the outlines reach every band (countries sampled: ${bands.easy} easy, ${bands.medium} medium, ${bands.hard} hard)`);
   const a = makePuzzle("c-italy", "large", "hex"), b = makePuzzle("c-italy", "large", "hex");
   check(a && same(a.answer, b.answer) && same(a.clues, b.clues) && !same(a.answer.length, puzzleOf("c-italy", "large").answer.length), "an outline on hexes is the same puzzle every time, and not the square one");
@@ -336,7 +335,7 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
 {
   const all = PICTURES.filter(p => p.mk !== "l"), kept = poolOfSetting("all", "world");
   check(kept.length > 0 && kept.every(p => !p.mk) && kept.length < all.length, `Exclude: ${kept.length} of ${all.length} pictures, none marked for removal`);
-  for (const topic of ["countries", "flags", "lakes"]) check(poolOfSetting(topic, "world").length >= 10, `Exclude: ${poolOfSetting(topic, "world").length} ${topic} left to deal`);
+  for (const topic of ["countries", "flags"]) check(poolOfSetting(topic, "world").length >= 10, `Exclude: ${poolOfSetting(topic, "world").length} ${topic} left to deal`);
   const a = dailyPicture(20261104);
   check(a && !a.mk, "Exclude: today's picture holds nothing marked for removal");
 }

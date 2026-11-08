@@ -1,17 +1,13 @@
 // Nonogram's pictures, pure (no page): what the knowledge base can draw, each made into a puzzle with exactly one
-// answer that a person can reach by reasoning (nonogram-engine.js proves both). Four kinds:
+// answer that a person can reach by reasoning (nonogram-engine.js proves both). Two kinds:
 //  - countries: the outlines Chart draws them with (chart-countries.js, Natural Earth at 1:110m), one colour;
-//  - flags, in colour, drawn from nonogram-flags.js (the knowledge base has them only as emoji);
-//  - lakes: Chart's lake shapes (chart-geo.js, Natural Earth at 1:50m), one colour.
-//  - regions: the cantons, states, provinces and prefectures of twenty countries (nonogram-regions.js, Natural Earth's admin-1
-//    boundaries at 1:10m, simplified), one colour; the question names the country.
+//  - flags, in colour, drawn from nonogram-flags.js (the knowledge base has them only as emoji).
+// (Lakes and the parts of countries were here until 9 November 2026, when Korbi cut them: "the only interesting things are
+// countries and flags". Chart keeps them.)
 // Each is named as the knowledge base names it and carries its entity, so a picture you couldn't name goes to the pile
 // about it. The same picture and size always make the same puzzle, so today's is the same on every phone and a match
 // the same for everyone at the table.
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
-import { GEO } from "./chart-geo.js";
-import { TOPIC_OF, mixFromSubjects } from "./topics.js";
-import { PLACES } from "./nonogram-regions.js";
 import { MATHS as FLAG_QUESTIONS } from "./flags-bank.js";
 import { mkOfEntity } from "./marked.js";
 import { FLAGS, COLOURS, COLOUR_NAMES, rasterFlag } from "./nonogram-flags.js";
@@ -123,15 +119,10 @@ export function puzzleFrom(cov0, w0, h0, { flips = 10, colours = 1, short = 1 } 
 }
 
 // ---------- what there is to draw ----------
-export const TOPICS = { countries: "Countries", flags: "Flags", lakes: "Lakes", regions: "Regions" };
-/** The kinds as [id, label] pairs, and the mix the suite's subjects (Settings; topics-on.js) make of them: a kind in when its
- *  subject is on (countries, flags and regions are Geography, lakes Nature). Only "All" follows it; a kind picked in the
- *  menu is dealt whatever Settings says, and nothing on leaves every kind in. */
+export const TOPICS = { countries: "Countries", flags: "Flags" };
 export const TOPIC_LIST = Object.entries(TOPICS);
-export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.nonogram, on);
 export const REGIONS = [["world", "Worldwide"], ["europe", "Europe"], ["middle-east", "Middle East"], ["asia", "Asia"], ["africa", "Africa"],
   ["north-america", "North America"], ["south-america", "South America"], ["oceania", "Oceania"]];
-const REGION_ID = Object.fromEntries(REGIONS.map(([id, label]) => [label, id]));
 
 /** Other names a place goes by, accepted when it's named (typing.js already forgives case, accents, a leading "the"
  *  and a slip of a letter). */
@@ -144,8 +135,7 @@ const ALIASES = {
   "trinidad-and-tobago": ["Trinidad"], "antigua-and-barbuda": ["Antigua"], "saint-kitts-and-nevis": ["St Kitts", "St Kitts and Nevis", "Saint Kitts"],
   "saint-lucia": ["St Lucia"], "saint-vincent-and-the-grenadines": ["St Vincent", "Saint Vincent"], "papua-new-guinea": ["PNG"],
   micronesia: ["Federated States of Micronesia"], "solomon-islands": ["Solomons"], palestine: ["State of Palestine"], turkey: ["Türkiye"],
-  russia: ["Russian Federation"], "lake-geneva": ["Léman", "Lac Léman", "Lake Leman"], "lake-constance": ["Bodensee"],
-  "lake-ladoga": ["Ladoga"], "lake-onega": ["Onega"],
+  russia: ["Russian Federation"],
 };
 /** Flags no one could tell apart at this size: either name is right for both. */
 const SAME_FLAG = [["chad", "romania"], ["monaco", "indonesia"]];
@@ -158,39 +148,33 @@ const shapes = new Map();                                                   // a
 
 /**
  * Every picture: { id, topic, about (the knowledge base's entity), name, regions, fame, flag (emoji), note }. Ids are
- * the topic's letter and the entity's id (c-france, f-france, l-lake-geneva), so a match or a link names one exactly.
+ * the topic's letter and the entity's id (c-france, f-france), so a match or a link names one exactly.
  */
 export const PICTURES = [
   ...COUNTRIES.map(c => { shapes.set(`c-${c.about}`, c); return { id: `c-${c.about}`, topic: "countries", about: c.about, name: c.name, regions: c.regions, fame: fame.get(c.about) || "ha", flag: c.flag, mk: c.about ? mkOfEntity(c.about) : undefined }; }),
   ...Object.keys(FLAGS).filter(id => flagNames.has(id)).map(id => ({ id: `f-${id}`, topic: "flags", about: id, name: flagNames.get(id), regions: REGION_OF[flagNames.get(id)] || [], fame: fame.get(id) || "ha", flag: emoji.get(id), mk: flagMk.get(id) })),
-  ...GEO.filter(g => g.kind === "lake").map(g => { shapes.set(`l-${g.about}`, g); return { id: `l-${g.about}`, topic: "lakes", about: g.about, name: g.name, regions: [REGION_ID[g.region]].filter(Boolean), fame: "mi", flag: "", note: g.note, where: g.country, mk: g.mk }; }),
-  // no entity in the knowledge base yet (about: null): a miss goes to the pile as a picture, not about anything
-  ...PLACES.map(r => { shapes.set(`r-${r.id}`, { rings: r.rings, reach: r.reach }); return { id: `r-${r.id}`, topic: "regions", about: null, name: r.name, alt: r.alt || [], regions: [r.cont], fame: "mi", flag: "", of: r.of, unit: r.unit,
-    note: `${/^[aeiou]/.test(r.unit) ? "an" : "a"} ${r.unit} of ${r.of}` }; }),
 ];
 const byId = new Map(PICTURES.map(p => [p.id, p]));
 export const pictureOf = id => byId.get(id) || null;
-/** The rings a picture is drawn from, for showing where it is: a country's, a lake's, a part's; a flag's, its country's. */
+/** The rings a picture is drawn from, for showing where it is: a country's; a flag's, its country's. */
 export function ringsOf(pic) {
   const s = shapes.get(pic.id) || (pic.topic === "flags" ? shapes.get(`c-${pic.about}`) : null);
   return s?.rings || null;
 }
 
-/** The names a picture may be given: its own, without "Lake" or "the", and what else it goes by; for a flag, any flag
+/** The names a picture may be given: its own, without "the", and what else it goes by; for a flag, any flag
  *  that looks the same. */
 export function namesOf(pic) {
   const out = [pic.name, ...(pic.alt || []), ...(ALIASES[pic.about] || [])];
-  const bare = pic.name.replace(/^(the|lake)\s+/i, "").replace(/\s+lake$/i, "");
+  const bare = pic.name.replace(/^the\s+/i, "");
   if (bare !== pic.name) out.push(bare);
   if (pic.topic === "flags") for (const pair of SAME_FLAG) if (pair.includes(pic.about)) for (const other of pair) if (other !== pic.about) out.push(flagNames.get(other), ...(ALIASES[other] || []));
   return out.filter(Boolean);
 }
-/** What a picture is, in a few words: "the outline of Chile", "the flag of Chile", "Lake Geneva". */
-export const askOf = (topic, pic = null) => (topic === "flags" ? "Whose flag is this?" : topic === "lakes" ? "Which lake is this?"
-  : topic === "regions" ? `Which ${pic?.unit || "part"} of ${pic?.of || "its country"} is this?` : "Whose outline is this?");
-/** The pictures whose names are the choices for naming this one: every name of its kind, and for a part of a country the
- *  others of the same country (the question has told you which). */
-export const siblingsOf = pic => PICTURES.filter(p => p.topic === pic.topic && (pic.topic !== "regions" || p.of === pic.of));
+/** What a picture is, in a few words: "the outline of Chile", "the flag of Chile". */
+export const askOf = topic => (topic === "flags" ? "Whose flag is this?" : "Whose outline is this?");
+/** The pictures whose names are the choices for naming this one: every name of its kind. */
+export const siblingsOf = pic => PICTURES.filter(p => p.topic === pic.topic);
 
 // ---------- the puzzle a picture makes ----------
 // how hard, from how a person would solve it (grade() and depthOf() in nonogram-engine.js): Easy is the simple rules
@@ -234,7 +218,7 @@ export function makePuzzle(id, size, grid = "square") {
   const depth = depthOf(made.hex ? made : { w: made.w, h: made.h, colours: made.colours, clues: made.clues }, overlap).depth;
   return { id, topic: pic.topic, size, ...made, depth, band: bandOf(made.level, depth) };
 }
-/** On hexes a country or a lake is its outline (nonogram-hex.js, outlineOf: three clues a cell pin a line one cell wide
+/** On hexes a country is its outline (nonogram-hex.js, outlineOf: three clues a cell pin a line one cell wide
  *  down where two can't), filled in when it's finished; one too thin to fill an eighth of the hexagon makes none. */
 function hexShapePuzzle(shape, size) {
   const land = landOf(shape), g = hexGrid(HEX_SIZES[size].R), cov = hexCoverage(land.rings, land.box, g);

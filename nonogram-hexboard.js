@@ -101,7 +101,7 @@ export function createHexBoard(canvas, { onStroke = () => {}, onLine = () => {},
   }
 
   // ---------- drawing ----------
-  const finalColour = () => (P.topic === "lakes" ? colours.water : colours.land);
+  const finalColour = () => colours.land;
   function addHex(x, y, r) {
     for (let k = 0; k < 6; k++) ctx[k ? "lineTo" : "moveTo"](x + CORNERS[k][0] * r, y + CORNERS[k][1] * r);
     ctx.closePath();

@@ -1,4 +1,4 @@
-// One thing to know about a picture once it is done: a lake's or a part of a country's own note; for a country (or its
+// One thing to know about a picture once it is done: for a country (or its
 // flag) a clue Crates asks about it, "Troll: one of the largest offshore gas fields ever found", else a place Chart pins
 // there, else who it borders. Crates' bank is the big file, so it is fetched only when a country is finished (and warmed
 // when one is dealt, so it is there by then).
@@ -15,14 +15,13 @@ export function warm() {
 const hash = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 /** The first sentence of a text, with its full stop (the line it is shown in holds two lines). */
 const sentence = t => `${t.trim().split(/(?<=[a-z0-9)])\.\s+(?=[A-Z])/)[0].replace(/[.!?]+$/, "")}.`;
-/** What to say of a picture: a sentence, or "" if there is nothing to. `pic`: { id, topic, about, name, note }; `mix` the Settings subjects as the knowledge base's aspects. */
+/** What to say of a picture: a sentence, or "" if there is nothing to. `pic`: { id, topic, about, name }; `mix` the Settings subjects as the knowledge base's aspects. */
 export const factFor = async (pic, opts) => short(await factOf(pic, opts));
 /** A fact kept to what two lines hold: cut at a word, with an ellipsis, if it runs on. */
 const short = t => (t.length <= 150 ? t : `${t.slice(0, 147).replace(/\s+\S*$/, "")}…`);
 async function factOf(pic, { marked = false, mix = null } = {}) {
   // Settings' subjects apply to what is said as to what is dealt: a clue about a subject that is off is not the one shown
   const allowed = w => (!w.mk || (marked && w.mk !== "l")) && (!mix || Math.max(0, ...(w.topics || []).map(t => mix[t] ?? 1)) > 0);
-  if (pic.note) return /^an? /i.test(pic.note) ? `${pic.name} is ${pic.note}.` : sentence(pic.note);
   const m = await warm();
   const entry = m?.BANK.find(a => a.entity === pic.about && a.cat === "country");
   if (entry?.words.some(allowed)) {

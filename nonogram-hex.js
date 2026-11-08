@@ -1,7 +1,7 @@
 // Nonogram on hexes, pure (no page): the genre's other grid, a hexagon of hexagonal cells, every cell on three lines
 // (a row, and a line in each of the two slants), each with its clue. Three clues meet at every cell where a square
 // grid has two, so the reasoning runs differently: a slant can settle what neither of the other two lines could. The
-// pictures are the same knowledge base's outlines and lakes (a flag is a rectangle, and stays on squares), drawn into
+// pictures are the same knowledge base's outlines (a flag is a rectangle, and stays on squares), drawn into
 // the hexagon as large as it holds them; the one-answer proof and the grading are nonogram-engine.js's, which take any
 // lines. nonogram-board.js draws it.
 //
