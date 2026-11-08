@@ -257,7 +257,7 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
   #app.tribute { --tb-felt: color-mix(in srgb, #2F5D8C 21%, var(--sheet)); }               /* a deeper cloth for the whole screen */
   @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.tribute { --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); } }
   html[data-mode="night"] #app.tribute { --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); }
-  #app.tribute .tb-table { grid-column: 1; grid-row: 1 / -1; margin: 0; gap: .2rem .4rem; padding: .4rem .6rem calc(var(--tb-hh, 3.2rem) + .2rem);
+  #app.tribute .tb-table { grid-column: 1; grid-row: 1 / -1; margin: 0; gap: .2rem .4rem; padding: .4rem .6rem calc(var(--tb-hh, 3.2rem) - max(.45rem, env(safe-area-inset-bottom, 0px)) - 1.2rem);
     background: radial-gradient(ellipse 70% 65% at 50% 42%, color-mix(in srgb, var(--tb-felt) 55%, var(--sheet)), var(--tb-felt)); }
   #app.tribute .tb-hand { grid-column: 1; grid-row: 4; align-self: end; z-index: 1; margin: 0 1.1rem calc(-1 * max(.45rem, env(safe-area-inset-bottom, 0px))); }   /* Korbi, 8 Nov 2026: the cards touch the screen's bottom edge */
   #app.tribute .tb-hand.fan .tb-card { padding: .14rem .16rem; font-size: .9rem; }
@@ -285,7 +285,7 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
   /* full screen: the cloth the whole screen, the console lying on it at the right with the header's buttons at its top,
      and your cards under both, the whole width */
   html #app.tribute.ontable { grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  #app.tribute.ontable .tb-table { grid-column: 1 / -1; padding: .4rem calc(10.75rem + 1.3rem) calc(var(--tb-hh, 3.2rem) + .2rem) .6rem; }
+  #app.tribute.ontable .tb-table { grid-column: 1 / -1; padding: .4rem calc(10.75rem + 1.3rem) calc(var(--tb-hh, 3.2rem) - max(.45rem, env(safe-area-inset-bottom, 0px)) - 1.2rem) .6rem; }
   #app.tribute.ontable .tb-table > .top { top: .45rem; right: .6rem; }
   #app.tribute.ontable .tb-strip { grid-column: 2; grid-row: 1; z-index: 1; margin-top: 3.05rem; padding-right: .6rem; }
   #app.tribute.ontable .tb-counter { grid-column: 2; grid-row: 2; z-index: 1; margin-right: .6rem; }

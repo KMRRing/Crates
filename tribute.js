@@ -468,7 +468,7 @@ function stacked(cols, rem, room) {
   // Korbi, 7 Nov 2026: the table's size must not change as the cards are rearranged (a rank's stack growing from four to five). The hand
   // always takes the room of its deepest possible stack, and a deeper column has its corners drawn closer to fit it.
   // Korbi, 8 Nov 2026: a phone on its side stacks closer (a corner is still rank and suit) and the cards stand on the screen's bottom edge.
-  const index = (tiny ? 1.5 : 2.1) * rem, reach = (tiny ? 4.2 : 7.2) * rem;
+  const index = (tiny ? 1.5 : 2.1) * rem, reach = (tiny ? 3.8 : 7.2) * rem;
   const drop = deepest > 1 ? Math.min(index, Math.max((tiny ? 0.7 : 0.9) * rem, reach / (deepest - 1))) : 0, tight = deepest > 1 && drop < index;
   const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
   const at = [];
