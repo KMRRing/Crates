@@ -536,7 +536,7 @@ export const APPS = [
   { id: "netting", sec: "appendix", name: "Netting", href: "./netting.html", logo: LOGO("netting", NETTING_LOGO), players: [1, 1] },
   { id: "settle", sec: "minigames", name: "Settle", href: "./settle.html", logo: LOGO("settle", SETTLE_LOGO), players: [1, 1] },
   { id: "drift", sec: "minigames", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
-  { id: "slipway", sec: "appendix", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
+  { id: "slipway", sec: "puzzle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
   { id: "loose", sec: "minigames", name: "Loose cargo", href: "./stow.html?mode=loose", logo: LOGO("loose", LOOSE_LOGO), players: [1, 1] },   // Stow's Loose cargo: the same page and keys, its own tile (4 November 2026, the split review)
   { id: "reckoning", sec: "appendix", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
   { id: "landfall", sec: "minigames", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },

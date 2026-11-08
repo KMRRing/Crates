@@ -52,7 +52,7 @@ export const ROUNDS = {
   ingot: "a game over (no swipe left, or ended by hand)",
   settle: "a game over",
   drift: "a game over",
-  slipway: "a part freed from its timber: a level, or a new random part",
+  slipway: "a timber cube fitted back together",
   loose: "a level of Loose cargo won, or stuck with nothing in hand that fits",
   // Board games, Cards & dice: a hand where the game is dealt hand by hand, else a game
   cartel: "a game",

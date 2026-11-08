@@ -15,7 +15,7 @@ const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: 
 
 // TITLED: knowledge, puzzles, classics, courses, tools and word games, and Party (its Sketch drops the title in party.js)
 const TITLED = new Set(`crates lots punt quote origin order crossing spyglass chart ledger nexus isomer lode acrostic crossword nonogram
-  slate delta spot speedmaths pipes survey stow shunt
+  slate delta spot speedmaths pipes survey stow shunt slipway
   sudoku calcudoku kakuro hitori masyu nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls codeword assay yield
   calibre parley arthistory wine firmament trade constitutions statecraft music maths speedfuels blend refinery rack cartel deck rush
   party quest cue tribute
@@ -24,7 +24,7 @@ const TITLED = new Set(`crates lots punt quote origin order crossing spyglass ch
 // (the card and dice games became titled on 7 Nov 2026, Korbi: "implement it across the board"; Craps, Sic Bo, Roulette and Shoe stay full)
 // FULL alone: board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
 const FULL = new Set(`shoe carrack hong bones banquet   craps roulette sicbo factor gambit flank morris crown go river silo gammon carrom
-  avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle slipway topple harbour ingot
+  avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle topple harbour ingot
   almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));
 
 const pages = fs.readdirSync(root).filter(f => f.endsWith(".html")).sort();

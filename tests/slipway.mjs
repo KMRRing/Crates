@@ -1,138 +1,64 @@
-// Slipway's workshop (slipway-carve.js): every level's part lies inside its block with timber all round it, and wood to
-// take; the part slides and turns end for end; the saw takes everything beyond its plane; the plane takes the top three
-// layers of the waste under its sole, never past the part's line, and stops on a knot; the drill bores straight
-// through; the ray finds the face it points at; the grade counts waste, cuts into the part and knots; the surface is
-// closed and faces out; a block packs into text and back.
-import { LEVELS } from "../slipway-levels.js";
-import { SOLID, REACH, newBlock, place, idx, cut, plane, drill, hit, grade, mesh, sample, pack, unpack, ghostGrid } from "../slipway-carve.js";
-
+// Slipway: a timber cube cut into figures of three to five unit cubes, to be fitted back. The 24 turns (no mirrors), figures
+// told apart from their mirror images, a dissection that is connected and whole, a cut that can't be sawn straight through,
+// the figures fitted at the start leaving exactly one way back (counted by the exact-cover search), a seed making the same
+// timber, and the stars.
+// Run: node tests/slipway.mjs
+const C = await import("../slipway-cut.js");
+const V = await import("../slipway-view.js");
 let bad = 0;
-const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const level = id => LEVELS.find(l => l.id === id);
-const cells = b => b.d.reduce((n, v) => n + v / 255, 0);
-const inPart = b => b.target.reduce((n, t, m) => n + (t < 0 && b.d[m] >= SOLID ? 1 : 0), 0);
+const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } else console.log(`ok   ${what}`); };
 
-// ---------- a block ----------
-{
-  let fits = true, sizes = true, waste = true;
-  for (const L of LEVELS) {
-    const b = newBlock(L, L.solution.place);
-    if (!b.inside.length) fits = false;
-    if (b.nx * b.ny * b.nz > 26000) sizes = false;
-    if (grade(b).left < 30 || grade(b).into !== 0) waste = false;
+// ---------- the turns ----------
+check(C.TURNS.length === 24, "a cube has 24 turns");
+const L = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 1, 0]];                       // an L of four
+check(C.orientations(L).length === 24 && C.orientations([[0, 0, 0], [1, 0, 0], [2, 0, 0]]).length === 3, "an L of four stands 24 ways (no turn leaves it as it is), a straight three 3");
+// a figure with a left and a right hand: a screw of four cubes, each step at a right angle to the last
+const hand = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, 1]], other = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, -1]];
+check(C.shapeKey(hand) !== C.shapeKey(other) && C.orientations(hand).length === 12 && C.orientations(other).length === 12, "a figure and its mirror image are two figures (no turn takes one to the other)");
+check(C.shapeKey(hand) === C.shapeKey(C.orientations(hand)[5]), "all of a figure's turns have one name");
+check(C.quarter(C.quarter(C.quarter(C.quarter(hand, 0), 0), 0), 0).map(c => c.join()).join() === C.normal(hand).map(c => c.join()).join(), "four quarter turns bring it home");
+check(C.shapeKey(C.quarter(hand, 2)) === C.shapeKey(hand), "a quarter turn keeps the figure the same figure");
+
+// ---------- the cuts ----------
+for (const level of C.LEVEL_IDS) {
+  const n = C.LEVELS[level].n;
+  let made = 0, whole = true, conn = true, sizes = true, saw = true, once = true, given = true, same = true;
+  const seeds = level === "easy" ? 12 : 2;
+  for (let seed = 1; seed <= seeds; seed++) {
+    const cut = C.dealCut(seed, level);
+    if (!cut) continue;
+    made++;
+    const all = cut.pieces.flatMap(p => p.cells).sort((a, b) => a - b);
+    if (all.length !== n ** 3 || all.some((k, i) => k !== i)) whole = false;
+    for (const p of cut.pieces) {
+      if (p.cells.length < 3 || p.cells.length > 5) sizes = false;
+      const seen = new Set([p.cells[0]]), todo = [p.cells[0]];
+      while (todo.length) { const k = todo.pop(); for (const j of p.cells) if (!seen.has(j) && [1, n, n * n].some(d => Math.abs(j - k) === d && (d !== 1 || (j / n | 0) === (k / n | 0)) && (d !== n || ((j / (n * n)) | 0) === ((k / (n * n)) | 0)))) { seen.add(j); todo.push(j); } }
+      if (seen.size !== p.cells.length) conn = false;
+    }
+    if (C.guillotine(n, cut.pieces)) saw = false;
+    const fixed = cut.given.map(id => cut.pieces[id]);
+    if (C.ways(n, cut.pieces, fixed) !== 1) once = false;
+    if (cut.given.length >= cut.pieces.length) given = false;
+    if (JSON.stringify(C.dealCut(seed, level)) !== JSON.stringify(cut)) same = false;
   }
-  check(fits, "every part lies in its block");
-  check(sizes, "no block is too big to work on a phone (26,000 cells at most)");
-  check(waste, "an uncut block has waste to take and nothing cut into");
-  const b = newBlock(level("pin"), { off: 5, flip: false }), t = [...b.target];
-  place(b, 7, false);
-  check(b.off === 7 && b.target.some((v, m) => v !== t[m]), "sliding the part moves its outline along the block");
-  place(b, 99, false);
-  check(b.off === b.nx - b.px, "it slides no further than the spare timber allows");
-  place(b, -5, false);
-  check(b.off === 0, "nor back past the end");
-  const tapered = newBlock(level("mast"), { off: 0, flip: false }), tf = newBlock(level("mast"), { off: 0, flip: true });
-  const end = bl => bl.target[idx(bl, 2, 3, 3)];
-  check(Math.sign(end(tapered)) === Math.sign(end(tf)) || Math.abs(end(tapered) - end(tf)) < 8, "a part turned end for end keeps its length");
-  const shell = newBlock(level("shell"), { off: 0, flip: false }), wedgeFlip = newBlock(level("wedge"), { off: 0, flip: true });
-  check(wedgeFlip.target[idx(wedgeFlip, 35, 0, 5)] !== newBlock(level("wedge")).target[idx(wedgeFlip, 35, 0, 5)], "turning the wedge end for end turns its outline round");
-  check(shell.holes.length === 1, "a hole of the part's goes with it");
+  check(made === seeds, `${level}: timbers come (${made} of ${seeds})`);
+  check(whole && sizes && conn, `${level}: the figures cover the cube once, each connected, of three to five cubes`);
+  check(saw, `${level}: no timber can be cut straight through again and again`);
+  check(once && given, `${level}: the figures fitted at the start leave exactly one way back`);
+  check(same, `${level}: a seed makes the same timber`);
 }
+// the search counts honestly: with nothing fitted a loose cut has more than one way, and fitting every figure leaves one
+const cut = C.dealCut(3, "easy"), n = cut.n;
+check(C.ways(n, cut.pieces, cut.pieces) === 1, "every figure fitted leaves one way (the one it is)");
+check(C.ways(n, cut.pieces, cut.given.slice(0, Math.max(0, cut.given.length - 1)).map(i => cut.pieces[i])) >= 1, "a figure fewer fitted still has a way");
+check(C.guillotine(3, [{ cells: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] }, { cells: [18, 19, 20, 21, 22, 23, 24, 25, 26] }]), "two slabs are a guillotine cut");
 
-// ---------- the saw ----------
-{
-  const b = newBlock(level("step"));                                 // a box 30 x 10 x 7 in a block 14 high
-  const p0 = inPart(b), r = cut(b, [0, 1, 0], 10);                    // across the top, on the part's face
-  check(r > 0 && inPart(b) === p0, "a cut on the part's top face takes the waste above and none of the part");
-  check([...Array(b.nx).keys()].every(i => b.d[idx(b, i, 11, 3)] === 0) && b.d[idx(b, 15, 8, 3)] === 255, "everything beyond the plane goes, and nothing before it");
-  check(cut(b, [0, 1, 0], 40) === 0, "a cut past the wood takes nothing");
-  const c = newBlock(level("step"));
-  cut(c, [1, 0, 0], 12);
-  check(grade(c).into > 0, "a cut through the part is seen in the grade");
-  const d = newBlock(level("step"));
-  cut(d, [0, 1, 0], 10.5);                                            // a plane through the middle of a layer: that layer half goes
-  check(d.d[idx(d, 3, 10, 3)] > 100 && d.d[idx(d, 3, 10, 3)] < 155, "a plane through a cell takes the part of it beyond");
-}
+// ---------- the stars ----------
+const t = { par: 100 };
+check(C.starsFor(t, 0, 90) === 3 && C.starsFor(t, 0, 101) === 2 && C.starsFor(t, 1, 10) === 2 && C.starsFor(t, 2, 10) === 1, "three stars for none shown inside par, two for none shown or one, else one");
 
-// ---------- the plane ----------
-{
-  const mk = () => { const b = newBlock(level("step")); b.knots = []; cut(b, [0, 1, 0], 10); return b; };
-  const b = mk(), top = hit(b, [15, 40, 3.5], [0, -1, 0]);
-  check(top && Math.abs(top.p[1] - 10) < 0.1 && top.n[1] > 0.95, "a ray from above finds the top face, facing up");
-  check(hit(b, [15, 40, 3.5], [0, 1, 0]) === null && hit(b, [-50, 40, 3.5], [0, -1, 0]) === null, "a ray away from the block, or beside it, finds nothing");
-  const w0 = cells(b), r = plane(b, [0, 1, 0], [top.p]), w1 = cells(b);
-  check(r.took > 0 && Math.abs(w0 - w1 - r.took) < 0.01 && !r.knot, "a stroke of the plane takes what it says");
-  check(b.d[idx(b, 15, 9, 3)] === 0 && b.d[idx(b, 15, 7, 3)] === 0 && b.d[idx(b, 15, 6, 3)] === 255 || b.d[idx(b, 15, 6, 3)] > 0, "it takes the top three layers under its sole: no more");
-  check(b.d[idx(b, 2, 9, 3)] === 255 && b.d[idx(b, 15, 3, 3)] === 255, "and nothing beside or below");
-  const first = [...b.d];
-  plane(b, [0, 1, 0], [hit(b, [15, 40, 3.5], [0, -1, 0]).p]);
-  check(b.d.some((v, m) => v < first[m]), "another stroke goes three layers deeper");
-  for (let n = 0; n < 4; n++) plane(b, [0, 1, 0], [hit(b, [15, 40, 3.5], [0, -1, 0]).p]);
-  check(inPart(b) === inPart(mk()), "but never past the line: the part is whole after any number of strokes");
-  const k = mk();
-  k.knots = [[15, 10, 3.5, 1.5]];
-  const kk = plane(k, [0, 1, 0], [hit(k, [15, 40, 3.5], [0, -1, 0]).p]);
-  check(kk.knot && kk.took === 0, "a knot under the sole stops the plane: it takes nothing");
-  check(REACH === 2.5, "the reach is three layers");
-}
-
-// ---------- the drill ----------
-{
-  const b = newBlock(level("shell"), { off: 0, flip: false });
-  const h = level("shell").holes[0], dh = hit(b, [h.at[0] + 0.5, 40, h.at[1] + 0.5], [0, -1, 0]);
-  const took = drill(b, dh.p, [0, -1, 0]);
-  check(took > 0 && [...Array(b.ny).keys()].every(j => b.d[idx(b, Math.floor(h.at[0]), j, Math.floor(h.at[1]))] < 60), "the drill bores straight through");
-  check(b.d[idx(b, 1, 8, 1)] === 255, "a hole and no wider");
-}
-
-// ---------- the grade ----------
-{
-  const b = newBlock(level("wedge"));
-  const g0 = grade(b);
-  check(g0.into === 0 && g0.left > 100 && g0.knots === 0, "an uncut block: waste left, nothing cut into");
-  for (let m = 0; m < b.d.length; m++) b.d[m] = b.target[m] < 0 ? 255 : 0;
-  const g = grade(b);
-  check(g.left === 0 && g.into === 0, "carved to the line: nothing left, nothing cut into");
-  for (let m = 0, n = 0; m < b.d.length && n < 20; m++) if (b.target[m] < -1) { b.d[m] = 0; n++; }
-  check(grade(b).into > 0, "cutting into the part is counted");
-  const tn = newBlock(level("treenail"));
-  for (let m = 0; m < tn.d.length; m++) tn.d[m] = tn.target[m] < 0 ? 255 : 0;
-  check(grade(tn).knots === 0, "the treenail's knot lies in the waste corner: a finished part has none");
-  tn.knots = [[12, 5, 5, 1.5]];
-  check(grade(tn).knots === 1, "a knot left inside the finished part is counted");
-}
-
-// ---------- the surface ----------
-{
-  const b = newBlock(level("wedge")), m = mesh(b);
-  const faces = 2 * (b.nx * b.ny + b.ny * b.nz + b.nx * b.nz);
-  check(m.count === faces * 6, "a whole block's surface is two triangles for each cell face on its outside");
-  let out = true;
-  for (let v = 0; v < m.count; v += 3) {
-    const [x, y, z] = [m.pos[v * 3], m.pos[v * 3 + 1], m.pos[v * 3 + 2]];
-    const ux = m.pos[v * 3 + 3] - x, uy = m.pos[v * 3 + 4] - y, uz = m.pos[v * 3 + 5] - z;
-    const wx = m.pos[v * 3 + 6] - x, wy = m.pos[v * 3 + 7] - y, wz = m.pos[v * 3 + 8] - z;
-    const n = [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx];
-    const c = [(x + m.pos[v * 3 + 3] + m.pos[v * 3 + 6]) / 3 - b.nx / 2, (y + m.pos[v * 3 + 4] + m.pos[v * 3 + 7]) / 3 - b.ny / 2, (z + m.pos[v * 3 + 5] + m.pos[v * 3 + 8]) / 3 - b.nz / 2];
-    if (n[0] * c[0] + n[1] * c[1] + n[2] * c[2] <= 0) out = false;
-  }
-  check(out, "every triangle is wound to face out of the block");
-  check(Math.abs(m.pos.reduce((a, v, i) => (i % 3 === 0 ? Math.max(a, v) : a), 0) - b.nx) < 0.01, "the block's faces lie on its edges, 0 to its length");
-  const g = mesh(b, ghostGrid(b));
-  check(g.count > 0 && g.count < m.count * 2, "the part's ghost has a surface of its own");
-  check(sample(b, b.nx / 2, b.ny / 2, b.nz / 2) === 255 && sample(b, -3, 1, 1) === 0, "inside is wood, outside is not");
-}
-
-// ---------- keeping it ----------
-{
-  const b = newBlock(level("step"));
-  cut(b, [1, 0.3, 0.2], 14);
-  const text = pack(b.d), back = unpack(text, b.d.length);
-  check(back.every((v, m) => v === b.d[m]), "a worked block packs into text and comes back the same");
-  check(text.length < b.d.length, "and the text is shorter than the cells (most are whole or gone)");
-  const r = new Uint8Array(5000).map(() => (Math.random() * 256) | 0);
-  check(unpack(pack(r), r.length).every((v, m) => v === r[m]), "any cells at all come back the same");
-}
-
-if (bad) { console.log(`${bad} failed`); process.exit(1); }
-else console.log("slipway: the blocks, sliding and turning the part, the saw, the plane's three layers and its stop at the line and at a knot, the drill, the ray, the grade, the surface facing out, keeping a block");
+// ---------- colours ----------
+check(V.rgb("#2E6B4A").join() === "46,107,74" && V.rgb("#fff").join() === "255,255,255" && V.rgb("rgb(1, 2, 3)").join() === "1,2,3", "colours read from hex and rgb()");
+console.log(bad ? `${bad} FAILED` : "all passed");
+process.exit(bad ? 1 : 0);
