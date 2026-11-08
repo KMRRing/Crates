@@ -445,7 +445,7 @@ export const APPS = [
   { id: "lode", sec: "knowledge", name: "Lode", href: "./lode.html", logo: LOGO("lode", LODE_LOGO), players: [1, 6], team: "time" },
   { id: "isomer", sec: "appendix", name: "Isomer", href: "./isomer.html", logo: LOGO("isomer", ISOMER_LOGO), players: [1, 6], team: "time" },
   { id: "acrostic", sec: "appendix", name: "Acrostic", href: "./acrostic.html", logo: LOGO("acrostic", ACROSTIC_LOGO), players: [1, 6], team: "time" },
-  { id: "nonogram", sec: "puzzle", name: "Nonogram", href: "./nonogram.html", logo: LOGO("nonogram", NONOGRAM_LOGO), players: [1, 6], team: "time" },
+  { id: "nonogram", sec: "knowledge", name: "Nonogram", href: "./nonogram.html", logo: LOGO("nonogram", NONOGRAM_LOGO), players: [1, 6], team: "time" },
   { id: "lexicon", sec: "knowledge", name: "Almanac", href: "./almanac.html", logo: LOGO("lexicon", ALMANAC_LOGO), players: [1, 1] },
   { id: "ledger", within: "deck", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), players: [1, 1] },
   // The canonical puzzle genres, by their usual rules (README, Classics); Korbi, 8 Nov 2026: one section with the rest of the puzzles, called Puzzles
@@ -460,7 +460,7 @@ export const APPS = [
   // tile, reached from Crates' header (Countries | Classic), under Crates' header and logo; its name is for what your partner
   // is playing, the requests and Party
   { id: "lots", within: "crates", name: "Crates Classic", href: "./lots.html", logo: LOGO("crates", CRATES_LOGO), players: [1, 6] },
-  { id: "codeword", sec: "knowledge", name: "Codeword", href: "./codeword.html", logo: LOGO("codeword", CODEWORD_LOGO), players: [1, 6], team: "time" },
+  { id: "codeword", sec: "appendix", name: "Codeword", href: "./codeword.html", logo: LOGO("codeword", CODEWORD_LOGO), players: [1, 6], team: "time" },
   { id: "calcudoku", within: "sudoku", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "kakuro", sec: "puzzle", name: "Tally", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
   // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)

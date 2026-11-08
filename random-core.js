@@ -42,7 +42,6 @@ export const ROUNDS = {
   isomer: "a puzzle solved",
   ladder: "a ladder climbed",
   lode: "a board finished",
-  codeword: "a grid solved",
   kakuro: "a grid solved",
   // Idle: the game over, as each says it
   shunt: "a plate judged (a level with its goal met; a random plate or the daily, any score)",
@@ -94,7 +93,7 @@ export const LEFT_OUT = {
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
   sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX, music: APPENDIX,
   // Korbi, 8 Nov 2026: "all courses to the annex"; "Acrostic to annex", "cull, annex"
-  acrostic: APPENDIX, hitori: APPENDIX, nexus: APPENDIX, harbour: APPENDIX, heliograph: APPENDIX, netting: APPENDIX, reckoning: APPENDIX, silo: APPENDIX,
+  acrostic: APPENDIX, hitori: APPENDIX, nexus: APPENDIX, codeword: APPENDIX, harbour: APPENDIX, heliograph: APPENDIX, netting: APPENDIX, reckoning: APPENDIX, silo: APPENDIX,
   calibre: APPENDIX, arthistory: APPENDIX, statecraft: APPENDIX, trade: APPENDIX, constitutions: APPENDIX, wine: APPENDIX, firmament: APPENDIX, parley: APPENDIX, maths: APPENDIX,
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   shoe: "a deck of cards on a table with no rules or rounds, for people in one room",
