@@ -3,7 +3,7 @@
 // are the engine's; this file keeps the runs, draws the sky and takes the taps. Today's puzzle and a random one are kept
 // apart, so switching between them loses neither. Together (duel.js): a race, the same sky for everyone against the clock.
 import { LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, GROUPS, groupOf, deal, daily, yieldOf, totalOf, pointsOf, isFull, judge,
-  needed, rankOf, canStep, trailOf, skyOf, shadowsOf, easiestLeft, onlyMine } from "./yield-engine.js";
+  needed, rankOf, canStep, trailOf, skyOf, shadowsOf, startsOf, easiestLeft, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { ramp } from "./ramp.js";
@@ -76,7 +76,7 @@ const canType = () => !!S && !!P && !isOver() && !IN_FRAME && !paused && !(S.kin
 const NS = "http://www.w3.org/2000/svg", VW = 340, VH = 300, R = 26;
 const svgEl = (tag, attrs = {}) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
 const at = s => [VW / 2 + s.x * 128, VH / 2 + s.y * 108];
-let starEls = [], shadowEls = new Map(), trailEl = null, pinEl = null, drawnFor = null;
+let starEls = [], shadowEls = new Map(), linkEls = new Map(), trailEl = null, pinEl = null, drawnFor = null;
 function drawBoard() {
   const box = $("board");
   if (!S || !P) { box.replaceChildren(); drawnFor = null; starEls = []; return; }
@@ -88,12 +88,13 @@ function drawBoard() {
   let a = (S.p.seed ^ 0x9e3779b9) >>> 0;
   for (let i = 0; i < 26; i++) { a = (Math.imul(a, 1664525) + 1013904223) >>> 0; const x = (a >>> 8) % VW; a = (Math.imul(a, 1664525) + 1013904223) >>> 0; dust.append(svgEl("circle", { cx: x, cy: (a >>> 8) % VH, r: 0.7 + ((a >>> 4) % 10) / 9 })); }
   svg.append(dust, svgEl("circle", { class: "ring", cx: VW / 2, cy: VH / 2, r: 138 }), svgEl("circle", { class: "ring", cx: VW / 2, cy: VH / 2, r: 76 }));
-  shadowEls = new Map();
+  shadowEls = new Map(); linkEls = new Map();
   for (const [i, j] of links) {
     const [x1, y1] = at(stars[i]), [x2, y2] = at(stars[j]), k = i < j ? `${i}-${j}` : `${j}-${i}`;
     const sh = svgEl("line", { class: "yd-shadow", x1, y1, x2, y2 });
-    shadowEls.set(k, sh);
-    svg.append(svgEl("line", { class: "yd-link", x1, y1, x2, y2 }), sh);
+    const ln = svgEl("line", { class: "yd-link", x1, y1, x2, y2 });
+    shadowEls.set(k, sh); linkEls.set(k, ln);
+    svg.append(ln, sh);
   }
   pinEl = svgEl("polyline", { class: "yd-pin" });
   trailEl = svgEl("polyline", { class: "yd-trail" });
@@ -127,18 +128,26 @@ function drawTrail() {
   });
   $("board").classList.toggle("off", !canType());
 }
-/** The shadows: each sight-line glows by how many of the words not yet found travel along it. */
+/**
+ * The shadows: each sight-line glows by how many of the words not yet found travel along it, and a line no word left
+ * uses is gone from the sky; each star shines by how many of those words start on it.
+ */
 function drawShadows() {
   const on = !!S?.shadows && !!P && !isOver();
   $("shadowBtn").setAttribute("aria-pressed", String(on));
   $("shadowBtn").classList.toggle("on", on);
   if (!P) return;
-  const { lines, max } = shadowsOf(S.p, P.words, foundSet());
+  const have = foundSet(), { lines, max } = shadowsOf(S.p, P.words, have), starts = startsOf(S.p, P.words, have);
   for (const [k, sh] of shadowEls) {
     const n = on ? lines.get(k) || 0 : 0, f = max ? n / max : 0;
     sh.style.opacity = n ? String(0.22 + 0.7 * f) : "0";
     sh.setAttribute("stroke-width", String(n ? 6 + 12 * f : 0));
+    linkEls.get(k)?.classList.toggle("gone", on && !lines.get(k));
   }
+  starEls.forEach((g, i) => {
+    g.style.setProperty("--lit", on && starts.max ? String(starts.n[i] / starts.max) : "0");
+    g.classList.toggle("spent", on && !starts.n[i]);
+  });
 }
 
 // ---------- tracing ----------
@@ -351,7 +360,7 @@ function save() {
 }
 const validRun = s => !!s && !!s.p && typeof s.p.letters === "string" && s.p.letters.length === 7 && typeof s.p.edges === "string" && Array.isArray(s.found);
 /** A run made whole: what an older save or the database's round trip leaves out. */
-const tidy = s => ({ typed: "", extra: [], top: 0, over: false, shown: false, shadows: false, hints: 0, pin: null, ...s, found: [...(s.found || [])] });
+const tidy = s => ({ typed: "", extra: [], top: 0, over: false, shown: false, shadows: true, hints: 0, pin: null, ...s, found: [...(s.found || [])] });
 const started = s => !!s && !s.over && s.found.length > 0;
 
 // ---------- starting ----------

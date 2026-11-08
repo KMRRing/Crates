@@ -19,7 +19,10 @@ const BANDS = {
   medium: { words: [58, 86], depth: [2.35, 2.75] },
   heavy: { words: [70, 100], depth: [0, 2.35] },
 };
-const MAX_ING = 0.3, MAX_ED = 0.45;     // a yield that is mostly -ing or -ed forms is one trick, not a puzzle
+// Korbi, 8 November 2026: "-ER and -EG make the game a bit unfun" (a pile of words on one ending is one trick, not a puzzle),
+// and "the very long words are the most fun ones". So no two-letter ending may take more than this share (or this many) of
+// the words, and a sky must hold enough long words (SEVEN or more letters, SIX or more).
+const MAX_END = 0.2, MAX_END_N = 14, MIN_SEVEN = 0.2, MIN_SIX = 0.42;
 
 // ---------- randomness that is the same on every device ----------
 /** A seeded generator (mulberry32): integer arithmetic only, so every phone deals the same puzzle from a seed. */
@@ -192,53 +195,81 @@ export function depthOf(p, words) {
   for (const w of sorted) { acc += pointsOf(p, w); if (acc >= RANKS[MASTER][0] * total) return ease(w); }
   return 0;
 }
+/** The most words that end on the same two letters. */
+export function endings(words) {
+  const n = new Map();
+  let top = 0;
+  for (const w of words) { const k = w.slice(-2), c = (n.get(k) || 0) + 1; n.set(k, c); if (c > top) top = c; }
+  return top;
+}
 /** What a puzzle is like: its size, points, depth, its full tours, and how much of it is one ending. */
 export function statsOf(p, words = yieldOf(p)) {
   const tours = words.filter(w => isFull(p, w));
   return { words: words.length, points: totalOf(p, words), depth: depthOf(p, words), tours: tours.length,
-    ing: words.filter(w => w.endsWith("ing")).length / (words.length || 1), ed: words.filter(w => w.endsWith("ed")).length / (words.length || 1) };
+    end: endings(words), seven: words.filter(w => w.length >= 7).length / (words.length || 1), six: words.filter(w => w.length >= 6).length / (words.length || 1) };
 }
 /** Whether a puzzle's stats suit a level. */
 function suits(level, s) {
   const b = BANDS[level];
-  return s.tours > 0 && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] && s.depth < b.depth[1] && s.ing <= MAX_ING && s.ed <= MAX_ED;
+  return s.tours > 0 && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] && s.depth < b.depth[1]
+    && s.end <= Math.min(MAX_END_N, MAX_END * s.words) && s.seven >= MIN_SEVEN && s.six >= MIN_SIX;
 }
 /** How far a puzzle is from a level, for the nearest when none suits in the tries allowed. */
 function distance(level, s) {
   const b = BANDS[level], off = (x, a, z) => (x < a ? a - x : x > z ? x - z : 0);
-  return (s.tours ? 0 : 100) + off(s.words, b.words[0], b.words[1]) / 10 + off(s.depth, b.depth[0], b.depth[1] - 0.001) * 4 + Math.max(0, s.ing - MAX_ING) * 5 + Math.max(0, s.ed - MAX_ED) * 5;
+  return (s.tours ? 0 : 100) + (off(s.words, b.words[0], b.words[1]) ? 50 + off(s.words, b.words[0], b.words[1]) : 0) + off(s.depth, b.depth[0], b.depth[1] - 0.001) * 4 + Math.max(0, s.end - Math.min(MAX_END_N, MAX_END * s.words))
+    + Math.max(0, MIN_SEVEN - s.seven) * 10 + Math.max(0, MIN_SIX - s.six) * 10;
 }
 
 // ---------- dealing ----------
-const TRIES = 3000, EXTRAS = 10, MAX_LINES = 14;      // no more than 14 sight-lines: more cross too much to read
-/**
- * The skies a seed tries, in order. A full tour is picked first (a word with seven different letters) and its steps are
- * the sight-lines that make it a tour, so every sky has at least one; then a random few more lines, for the size.
- */
-function* candidates(r) {
-  const { tours } = index();
-  for (;;) {
-    const w = tours[Math.floor(r() * tours.length)], letters = lettersOf(maskOf(w)), base = new Set();
-    for (let i = 1; i < w.length; i++) if (w[i] !== w[i - 1]) base.add(pairKey(w[i - 1], w[i]));
-    const rest = [];
-    for (let i = 0; i < letters.length; i++) for (let j = i + 1; j < letters.length; j++) if (!base.has(letters[i] + letters[j])) rest.push(letters[i] + letters[j]);
-    for (let k = 0; k < EXTRAS; k++) {
-      const more = shuffled(rest, r).slice(0, Math.floor(r() * (Math.min(rest.length, MAX_LINES - base.size) + 1)));
-      yield { letters, edges: [...base, ...more].sort().join(" ") };
-    }
+const TRIES = 8000, STEPS = 100, WANDER = 12, MAX_LINES = 14;      // no more than 14 sight-lines: more cross too much to read
+/** Every pair of the letters, the seven stars' possible sight-lines. */
+const pairsOf = letters => [...letters].flatMap((a, i) => [...letters].slice(i + 1).map(b => a + b));
+/** A suiting sky drifted a few lines on while it still suits, so that two seeds that settle on the same letters don't deal the same sky. */
+function wander(level, p, base, on, rest, r) {
+  let at = p;
+  for (let i = 0; i < WANDER; i++) {
+    const next = new Set(on), k = rest[Math.floor(r() * rest.length)];
+    if (next.has(k)) next.delete(k); else if (base.size + next.size < MAX_LINES) next.add(k); else continue;
+    const q = { ...p, edges: [...base, ...next].sort().join(" ") };
+    if (suits(level, statsOf(q))) { at = q; on = next; }
   }
+  return at;
 }
-/** A puzzle for a seed at a level: the first sky that suits it, else the nearest of the first TRIES. */
+/**
+ * A puzzle for a seed at a level. A full tour is picked first (a word with seven different letters) and its steps are the
+ * sight-lines that make it a tour, so every sky has at least one. Then a few lines are added or taken away, one at a time,
+ * keeping a change whenever the sky gets no further from the level: lines are what pick the words, so this is how a sky
+ * loses its pile of one ending. The first sky that suits, else the nearest of the first TRIES.
+ */
 export function deal({ seed, level = "medium" }) {
   if (!BANDS[level]) throw new Error(`no level ${level}`);
-  const r = rng(seed);
+  const r = rng(seed), { tours } = index();
   let best = null, tried = 0;
-  for (const c of candidates(r)) {
-    const p = { ...c, level, seed }, s = statsOf(p);
-    if (suits(level, s)) return p;
-    const d = distance(level, s);
-    if (!best || d < best.d) best = { p, d };
-    if (++tried >= TRIES) return best.p;
+  for (;;) {
+    const w = tours[Math.floor(r() * tours.length)], letters = lettersOf(maskOf(w)), base = new Set(), rest = [];
+    for (let i = 1; i < w.length; i++) if (w[i] !== w[i - 1]) base.add(pairKey(w[i - 1], w[i]));
+    for (const k of pairsOf(letters)) if (!base.has(k)) rest.push(k);
+    let on = new Set(shuffled(rest, r).slice(0, Math.floor(r() * (Math.min(rest.length, MAX_LINES - base.size) + 1))));
+    const make = extra => ({ letters, edges: [...base, ...extra].sort().join(" "), level, seed });
+    let cur = null, prev = on;
+    for (let step = 0; step <= STEPS; step++) {
+      if (step) {                                      // one line toggled: a new one in, or an extra one out
+        const next = new Set(on), k = rest[Math.floor(r() * rest.length)];
+        if (next.has(k)) next.delete(k);
+        else {
+          if (base.size + next.size >= MAX_LINES) { const out = [...next]; if (!out.length) continue; next.delete(out[Math.floor(r() * out.length)]); }   // full: one out for the one in
+          next.add(k);
+        }
+        prev = on; on = next;
+      }
+      const p = make(on), s = statsOf(p);
+      if (suits(level, s)) return wander(level, p, base, on, rest, r);
+      const d = distance(level, s);
+      if (!best || d < best.d) best = { p, d };
+      if (cur !== null && d > cur) { on = prev; } else cur = d;
+      if (++tried >= TRIES) return best.p;
+    }
   }
 }
 /** Today's puzzle: a Medium sky, the same for everyone; the day (YYYYMMDD, the suite's today()) is its seed. */
@@ -260,6 +291,13 @@ export function shadowsOf(p, words, found = new Set()) {
     for (const k of used) { const n = (lines.get(k) || 0) + 1; lines.set(k, n); if (n > max) max = n; }
   }
   return { lines, max };
+}
+/** How many of the words not yet found start on each star (an array by star index), and the most on any one. */
+export function startsOf(p, words, found = new Set()) {
+  const n = Array(STARS).fill(0);
+  let max = 0;
+  for (const w of words) if (!found.has(w)) { const i = trailOf(p, w)[0]; if (++n[i] > max) max = n[i]; }
+  return { n, max };
 }
 /** The word a hint is about: the easiest one not found yet (the commonest and shortest), alphabetical on a tie. */
 export function easiestLeft(words, found = new Set()) {

@@ -93,14 +93,17 @@ html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806
 .yd-board .ring { fill: none; stroke: var(--rule); stroke-width: 1px; stroke-dasharray: 2 6; }
 .yd-link { stroke: color-mix(in srgb, var(--ink) 42%, transparent); stroke-width: 2px; stroke-linecap: round; }
 /* the shadows: each sight-line glows by how many of the words still missing travel along it */
+.yd-link { transition: opacity .25s; }
+.yd-link.gone { opacity: 0; }
 .yd-shadow { fill: none; stroke: var(--yd-in); stroke-linecap: round; opacity: 0; transition: opacity .25s, stroke-width .25s; pointer-events: none; }
 .yd-trail { fill: none; stroke: var(--brass); stroke-width: 6px; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .yd-pin { fill: none; stroke: var(--yd-in); stroke-width: 5px; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 11; pointer-events: none; }
 .yd-star { cursor: pointer; }
 .yd-star .halo { fill: var(--yd-in); opacity: 0; transition: opacity .12s; }
 .yd-star.reach .halo { opacity: .2; }
-.yd-star .disc { fill: var(--tile); stroke: var(--brass); stroke-width: 2px; transition: fill .08s; }
+.yd-star .disc { fill: color-mix(in srgb, var(--brass) calc(var(--lit, 0) * 60%), var(--tile)); stroke: var(--brass); stroke-width: 2px; transition: fill .08s; }
 .yd-star text { fill: var(--ink); font-family: var(--font); font-size: 25px; font-weight: 800; font-stretch: var(--wide); text-anchor: middle; dominant-baseline: central; pointer-events: none; text-transform: uppercase; }
+.yd-star.spent text { fill: color-mix(in srgb, var(--ink) 40%, transparent); }
 .yd-star .glint { fill: var(--brass); pointer-events: none; }
 .yd-star.on .disc { fill: var(--plate); stroke: var(--plate); }
 .yd-star.on text { fill: var(--plate-ink); }
