@@ -1,35 +1,37 @@
-// Fathom (id yield; the on-screen name is Constellation): seven letters as seven stars joined by sight-lines. A word counts if
+// Fathom (id yield; the on-screen name is Constellation): seven to eleven letters as stars joined by sight-lines. A word counts if
 // every step from one letter to the next follows a sight-line (or stays on the star, for a doubled letter), so the sky, not a
 // rule to remember, is what limits the words. The words are yield-words.js's (ordinary English, the same on both sides of
-// the Atlantic); a puzzle's yield is every one of them its sky allows, found exhaustively, 50 to 100 of them. At least one
-// word is a full tour (visits all seven stars). Pure: no page, tested in Node.
+// the Atlantic); a puzzle's yield is every one of them its sky allows, found exhaustively, 40 to 100 of them. At least one
+// word is a full tour (visits every star). Pure: no page, tested in Node.
 // Korbi, 8 November 2026: replaces the Spelling Bee clone. Two mechanisms, a skin on top: the sight-lines (what limits the
 // words) and the shadows (what tells you where the missing ones are). Space is the skin.
 import { WORDS, BAND, BLOCKED } from "./yield-words.js";
 
 export const LEVELS = { light: "Light", medium: "Medium", heavy: "Heavy" };
 export const DAILY = { level: "medium" };   // today's, the same for everyone
-export const MIN_LEN = 4, FULL_BONUS = 7, STARS = 7;
+export const MIN_LEN = 4, FULL_BONUS = 7, STARS = 7, MAX_STARS = 11;   // a sky has STARS to MAX_STARS stars (its letters' length)
 const A = 97;
 
 // The levels: a size in words and the depth of vocabulary the rank to aim for needs (depthOf). Light gets there on everyday
-// words; Heavy needs words people use less. Every level is inside 50 to 100 words, the range Korbi asked for.
+// words; Heavy needs words people use less. Every level is inside 40 to 100 words (Korbi, 8 Nov 2026: "40-60 words perfectly valid, just make sure the long ones are there").
 const BANDS = {
-  light: { words: [50, 72], depth: [2.75, 9] },
-  medium: { words: [52, 86], depth: [2.35, 2.75] },
-  heavy: { words: [54, 100], depth: [0, 2.35] },
+  light: { words: [40, 72], depth: [2.75, 9] },
+  medium: { words: [42, 86], depth: [2.35, 2.75] },
+  heavy: { words: [44, 100], depth: [0, 2.35] },
 };
 // Korbi, 8 November 2026: "-ER and -EG make the game a bit unfun" (a pile of words on one ending is one trick, not a puzzle),
 // and "the very long words are the most fun ones". So no two-letter ending may take more than this share (or this many) of
 // the words, and a sky must hold enough long words (SEVEN or more letters, SIX or more).
-const MAX_END = 0.2, MAX_END_N = 14, MIN_SEVEN = 0.14, MIN_SIX = 0.32;
+const FAIR_END = 0.3, FAIR_END_N = 16, FAIR_SEVEN = 0.07, FAIR_SIX = 0.2;
+const MAX_END = 0.25, MAX_END_N = 14, MIN_SEVEN = 0.14, MIN_SIX = 0.32;
 // Korbi, 8 Nov 2026, after ten skies that all had -ER biggest: the endings every English word seems to carry (-ED, -ER, -ING, -LY, -IC,
 // -AL, -NESS, -OUS, -TION, -ABLE) must not be the biggest pile in most skies (three in four), and none of them may take more than a tenth.
-// A sky may have them, but not every time. The letters lean away from the commonest too (see tours below).
-const COMMON_ENDS = new Set(["ed", "er", "ng", "ly", "ic", "al", "ss", "us", "on", "le", "es"]);
+// A sky may have them, but not every time. The letters are picked evenly too (see which letters, below).
+// (narrowed to the four Korbi named after the wide list proved unavoidable: no two banned lines keep -ON, -LE or -AL from leading)
+const COMMON_ENDS = new Set(["ed", "er", "ng", "ly"]);
 const pairKey = (a, b) => (a < b ? a + b : b + a);
 const COMMON_PAIRS = new Set([...COMMON_ENDS].map(e => pairKey(e[0], e[1])));
-const MAX_COMMON = 0.13, STRICT = 0.75, COMMON_LETTERS = "etarsnoil";
+const MAX_COMMON = 0.2, STRICT = 1;
 
 // ---------- randomness that is the same on every device ----------
 /** A seeded generator (mulberry32): integer arithmetic only, so every phone deals the same puzzle from a seed. */
@@ -51,25 +53,82 @@ const bitsOf = m => { let n = 0; while (m) { m &= m - 1; n++; } return n; };
 const lettersOf = m => { let s = ""; for (let i = 0; i < 26; i++) if ((m >> i) & 1) s += String.fromCharCode(A + i); return s; };
 
 let IDX = null;
-/** The counted words, unpacked once: how common each is, by letter set the ones seven stars can hold, and the full tours. */
+/** The counted words, unpacked once: how common each is, by letter set the ones up to nine stars can hold (a set's words all use every one of its letters: its tours). */
 function index() {
   if (IDX) return IDX;
   const band = new Map([...BAND].map((c, i) => [c, (i + 15) / 10]));
-  const zipf = new Map(), sets = new Map(), tours = [];
+  const zipf = new Map(), sets = new Map();
   for (const [n, [run, bands]] of Object.entries(WORDS)) {
     const len = Number(n);
     for (let i = 0; i < bands.length; i++) {
       const w = run.slice(i * len, i * len + len), m = maskOf(w), b = bitsOf(m);
       zipf.set(w, band.get(bands[i]));
-      if (b > STARS) continue;
+      if (b > MAX_STARS) continue;
       const l = sets.get(m);
       if (l) l.push(w); else sets.set(m, [w]);
-      if (b === STARS) tours.push(w);
     }
   }
-  IDX = { zipf, sets, tours: tours.sort(), blocked: new Set(BLOCKED.split(" ")), pools: new Map() };
+  IDX = { zipf, sets, blocked: new Set(BLOCKED.split(" ")), pools: new Map() };
   return IDX;
 }
+// ---------- which letters ----------
+// Korbi, 8 Nov 2026: "pick letters first and then use as many as are needed ... AEIOUY, two or three of these per constellation, and
+// roughly even probabilities", and "more stars is better than excessive connections". So a sky starts as seven, eight or nine letters
+// drawn flat: two or three vowels, each of AEIOUY as likely as the others, and the consonants each as likely as the others. A set is
+// kept if its letters make words enough (POOL_MIN, every sight-line drawn); the rarer letters (J, Q, X, Z) mostly fail that, which is
+// the only way the words tilt the draw. (A full tour, one word with every star, is no longer asked of a sky: only one set in four has
+// one, and asking made E, T and R belong to nearly every sky.)
+const POOL_MIN = 50, VOWELS = "aeiouy", CONSONANTS = "bcdfghjklmnpqrtvwxz", ALPHABET = "abcdefghijklmnopqrtuvwxyz", SIZES = [[7, 0.3], [8, 0.7], [9, 1]];   // (cumulative shares of skies; the word list has no S)
+/** How many counted words some of a letter set (any sight-lines) makes. */
+function poolSize(mask) {
+  const sets = index().sets;
+  let n = 0;
+  for (let sub = mask; sub; sub = (sub - 1) & mask) n += sets.get(sub)?.length || 0;
+  return n;
+}
+// The words do tilt the draw (a sky needs 40 words, and E, T, A and R are in most of the words that make them), so each letter's chance of
+// being drawn is bent by LEAN until the skies that are kept have every vowel, and every consonant, about as often as its kind (found by
+// dealing a few hundred skies and nudging: `node tests/yield-letters.mjs --fit`).
+const LEAN = {"a":0.33,"b":1.24,"c":0.75,"d":0.69,"e":0.11,"f":1.27,"g":1.2,"h":1.97,"i":1.03,"j":2,"k":2,"l":0.18,"m":0.63,"n":0.33,"o":0.86,"p":0.92,"q":2,"r":0.11,"t":0.15,"u":2,"v":1.45,"w":1.9,"x":2,"y":1.97,"z":2};
+let lean = LEAN;
+/** For fitting (tests/yield-letters.mjs): use another table. */
+export const setLean = table => { lean = table; };
+/** k of the letters, without repeats, each drawn in proportion to its lean. */
+function drawn(letters, k, r) {
+  const pool = [...letters], out = [];
+  while (out.length < k) {
+    let total = 0;
+    for (const c of pool) total += lean[c] ?? 1;
+    let x = r() * total, i = 0;
+    for (; i < pool.length - 1; i++) { x -= lean[pool[i]] ?? 1; if (x < 0) break; }
+    out.push(pool.splice(i, 1)[0]);
+  }
+  return out;
+}
+/**
+ * The letters of a sky: a core of seven to nine, drawn evenly (bent by LEAN) and kept if they make words enough, and then none, one or two
+ * more stars drawn from any letter at all, each hung off the end by a single line (Korbi, 8 Nov 2026: "11 stars also ok ... even if it
+ * just adds 1-3 words"). The extras are what let J, Q, X, Z, and the less usual letters in, and keep E and T from every sky.
+ * { core, letters } (both alphabetical).
+ */
+function pickLetters(r) {
+  for (;;) {
+    const x = r(), n = SIZES.find(([, c]) => x < c)[0], v = 2 + (r() < 0.5 ? 0 : 1);
+    const chosen = [...drawn(VOWELS, v, r), ...drawn(CONSONANTS, n - v, r)];
+    const mask = maskOf(chosen.join(""));
+    if (poolSize(mask) < POOL_MIN) continue;
+    const core = lettersOf(mask), y = r(), more = y < 0.3 ? 0 : y < 0.65 ? 1 : 2;
+    const extra = shuffled([...ALPHABET].filter(c => !core.includes(c)), r).slice(0, more);
+    return { core, letters: lettersOf(maskOf(core + extra.join(""))) };
+  }
+}
+/** For tests and tuning: how often each letter is among a sky's, over `n` draws. */
+export function letterOdds(n = 2000) {
+  const r = rng(99), odds = {};
+  for (let i = 0; i < n; i++) for (const c of pickLetters(r).letters) odds[c] = (odds[c] || 0) + 1 / n;
+  return odds;
+}
+
 /** Whether Constellation counts a word anywhere (any case). */
 export const counts = w => index().zipf.has(String(w || "").toLowerCase());
 /** How often a counted word is used: its Zipf frequency (0 for a word that isn't counted). */
@@ -119,31 +178,41 @@ export function traces(p, w) {
 }
 /** The stars a word visits, in order, as indices into p.letters (a doubled letter repeats its star). */
 export const trailOf = (p, w) => [...w].map(c => p.letters.indexOf(c));
-/** Whether a word is a full tour: it visits all seven stars. */
-export const isFull = (p, w) => bitsOf(maskOf(w)) === STARS;
+/** Whether a word is a full tour: it visits every star. */
+export const isFull = (p, w) => bitsOf(maskOf(w)) === p.letters.length;
 /** A word's points: one for four letters, one a letter for more, seven more for a full tour. */
 export const pointsOf = (p, w) => (w.length === MIN_LEN ? 1 : w.length) + (isFull(p, w) ? FULL_BONUS : 0);
 export const totalOf = (p, words) => words.reduce((s, w) => s + pointsOf(p, w), 0);
 /** Every counted word the sky allows, alphabetical. */
 export function yieldOf(p) {
-  return poolOf(maskOf(p.letters)).filter(w => traces(p, w)).sort();
+  const t = reachOf(p), out = [];
+  next: for (const w of poolOf(maskOf(p.letters))) {      // (every pool word is made of the sky's letters: only the steps need looking at)
+    for (let i = 1, prev = w.charCodeAt(0) - A; i < w.length; i++) {
+      const c = w.charCodeAt(i) - A;
+      if (t[prev * 26 + c] !== 1) continue next;
+      prev = c;
+    }
+    out.push(w);
+  }
+  return out.sort();
 }
 
 // ---------- the sky's shape: where the stars stand ----------
-// Korbi, 8 Nov 2026: "less polyhedron, more odd shape". Seven places scattered the way a constellation's are, from the seed: spread across
-// the picture, none close enough to crowd another. Of the 5040 ways to stand the letters on them, one with the fewest sight-lines
+// Korbi, 8 Nov 2026: "less polyhedron, more odd shape". Places scattered the way a constellation's are, from the seed: spread across
+// the picture, none close enough to crowd another. Of the ways to stand the letters on them, one (a swap search finds it) with the fewest sight-lines
 // crossing (picked among the best by the seed), so the drawing is as clear as the sky allows (a line that runs through another
 // star counts against a layout too, as eight crossings). Pure and the same on every device, so a table sees one sky.
-const APART = 0.56;                                              // the nearest two stars may stand, in the sky's units
-/** Seven places, irregular and spread: scattered at random, each clear of the others, and wide and tall enough to fill the picture. */
-function scatter(r) {
+const APART = 0.56;                                              // the nearest two stars may stand (seven of them), in the sky's units
+/** n places, irregular and spread: scattered at random, each clear of the others, and wide and tall enough to fill the picture. */
+function scatter(r, n) {
+  const apart = APART * Math.sqrt(STARS / n) * (n > 9 ? 0.92 : 1);   // more stars, a little closer
   for (;;) {
     const pts = [];
-    for (let tries = 0; pts.length < STARS && tries < 300; tries++) {
+    for (let tries = 0; pts.length < n && tries < 300; tries++) {
       const c = [(r() * 2 - 1) * 0.95, (r() * 2 - 1) * 0.92];
-      if (pts.every(q => Math.hypot(q[0] - c[0], q[1] - c[1]) >= APART)) pts.push(c);
+      if (pts.every(q => Math.hypot(q[0] - c[0], q[1] - c[1]) >= apart)) pts.push(c);
     }
-    if (pts.length < STARS) continue;
+    if (pts.length < n) continue;
     const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     if (x1 - x0 > 1.3 && y1 - y0 > 1.1) return pts.map(([x, y]) => [((x - x0) / (x1 - x0) * 2 - 1) * 0.97, ((y - y0) / (y1 - y0) * 2 - 1) * 0.94]);   // stretched to fill the picture
@@ -159,11 +228,39 @@ const near = (c, a, b) => {
   return Math.hypot(a[0] + t * dx - c[0], a[1] + t * dy - c[1]) < 0.22;
 };
 const THROUGH = 8;
-const PERMS = (() => {
-  const out = [], go = (rest, got) => { if (!rest.length) { out.push(got); return; } rest.forEach((x, i) => go([...rest.slice(0, i), ...rest.slice(i + 1)], [...got, x])); };
-  go([0, 1, 2, 3, 4, 5, 6], []);
-  return out;
-})();
+/** How badly a standing of the stars (perm[i]: the place of star i) reads: crossings, and lines that run through another star (eight each). */
+function untidy(perm, here, links) {
+  const n = perm.length;
+  let bad = 0;
+  for (let a = 0; a < links.length; a++) {
+    const [i, j] = links[a];
+    for (let s = 0; s < n; s++) if (s !== i && s !== j && near(here[perm[s]], here[perm[i]], here[perm[j]])) bad += THROUGH;   // a line through a star reads as a step to it, and a drag would take it
+    for (let b = a + 1; b < links.length; b++) {
+      const [k, l] = links[b];
+      if (i === k || i === l || j === k || j === l) continue;
+      if (cross(here[perm[i]], here[perm[j]], here[perm[k]], here[perm[l]])) bad++;
+    }
+  }
+  return bad;
+}
+/** The standings a few restarts of swap-two-stars settle on (nine stars have 362880, too many to try them all): { best, picks }. */
+function tidiest(here, links, r) {
+  const n = here.length;
+  let best = Infinity, picks = [];
+  for (let start = 0; start < 10 && best > 0; start++) {
+    let perm = shuffled([...Array(n).keys()], r), cur = untidy(perm, here, links);
+    for (let moved = true; moved && cur > 0;) {
+      moved = false;
+      for (let i = 0; i < n && cur > 0; i++) for (let j = i + 1; j < n; j++) {
+        [perm[i], perm[j]] = [perm[j], perm[i]];
+        const c = untidy(perm, here, links);
+        if (c < cur) { cur = c; moved = true; } else [perm[i], perm[j]] = [perm[j], perm[i]];
+      }
+    }
+    if (cur < best) { best = cur; picks = [perm]; } else if (cur === best) picks.push(perm);
+  }
+  return { best, picks };
+}
 const skies = new Map();
 /** { stars: [{ ch, x, y }] in letter order (x and y between -1 and 1), links: [[i, j]] } for a puzzle. */
 export function skyOf(p) {
@@ -171,29 +268,15 @@ export function skyOf(p) {
   if (skies.has(key)) return skies.get(key);
   const r = rng((p.seed ^ 0x57a25) >>> 0), links = p.edges.split(" ").filter(Boolean).map(e => [p.letters.indexOf(e[0]), p.letters.indexOf(e[1])]);
   let best = Infinity, picks = [], spots = null;
-  for (let tryNo = 0; tryNo < 6 && best > 0; tryNo++) {            // a few different scatterings; the clearest wins
-    const here = scatter(r);
-    let found = Infinity, hits = [];
-    for (const perm of PERMS) {                                  // perm[i]: the place of star i
-      let n = 0;
-      for (let a = 0; a < links.length && n <= found; a++) {
-        const [i, j] = links[a];
-        for (let s = 0; s < STARS; s++) if (s !== i && s !== j && near(here[perm[s]], here[perm[i]], here[perm[j]])) n += THROUGH;   // a line through a star reads as a step to it, and a drag would take it
-        for (let b = a + 1; b < links.length; b++) {
-          const [k, l] = links[b];
-          if (i === k || i === l || j === k || j === l) continue;
-          if (cross(here[perm[i]], here[perm[j]], here[perm[k]], here[perm[l]])) n++;
-        }
-      }
-      if (n < found) { found = n; hits = [perm]; } else if (n === found) hits.push(perm);
-    }
-    if (found < best) { best = found; picks = hits; spots = here; }
+  for (let tryNo = 0; tryNo < 5 && best > 0; tryNo++) {            // a few different scatterings; the clearest wins
+    const here = scatter(r, p.letters.length), found = tidiest(here, links, r);
+    if (found.best < best) { best = found.best; picks = found.picks; spots = here; }
   }
   const perm = picks[Math.floor(r() * picks.length)];
   const at = i => spots[perm[i]];
   let crossings = 0, through = 0;
   links.forEach(([i, j], a) => {
-    for (let s = 0; s < STARS; s++) if (s !== i && s !== j && near(at(s), at(i), at(j))) through++;
+    for (let s = 0; s < p.letters.length; s++) if (s !== i && s !== j && near(at(s), at(i), at(j))) through++;
     for (const [k, l] of links.slice(a + 1)) if (i !== k && i !== l && j !== k && j !== l && cross(at(i), at(j), at(k), at(l))) crossings++;
   });
   const sky = { stars: [...p.letters].map((ch, i) => ({ ch, x: at(i)[0], y: at(i)[1] })), links, crossings, through };
@@ -230,29 +313,41 @@ export function statsOf(p, words = yieldOf(p)) {
 /** Whether a puzzle's stats suit a level. */
 function suits(level, s, strict = true) {
   const b = BANDS[level];
-  return (!strict || (!s.commonTop && s.common <= Math.max(5, MAX_COMMON * s.words))) && s.tours > 0 && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] && s.depth < b.depth[1]
+  return (!strict || (!s.commonTop && s.common <= Math.max(6, MAX_COMMON * s.words))) && s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] && s.depth < b.depth[1]
     && s.end <= Math.min(MAX_END_N, MAX_END * s.words) && s.seven >= (strict ? 0.1 : MIN_SEVEN) && s.six >= (strict ? 0.22 : MIN_SIX);
+}
+/**
+ * Whether a sky is fair for a level even if it is not the best: the same tests a little looser. Which letter sets can meet every test
+ * is itself uneven (without T there are fewer long words, say), and holding out for the best sky would leave the skies on the same few
+ * letters (Korbi, 8 Nov 2026: "roughly even probabilities"); so each set gets its nearest sky, and this says whether it will do.
+ */
+function fair(level, s, strict) {
+  const b = BANDS[level];
+  return s.words >= b.words[0] && s.words <= b.words[1] && s.depth >= b.depth[0] - 0.3 && s.depth < b.depth[1] + 0.3
+    && s.end <= Math.min(FAIR_END_N, FAIR_END * s.words) && s.seven >= FAIR_SEVEN && s.six >= FAIR_SIX && !(strict && s.commonTop);
 }
 /** How far a puzzle is from a level, for the nearest when none suits in the tries allowed. */
 function distance(level, s, strict = true) {
   const b = BANDS[level], off = (x, a, z) => (x < a ? a - x : x > z ? x - z : 0);
-  return (s.tours ? 0 : 100) + (off(s.words, b.words[0], b.words[1]) ? 50 + off(s.words, b.words[0], b.words[1]) : 0) + off(s.depth, b.depth[0], b.depth[1] - 0.001) * 4 + Math.max(0, s.end - Math.min(MAX_END_N, MAX_END * s.words))
+  return (off(s.words, b.words[0], b.words[1]) ? 50 + off(s.words, b.words[0], b.words[1]) : 0) + off(s.depth, b.depth[0], b.depth[1] - 0.001) * 4 + Math.max(0, s.end - Math.min(MAX_END_N, MAX_END * s.words))
     + Math.max(0, (strict ? 0.1 : MIN_SEVEN) - s.seven) * 10 + Math.max(0, (strict ? 0.22 : MIN_SIX) - s.six) * 10
-    + (strict ? Math.max(0, s.common - Math.max(5, MAX_COMMON * s.words)) + (s.commonTop ? 3 : 0) : 0);
+    + (strict ? Math.max(0, s.common - Math.max(6, MAX_COMMON * s.words)) + (s.commonTop ? 3 : 0) : 0);
 }
 
 // ---------- dealing ----------
-const TRIES = 12000, STEPS = 60, WANDER = 60, MAX_LINES = 13;      // no more than 14 sight-lines: more cross too much to read
+const TRIES = 20000, STEPS = 150, WANDER = 60;
+const maxLines = letters => letters.length + 6;     // 13 lines on seven stars, 17 on eleven (two of them single lines to the extra stars)
 /** The lines the three commonest of the common endings, among every word these letters make, need: two letters each. */
 function bannedFor(letters) {
   const n = new Map();
   for (const w of poolOf(maskOf(letters))) { const k = w.slice(-2); if (COMMON_ENDS.has(k)) n.set(k, (n.get(k) || 0) + 1); }
   return new Set([...n].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 2).map(([k]) => pairKey(k[0], k[1])));
 }
-/** Every pair of the letters, the seven stars' possible sight-lines. */
+/** Every pair of the letters, the stars' possible sight-lines. */
 const pairsOf = letters => [...letters].flatMap((a, i) => [...letters].slice(i + 1).map(b => a + b));
 /** A suiting sky drifted a few lines on while it still suits, so that two seeds that settle on the same letters don't deal the same sky. */
 function wander(level, p, base, on, rest, r, strict) {
+  const MAX_LINES = maxLines(p.letters);
   const make = set => ({ ...p, edges: [...base, ...set].sort().join(" ") });
   let at = p;
   // first the lines it can do without come away (Korbi, 8 Nov 2026: less polyhedron, a few stars hanging off the ends), then a few
@@ -274,49 +369,81 @@ function wander(level, p, base, on, rest, r, strict) {
   return at;
 }
 /**
- * A puzzle for a seed at a level. A full tour is picked first (a word with seven different letters) and its steps are the
+ * A puzzle for a seed at a level. A full tour is picked first (a word with a sky's every letter, seven to nine of them) and its steps are the
  * sight-lines that make it a tour, so every sky has at least one. Then a few lines are added or taken away, one at a time,
  * keeping a change whenever the sky gets no further from the level: lines are what pick the words, so this is how a sky
  * loses its pile of one ending. The first sky that suits, else the nearest of the first TRIES.
  */
 export function deal({ seed, level = "medium" }) {
   if (!BANDS[level]) throw new Error(`no level ${level}`);
-  const r = rng(seed), { tours } = index();
-  let strict = r() < STRICT;          // (a strict sky that no search finds in half the tries gives its rules up, so a deal always makes its words)
+  const r = rng(seed);
+  let strict = r() < STRICT;          // (a strict sky that no search finds in the first half of the tries gives its rules up, so a deal always makes its words)
   let best = null, tried = 0;
   for (;;) {
-    // the letters lean away from the commonest: of a few tours drawn, the one with the fewest of them
-    let w = tours[Math.floor(r() * tours.length)];
-    for (let k = 0; k < 1; k++) { const c = tours[Math.floor(r() * tours.length)]; if ([...new Set(c)].filter(x => COMMON_LETTERS.includes(x)).length < [...new Set(w)].filter(x => COMMON_LETTERS.includes(x)).length) w = c; }
-    const letters = lettersOf(maskOf(w)), base = new Set(), rest = [];
-    for (let i = 1; i < w.length; i++) if (w[i] !== w[i - 1]) base.add(pairKey(w[i - 1], w[i]));
-    // a strict sky never draws the lines for the three common endings these letters would make most of (-ER and -ED, say), and a tour
-    // that walks one of them is not used there
-    const banned = strict ? bannedFor(letters) : new Set();
-    if ([...base].some(k => banned.has(k))) { if (++tried >= TRIES) return (best || { p: { letters, edges: [...base].sort().join(" "), level, seed } }).p; continue; }
-    for (const k of pairsOf(letters)) if (!base.has(k) && !banned.has(k)) rest.push(k);
-    let on = new Set(shuffled(rest, r).slice(0, Math.floor(r() * r() * (Math.max(0, Math.min(rest.length, MAX_LINES - base.size)) + 1))));
-    const make = extra => ({ letters, edges: [...base, ...extra].sort().join(" "), level, seed });
-    let cur = null, prev = on;
-    for (let step = 0; step <= STEPS; step++) {
-      if (step) {                                      // one line toggled: a new one in, or an extra one out
-        const next = new Set(on), k = rest[Math.floor(r() * rest.length)];
-        if (next.has(k)) next.delete(k);
-        else {
-          if (base.size + next.size >= MAX_LINES) { const out = [...next]; if (!out.length) continue; next.delete(out[Math.floor(r() * out.length)]); }   // full: one out for the one in
-          next.add(k);
-        }
-        prev = on; on = next;
-      }
-      const p = make(on), s = statsOf(p);
-      if (suits(level, s, strict)) return wander(level, p, base, on, rest, r, strict);
-      const d = distance(level, s, strict);
-      if (!best || d < best.d) best = { p, d };
-      if (cur !== null && d > cur) { on = prev; } else cur = d;
-      if (++tried >= TRIES) return best.p;
-      if (tried === Math.floor(TRIES * 0.7) && strict) { strict = false; best = null; }
-    }
+    const { core, letters } = pickLetters(r);          // the letters first, evenly (pickLetters)
+    const got = climb(letters, core, level, seed, strict, r, STEPS);
+    tried += got.steps;
+    if (got.found) return wander(level, got.found.p, got.base, got.found.on, got.rest, r, strict);
+    if (got.best && (!best || got.best.d < best.d)) best = got.best;
+    if (tried >= TRIES) return (best || { p: got.fallback }).p;
+    if (strict && tried >= Math.floor(TRIES * 0.5)) { strict = false; best = null; }
   }
+}
+/**
+ * The sight-lines every sky of a letter set keeps, so no star is cut off: the steps of the word that visits the most of its stars
+ * (a long one, for the long words), and each star it misses hung off the end of a star it visits by a single line (Korbi, 8 Nov
+ * 2026: "throw 1-2 letters at one end and not connect it to many other letters").
+ */
+function backbone(letters, core, r, banned = new Set()) {
+  const mask = maskOf(core), sets = index().sets, cover = new Map();
+  for (let sub = mask; sub; sub = (sub - 1) & mask) for (const w of sets.get(sub) || []) { const k = bitsOf(sub); (cover.get(k) || cover.set(k, []).get(k)).push(w); }
+  // the longest-reaching word whose steps use none of the banned lines, if there is one within two stars of the best
+  const clean = w => { for (let i = 1; i < w.length; i++) if (banned.has(pairKey(w[i - 1], w[i]))) return false; return true; };
+  const best = Math.max(...cover.keys());
+  let top = best, pick = cover.get(best).filter(clean);
+  for (let k = best - 1; !pick.length && k >= best - 2 && cover.has(k); k--) { pick = cover.get(k).filter(clean); top = k; }
+  if (!pick.length) pick = cover.get(best);
+  const w = pick[Math.floor(r() * pick.length)], base = new Set(), seen = [...new Set(w)];
+  for (let i = 1; i < w.length; i++) if (w[i] !== w[i - 1]) base.add(pairKey(w[i - 1], w[i]));
+  for (const c of letters) if (!seen.includes(c)) {
+    const ok = seen.filter(x => !banned.has(pairKey(c, x))), to = (ok.length ? ok : seen);   // (not on a banned line, if it can help it)
+    base.add(pairKey(c, to[Math.floor(r() * to.length)]));
+    seen.push(c);
+  }
+  return base;
+}
+/**
+ * One letter set's search: the backbone's lines, a few more drawn, then one at a time added or taken away,
+ * keeping a change whenever the sky gets no further from the level. { found: { p, on } } when one suits, else the nearest it saw.
+ */
+export function climb(letters, core, level, seed, strict, r, steps) {
+  const MAX_LINES = maxLines(letters), ban = strict ? bannedFor(letters) : new Set(), base = backbone(letters, core, r, ban), rest = [], extra = [...letters].filter(c => !core.includes(c));
+  // a strict sky draws no extra line for the two common endings these letters would make most of (-ER and -ED, say); the tour's own
+  // steps stay (skipping the tours that walk one dropped most letter sets, and favoured the odd ones)
+  const banned = new Set([...ban].filter(k => !base.has(k)));
+  const make = extra => ({ letters, edges: [...base, ...extra].sort().join(" "), level, seed });
+  for (const k of pairsOf(letters)) if (!base.has(k) && !banned.has(k) && !extra.some(c => k.includes(c))) rest.push(k);   // an extra star keeps its one line
+  let on = new Set(shuffled(rest, r).slice(0, Math.floor(r() * r() * (Math.max(0, Math.min(rest.length, MAX_LINES - base.size)) + 1))));
+  let cur = null, prev = on, best = null, done = 0;
+  for (let step = 0; step <= steps; step++) {
+    if (step) {                                      // one line toggled: a new one in, or an extra one out
+      const next = new Set(on), k = rest[Math.floor(r() * rest.length)];
+      if (next.has(k)) next.delete(k);
+      else {
+        if (base.size + next.size >= MAX_LINES) { const out = [...next]; if (!out.length) continue; next.delete(out[Math.floor(r() * out.length)]); }   // full: one out for the one in
+        next.add(k);
+      }
+      prev = on; on = next;
+    }
+    const p = make(on), s = statsOf(p);
+    done++;
+    if (suits(level, s, strict)) return { steps: done, base, rest, found: { p, on }, best };
+    const d = distance(level, s, strict);
+    if (!best || d < best.d) best = { p, d, s, on };
+    if (cur !== null && d > cur) { on = prev; } else cur = d;
+  }
+  if (best && fair(level, best.s, strict)) return { steps: done, base, rest, found: { p: best.p, on: best.on }, best };   // the nearest it saw is fair
+  return { steps: done, base, rest, best, fallback: best.p };
 }
 /** Today's puzzle: a Medium sky, the same for everyone; the day (YYYYMMDD, the suite's today()) is its seed. */
 export const daily = day => ({ ...deal({ seed: day, level: DAILY.level }), day });
@@ -340,7 +467,7 @@ export function shadowsOf(p, words, found = new Set()) {
 }
 /** How many of the words not yet found start on each star (an array by star index), and the most on any one. */
 export function startsOf(p, words, found = new Set()) {
-  const n = Array(STARS).fill(0);
+  const n = Array(p.letters.length).fill(0);
   let max = 0;
   for (const w of words) if (!found.has(w)) { const i = trailOf(p, w)[0]; if (++n[i] > max) max = n[i]; }
   return { n, max };

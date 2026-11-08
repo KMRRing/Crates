@@ -1,8 +1,8 @@
-// Constellation (id yield; the rules are yield-engine.js's): seven stars, the sight-lines between them, words traced
+// Constellation (id yield; the rules are yield-engine.js's): seven to eleven stars, the sight-lines between them, words traced
 // along them; points for each, ranks from the dark sky to the galaxy. The puzzles, the shadows and the computer player
 // are the engine's; this file keeps the runs, draws the sky and takes the taps. Today's puzzle and a random one are kept
 // apart, so switching between them loses neither. Together (duel.js): a race, the same sky for everyone against the clock.
-import { LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, GROUPS, groupOf, deal, daily, yieldOf, totalOf, pointsOf, isFull, judge,
+import { LEVELS, DAILY, MIN_LEN, FULL_BONUS, STARS, MAX_STARS, RANKS, MASTER, TOP, GROUPS, groupOf, deal, daily, yieldOf, totalOf, pointsOf, isFull, judge,
   needed, rankOf, canStep, trailOf, skyOf, shadowsOf, startsOf, easiestLeft, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -73,7 +73,7 @@ const canType = () => !!S && !!P && !isOver() && !IN_FRAME && !paused && !(S.kin
 // ---------- the sky ----------
 // The stars at their places in a picture 340 by 300 (the sky's own -1 to 1 spread across it), the sight-lines between them,
 // the shadows over those, the word being traced in brass, and a hint's start of a word in dots.
-const NS = "http://www.w3.org/2000/svg", VW = 340, VH = 300, R = 26;
+const NS = "http://www.w3.org/2000/svg", VW = 340, VH = 300, radius = n => (n > 9 ? 19 : n > 8 ? 22 : n > 7 ? 24 : 26);   // (more stars, a little smaller)
 const svgEl = (tag, attrs = {}) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
 const at = s => [VW / 2 + s.x * 128, VH / 2 + s.y * 108];
 let starEls = [], shadowEls = new Map(), linkEls = new Map(), trailEl = null, pinEl = null, drawnFor = null;
@@ -101,7 +101,7 @@ function drawBoard() {
   svg.append(pinEl, trailEl);
   starEls = stars.map((s, i) => {
     const [x, y] = at(s), g = svgEl("g", { class: "yd-star", "data-i": String(i) });
-    g.append(svgEl("circle", { class: "halo", cx: x, cy: y, r: R + 9 }), svgEl("circle", { class: "disc", cx: x, cy: y, r: R }));
+    g.append(svgEl("circle", { class: "halo", cx: x, cy: y, r: radius(stars.length) + 9 }), svgEl("circle", { class: "disc", cx: x, cy: y, r: radius(stars.length) }));
     const text = svgEl("text", { x, y: y + 1 });
     text.textContent = s.ch;
     g.append(text);
@@ -156,7 +156,7 @@ function add(letter, { quiet = false } = {}) {
   if (!canType() || S.typed.length >= 15) return false;
   letter = letter.toLowerCase();
   const last = S.typed.at(-1);
-  if (!S.p.letters.includes(letter)) { if (!quiet) refuse("Not a star: only these seven letters"); return false; }
+  if (!S.p.letters.includes(letter)) { if (!quiet) refuse(`Not a star: only these ${inWords(S.p.letters.length)} letters`); return false; }
   if (last && !canStep(S.p, last, letter)) { if (!quiet) refuse(`No sight-line from ${up(last)} to ${up(letter)}`); return false; }
   S.typed += letter;
   message = null;
@@ -222,7 +222,7 @@ async function enter() {
       break;
     }
     case "short": refuse("Too short: four letters at least"); break;
-    case "letters": refuse("Not a star: only these seven letters"); break;
+    case "letters": refuse(`Not a star: only these ${inWords(S.p.letters.length)} letters`); break;
     case "line": refuse(`No sight-line from ${up(word[r.at - 1])} to ${up(word[r.at])}`); break;
     case "found": refuse("Already found"); break;
     case "variant": noteExtra(word); refuse("One side of the Atlantic's spelling only: not counted", ""); break;
@@ -358,7 +358,7 @@ function save() {
   if (S.kind === "race") duel.keep(S);
   else write(S.kind === "day" ? DAY : RUN, S);
 }
-const validRun = s => !!s && !!s.p && typeof s.p.letters === "string" && s.p.letters.length === 7 && typeof s.p.edges === "string" && Array.isArray(s.found);
+const validRun = s => !!s && !!s.p && typeof s.p.letters === "string" && s.p.letters.length >= STARS && s.p.letters.length <= MAX_STARS && typeof s.p.edges === "string" && Array.isArray(s.found);
 /** A run made whole: what an older save or the database's round trip leaves out. */
 const tidy = s => ({ typed: "", extra: [], top: 0, over: false, shown: false, shadows: true, hints: 0, pin: null, ...s, found: [...(s.found || [])] });
 const started = s => !!s && !s.over && s.found.length > 0;
@@ -433,8 +433,8 @@ function finish(how) {
 function openDone() {
   const pts = pointsNow(), rank = rankOf(pts, P.total), got = S.found.filter(w => P.set.has(w)), tours = P.words.filter(w => isFull(S.p, w));
   const body = sheet(RANKS[rank][1]);
-  body.append(el("p", "yd-sum", `${plural(P.words.length, "word")} · ${plural(P.total, "point")} · ${plural(tours.length, "full tour")}`));
-  body.append(stats([[pts, `of ${P.total} points`], [got.length, `of ${P.words.length} words`], [got.filter(w => isFull(S.p, w)).length, `of ${plural(tours.length, "full tour")}`]]));
+  body.append(el("p", "yd-sum", `${plural(P.words.length, "word")} · ${plural(P.total, "point")}${tours.length ? ` · ${plural(tours.length, "full tour")}` : ""}`));
+  body.append(stats([[pts, `of ${P.total} points`], [got.length, `of ${P.words.length} words`], ...(tours.length ? [[got.filter(w => isFull(S.p, w)).length, `of ${plural(tours.length, "full tour")}`]] : [])]));
   // the way on before the words, which can run long
   if (S.kind === "day" || S.kind === "run") {
     if (dailyDue("yield") && S.kind !== "day") body.append(action("Today's puzzle", () => { closeSheet(); showToday(); }, "primary"));
@@ -605,8 +605,8 @@ function showMenu(body) {
 function showRules() {
   const ranks = RANKS.map(([share, name], i) => (i === 0 ? name : i === TOP ? `${name} (every word)` : `${name} (${Math.round(share * 100)}%)`));
   $("rulesBody").innerHTML = `
-    <p>Seven letters are seven stars, joined by sight-lines. Trace words of ${inWords(MIN_LEN)} letters or more: each letter must be a star with a sight-line to the one before it. Tap a star again for a double letter, or drag across the stars; a star can be used as often as you like. The sky, not a rule, is what limits the words. Every sky has between 50 and 100 words, and at least one full tour, a word that visits all seven stars.</p>
-    <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a full tour ${FULL_BONUS} more: a six-letter word scores 6, a full tour of seven letters ${7 + FULL_BONUS}.</p>
+    <p>Seven to eleven letters are stars, joined by sight-lines. Trace words of ${inWords(MIN_LEN)} letters or more: each letter must be a star with a sight-line to the one before it. Tap a star again for a double letter, or drag across the stars; a star can be used as often as you like. The sky, not a rule, is what limits the words. Every sky has between 40 and 100 words, and some have a full tour, a word that visits every star.</p>
+    <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a full tour ${FULL_BONUS} more: a six-letter word scores 6, a full tour of eight letters ${8 + FULL_BONUS}.</p>
     <p><b>Shadows.</b> Switch them on and every sight-line glows by how many of the words you have not found yet travel along it: brighter, more words. It says where to look, not what is there, and the glow dims as you find them.</p>
     <p><b>Hint.</b> The star beside Delete shows the start of the easiest word left: two stars of it and a dot for each letter, and one more star at each press.</p>
     <p><b>Ranks.</b> Your points take you from the dark sky to the galaxy, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs.</p>
