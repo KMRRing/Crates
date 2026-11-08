@@ -44,10 +44,11 @@ const REGION_NAMES = ["BALTIC", "ATLANTIC", "MEDITERRANEAN", "WEST AFRICA", "SWA
 const COACH = [["off", "Off"], ["hints", "Hint"], ["check", "Check"], ["on", "Always"]];
 let opts = { level: "medium", n: 4, mine: "random", coach: "hints", ...read(OPTS, {}) };
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
-// Korbi, 4 November 2026: the menu is the minimum it needs to be. Your power is drawn by lot, whatever an older save chose.
-// The computer players' strength is the hidden ramp, its first step the old saved choice.
+// Korbi, 4 November 2026: the menu is the minimum it needs to be; the computer players' strength is the hidden ramp, its
+// first step the old saved choice. Your power: drawn by lot (4 Nov), then chosen again at the start of a match, Random among
+// the choices (9 Nov 2026: "user should be able to choose their own country when starting a match").
 const OLD_LEVEL = opts.level;
-opts.mine = "random";
+if (opts.mine !== "random" && !POWERS.some(p => p.id === opts.mine)) opts.mine = "random";
 const levelNow = () => ramp("carrack", LEVELS, { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 // how the map is looked at: the globe or the flat schematic, and whether the panel below it is folded away
@@ -722,8 +723,9 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Carrack, from the first year", () => course.open()));
   play.append(action("First game: a walkthrough", openWalk, "link"));
   const content = part(body, "content");
+  content.append(choice("Your power", [["random", "Random"], ...POWERS.map(p => [p.id, p.name])], opts.mine, v => { opts.mine = v; saveOpts(); }));
   content.append(choice("Powers at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.n, v => { opts.n = Number(v); saveOpts(); }));
-  content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
+  content.append(line("Both apply from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
   set.append(choice("Coach help", COACH, opts.coach, v => { opts.coach = v; coach.key = ""; coach.r = null; saveOpts(); draw(); }));
   set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], mapNow(), v => { look.view = v; saveLook(); draw(); }));

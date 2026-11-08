@@ -1,5 +1,5 @@
-// Crossing: from one country to another across land borders, as few as you can. Tap the country to cross into; one that
-// doesn't touch where you stand is a mistake. Five routes a run; each scores 100 at the fewest borders, less for each border
+// Crossing: from one country to another across land borders, as few as you can. On a map with no borders: Easy lists the countries you may cross into and lights your way,
+// Medium lights where you stand and has you type the next, Hard lights nothing; one that doesn't touch where you stand is a mistake. Five routes a run; each scores 100 at the fewest borders, less for each border
 // beyond and each mistake. The rules are crossing-engine.js's; this file keeps the run, draws the map (Chart's projection,
 // pan and pinch) and the page. Sea mode (ports, straits, canals, rivers) is crossing-sea-engine.js's, and its map and
 // buttons crossing-sea-ui.js's; here it only joins the run, the menu and the canvas.
@@ -7,7 +7,7 @@ import { LEVELS, ROUTES, FULL, dealRun, begin, here, cross, back, giveUp, crosse
 import * as SE from "./crossing-sea-engine.js";
 import * as SU from "./crossing-sea-ui.js";
 import { COUNTRIES } from "./chart-countries.js";
-import { projection, viewFitting, viewWindow, clampView, merc, fingers, insideFeature } from "./chart-engine.js";
+import { projection, viewFitting, viewWindow, clampView, merc, fingers } from "./chart-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -92,54 +92,31 @@ function resize() {
 }
 const proj = () => { const [w, h] = size, win = viewWindow(view, w, h); return { p: projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h), win }; };
 
-/** Whether a country's name fits on its shape at this zoom: its widest ring, in pixels, against the name's length. */
-function room(ctx, c, p, name) {
-  let x0 = Infinity, x1 = -Infinity;
-  for (const ring of c.rings) for (const [lon, lat] of ring) { const x = p.toXY(lon, lat)[0]; if (x < x0) x0 = x; if (x > x1) x1 = x; }
-  return x1 - x0 > ctx.measureText(name).width * 1.1;
-}
 function draw() {
   if (!S || !view) return;
   const [w, h] = size, ctx = canvas.getContext("2d"), dpr = canvas.width / w, { p, win } = proj();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = css("--cx-sea"); ctx.fillRect(0, 0, w, h);
   const sea = isSea(), r = S.now, level = S.level, over = r.over;
-  const at = sea ? null : here(r), path = new Set(sea ? [] : r.path), near = new Set(!sea && level === "easy" && !over ? neighbours(at) : []);
+  const at = sea ? null : here(r), path = new Set(sea ? [] : r.path);
   const best = !sea && over ? new Set(shortest(r.from, r.to)) : new Set();
   const trace = (t, ring) => { ring.forEach(([lon, lat], i) => { const [x, y] = p.toXY(lon, lat); if (i === 0) t.moveTo(x, y); else t.lineTo(x, y); }); t.closePath(); };
   ctx.lineJoin = "round";
   ctx.font = `${Math.round(10 * scale())}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const labels = [];
   for (const c of COUNTRIES) {
     if (!c.rings.some(ring => ring.some(([lon, lat]) => lon >= win.lon0 - 8 && lon <= win.lon1 + 8 && lat >= win.lat0 - 8 && lat <= win.lat1 + 8))) continue;
     const shape = new Path2D();
     for (const ring of c.rings) trace(shape, ring);
     ctx.fillStyle = css("--cx-land"); ctx.fill(shape, "evenodd");
-    if (near.has(c.name)) { ctx.fillStyle = css("--cx-near"); ctx.fill(shape, "evenodd"); }
+    ctx.strokeStyle = css("--cx-land"); ctx.lineWidth = 0.8; ctx.stroke(shape);       // (a hairline in the land's own colour closes the seams between countries)
     if (over && best.has(c.name) && !path.has(c.name)) { ctx.globalAlpha = 0.35; ctx.fillStyle = css("--cx-goal"); ctx.fill(shape, "evenodd"); ctx.globalAlpha = 1; }
-    if (path.has(c.name)) { ctx.globalAlpha = c.name === at && !over ? 0.8 : 0.5; ctx.fillStyle = css("--cx-trail"); ctx.fill(shape, "evenodd"); ctx.globalAlpha = 1; }
-    ctx.strokeStyle = css("--cx-border"); ctx.lineWidth = 0.8; ctx.stroke(shape);
-    if (!sea && (c.name === r.from || c.name === r.to)) { ctx.strokeStyle = c.name === r.to ? css("--cx-goal") : css("--cx-trail"); ctx.lineWidth = 2.4; ctx.stroke(shape); }
-    if (sea) continue;                             // at sea the ports and waters carry the names
-    const big = level !== "hard" && room(ctx, c, p, c.name), key = c.name === r.from || c.name === r.to || path.has(c.name);
-    if (big || key) labels.push([c, key]);
+    // Easy lights the way you've come and where you stand, Medium only where you stand, Hard nothing
+    if (!sea && (over || level === "easy" ? path.has(c.name) : level === "medium" && c.name === at)) { ctx.globalAlpha = c.name === at && !over ? 0.8 : 0.5; ctx.fillStyle = css("--cx-trail"); ctx.fill(shape, "evenodd"); ctx.globalAlpha = 1; }
+    // no borders (9 Nov 2026): the land is one colour, so which countries touch is what you know, not what you see
+    if (over && !sea && (c.name === r.from || c.name === r.to)) { ctx.strokeStyle = c.name === r.to ? css("--cx-goal") : css("--cx-trail"); ctx.lineWidth = 2.4; ctx.stroke(shape); }
   }
-  if (sea) { SU.draw(ctx, p, win, r, level, css, scale()); return; }
-  ctx.fillStyle = css("--cx-ink");
-  for (const [c, key] of labels) {
-    const [x, y] = p.toXY(c.lon, c.lat);
-    if (x < 0 || x > w || y < 0 || y > h) continue;
-    ctx.globalAlpha = key ? 1 : 0.7; ctx.font = `${key ? "700 " : ""}${Math.round((key ? 11 : 10) * scale())}px system-ui, sans-serif`;
-    ctx.fillText(c.name, x, y);
-  }
-  ctx.globalAlpha = 1;
+  if (sea) SU.draw(ctx, p, win, r, level, css, scale());
 }
-/** The country under a point of the map (null at sea). */
-function countryAt(x, y) {
-  const [lon, lat] = proj().p.toLonLat(x, y), spot = { lon, lat };
-  return COUNTRIES.find(c => insideFeature(spot, { rings: c.rings }))?.name ?? null;
-}
-
 // ---------- gestures: drag to pan, pinch to zoom, tap to cross ----------
 function gestures() {
   const touch = fingers();
@@ -164,7 +141,7 @@ function gestures() {
   });
   const up = e => {
     const tap = touch.up(e.pointerId, e.type !== "pointerup")?.tap;
-    if (tap && S && !S.over && !S.now.over) { if (isSea()) { const act = SU.tapTarget(S.now, S.level, proj().p, ...tap); if (act) sea(act); } else step(countryAt(...tap)); }
+    if (tap && S && !S.over && !S.now.over && isSea() && S.level === "easy") { const act = SU.tapTarget(S.now, S.level, proj().p, ...tap); if (act) sea(act); }
   };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
@@ -215,9 +192,10 @@ function render() {
   $("score").textContent = `Score ${S.scores.reduce((a, b) => a + (b || 0), 0)}`;
   $("route").replaceChildren(r.from, el("span", "cx-arrow", "→"), r.to);
   const trail = $("trail"), opts = $("opts");
-  trail.replaceChildren(); opts.replaceChildren(); opts.hidden = !sea;
+  trail.replaceChildren(); opts.replaceChildren(); opts.hidden = done && !sea;
   if (sea) renderSea(trail, opts);
   else if (!done) {
+    asking(opts, r, [...neighbours(here(r))].sort((a, b) => a.localeCompare(b)).map(n => ({ label: n, sub: "", disabled: r.path.includes(n), act: n })), step);
     trail.append(`${r.path.slice(0, -1).join(" › ")}${r.path.length > 1 ? " › " : ""}`, Object.assign(el("b"), { textContent: here(r) }),
       ` · ${plural(crossed(r), "border")} crossed${r.mistakes ? `, ${plural(r.mistakes, "mistake")}` : ""}`);
   } else {
@@ -235,12 +213,46 @@ function renderSea(trail, opts) {
   const r = S.now, lines = SU.summary(r, S.level);
   trail.textContent = r.over ? SU.trailText(r) : [SU.trailText(r), ...lines].join(" · ");
   if (r.over) { for (const text of lines) opts.append(el("p", "cx-sum", text)); return; }
-  for (const o of SU.options(r, S.level)) {
-    const b = el("button", "cx-opt"); b.type = "button"; b.disabled = !!o.disabled;
-    b.append(el("b", "", o.label), el("span", "", o.sub));
-    b.addEventListener("click", () => sea(o.act));
-    opts.append(b);
+  asking(opts, r, SU.options(r, S.level), sea);
+}
+/** The way to answer: Easy shows every move you may make as a button; Medium and Hard ask you to type where (a name from the same list). */
+function asking(opts, r, list, act) {
+  if (S.level === "easy") {
+    for (const o of list) {
+      const b = el("button", "cx-opt"); b.type = "button"; b.disabled = !!o.disabled;
+      b.append(el("b", "", o.label)); if (o.sub) b.append(el("span", "", o.sub));
+      b.addEventListener("click", () => act(o.act));
+      opts.append(b);
+    }
+    return;
   }
+  const form = el("form", "cx-type"), input = el("input"), go = el("button", "btn", "Go");
+  input.autocomplete = "off"; input.autocapitalize = "words"; input.spellcheck = false; input.enterKeyHint = "go";
+  input.placeholder = isSea() ? (SE.stageOf(r) === "sail" ? "The next water" : "A port") : "The next country"; input.setAttribute("aria-label", input.placeholder);
+  go.type = "submit";
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    const hit = pickNamed(text, list);
+    input.value = "";
+    if (hit) { act(hit.act); return; }
+    if (isSea()) { toast(`${text}: no lane there from here`, true); return; }
+    const country = pickNamed(text, COUNTRIES.map(c => ({ label: c.name, act: c.name })));
+    if (country) step(country.act); else toast(`No country called ${text}`, true);   // (one that exists but doesn't border is the usual mistake)
+  });
+  form.append(input, go);
+  opts.append(form);
+}
+const norm = t => t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, "");
+/** The option a typed name means: its name as typed (case, accents and a leading "the" aside), or the one name it starts (four letters at least). */
+function pickNamed(text, list) {
+  const t = norm(text);
+  if (!t) return null;
+  const exact = list.find(o => norm(o.label) === t);
+  if (exact) return exact;
+  const starts = t.length >= 4 ? list.filter(o => norm(o.label).startsWith(t)) : [];
+  return starts.length === 1 ? starts[0] : null;
 }
 function showDone() {
   if (!S?.over) return;

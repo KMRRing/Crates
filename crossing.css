@@ -24,6 +24,9 @@ html[data-mode="night"] { --cx-sea: #060E15; --cx-land: #4A5A50; --cx-border: #9
 .cx-opt span { font-size: .72rem; color: var(--ink-soft); line-height: 1.2; }
 .cx-opt:disabled { opacity: .4; }
 .cx-opt:not(:disabled):active { border-color: var(--cx-trail); }
+.cx-type { grid-column: 1 / -1; display: flex; gap: .5rem; }
+.cx-type input { flex: 1 1 auto; min-width: 0; font: inherit; padding: .55rem .7rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink); }
+.cx-type .btn { flex: none; }
 .cx-sum { grid-column: 1 / -1; margin: 0; font-size: .86rem; line-height: 1.4; }
 .cx-bar { flex: none; display: flex; gap: .6rem; margin-top: .6rem; }
 .cx-bar .btn { flex: 1 1 0; }

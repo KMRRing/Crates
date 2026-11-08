@@ -6,6 +6,7 @@ import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, flags, outlines, dealR
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as FLAGS } from "./flags-bank.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
+import { FLAGS as FLAG_DRAWINGS, COLOURS, rasterFlag } from "./nonogram-flags.js";
 import { pictureUrls } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -23,7 +24,7 @@ const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JS
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-const POOLS = { painting: paintings(ART), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF) };
+const POOLS = { painting: paintings(ART), flag: flags(FLAGS).filter(f => FLAG_DRAWINGS[f.id]), outline: outlines(COUNTRIES, REGION_OF) };
 const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outline: "Which country is this?" };
 
 // ---------- the run ----------
@@ -47,13 +48,16 @@ let reveal = { from: 0, at: 0 };                   // after an answer the focus 
 let token = 0;
 
 const load = url => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
-function flagSource(emoji) {
+/** A flag painted from Nonogram's own flag drawings, not its emoji: where the device has no flag emoji (Windows) the emoji is two letters. */
+function flagSource(it) {
+  const flag = FLAG_DRAWINGS[it.id], W = 640, H = Math.round(W / flag.r), cols = 320, rows = Math.round(cols / flag.r), cell = W / cols;
   const c = document.createElement("canvas"); c.width = 640; c.height = 427;
-  const x = c.getContext("2d"), family = getComputedStyle(document.body).fontFamily;
+  const x = c.getContext("2d");
   x.fillStyle = "#EFE6CF"; x.fillRect(0, 0, 640, 427);
-  x.font = `100px ${family}`; const w = x.measureText(emoji).width || 100, size = Math.min(520 / w * 100, 340);
-  x.font = `${size}px ${family}`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#000";
-  x.fillText(emoji, 320, 218);
+  const { letters } = rasterFlag(flag, cols, rows, 2);
+  const fit = Math.min(1, 427 / H), k = fit;        // (a tall flag is shrunk to the lens)
+  const ox = (640 - W * k) / 2, oy = (427 - H * k) / 2;
+  letters.forEach((l, i) => { if (l === "_") return; x.fillStyle = COLOURS[l]; x.fillRect(ox + (i % cols) * cell * k, oy + Math.floor(i / cols) * (H / rows) * k, cell * k + 1, (H / rows) * k + 1); });
   return { img: c, w: 640, h: 427 };
 }
 function outlineSource(name) {
@@ -73,7 +77,7 @@ function outlineSource(name) {
   return { img: c, w: 640, h: 427 };
 }
 async function sourceFor(it) {
-  if (it.kind === "flag") return flagSource(it.emoji);
+  if (it.kind === "flag") return flagSource(it);
   if (it.kind === "outline") return outlineSource(it.name);
   const urls = await pictureUrls(it.pic, 960);
   if (!urls) return null;

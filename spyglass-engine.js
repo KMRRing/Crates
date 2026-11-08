@@ -35,7 +35,7 @@ export function flags(bank) {
   const out = [];
   for (const q of bank) {
     const emoji = /\p{Regional_Indicator}{2}/u.exec(q.q || "")?.[0];
-    if (emoji) out.push({ kind: "flag", emoji, answer: q.o[q.a[0]], options: [...q.o], caption: `${emoji} is the flag of ${q.o[q.a[0]]}.`, lv: q.lv });
+    if (emoji) out.push({ kind: "flag", id: q.about?.[0], emoji, answer: q.o[q.a[0]], options: [...q.o], caption: `${emoji} is the flag of ${q.o[q.a[0]]}.`, lv: q.lv });
   }
   return out;
 }
