@@ -13,7 +13,7 @@ import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
-import { waitMark } from "./loading.js";
+import { waitMark, busy } from "./loading.js";
 import { sideways } from "./wide.js";
 import * as sfx from "./yield-sound.js";
 
@@ -406,6 +406,11 @@ function newRandom() {
   write(STATS, { ...st, puzzles: (st.puzzles || 0) + 1 });
   show({ kind: "run", p, found: [] });
 }
+/** Dealing a sky takes a moment (a phone's first one a few seconds): the mark goes up and gets drawn before the page stops to deal it. */
+async function settling(work) {
+  const done = busy("Setting the sky", { delay: 0 });
+  try { await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); work(); } finally { done(); }
+}
 function showRandom() {
   const kept = read(RUN, null);
   if (validRun(kept) && !kept.over) show(kept); else newRandom();
@@ -414,7 +419,7 @@ function showRandom() {
 async function confirmNew() {
   const kept = S?.kind === "run" ? S : read(RUN, null);
   if (started(kept) && !(await sure("Start a new puzzle? This one isn't finished."))) return false;
-  newRandom();
+  await settling(newRandom);
   return true;
 }
 
@@ -437,8 +442,8 @@ function openDone() {
   body.append(stats([[pts, `of ${P.total} points`], [got.length, `of ${P.words.length} words`], ...(tours.length ? [[got.filter(w => isFull(S.p, w)).length, `of ${plural(tours.length, "full tour")}`]] : [])]));
   // the way on before the words, which can run long
   if (S.kind === "day" || S.kind === "run") {
-    if (dailyDue("yield") && S.kind !== "day") body.append(action("Today's puzzle", () => { closeSheet(); showToday(); }, "primary"));
-    body.append(action("Another puzzle", () => { closeSheet(); newRandom(); }, dailyDue("yield") && S.kind !== "day" ? "" : "primary"));
+    if (dailyDue("yield") && S.kind !== "day") body.append(action("Today's puzzle", () => { closeSheet(); settling(showToday); }, "primary"));
+    body.append(action("Another puzzle", () => { closeSheet(); settling(newRandom); }, dailyDue("yield") && S.kind !== "day" ? "" : "primary"));
   }
   body.append(el("h4", "yd-h", "Every word"), wordList(P.words, foundSet(), { missed: true }));
   openSheet();
@@ -710,5 +715,5 @@ function solo(forToday = false) {
 }
 const sentForToday = arrivedForToday();
 // a match in the address: its sky, with no solo puzzle dealt under it
-if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(sentForToday); });
-else solo(sentForToday);
+if (duel.inAddress) duel.join().then(ok => { if (!ok) settling(() => solo(sentForToday)); });
+else settling(() => solo(sentForToday));

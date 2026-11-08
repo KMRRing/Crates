@@ -252,7 +252,7 @@ function untidy(perm, here, links) {
 function tidiest(here, links, r) {
   const n = here.length;
   let best = Infinity, picks = [];
-  for (let start = 0; start < 24 && best > 0; start++) {
+  for (let start = 0; start < 14 && best > 2; start++) {
     let perm = shuffled([...Array(n).keys()], r), cur = untidy(perm, here, links);
     for (let moved = true; moved && cur > 0;) {
       moved = false;
@@ -273,7 +273,7 @@ export function skyOf(p) {
   if (skies.has(key)) return skies.get(key);
   const r = rng((p.seed ^ 0x57a25) >>> 0), links = p.edges.split(" ").filter(Boolean).map(e => [p.letters.indexOf(e[0]), p.letters.indexOf(e[1])]);
   let best = Infinity, picks = [], spots = null;
-  for (let tryNo = 0; tryNo < 8 && best > 0; tryNo++) {            // a few different scatterings; the clearest wins
+  for (let tryNo = 0; tryNo < 6 && best > 2; tryNo++) {            // a few different scatterings; the clearest wins
     const here = scatter(r, p.letters.length), found = tidiest(here, links, r);
     if (found.best < best) { best = found.best; picks = found.picks; spots = here; }
   }
