@@ -33,7 +33,6 @@ export const ROUNDS = {
   sudoku: "a grid solved",
   mines: "a field, cleared or blown up",
   nonogram: "a picture finished, and named when naming is on (in Cloth mode, a cloth woven)",
-  hitori: "a puzzle solved",
   slitherlink: "a puzzle solved",
   nurikabe: "a puzzle solved",
   asterism: "a puzzle solved",
@@ -47,7 +46,6 @@ export const ROUNDS = {
   ladder: "a ladder climbed",
   lode: "a board finished",
   codeword: "a grid solved",
-  acrostic: "a text solved",
   calcudoku: "a grid solved",
   kakuro: "a grid solved",
   // Idle: the game over, as each says it
@@ -103,7 +101,8 @@ export const LEFT_OUT = {
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
   sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX, music: APPENDIX,
-  // Korbi, 8 Nov 2026: "all courses to the annex"
+  // Korbi, 8 Nov 2026: "all courses to the annex"; "Acrostic to annex", "cull, annex"
+  acrostic: APPENDIX, hitori: APPENDIX,
   calibre: APPENDIX, arthistory: APPENDIX, statecraft: APPENDIX, trade: APPENDIX, constitutions: APPENDIX, wine: APPENDIX, firmament: APPENDIX, parley: APPENDIX, maths: APPENDIX,
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
