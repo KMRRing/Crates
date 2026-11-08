@@ -67,7 +67,7 @@ export const AKA = {
   go: "weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
   flank: "reversi", morris: "nine mens morris mills merels", crown: "draughts checkers", ingot: "2048 sliding tiles",
   lanterns: "akari light up bulbs lights lamps", asterism: "star battle two not touch stars regions", heliograph: "mirror", shunt: "gears hex shove jam train mesh", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
-  netting: "obligations trading houses", settle: "foundry crucible metal alloy pewter brass solder", slipway: "cube cut timber polycube figures fit 3d puzzle ship",
+  netting: "obligations trading houses", settle: "foundry crucible metal alloy pewter brass solder", slipway: "cube cut timber block saw chisel rules 3d puzzle ship",
   constitutions: "constitutions and institutions course political theory constitution constitutional law government separation of powers federalism judicial review amendment parliament presidential eu directive regulation legislative procedure congress cloture rulemaking veto",
   statecraft: "statecraft and strategy course diplomacy war deterrence clausewitz sun tzu machiavelli thucydides sanctions tribute neutrality empire revolution case studies",
   trade: "history of trade course silk road slave trade colonial colonialism geography commodities chokepoint chokepoints straits spices monsoon indian ocean atlantic opium east india company hanse cowries map",

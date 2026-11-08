@@ -1,52 +1,60 @@
-/* Slipway: the timber drawn on a canvas you turn with a finger, under it the cube in layers to tap, the figure in your hand
-   with its turns, the figures still to fit, and Show one, Undo and Place. Verdigris is the house colour. */
-:root { --sw-in: var(--c1); --sw-bad: #A8382B; --sw-ghost: #2F7D5B; }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --sw-bad: #E8806F; --sw-ghost: #7FC2A8; } }
-html[data-mode="night"] { --sw-bad: #E8806F; --sw-ghost: #7FC2A8; }
+/* Slipway: the cut list on top, the timber below it (drawn on a canvas you turn with a finger, or as layers to tap), the tools
+   and Hint and Undo. Verdigris is the house colour. */
+:root { --sw-in: var(--c1); --sw-bad: #A8382B; --sw-hint: #1F8F8A; --sw-wood: #C79860; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --sw-bad: #E8806F; --sw-hint: #5FD0C8; } }
+html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 
 .sw-mark { display: inline-block; }
 .sw-mark svg { width: 100%; height: 100%; display: block; }
-.slipway .sw-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .45rem; color: var(--ink-soft); font-size: .86rem; }
+.slipway .sw-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .4rem; color: var(--ink-soft); font-size: .86rem; }
 .sw-clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.sw-bench { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge); background: var(--yard); }
+/* the cut list: numbered steps, then what the words mean */
+.sw-rules { max-height: 14rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); padding: .45rem .6rem; }
+.sw-steps { margin: 0; padding-left: 1.3rem; display: grid; gap: .2rem; font-size: .88rem; line-height: 1.3; }
+.sw-steps li::marker { color: var(--sw-in); font-weight: 700; }
+.sw-notes { margin: .4rem 0 0; padding: .35rem 0 0; border-top: 1px solid var(--tile-edge); display: grid; gap: .1rem; font-size: .74rem; line-height: 1.3; color: var(--ink-soft); }
+.sw-notes p { margin: 0; }
+
+.sw-bench { position: relative; min-height: 0; margin-top: .45rem; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge); background: var(--yard); }
 .sw-cube { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.sw-cube[hidden] { display: none; }
 
-/* the layers, lowest first, each a square of squares seen from above */
-.sw-layers { flex: none; display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: .5rem; margin-top: .5rem; }
-.sw-layer { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 2px; padding: 2px; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile-edge); }
-.sw-sq { aspect-ratio: 1; padding: 0; border: 0; border-radius: 1px; background: var(--sheet); cursor: pointer; -webkit-tap-highlight-color: transparent; position: relative; }
-.sw-sq.lock::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; background: rgba(255, 255, 255, .55); }
-.sw-sq.ghost { outline: 2px solid var(--sw-ghost); outline-offset: -2px; background-image: linear-gradient(rgba(47, 125, 91, .45), rgba(47, 125, 91, .45)); }
-.sw-sq.nope { outline: 2px solid var(--sw-bad); outline-offset: -2px; background-image: linear-gradient(rgba(168, 56, 43, .5), rgba(168, 56, 43, .5)); }
+/* the layers: tabs for the height, one layer at a time as big squares to tap */
+.sw-lv { position: absolute; inset: 0; display: flex; flex-direction: column; gap: .35rem; padding: .35rem; }
+.sw-lv[hidden] { display: none; }
+.sw-tabs { flex: none; display: flex; gap: .3rem; }
+.sw-tab { flex: 1 1 0; padding: .2rem 0; font-size: .8rem; }
+.sw-tab.on { background: var(--ink); color: var(--sheet); }
+.sw-gridbox { flex: 1 1 auto; min-height: 0; }
+.sw-grid { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 3px; }
+.sw-sq { padding: 0; border: 1px solid var(--tile-edge); border-radius: 2px; background: var(--sw-wood); cursor: pointer; position: relative; display: block; font-size: .62rem; line-height: 1; color: rgba(40, 28, 12, .6); text-align: left; -webkit-tap-highlight-color: transparent; }
+.sw-sq span { position: absolute; left: .18rem; top: .15rem; }
+.sw-sq.dark { background: color-mix(in srgb, var(--sw-wood) 82%, #000); }
+.sw-sq.gone { background: transparent; border-style: dashed; cursor: default; color: var(--ink-soft); opacity: .55; }
+.sw-sq.hint { outline: 3px solid var(--sw-hint); outline-offset: -3px; }
+.sw-sq.slip { outline: 3px solid var(--sw-bad); outline-offset: -3px; background: color-mix(in srgb, var(--sw-bad) 55%, var(--sw-wood)); }
 
-.sw-hand { flex: none; display: flex; gap: .5rem; align-items: stretch; margin-top: .5rem; }
-.sw-handview { flex: none; width: 4.6rem; height: 4.1rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); }
-.sw-turns { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-.sw-turns .btn { padding: 0 .3rem; font-size: .82rem; }
-.sw-tray { flex: none; display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; max-height: 6.9rem; overflow-y: auto; align-content: flex-start; }
-.sw-chip { flex: none; width: 3.55rem; height: 3.2rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--sheet); display: flex; flex-direction: column; align-items: center; color: var(--ink); cursor: pointer; }
-.sw-chip canvas { width: 100%; flex: 1 1 0; min-height: 0; }
-.sw-chip small { font-size: .66rem; line-height: 1; padding-bottom: .15rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.sw-chip.on { border-color: var(--sw-in); box-shadow: 0 0 0 1px var(--sw-in); }
-.sw-chip:disabled { opacity: .3; }
-.sw-bar { flex: none; display: flex; gap: .6rem; margin-top: .5rem; }
+.sw-tools { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin-top: .45rem; }
+.sw-tools .btn { padding: 0 .3rem; font-size: .84rem; }
+.sw-tool.on { background: var(--ink); color: var(--sheet); }
+.sw-bar { flex: none; display: flex; gap: .6rem; margin-top: .45rem; }
 .sw-bar .btn { flex: 1 1 0; }
-.sw-bar .btn:disabled, .sw-turns .btn:disabled { opacity: .4; }
+.sw-bar .btn:disabled { opacity: .4; }
 .sw-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: 90vw; background: var(--ink); color: var(--sheet); padding: .5rem .9rem; border-radius: 4px; font-size: .86rem; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 50; }
 .sw-toast.on { opacity: 1; }
+.sw-doneview { display: block; width: 100%; height: 9rem; margin: .3rem 0 .5rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--yard); }
 .sw-facts { margin: .2rem 0 .6rem; line-height: 1.4; }
 .sw-facts small { color: var(--ink-soft); }
 .sw-best { margin: 0 0 .8rem; color: var(--ink-soft); font-size: .86rem; }
 #doneHead { letter-spacing: .15em; color: var(--sw-in); }
 
-/* held sideways (#app.beside): the timber large on the left, everything else in the side column */
+/* held sideways (#app.beside): the timber large on the left, the list, tools and buttons in the side column */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.slipway { --beside: 24rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; }
+  #app.slipway { --beside: 24rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; }
   .sw-bench { grid-column: 1; grid-row: 2 / -1; margin-top: .2rem; }
   .sw-strip { grid-column: 2; grid-row: 2; }
-  .sw-layers { grid-column: 2; grid-row: 3; margin-top: 0; }
-  .sw-hand { grid-column: 2; grid-row: 4; }
-  .sw-tray { grid-column: 2; grid-row: 5; max-height: 8.5rem; }
-  .sw-bar { grid-column: 2; grid-row: 7; }
+  .sw-rules { grid-column: 2; grid-row: 3; max-height: none; }
+  .sw-tools { grid-column: 2; grid-row: 5; }
+  .sw-bar { grid-column: 2; grid-row: 6; }
 }

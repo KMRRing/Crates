@@ -25,23 +25,23 @@
   </header>
 
   <div class="sw-strip full-pull"><span id="where"></span><span id="clock" class="sw-clock"></span></div>
-  <section id="bench" class="sw-bench fit-grow" aria-label="The timber, turn it by dragging">
-    <canvas id="cube" class="sw-cube"></canvas>
-  </section>
-  <section id="layers" class="sw-layers" aria-label="The timber in layers, lowest first"></section>
-  <section class="sw-hand">
-    <canvas id="hand" class="sw-handview" aria-label="The figure in your hand"></canvas>
-    <div class="sw-turns" role="group" aria-label="Turn the figure">
-      <button class="btn" type="button" data-axis="0">Turn x</button>
-      <button class="btn" type="button" data-axis="1">Turn y</button>
-      <button class="btn" type="button" data-axis="2">Turn z</button>
+  <section id="rules" class="sw-rules fit-scroll" aria-label="The cut list"></section>
+  <section id="bench" class="sw-bench fit-grow" aria-label="The timber">
+    <canvas id="cube" class="sw-cube" aria-label="The timber; drag to turn it, tap a face to cut"></canvas>
+    <div id="layerView" class="sw-lv" hidden>
+      <div id="tabs" class="sw-tabs" role="tablist" aria-label="Layer, lowest first"></div>
+      <div class="sw-gridbox fit-box"><div id="grid" class="sw-grid"></div></div>
     </div>
   </section>
-  <section id="tray" class="sw-tray" role="group" aria-label="The figures still to fit"></section>
+  <div class="sw-tools" role="group" aria-label="Tools">
+    <button class="btn sw-tool on" type="button" data-tool="chisel" title="One cube">Chisel</button>
+    <button class="btn sw-tool" type="button" data-tool="saw" title="A whole layer">Saw</button>
+    <button class="btn sw-tool" type="button" data-tool="bore" title="A whole line">Bore</button>
+    <button class="btn" type="button" id="viewBtn">Layers</button>
+  </div>
   <div class="sw-bar">
-    <button class="btn" type="button" id="hintBtn">Show one</button>
+    <button class="btn" type="button" id="hintBtn">Hint</button>
     <button class="btn" type="button" id="undoBtn">Undo</button>
-    <button class="btn primary" type="button" id="placeBtn">Place</button>
   </div>
 </div>
 
@@ -51,7 +51,8 @@
 </dialog>
 
 <dialog id="doneDlg" class="sheet" aria-labelledby="doneHead">
-  <div class="pick-head"><h2 id="doneHead">Fitted</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div class="pick-head"><h2 id="doneHead">Cut</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <canvas id="doneView" class="sw-doneview" aria-label="The piece you cut"></canvas>
   <div id="doneBody"></div>
 </dialog>
 

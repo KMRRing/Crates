@@ -1,10 +1,9 @@
-// Slipway: a timber cube cut into figures of three to five unit cubes, to be fitted back. Pick a figure from the tray, turn it
-// (a quarter about x, y or z; never mirrored), tap a square in a layer to see where it would go and tap again (or Place) to fit
-// it; tap a figure you fitted to take it out. Some figures are fitted for you, as many as make the rest go back one way; "Show
-// one" fits another, and the stars go for fewest shown, then time. The rules are slipway-cut.js's, the drawing slipway-view.js's;
-// this file keeps the run and builds the page.
-import { LEVEL_IDS, dealCut, trayOf, starsFor, cellsAt, xyz, at, quarter, normal } from "./slipway-cut.js";
-import { drawCubes, REST, PITCH, rgb } from "./slipway-view.js";
+// Slipway: a timber block to be cut down to a piece you are not shown. The cut list says, in a few rules, what to take away; you work
+// out what is left, then cut it out with a chisel (one cube), a saw (a whole layer) or a bore (a whole line). A cut that would take
+// part of the finished piece is refused and counts as a slip. The stars go for no hint asked, no slips and cuts near par. The rules
+// are slipway-rules.js's, the drawing slipway-view.js's; this file keeps the run and builds the page.
+import { LEVEL_IDS, dealCut, starsFor, reach, parOps, at, xyz } from "./slipway-rules.js";
+import { drawCubes, faceAt, REST, PITCH } from "./slipway-view.js";
 import { setSound, sound } from "./slipway-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -20,160 +19,91 @@ const RUN = "slipway:cut", BEST = "slipway:best", TIMES = "slipway:times", DAILY
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-// the carving game's keys: nothing reads them now (its stars sit under slipway:best no longer, so that holds a plain number)
-if (!IN_FRAME) for (const k of ["slipway:carve", "slipway:parts", "slipway:opts", "slipway:mode", "slipway:rand", "slipway:fit", "slipway:fitted"]) { try { localStorage.removeItem(k); } catch { /* none */ } }
 setSound(read(SOUND, true));
 
 // ---------- the run ----------
-// S: { v, seed, level, daily, day, cut, placed: [{ kind, orient, at, cells, lock: "given" | "shown" | null }], hints, ms, done, stars }
+// S: { v, seed, level, daily, day, cur (a string of 0 and 1 over the cells: what is still there), cuts, slips, hints, ms, done, stars }
 let S = read(RUN, null);
-if (S && S.v !== 2) S = null;
+if (S && S.v !== 3) S = null;                      // (the fitting game's run, and the carving's before it, are left behind)
 const save = () => write(RUN, S);
 const startLevel = () => ramp("slipway", LEVEL_IDS, { start: "easy" });
-let sel = null;                        // the figure in hand: { kind, orient } (orient: normal cells)
-let tap = null;                        // the square last tapped: [x, y, z], where the ghost goes
+let deal = null;                                   // the cut list and the piece of this run: { n, steps, text, notes, target, par, chequer }
+let tool = "chisel";
 let undo = [];
-let colours = {};                      // kind → [r, g, b]
-let order = [];                        // the kinds in tray order
+let hint = null;                                   // the cells a hint pointed at, until the next cut
+let slipped = new Set();                           // the cells a refused cut would have taken, shown red for a moment
+let view3d = true;                                 // the block, or its layers
+let layer = 0;
+const N = () => deal.n;
+const cur = () => Uint8Array.from(S.cur, c => +c);
+const keep = a => { S.cur = Array.from(a).join(""); };
 
 let dealing = false;
 async function newRun(daily = false, replay = null) {
   if (dealing) return;
   dealing = true;
-  const done = busy("Cutting the timber", { delay: 0 });
+  const done = busy("Choosing the timber", { delay: 0 });
   try {
     const level = replay?.level || (daily ? "medium" : startLevel()), seed = replay?.seed ?? (daily ? today() * 7517 + 31 : Math.floor(Math.random() * 2 ** 31));
-    await new Promise(r => setTimeout(r, 30));       // let the wait mark show before the search
-    let cut = dealCut(seed, level), s = seed;
-    while (!cut) cut = dealCut(++s, level);          // (a seed that gave nothing: the next)
-    S = { v: 2, seed, level, daily: !!daily, day: daily ? today() : null, cut, placed: [], hints: 0, ms: 0, done: false, stars: 0 };
-    for (const id of cut.given) { const p = cut.pieces[id]; S.placed.push(pieceFrom(p, "given")); }
+    await new Promise(r => setTimeout(r, 30));
+    let s = seed, got = dealCut(s, level);
+    while (!got) got = dealCut(++s, level);        // (a seed that gave nothing: the next)
+    S = { v: 3, seed: s, level, daily: !!daily, day: daily ? today() : null, cur: "1".repeat(got.n ** 3), cuts: 0, slips: 0, hints: 0, ms: 0, done: false, stars: 0 };
     save(); begin();
   } finally { done(); dealing = false; }
 }
-/** A solution figure as a figure fitted: its kind, standing, where it is. */
-function pieceFrom(p, lock) {
-  const cs = p.cells.map(k => xyz(S.cut.n, k)), orient = normal(cs), lo = [0, 1, 2].map(i => Math.min(...cs.map(c => c[i])));
-  return { kind: p.kind, orient, at: lo, cells: p.cells.slice(), lock };
-}
 function begin() {
-  const tray = trayOf(S.cut);
-  order = tray.map(t => t.kind);
-  const hues = ["--c0", "--c1", "--c2", "--c3"].map(v => rgb(getComputedStyle(document.documentElement).getPropertyValue(v) || "#888")), shade = [1, 0.72, 1.28];
-  colours = {};
-  order.forEach((k, i) => { const h = hues[i % hues.length], f = shade[((i / hues.length) | 0) % shade.length]; colours[k] = h.map(v => Math.round(Math.min(255, f > 1 ? v + (255 - v) * (f - 1) * 1.4 : v * f))); });
-  sel = null; tap = null; undo = [];
-  const free = left();
-  const first = tray.find(t => (free.get(t.kind) || 0) > 0);
-  if (first) pick(first.kind);
-  buildLayers();
+  deal = dealCut(S.seed, S.level);
+  undo = []; hint = null; slipped = new Set(); layer = 0; view3d = true;
+  buildRules(); buildLayers();
   render();
 }
-const N = () => S.cut.n;
-/** How many of each kind are still to fit: Map kind → count. */
-function left() {
-  const m = new Map(Object.entries(S.cut.kinds));
-  for (const p of S.placed) m.set(p.kind, m.get(p.kind) - 1);
-  return m;
-}
-const taken = () => { const t = new Int16Array(N() ** 3).fill(-1); S.placed.forEach((p, i) => p.cells.forEach(k => { t[k] = i; })); return t; };
+const left = () => { const c = cur(), t = deal.target; let n = 0; for (let k = 0; k < c.length; k++) if (c[k] && !t[k]) n++; return n; };
 
-// ---------- the figure in hand and where it would go ----------
-function pick(kind) {
-  const t = trayOf(S.cut).find(x => x.kind === kind);
-  if (!t || !(left().get(kind) > 0)) return;
-  sel = { kind, orient: t.shape };
-  tap = null;
-  render();
-}
-function turnHand(axis) {
-  if (!sel) return;
-  sel.orient = quarter(sel.orient, axis);
-  sound("tap");
-  render();
-}
-/** Where the figure in hand would stand if its first square were put on the tapped one (pushed inside the cube if it hangs out). */
-function ghost() {
-  if (!sel || !tap) return null;
-  const n = N(), o = sel.orient, pos = [0, 1, 2].map(i => tap[i] - o[0][i]);
-  for (let i = 0; i < 3; i++) {
-    const lo = Math.min(...o.map(c => c[i])), hi = Math.max(...o.map(c => c[i]));
-    pos[i] = Math.max(-lo, Math.min(n - 1 - hi, pos[i]));
+// ---------- cutting ----------
+/** Cuts with a tool at cube k along an axis (the way a bore runs, or the way a saw's layer is stacked). */
+function cut(which, axis, k) {
+  if (!S || S.done) return;
+  const now = cur(), cells = reach(N(), which, axis, k).filter(j => now[j]);
+  if (!cells.length) return;
+  const spoil = cells.filter(j => deal.target[j]);
+  if (spoil.length) {                               // not that: it would cut into the piece
+    S.slips++;
+    slipped = new Set(spoil);
+    sound("refuse"); toast(spoil.length === 1 && cells.length === 1 ? "That cube is part of the piece" : "That cut would take part of the piece");
+    save(); render();
+    setTimeout(() => { slipped = new Set(); render(); }, 700);
+    return;
   }
-  const cells = cellsAt(n, o, ...pos);
-  if (!cells) return null;
-  const t = taken();
-  return { cells, at: pos, ok: cells.every(k => t[k] < 0) };
-}
-function fit() {
-  const g = ghost();
-  if (!g || !g.ok) { if (g) { sound("refuse"); toast("That doesn't fit there"); } return false; }
-  push();
-  S.placed.push({ kind: sel.kind, orient: sel.orient, at: g.at, cells: g.cells, lock: null });
+  undo.push(S.cur); if (undo.length > 80) undo.shift();
+  for (const j of cells) now[j] = 0;
+  keep(now); S.cuts++; hint = null;
   sound("fit");
-  tap = null;
-  if (!(left().get(sel.kind) > 0)) { const next = trayOf(S.cut).find(t => left().get(t.kind) > 0); sel = null; if (next) pick(next.kind); }
-  afterChange();
-  return true;
+  save(); render();
+  if (!left()) finish();
 }
-function takeOut(i) {
-  const p = S.placed[i];
-  if (!p || p.lock) { if (p) toast(p.lock === "given" ? "That one was fitted for you" : "That one was shown to you"); return; }
-  push();
-  S.placed.splice(i, 1);
-  sel = { kind: p.kind, orient: p.orient };
-  tap = p.at.map((v, j) => v + p.orient[0][j]);
-  sound("undo");
-  afterChange();
-}
-const push = () => { undo.push(JSON.stringify(S.placed)); if (undo.length > 60) undo.shift(); };
 function undoLast() {
   if (S.done || !undo.length) return;
-  S.placed = JSON.parse(undo.pop());
-  tap = null;
-  if (sel && !(left().get(sel.kind) > 0)) sel = null;
-  if (!sel) { const next = trayOf(S.cut).find(t => left().get(t.kind) > 0); if (next) pick(next.kind); }
+  S.cur = undo.pop(); S.cuts = Math.max(0, S.cuts - 1); hint = null;
   sound("undo");
-  afterChange(false);
+  save(); render();
 }
-function afterChange(check = true) {
-  save();
-  render();
-  if (check && S.placed.reduce((a, p) => a + p.cells.length, 0) === N() ** 3) finish();
-}
-
-// ---------- showing one ----------
-/** Fits one more of the solution's figures for you (taking out any of yours in its way), and counts it against the stars. */
-function showOne() {
+/** Points at the next cut of the par way down, from where the timber stands now; it costs a star. */
+function showHint() {
   if (S.done) return;
-  const have = new Map(S.placed.map((p, i) => [p.cells.join(), i]));
-  const cand = S.cut.pieces.filter(p => !have.has(p.cells.join()));
-  if (!cand.length) return;
-  // the one with most of your fitted figures not in its way first: showing it costs you least
-  const mine = S.placed.map(p => new Set(p.cells));
-  const cost = p => mine.reduce((a, m, i) => a + (S.placed[i].lock ? 0 : p.cells.some(k => m.has(k)) ? 1 : 0), 0);
-  cand.sort((a, b) => cost(a) - cost(b) || b.cells.length - a.cells.length);
-  const p = cand[0];
-  push();
-  const cells = new Set(p.cells);
-  S.placed = S.placed.filter(q => q.lock || !q.cells.some(k => cells.has(k)));
-  // if every one of its kind is out already, one of yours of that kind (wrongly placed) makes way
-  const used = S.placed.filter(q => q.kind === p.kind).length;
-  if (used >= S.cut.kinds[p.kind]) { const j = S.placed.findIndex(q => q.kind === p.kind && !q.lock); if (j >= 0) S.placed.splice(j, 1); }
-  S.placed.push(pieceFrom(p, "shown"));
+  const ops = parOps(N(), deal.target, cur());
+  if (!ops.length) return;
+  hint = { cells: new Set(ops[0].cells), tool: ops[0].tool };
   S.hints++;
-  sound("done");
-  if (sel && !(left().get(sel.kind) > 0)) sel = null;
-  if (!sel) { const next = trayOf(S.cut).find(t => left().get(t.kind) > 0); if (next) pick(next.kind); }
-  tap = null;
-  afterChange();
+  sound("tap");
+  toast(`Try the ${ops[0].tool} where it shows`);
+  save(); render();
 }
 
 // ---------- the end ----------
 function finish() {
   S.done = true;
-  const secs = Math.round(S.ms / 1000);
-  S.stars = starsFor(S.cut, S.hints, secs);
+  S.stars = starsFor({ hints: S.hints, slips: S.slips, cuts: S.cuts, par: deal.par });
   const times = read(TIMES, {}), t = times[S.level];
   if (!t || S.stars > t.stars || (S.stars === t.stars && S.ms < t.ms)) { times[S.level] = { stars: S.stars, ms: S.ms }; write(TIMES, times); }
   write(BEST, LEVEL_IDS.reduce((a, l) => a + (times[l]?.stars || 0), 0));
@@ -181,7 +111,7 @@ function finish() {
   else { startLevel(); if (S.stars === 3) ramp.won(true); else if (S.stars === 2) ramp.won(false); else ramp.lost(); }
   roundOver("slipway");
   sound("done");
-  save();
+  save(); render();
   setTimeout(showDone, 700);
 }
 const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -190,107 +120,103 @@ function showDone() {
   const times = read(TIMES, {}), body = $("doneBody");
   $("doneHead").textContent = "★".repeat(S.stars) + "☆".repeat(3 - S.stars);
   const facts = el("p", "sw-facts");
-  facts.append(`The cube is back together in ${clock(Math.round(S.ms / 1000))}, ${S.hints ? `with ${S.hints} figure${S.hints > 1 ? "s" : ""} shown` : "with no figure shown"}. `,
-    el("small", "", S.stars < 3 ? (S.hints ? "Three stars: none shown, inside " : "Three stars: inside ") + clock(S.cut.par) + "." : "Par is " + clock(S.cut.par) + "."));
+  const notes = [S.hints ? `${S.hints} hint${S.hints > 1 ? "s" : ""}` : "no hint", S.slips ? `${S.slips} slip${S.slips > 1 ? "s" : ""}` : "no slips"];
+  facts.append(`Cut in ${S.cuts} (par ${deal.par}) and ${clock(Math.round(S.ms / 1000))}, with ${notes.join(" and ")}. `,
+    el("small", "", S.stars < 3 ? "Three stars: no hint, no slips and at most one cut over par." : "Three stars."));
   const t = times[S.level];
   body.replaceChildren(facts, el("p", "sw-best", `Best at ${S.level}: ${t ? "★".repeat(t.stars) + " " + clock(Math.round(t.ms / 1000)) : "–"}`),
     action("Another timber", () => { $("doneDlg").close(); newRun(false); }, "primary"),
     action("Again, same timber", () => { $("doneDlg").close(); newRun(S.daily, { seed: S.seed, level: S.level }); }, "link"));
   if (!$("doneDlg").open) $("doneDlg").showModal();
+  requestAnimationFrame(() => drawCubes($("doneView"), cubesOf(false), { ...REST }, { n: N(), frame: false, margin: 8 }));
+}
+
+// ---------- the cut list ----------
+function buildRules() {
+  const box = $("rules"), ol = el("ol", "sw-steps"), notes = el("div", "sw-notes");
+  for (const t of deal.text) ol.append(el("li", "", t));
+  for (const t of deal.notes) notes.append(el("p", "", t));
+  box.replaceChildren(ol, notes);
+  box.scrollTop = 0;
 }
 
 // ---------- drawing ----------
 const pose = { ...REST };
-const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-function cubesOf(extra) {
-  const n = N(), out = [];
-  // (figures of one kind keep one hue, a little lighter or darker each, so two side by side can be told apart)
-  const seen = new Map();
-  for (const p of S.placed) { const i = seen.get(p.kind) || 0; seen.set(p.kind, i + 1); const f = 1 + (i % 3 - 1) * 0.16, col = colours[p.kind].map(v => Math.max(0, Math.min(255, Math.round(v * f)))); for (const k of p.cells) { const [x, y, z] = xyz(n, k); out.push({ x, y, z, color: col, edge: p.lock ? "rgba(255,255,255,.55)" : undefined }); } }
-  if (extra) for (const k of extra.cells) { const [x, y, z] = xyz(n, k); out.push({ x, y, z, color: extra.ok ? colours[sel.kind] : [190, 60, 48], alpha: 0.6, edge: "rgba(255,255,255,.9)" }); }
+let hits = [];
+const WOOD = [199, 152, 93];
+function cubesOf(marks = true) {
+  const n = N(), now = cur(), out = [];
+  for (let k = 0; k < now.length; k++) {
+    if (!now[k]) continue;
+    const [x, y, z] = xyz(n, k), dark = deal.chequer && (x + y + z) % 2 === 0;
+    const c = { x, y, z, color: dark ? WOOD.map(v => Math.round(v * 0.8)) : WOOD };
+    if (marks && hint?.cells.has(k)) { c.color = [31, 143, 138]; c.edge = "rgba(255,255,255,.9)"; }
+    if (marks && slipped.has(k)) { c.color = [190, 60, 48]; c.edge = "rgba(255,255,255,.9)"; }
+    out.push(c);
+  }
   return out;
 }
 function drawAll() {
-  if (!S) return;
-  const g = ghost();
-  drawCubes($("cube"), cubesOf(g), pose, { n: N(), frame: true, margin: 10, frameColor: css("--ink-soft") ? "rgba(140,130,110,.7)" : undefined });
-  if (sel) drawCubes($("hand"), sel.orient.map(c => ({ x: c[0], y: c[1], z: c[2], color: colours[sel.kind] })), { yaw: -0.62, pitch: 0.5 }, { margin: 4 });
-  else $("hand").getContext("2d").clearRect(0, 0, $("hand").width, $("hand").height);
-  for (const c of document.querySelectorAll(".sw-chip canvas")) {
-    const t = trayOf(S.cut).find(x => x.kind === c.dataset.kind);
-    if (t) drawCubes(c, t.shape.map(q => ({ x: q[0], y: q[1], z: q[2], color: colours[t.kind] })), { yaw: -0.62, pitch: 0.5 }, { margin: 3 });
-  }
+  if (!S || !deal || !view3d) return;
+  hits = drawCubes($("cube"), cubesOf(), pose, { n: N(), frame: true, margin: 10, frameColor: "rgba(140,130,110,.7)" });
 }
 function buildLayers() {
-  const n = N(), box = $("layers");
-  box.style.setProperty("--n", n);
-  box.replaceChildren();
+  const n = N(), tabs = $("tabs"), grid = $("grid");
+  grid.style.setProperty("--n", n);
+  tabs.replaceChildren();
   for (let z = 0; z < n; z++) {
-    const layer = el("div", "sw-layer");
-    layer.setAttribute("aria-label", `Layer ${z + 1}`);
-    for (let y = n - 1; y >= 0; y--) for (let x = 0; x < n; x++) {
-      const b = el("button", "sw-sq"); b.type = "button"; b.dataset.k = at(n, x, y, z);
-      b.setAttribute("aria-label", `Layer ${z + 1}, column ${x + 1}, row ${y + 1}`);
-      b.addEventListener("click", () => squareTap(x, y, z));
-      layer.append(b);
-    }
-    box.append(layer);
+    const b = el("button", "btn sw-tab", String(z + 1)); b.type = "button"; b.setAttribute("role", "tab");
+    b.setAttribute("aria-label", `Layer ${z + 1}${z === 0 ? ", the bottom" : z === n - 1 ? ", the top" : ""}`);
+    b.addEventListener("click", () => { layer = z; render(); });
+    tabs.append(b);
   }
-}
-function squareTap(x, y, z) {
-  if (!S || S.done) return;
-  const t = taken(), k = at(N(), x, y, z);
-  if (t[k] >= 0) { takeOut(t[k]); return; }
-  if (!sel) return;
-  const same = tap && tap[0] === x && tap[1] === y && tap[2] === z;
-  tap = [x, y, z];
-  if (same) { fit(); return; }
-  sound("tap");
-  render();
+  grid.replaceChildren();
+  for (let y = n - 1; y >= 0; y--) for (let x = 0; x < n; x++) {   // the back row on top, the front at the bottom
+    const b = el("button", "sw-sq"); b.type = "button"; b.dataset.x = x; b.dataset.y = y;
+    b.append(el("span", "", `${x + 1}·${y + 1}`));
+    b.addEventListener("click", () => cut(tool, 2, at(n, x, y, layer)));
+    grid.append(b);
+  }
 }
 function render() {
-  if (!S) return;
-  const n = N(), g = ghost(), t = taken(), free = left();
-  $("where").textContent = `${S.level[0].toUpperCase()}${S.level.slice(1)} · ${n}×${n}×${n}${S.daily ? " · today's" : ""} · ${S.placed.length}/${S.cut.pieces.length} fitted`;
+  if (!S || !deal) return;
+  const n = N(), now = cur();
+  $("where").textContent = `${S.level[0].toUpperCase()}${S.level.slice(1)} · ${n}×${n}×${n}${S.daily ? " · today's" : ""} · ${S.cuts} ${S.cuts === 1 ? "cut" : "cuts"}`;
   drawClock();
-  const ghostCells = new Set(g?.cells || []);
-  for (const b of document.querySelectorAll(".sw-sq")) {
-    const k = +b.dataset.k, i = t[k];
-    b.style.background = i >= 0 ? `rgb(${colours[S.placed[i].kind].join(",")})` : "";
-    b.className = `sw-sq${i >= 0 ? (S.placed[i].lock ? " lock" : " fitted") : ""}${ghostCells.has(k) ? (g.ok ? " ghost" : " nope") : ""}`;
+  $("cube").hidden = !view3d; $("layerView").hidden = view3d;
+  $("viewBtn").textContent = view3d ? "Layers" : "Block";
+  for (const b of document.querySelectorAll(".sw-tool")) b.classList.toggle("on", b.dataset.tool === tool);
+  [...$("tabs").children].forEach((b, z) => { b.classList.toggle("on", z === layer); b.setAttribute("aria-selected", z === layer); });
+  for (const b of $("grid").children) {
+    const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer), there = now[k];
+    b.className = `sw-sq${there ? "" : " gone"}${there && deal.chequer && (x + y + layer) % 2 === 0 ? " dark" : ""}${hint?.cells.has(k) ? " hint" : ""}${slipped.has(k) ? " slip" : ""}`;
+    b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${there ? "" : ", cut away"}`);
   }
-  const tray = $("tray");
-  tray.replaceChildren();
-  for (const t of trayOf(S.cut)) {
-    const c = free.get(t.kind) || 0, b = el("button", `sw-chip${sel?.kind === t.kind ? " on" : ""}`);
-    b.type = "button"; b.disabled = c <= 0 || S.done;
-    const cv = el("canvas"); cv.dataset.kind = t.kind;
-    b.append(cv, el("small", "", `×${c}`));
-    b.addEventListener("click", () => pick(t.kind));
-    tray.append(b);
-  }
-  $("placeBtn").disabled = !(g && g.ok) || S.done;
   $("undoBtn").disabled = !undo.length || S.done;
   $("hintBtn").disabled = S.done;
-  for (const b of document.querySelectorAll(".sw-turns .btn")) b.disabled = !sel || S.done;
   requestAnimationFrame(drawAll);
 }
-function drawClock() { $("clock").textContent = `${clock(Math.round(S.ms / 1000))}${S.hints ? ` · ${S.hints} shown` : ""}`; }
+function drawClock() { $("clock").textContent = `${clock(Math.round(S.ms / 1000))}${S.slips ? ` · ${S.slips} ${S.slips === 1 ? "slip" : "slips"}` : ""}${S.hints ? ` · ${S.hints} ${S.hints === 1 ? "hint" : "hints"}` : ""}`; }
 
-// ---------- turning the timber by hand ----------
+// ---------- the timber by hand: drag to turn, tap a face to cut ----------
 let drag = null;
 const cube = $("cube");
-cube.addEventListener("pointerdown", e => { cube.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY }; });
+cube.addEventListener("pointerdown", e => { cube.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, moved: 0 }; });
 cube.addEventListener("pointermove", e => {
   if (!drag) return;
+  drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
   pose.yaw += (e.clientX - drag.x) * 0.012;
   pose.pitch = Math.max(-PITCH, Math.min(PITCH, pose.pitch + (e.clientY - drag.y) * 0.012));
-  drag = { x: e.clientX, y: e.clientY };
+  drag.x = e.clientX; drag.y = e.clientY;
   drawAll();
 });
-const letGo = () => { drag = null; };
-cube.addEventListener("pointerup", letGo); cube.addEventListener("pointercancel", letGo);
-cube.style.touchAction = "none";
+cube.addEventListener("pointerup", e => {
+  const d = drag; drag = null;
+  if (!d || d.moved > 6 || !S || S.done) return;
+  const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
+  if (h) cut(tool, h.axis, at(N(), h.cube.x, h.cube.y, h.cube.z));
+});
+cube.addEventListener("pointercancel", () => { drag = null; });
 
 // ---------- time ----------
 let last = performance.now(), savedAt = 0;
@@ -307,21 +233,22 @@ let toastTimer = 0;
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1800); }
 
 // ---------- the menu ----------
+const started = () => !!S && !S.done && S.cuts > 0;
 function openMenu() {
   const body = $("menuBody");
   startLevel();                                    // the shared level row follows this game's ramp
   body.replaceChildren();
-  part(body, "play").append(action("New timber", async () => { $("menuDlg").close(); if (S && !S.done && S.placed.length > S.cut.given.length && !(await sure("Cut a new timber? This one isn't finished."))) return; newRun(false); }, "primary"));
+  part(body, "play").append(action("New timber", async () => { $("menuDlg").close(); if (started() && !(await sure("Choose a new timber? This one isn't finished."))) return; newRun(false); }, "primary"));
   const got = read(DAILY, {})[today()];
   todayPart(body, {
     app: "slipway", done: got != null, result: got != null ? "★".repeat(got) : "",
-    play: () => { $("menuDlg").close(); openToday(); }, playing: !!S?.daily && S.day === today() && !S.done, busy: !!S && !S.done && S.placed.length > S.cut.given.length,
+    play: () => { $("menuDlg").close(); openToday(); }, playing: !!S?.daily && S.day === today() && !S.done, busy: started(),
   });
   const set = part(body, "settings");
   set.append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
   const times = read(TIMES, {});
   part(body, "about").append(line(`Best: ${LEVEL_IDS.map(l => `${l} ${times[l] ? "★".repeat(times[l].stars) + " " + clock(Math.round(times[l].ms / 1000)) : "–"}`).join(" · ")}`),
-    line("Cut a cube back into its figures. They turn any way but never flip over; drag the cube to look round it."));
+    line("Work out from the cut list what is left, then cut it out. A chisel takes one cube, a saw a whole layer, a bore a whole line; a cut into the piece is refused."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -331,15 +258,15 @@ bindSwitcher($("appsBtn"), "slipway");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
-for (const b of document.querySelectorAll(".sw-turns .btn")) b.addEventListener("click", () => turnHand(+b.dataset.axis));
-$("placeBtn").addEventListener("click", fit);
+for (const b of document.querySelectorAll(".sw-tool")) b.addEventListener("click", () => { tool = b.dataset.tool; render(); });
+$("viewBtn").addEventListener("click", () => { view3d = !view3d; render(); });
 $("undoBtn").addEventListener("click", undoLast);
-$("hintBtn").addEventListener("click", async () => { if (S && !S.done && await sure("Fit one more figure for you? It costs a star.")) showOne(); });
+$("hintBtn").addEventListener("click", async () => { if (S && !S.done && await sure("Point at the next cut? It costs a star.")) showHint(); });
 new ResizeObserver(() => drawAll()).observe($("bench"));
 window.addEventListener("resize", () => drawAll());
 requestAnimationFrame(tick);
 async function openToday() {
-  if (S && !S.done && S.placed.length > S.cut.given.length && !(S.daily && S.day === today()) && !(await sure("Start today's timber? This one isn't finished."))) return;
+  if (started() && !(S.daily && S.day === today()) && !(await sure("Start today's timber? This one isn't finished."))) return;
   if (S?.daily && S.day === today() && !S.done) return;
   newRun(true);
 }
@@ -349,4 +276,4 @@ else if (S.done) { begin(); showDone(); }
 else begin();
 
 // for tests and debugging
-window.__slipway = { get state() { return S; }, get sel() { return sel; }, pick, turnHand, squareTap, fit, showOne, undoLast, newRun, takeOut, ghost, get tap() { return tap; } };
+window.__slipway = { get state() { return S; }, get deal() { return deal; }, cut, undoLast, showHint, newRun, get hits() { return hits; }, setTool: t => { tool = t; render(); }, get view3d() { return view3d; } };
