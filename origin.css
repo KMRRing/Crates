@@ -14,6 +14,9 @@
 .og-clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; min-height: 3.5rem; flex: 1 1 auto; overflow-y: auto; }
 .og-clues li { display: grid; gap: .1rem; padding: .45rem .6rem; border-left: 3px solid var(--brass); background: color-mix(in srgb, var(--tile) 70%, transparent); border-radius: 0 6px 6px 0; }
 .og-clues li b { font-size: 1.05rem; }
+.og-clue { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.og-why { flex: none; width: 1.5rem; height: 1.5rem; padding: 0; border: 1px solid var(--brass); border-radius: 3px; background: transparent; color: var(--ink-soft); font: inherit; font-size: .85rem; font-weight: 700; line-height: 1; cursor: pointer; }
+.og-why[aria-expanded="true"] { background: var(--brass); color: var(--sheet); }
 .og-clues li span { color: var(--ink-soft); font-size: .88rem; line-height: 1.35; }
 .og-guesses { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem; flex: none; }
 .og-g { padding: .3rem .7rem; border-radius: 999px; font-size: .9rem; font-weight: 700; border: 1.5px solid var(--heat);
