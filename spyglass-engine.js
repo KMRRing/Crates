@@ -117,7 +117,7 @@ const PARTICLES = new Set(["da", "de", "del", "della", "van", "von", "der", "den
 /** The ways a painter may be named: in full, by surname (two words for "da Vinci" or "van Gogh", a hyphenated one whole or by
  *  its last part), or "Leonardo" (the one painter known by his first name before a "da"). */
 export function painterNames(artist) {
-  const n = norm(artist).replace(/ the (younger|elder)$/, "").replace(/-/g, " "), t = n.split(" "), out = new Set([n]);
+  const n = norm(artist).replace(/ the (younger|elder)$/, "").replace(/-/g, " "), t = n.split(" "), out = new Set([n, norm(artist).replace(/-/g, " ")]);   // the full name too: an option is the painter as the bank writes him, "the Elder" and all (Korbi, 9 Nov 2026: Bruegel marked wrong)
   if (t.length > 1) {
     out.add(t.at(-1));
     let i = t.length - 1;

@@ -1,4 +1,4 @@
-/* Spyglass: the question and what a right answer is worth now, the brass-bound lens with the picture coming into focus, the
+/* Spyglass: the question and what a right answer is worth now, the round spyglass with the picture you bring into focus, the
    answers underneath (buttons, or a line to type in), Pass and Next at the foot */
 .spyglass .sg-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
 .sg-score { font-variant-numeric: tabular-nums; }
@@ -6,16 +6,30 @@
 .sg-ask { margin: 0; font-size: 1.05rem; font-weight: 600; }
 .sg-worth { margin: 0; font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; }
 .sg-worth b { color: var(--ink); }
-/* a turned brass rim: lit from the top left, a bevel inside and a dark seat outside (Korbi, 9 Nov 2026) */
-.sg-lens { position: relative; min-height: 0; border: .55rem solid transparent; border-radius: 8px; overflow: hidden;
-  background: linear-gradient(var(--yard), var(--yard)) padding-box,
-    linear-gradient(135deg, #F4DC9A 0%, #C99B45 22%, #7A5522 45%, #D9B160 68%, #8A6128 85%, #E8CB82 100%) border-box;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 .2rem .6rem rgba(0, 0, 0, .35); }
-.sg-lens::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 2px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .7), inset 0 0 0 2px rgba(255, 238, 190, .35), inset 0 .3rem 1.1rem rgba(0, 0, 0, .5); }
-.sg-lens canvas { display: block; width: 100%; height: 100%; }
-.sg-caption { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: .45rem .7rem; font-size: .8rem; line-height: 1.3; background: rgba(16, 24, 31, .78); color: #F3ECDC; }
+/* The spyglass: a round lens in three bands, a metal rim outside, wood, a metal rim inside (Korbi, 9 Nov 2026: "just a circle"). The bay
+   is a square-ish container and the lens the largest circle that fits it, so it is round at any shape of screen. */
+.sg-stage { display: flex; flex-direction: column; gap: .6rem; min-height: 0; }
+.sg-bay { flex: 1 1 0; min-height: 0; container-type: size; display: grid; place-items: center; }
+.sg-lens { --d: min(100cqw, 100cqh); width: var(--d); height: var(--d); box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .02); touch-action: none; cursor: ew-resize;
+  background: conic-gradient(from 210deg, #F4DC9A, #C99B45, #7A5522, #D9B160, #8A6128, #E8CB82, #F4DC9A);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 .3rem .8rem rgba(0, 0, 0, .4); }
+.sg-wood { width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .05);
+  background: repeating-linear-gradient(96deg, rgba(0, 0, 0, .13) 0 2px, transparent 2px 9px, rgba(255, 220, 160, .07) 9px 11px, transparent 11px 18px),
+    radial-gradient(circle at 30% 25%, #A8733A, #6B4220 55%, #4A2C14);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .55), inset 0 .15rem .5rem rgba(0, 0, 0, .5); }
+.sg-inner { width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .02);
+  background: conic-gradient(from 30deg, #8A6128, #E8CB82, #F4DC9A, #C99B45, #7A5522, #D9B160, #8A6128);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .65), 0 0 .5rem rgba(0, 0, 0, .55); }
+.sg-seat { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--yard); }
+.sg-seat::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .7), inset 0 .2rem 1.2rem rgba(0, 0, 0, .55); }
+.sg-seat canvas { display: block; width: 100%; height: 100%; }
+.sg-caption { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: .45rem 14% .9rem; text-align: center; font-size: .8rem; line-height: 1.3; background: rgba(16, 24, 31, .78); color: #F3ECDC; z-index: 1; }
 .sg-caption[hidden] { display: none; }
+.sg-focus { flex: none; display: flex; align-items: center; gap: .8rem; color: var(--ink-soft); }
+.sg-focus span { letter-spacing: .12em; text-transform: uppercase; font-size: .72rem; }
+.sg-focus input { flex: 1 1 auto; min-width: 0; height: 2.2rem; accent-color: var(--brass); }
+.sg-focus input:disabled { opacity: .35; }
 .sg-opts { flex: none; height: 10.6rem; margin-top: .6rem; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; align-content: start; }
 .sg-opt { text-align: left; padding: .4rem .6rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .86rem; min-height: 2.3rem; line-height: 1.2; }
 .sg-opt:disabled { opacity: .45; }
@@ -40,7 +54,7 @@
 /* held sideways: the lens large on the left, the question, the answers and the buttons in the side column */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.spyglass { --beside: 22rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr); }
-  .sg-lens { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
+  .sg-stage { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
   .sg-strip { grid-column: 2; grid-row: 2; }
   .sg-deal { grid-column: 2; grid-row: 3; margin: 0 0 .6rem; padding: 1.1rem 1.3rem; }
   .sg-ask { font-size: 1.3rem; }

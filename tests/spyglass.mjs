@@ -61,6 +61,7 @@ check(E.matches(who("Leonardo da Vinci"), "leonardo da vinci") && E.matches(who(
 check(E.matches(who("Vincent van Gogh"), "Van Gogh") && E.matches(who("Vincent van Gogh"), "gogh") && E.matches(who("Vincent van Gogh"), "Vincent van Gogh"), "van Gogh");
 check(E.matches(who("Albrecht Dürer"), "durer") && E.matches(who("Albrecht Dürer"), "Dürer"), "Dürer with or without the umlaut");
 check(E.matches(who("Hans Holbein the Younger"), "Holbein") && E.matches(who("Pieter Bruegel the Elder"), "bruegel"), "the Younger and the Elder are optional");
+check(paint.every(p => E.matches(p, p.answer) && p.options.filter(o => E.matches(p, o)).length === 1), "every option is accepted as itself, and only the right one: a painter named with \"the Elder\" or \"the Younger\" included (Bruegel was once marked wrong)");
 check(E.matches(who("Henri de Toulouse-Lautrec"), "Toulouse-Lautrec") && E.matches(who("Henri de Toulouse-Lautrec"), "lautrec"), "Toulouse-Lautrec");
 check(E.matches(who("Jean-Auguste-Dominique Ingres"), "Ingres"), "Ingres");
 check(E.matches(who("Michelangelo"), "Michelangelo") && !E.matches(who("Michelangelo"), "Michel"), "a single name must be whole");

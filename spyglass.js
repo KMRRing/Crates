@@ -1,8 +1,8 @@
-// Spyglass: a picture comes into focus through a brass-bound lens over about 20 seconds, and the sooner you say what it is the more
-// it's worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
+// Spyglass: a picture is blurred and cropped to a small part of itself in a round spyglass; you turn the focus (Korbi, 9 Nov 2026: the player
+// controls it, not a clock) and the sharper you take it the less a right answer is worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
 // gives four answers to choose from, Medium eight, Hard a line to type in. The rules are spyglass-engine.js's; this file
 // keeps the run, draws the lens and builds the page.
-import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
+import { LEVELS, ROUNDS, FULL, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as ARCH } from "./arch-bank.js";
 import { flags as menuFlags } from "./menu-flags.js";
@@ -16,7 +16,7 @@ import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { pictureUrls } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, todayPart, isPaused } from "./menu.js";
+import { part, action, line, choice, todayPart } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
@@ -47,14 +47,16 @@ const picturesNow = () => { const k = read(KIND, "all"); return PICTURES.some(([
 const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outline: "Which country is this?" };
 
 // ---------- the run ----------
-// S: { seed, level, daily, day, items, index, scores: [points per picture, null while it's open], elapsed (seconds on the open one),
+// S: { seed, level, daily, day, items, index, scores: [points per picture, null while it's open], best (the sharpest the focus has been on the open one, 0 to 1: what a right answer is worth follows it),
+//      dial (where the focus is now),
 //      wrong (guesses so far on it), tried (typed guesses already counted), over, total }
 let S = read(RUN, null);
+if (S && S.best == null) { S.best = fraction(S.elapsed || 0, S.level); S.dial = S.best; delete S.elapsed; }       // a run saved when a clock did the focusing
 const save = () => write(RUN, S);
 const startLevel = () => ramp("spyglass", LEVELS, { start: "easy" });
 function newRun(daily = false) {
   const seed = daily ? today() * 6151 + 7 : Math.floor(Math.random() * 2 ** 31), level = daily ? "medium" : startLevel();
-  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], elapsed: 0, wrong: 0, tried: [], over: false, total: 0 };
+  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], best: 0, dial: 0, wrong: 0, tried: [], over: false, total: 0 };
   save(); begin();
 }
 const item = () => S.items[S.index];
@@ -97,20 +99,29 @@ function outlineSource(name) {
   x.fill("evenodd"); x.stroke();
   return { img: c, w: 640, h: 427 };
 }
-/** A flag or an outline as the look has it: greyscale, or ink (black or white by brightness, so only the shapes are left). Paintings keep their
- *  colour (Korbi, 9 Nov 2026): in ink a painting is a smudge. */
+/** A flag or an outline as the look has it: greyscale, or ink: black or white by brightness, with a line wherever two neighbouring colours differ
+ *  by a clear step but fall on the same side of that line (Korbi, 9 Nov 2026: two pale colours side by side, a yellow and a white, must not melt
+ *  into one white; there is a silhouette between them). Paintings keep their colour: in ink a painting is a smudge. */
+const INK = { light: [232, 220, 190], dark: [20, 26, 31], step: 40 };       // parchment on off-black; step: the colour difference (R+G+B) that is an edge
 function looked(src, lines) {
   const look = read(LOOK, "colour");
   if (!src || look === "colour") return src;
   try {
     const c = document.createElement("canvas"); c.width = src.w; c.height = src.h;
     const x = c.getContext("2d"); x.drawImage(src.img, 0, 0, src.w, src.h);
-    const im = x.getImageData(0, 0, c.width, c.height), d = im.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], v = look === "ink" ? (y > 118) !== !!lines : null;
-      // ink is parchment on off-black (Korbi, 9 Nov 2026): an outline's lines are the parchment, a flag's light parts
-      if (v === null) d[i] = d[i + 1] = d[i + 2] = y; else { d[i] = v ? 232 : 20; d[i + 1] = v ? 220 : 26; d[i + 2] = v ? 190 : 31; }
-    }
+    const im = x.getImageData(0, 0, c.width, c.height), d = im.data, W = c.width, H = c.height;
+    if (look === "ink") {
+      const side = new Uint8Array(W * H);
+      for (let p = 0; p < W * H; p++) { const i = 4 * p; side[p] = ((0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) > 118) !== !!lines ? 1 : 0; }
+      const edge = new Uint8Array(W * H), apart = (i, j) => Math.abs(d[i] - d[j]) + Math.abs(d[i + 1] - d[j + 1]) + Math.abs(d[i + 2] - d[j + 2]) > INK.step;
+      const t = Math.max(1, Math.round(W / 400));                  // a line about a quarter of a per cent of the width, so it shows at the lens's size
+      for (let yy = 0; yy < H - t; yy++) for (let xx = 0; xx < W - t; xx++) {
+        const p = yy * W + xx, i = 4 * p;
+        if (side[p] === side[p + 1] && apart(i, i + 4)) for (let k = 0; k <= t; k++) edge[p + k] = 1;
+        if (side[p] === side[p + W] && apart(i, i + 4 * W)) for (let k = 0; k <= t; k++) edge[p + k * W] = 1;
+      }
+      for (let p = 0; p < W * H; p++) { const i = 4 * p, v = edge[p] ? !side[p] : side[p], k = v ? INK.light : INK.dark; d[i] = k[0]; d[i + 1] = k[1]; d[i + 2] = k[2]; }
+    } else for (let i = 0; i < d.length; i += 4) d[i] = d[i + 1] = d[i + 2] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
     x.putImageData(im, 0, 0);
     return { img: c, w: src.w, h: src.h, full: src };            // `full`: the colour one, which the answer fades to
   } catch { return src; }
@@ -135,51 +146,36 @@ async function begin() {
   try { source = await sourceFor(item()); } finally { done(); }
   if (me !== token) return;
   if (!source) {                                   // a painting that won't load (offline): a flag or outline in its place
-    const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
+    const spare = dealRun(S.seed + 17 * (S.index + 1) + Math.round(S.best * 1000), S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
   }
   phase = "look"; render();
 }
-const u = () => (phase === "shown" ? reveal.at : fraction(S.elapsed, S.level));
+const u = () => (phase === "shown" ? reveal.at : S.dial);
 
 // ---------- the lens ----------
-const canvas = $("lens"), box = $("lensBox"), low = document.createElement("canvas");
+const canvas = $("lens"), box = $("seat"), low = document.createElement("canvas");
 let size = [1, 1];
 function resize() {
   const dpr = Math.min(2, devicePixelRatio || 1), inner = [box.clientWidth, box.clientHeight];
   if (inner[0] < 2 || inner[1] < 2) return;
-  brass = getComputedStyle(box).getPropertyValue("--brass").trim() || brass;
   canvas.width = Math.round(inner[0] * dpr); canvas.height = Math.round(inner[1] * dpr); size = [canvas.width, canvas.height];
 }
-/** The picture through the lens now: the crop for the zoom, drawn at the blur's resolution and stretched to the glass. */
+/** The picture through the lens now: the crop for the zoom, drawn at the blur's resolution and stretched to the glass (the glass is round by CSS). */
 function draw() {
   if (!S) return;                                   // also once the run is over: the last picture's reveal plays out, and a resize clears the canvas (Korbi, 9 Nov 2026: the last screen was sometimes empty)
   const ctx = canvas.getContext("2d"), [cw, ch] = size;
   ctx.fillStyle = "#141A1F"; ctx.fillRect(0, 0, cw, ch);
   if (!source || phase === "loading") return;
-  // a round window while you look, like a spyglass's; the answer opens it out to the whole rectangle (Korbi, 9 Nov 2026)
-  const t = 1 - (1 - unveil) ** 3, r0 = Math.min(cw, ch) * 0.47, R = r0 + (Math.hypot(cw, ch) / 2 - r0) * t;
-  ctx.save(); ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2); ctx.clip();
-  paint(ctx, cw, ch);
+  // the answer draws back until the whole picture sits inside the round glass
+  const t = 1 - (1 - unveil) ** 3, out = 1 + (Math.hypot(source.w, source.h) / Math.max(source.w, source.h) - 1) * t;
+  paint(ctx, cw, ch, source, out);
   // in black and white or ink the answer brings the colour back: the same view of the colour picture, faded in over the grey
-  if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full); ctx.globalAlpha = 1; }
-  ctx.restore();
-  if (unveil < 1) rim(ctx, cw, ch, R, 1 - t);
-}
-/** The lens's brass rim: a lit gradient band with a dark edge either side, so it reads as turned metal. */
-function rim(ctx, cw, ch, R, alpha) {
-  const w = Math.max(5, Math.min(cw, ch) * 0.03), g = ctx.createLinearGradient(cw / 2 - R, ch / 2 - R, cw / 2 + R, ch / 2 + R);
-  for (const [o, c] of [[0, "#F4DC9A"], [.25, "#C99B45"], [.5, "#7A5522"], [.72, "#D9B160"], [1, "#8A6128"]]) g.addColorStop(o, c);
-  ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2);
-  ctx.lineWidth = w + 4; ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.stroke();
-  ctx.lineWidth = w; ctx.strokeStyle = g; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R - w * 0.28, 0, Math.PI * 2); ctx.lineWidth = Math.max(1, w * 0.14); ctx.strokeStyle = "rgba(255,244,205,.55)"; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R - w / 2 - 1, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.stroke();
-  ctx.restore();
+  if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full, out); ctx.globalAlpha = 1; }
 }
 /** The picture through the glass: the part of it in view for the moment's zoom and blur. */
-function paint(ctx, cw, ch, pic = source) {
-  const { res, zoom } = focus(u()), a = cw / ch, W0 = Math.max(pic.w, pic.h * a), H0 = W0 / a, it = item();
+function paint(ctx, cw, ch, pic = source, out = 1) {
+  const { res, zoom: z0 } = focus(u()), zoom = z0 * out, a = cw / ch, W0 = Math.max(pic.w, pic.h * a), H0 = W0 / a, it = item();
   const W = W0 * zoom, H = H0 * zoom;
   const cx = Math.max(W / 2 - (W0 - pic.w) / 2, Math.min(pic.w - W / 2 + (W0 - pic.w) / 2, zoom < 1 ? it.cx * pic.w : pic.w / 2));
   const cy = Math.max(H / 2 - (H0 - pic.h) / 2, Math.min(pic.h - H / 2 + (H0 - pic.h) / 2, zoom < 1 ? it.cy * pic.h : pic.h / 2));
@@ -197,17 +193,12 @@ function paint(ctx, cw, ch, pic = source) {
   lc.drawImage(pic.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx / cw * lw, dy / ch * lh, dw / cw * lw, dh / ch * lh);
   ctx.drawImage(low, 0, 0, lw, lh, 0, 0, cw, ch);
 }
-let last = 0, savedAt = 0, unveil = 0, tint = 0;              // unveil: how far the answer has opened the round window (0 round, 1 the whole rectangle)
-let brass = "#C99B45";
+let last = 0, unveil = 0, tint = 0;                        // unveil: how far the answer has drawn the picture back to sit whole in the glass (0 close, 1 whole)
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - last) / 1000); last = now;
   if (!S) return;
-  if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
-    S.elapsed += dt;
-    if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
-    $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(u(), S.wrong) }));
-  } else if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
+  if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
   if (phase === "shown") { unveil = Math.min(1, unveil + dt / 0.6); tint = Math.min(1, tint + dt / 1.1); } else tint = 0;
   draw();
 }
@@ -215,13 +206,13 @@ function frame(now) {
 // ---------- guessing ----------
 function good() {
   learn(S.wrong ? "wrong" : "right");
-  const points = worth(fraction(S.elapsed, S.level), S.wrong);
+  const points = worth(S.best, S.wrong);
   S.scores[S.index] = points;
   conclude(`+${points}`);
 }
 function bad() { S.wrong++; save(); }
 function conclude(text) {
-  reveal = { from: fraction(S.elapsed, S.level), at: fraction(S.elapsed, S.level) };
+  reveal = { from: S.dial, at: S.dial };
   phase = "shown"; save();
   $("worth").textContent = text;
   showCaption();
@@ -255,7 +246,7 @@ function guess(text) {
 }
 function next() {
   if (phase !== "shown" || S.over) return;
-  S.index++; S.elapsed = 0; S.wrong = 0; S.tried = [];
+  S.index++; S.best = 0; S.dial = 0; S.wrong = 0; S.tried = [];
   save(); begin();
 }
 function endRun() {
@@ -274,7 +265,8 @@ function render() {
   $("where").textContent = S.over ? `Run over · ${S.level}` : `Picture ${Math.min(S.index + 1, S.items.length)} of ${S.items.length}${S.daily ? " · today's" : ""} · ${S.level}`;
   $("score").textContent = `Score ${S.scores.reduce((a, b) => a + (b || 0), 0)}`;
   $("ask").textContent = ASK[item().kind];
-  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(u(), S.wrong) : "–" }));
+  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(S.best, S.wrong) : "–" }));
+  dial.disabled = phase !== "look"; dial.value = Math.round((phase === "shown" ? 1 : S.dial) * 1000);
   $("passBtn").hidden = phase === "shown";
   $("nextBtn").hidden = phase !== "shown" || S.over;
   const opts = $("opts");
@@ -325,11 +317,29 @@ function openMenu() {
   menuFlags(body, { name: "Spyglass", game: "spyglass", region: true, topics: true, learning: true, own: [
     choice("Pictures", PICTURES, picturesNow(), v => write(KIND, v)),
     choice("Flags and outlines", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
-    line("Black and white takes the colour out; Ink leaves only light and dark, so a flag is told by its shapes. From the next picture.")] });
+    line("Black and white takes the colour out; Ink leaves only light and dark, with a line between neighbouring colours that would otherwise merge, so a flag is told by its shapes. From the next picture.")] });
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.building.length} buildings, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
+
+// ---------- the focus ----------
+// The player turns it: the slider, the wheel, or dragging across the glass. Going back to blur costs nothing and gains nothing: what a right
+// answer is worth follows the sharpest the picture has been (`best`), so you can't look, blur and look again for free.
+const dial = $("focus");
+function setDial(v) {
+  if (!S || phase !== "look") return;
+  S.dial = Math.max(0, Math.min(1, v));
+  if (S.dial > S.best) { S.best = S.dial; $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(S.best, S.wrong) })); }
+  dial.value = Math.round(S.dial * 1000);
+}
+dial.addEventListener("input", () => setDial(dial.value / 1000));
+dial.addEventListener("change", () => save());
+$("lensBox").addEventListener("wheel", e => { e.preventDefault(); setDial(S.dial - Math.sign(e.deltaY) * 0.04); save(); }, { passive: false });
+let drag = null;
+$("lensBox").addEventListener("pointerdown", e => { drag = { x: e.clientX, d: S?.dial ?? 0 }; $("lensBox").setPointerCapture(e.pointerId); });
+$("lensBox").addEventListener("pointermove", e => { if (drag) setDial(drag.d + (e.clientX - drag.x) / ($("lensBox").clientWidth * 0.8)); });
+for (const ev of ["pointerup", "pointercancel"]) $("lensBox").addEventListener(ev, () => { if (drag) { drag = null; save(); } });
 
 // ---------- wiring ----------
 document.querySelector(".sg-mark").innerHTML = APPS.find(a => a.id === "spyglass").logo;
@@ -353,4 +363,4 @@ else begin();
 if (S && S.over) showDone();
 
 // for tests and debugging
-window.__spyglass = { get state() { return S; }, get phase() { return phase; }, guess, pass, next, newRun, setElapsed: s => { if (S) S.elapsed = s; } };
+window.__spyglass = { get state() { return S; }, get phase() { return phase; }, guess, pass, next, newRun, setFocus: v => setDial(v) };
