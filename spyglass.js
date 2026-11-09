@@ -112,7 +112,7 @@ function looked(src, lines) {
       if (v === null) d[i] = d[i + 1] = d[i + 2] = y; else { d[i] = v ? 232 : 20; d[i + 1] = v ? 220 : 26; d[i + 2] = v ? 190 : 31; }
     }
     x.putImageData(im, 0, 0);
-    return { img: c, w: src.w, h: src.h };
+    return { img: c, w: src.w, h: src.h, full: src };            // `full`: the colour one, which the answer fades to
   } catch { return src; }
 }
 async function sourceFor(it) {
@@ -130,7 +130,7 @@ async function begin() {
   phase = "loading"; source = null; unveil = 0;
   $("caption").hidden = true; $("passBtn").hidden = false; $("nextBtn").hidden = true;
   render();
-  if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; source = await sourceFor(item()); if (me === token) { showCaption(); render(); } return; }
+  if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; tint = 1; source = await sourceFor(item()); if (me === token) { showCaption(); render(); } return; }
   const done = busy("", { delay: 350 });
   try { source = await sourceFor(item()); } finally { done(); }
   if (me !== token) return;
@@ -161,6 +161,8 @@ function draw() {
   const t = 1 - (1 - unveil) ** 3, r0 = Math.min(cw, ch) * 0.47, R = r0 + (Math.hypot(cw, ch) / 2 - r0) * t;
   ctx.save(); ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2); ctx.clip();
   paint(ctx, cw, ch);
+  // in black and white or ink the answer brings the colour back: the same view of the colour picture, faded in over the grey
+  if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full); ctx.globalAlpha = 1; }
   ctx.restore();
   if (unveil < 1) rim(ctx, cw, ch, R, 1 - t);
 }
@@ -176,26 +178,26 @@ function rim(ctx, cw, ch, R, alpha) {
   ctx.restore();
 }
 /** The picture through the glass: the part of it in view for the moment's zoom and blur. */
-function paint(ctx, cw, ch) {
-  const { res, zoom } = focus(u()), a = cw / ch, W0 = Math.max(source.w, source.h * a), H0 = W0 / a, it = item();
+function paint(ctx, cw, ch, pic = source) {
+  const { res, zoom } = focus(u()), a = cw / ch, W0 = Math.max(pic.w, pic.h * a), H0 = W0 / a, it = item();
   const W = W0 * zoom, H = H0 * zoom;
-  const cx = Math.max(W / 2 - (W0 - source.w) / 2, Math.min(source.w - W / 2 + (W0 - source.w) / 2, zoom < 1 ? it.cx * source.w : source.w / 2));
-  const cy = Math.max(H / 2 - (H0 - source.h) / 2, Math.min(source.h - H / 2 + (H0 - source.h) / 2, zoom < 1 ? it.cy * source.h : source.h / 2));
+  const cx = Math.max(W / 2 - (W0 - pic.w) / 2, Math.min(pic.w - W / 2 + (W0 - pic.w) / 2, zoom < 1 ? it.cx * pic.w : pic.w / 2));
+  const cy = Math.max(H / 2 - (H0 - pic.h) / 2, Math.min(pic.h - H / 2 + (H0 - pic.h) / 2, zoom < 1 ? it.cy * pic.h : pic.h / 2));
   const sx = cx - W / 2, sy = cy - H / 2;
   // the part of the window that lies on the picture (a wide window around a narrow picture leaves margins)
-  const ix0 = Math.max(0, sx), iy0 = Math.max(0, sy), ix1 = Math.min(source.w, sx + W), iy1 = Math.min(source.h, sy + H);
+  const ix0 = Math.max(0, sx), iy0 = Math.max(0, sy), ix1 = Math.min(pic.w, sx + W), iy1 = Math.min(pic.h, sy + H);
   if (ix1 <= ix0 || iy1 <= iy0) return;
   const dx = (ix0 - sx) / W * cw, dy = (iy0 - sy) / H * ch, dw = (ix1 - ix0) / W * cw, dh = (iy1 - iy0) / H * ch;
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-  if (res >= cw) { ctx.drawImage(source.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx, dy, dw, dh); return; }
+  if (res >= cw) { ctx.drawImage(pic.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx, dy, dw, dh); return; }
   const lw = Math.max(2, res), lh = Math.max(2, Math.round(res * ch / cw));
   low.width = lw; low.height = lh;
   const lc = low.getContext("2d");
   lc.imageSmoothingEnabled = true;
-  lc.drawImage(source.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx / cw * lw, dy / ch * lh, dw / cw * lw, dh / ch * lh);
+  lc.drawImage(pic.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx / cw * lw, dy / ch * lh, dw / cw * lw, dh / ch * lh);
   ctx.drawImage(low, 0, 0, lw, lh, 0, 0, cw, ch);
 }
-let last = 0, savedAt = 0, unveil = 0;              // unveil: how far the answer has opened the round window (0 round, 1 the whole rectangle)
+let last = 0, savedAt = 0, unveil = 0, tint = 0;              // unveil: how far the answer has opened the round window (0 round, 1 the whole rectangle)
 let brass = "#C99B45";
 function frame(now) {
   requestAnimationFrame(frame);
@@ -206,7 +208,7 @@ function frame(now) {
     if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
     $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(u(), S.wrong) }));
   } else if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
-  if (phase === "shown") unveil = Math.min(1, unveil + dt / 0.6);
+  if (phase === "shown") { unveil = Math.min(1, unveil + dt / 0.6); tint = Math.min(1, tint + dt / 1.1); } else tint = 0;
   draw();
 }
 
