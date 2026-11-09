@@ -6,8 +6,8 @@
 // It was Lexicon until 2 November 2026: its id, `lexicon`, stays, so saved state and Random's lists are as they were.
 import { QUOTES } from "./quote-bank.js";
 import { SETS } from "./census-sets.js";
-import { VIEW, INCLUDED, filterKb } from "./almanac-view.js";
-import { markedIn } from "./topics-on.js";
+import { ENTITIES } from "./kb/entities.js";
+import { LINKS } from "./kb/links.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture, pictureName } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -18,8 +18,6 @@ import { parseHash, formatHash } from "./almanac-nav.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-// Only what Settings lets it show (almanac-view.js): with marked content on Exclude, nothing marked is a star, a hit, a link or a number.
-const { entities: ENTITIES, links: LINKS } = VIEW;
 const ENT = new Map(ENTITIES.map(e => [e.id, e]));
 // a thing entered twice is one thing: "same" points a duplicate at the entry that stands, and its links count there
 const CANON = id => ENT.get(id)?.same || id;
@@ -35,7 +33,7 @@ for (const l of LINKS) {
   (IN.get(c.to) || IN.set(c.to, []).get(c.to)).push(c);
 }
 const FACTS = new Map();                                     // id → the numbers Quote knows about it
-for (const q of filterKb(ENTITIES, LINKS, QUOTES, INCLUDED).quotes) if (q.about && ENT.has(q.about)) (FACTS.get(q.about) || FACTS.set(q.about, []).get(q.about)).push(q);
+for (const q of QUOTES) if (q.about && ENT.has(q.about)) (FACTS.get(q.about) || FACTS.set(q.about, []).get(q.about)).push(q);
 
 // ---------- words for the kinds and the topics ----------
 const KIND = { country: "country", city: "city", commodity: "commodity", painting: "painting", museum: "museum", feature: "natural feature",
@@ -315,7 +313,7 @@ function openMenu() {
   }
   const kinds = {};
   for (const e of ENTITIES) for (const k of kindsOf(e).slice(0, 1)) kinds[k] = (kinds[k] || 0) + 1;
-  part(body, "about").append(line(`${ENTITIES.length.toLocaleString("en-GB")} things and ${LINKS.length.toLocaleString("en-GB")} links, the knowledge every game draws on${VIEW.hidden ? `; ${VIEW.hidden.toLocaleString("en-GB")} marked for removal are left out (Settings, Topics)` : ""}`),
+  part(body, "about").append(line(`${ENTITIES.length.toLocaleString("en-GB")} things and ${LINKS.length.toLocaleString("en-GB")} links, the knowledge every game draws on`),
     line(Object.entries(kinds).sort((p, q) => q[1] - p[1]).slice(0, 8).map(([k, n]) => `${n} ${k}`).join(", ")));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -340,10 +338,6 @@ addEventListener("popstate", () => {
   const v = parseHash(location.hash);
   if (v.list) goList(v.e, false); else goSky(v.e, false);
 });
-// the choice is read once, at load: a change in Settings (or from another device) builds the page again, hash and all
-const settled = () => { if (markedIn() !== INCLUDED) location.reload(); };
-addEventListener("topics:changed", settled);
-addEventListener("storage", settled);
 $("menuBtn").addEventListener("click", openMenu);
 $("skyMenu").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());

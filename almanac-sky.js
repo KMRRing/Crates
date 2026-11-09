@@ -12,7 +12,8 @@
 // Kept under `lexicon:` (the game's id stays, the page is Almanac), so a partner watching sees the same sky:
 //   lexicon:sky      { yaw, pitch, dist, at, off: [subjects switched off], sel: the chosen star's id, pop: "card" | "full" }
 //   lexicon:sky:lit  the glow, { id: percent } (negative: twinkling): the watcher's own pile is not yours
-import { VIEW } from "./almanac-view.js";
+import { ENTITIES } from "./kb/entities.js";
+import { LINKS } from "./kb/links.js";
 import { SUBJECTS } from "./topics.js";
 import { subjectsOn } from "./topics-on.js";
 import { SUBJECT_IDS, COLOURS } from "./almanac-sky-subjects.js";
@@ -30,7 +31,6 @@ import { IN_FRAME } from "./suite.js";
 import { scale, sideways } from "./wide.js";
 import { waitMark } from "./loading.js";
 
-const { entities: ENTITIES, links: LINKS } = VIEW;               // what Settings lets it show (almanac-view.js)
 const KEY = "lexicon:sky", LIT_KEY = "lexicon:sky:lit";
 const DUST = 520, DUST_AT = 430;                    // faint stars far behind the chart, for the feel of a night sky: they belong to no thing and cannot be chosen
 const HOME = { yaw: 0.6, pitch: 0.42, dist: 280, at: [0, 0, 0] };      // dist is only a start: the view that holds the whole sky depends on the screen's shape

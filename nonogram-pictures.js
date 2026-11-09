@@ -9,7 +9,6 @@
 // the same for everyone at the table.
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { MATHS as FLAG_QUESTIONS } from "./flags-bank.js";
-import { mkOfEntity } from "./marked.js";
 import { FLAGS, COLOURS, COLOUR_NAMES, rasterFlag } from "./nonogram-flags.js";
 import { cluesOf, grade, countSolutions, depthOf, overlap } from "./nonogram-engine.js";
 import { HEX_SIZES, hexGrid, hexCoverage, hexPuzzleFrom } from "./nonogram-hex.js";
@@ -142,7 +141,6 @@ const SAME_FLAG = [["chad", "romania"], ["monaco", "indonesia"]];
 
 const fame = new Map(FLAG_QUESTIONS.map(q => [q.about[0], q.lv]));            // ea well known, mi less, ha obscure
 const flagNames = new Map(FLAG_QUESTIONS.map(q => [q.about[0], q.o[q.a[0]]]));
-const flagMk = new Map(FLAG_QUESTIONS.map(q => [q.about[0], q.mk]));            // marked for removal (topics.js), or not
 const emoji = new Map(FLAG_QUESTIONS.map(q => [q.about[0], (q.q.match(/\p{RI}\p{RI}/u) || [""])[0]]));
 const shapes = new Map();                                                   // a picture's outline, for its puzzle
 
@@ -151,8 +149,8 @@ const shapes = new Map();                                                   // a
  * the topic's letter and the entity's id (c-france, f-france), so a match or a link names one exactly.
  */
 export const PICTURES = [
-  ...COUNTRIES.map(c => { shapes.set(`c-${c.about}`, c); return { id: `c-${c.about}`, topic: "countries", about: c.about, name: c.name, regions: c.regions, fame: fame.get(c.about) || "ha", flag: c.flag, mk: c.about ? mkOfEntity(c.about) : undefined }; }),
-  ...Object.keys(FLAGS).filter(id => flagNames.has(id)).map(id => ({ id: `f-${id}`, topic: "flags", about: id, name: flagNames.get(id), regions: REGION_OF[flagNames.get(id)] || [], fame: fame.get(id) || "ha", flag: emoji.get(id), mk: flagMk.get(id) })),
+  ...COUNTRIES.map(c => { shapes.set(`c-${c.about}`, c); return { id: `c-${c.about}`, topic: "countries", about: c.about, name: c.name, regions: c.regions, fame: fame.get(c.about) || "ha", flag: c.flag }; }),
+  ...Object.keys(FLAGS).filter(id => flagNames.has(id)).map(id => ({ id: `f-${id}`, topic: "flags", about: id, name: flagNames.get(id), regions: REGION_OF[flagNames.get(id)] || [], fame: fame.get(id) || "ha", flag: emoji.get(id) })),
 ];
 const byId = new Map(PICTURES.map(p => [p.id, p]));
 export const pictureOf = id => byId.get(id) || null;
@@ -278,10 +276,9 @@ export function rng(seed) {
 }
 const shuffle = (rand, xs) => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 /** The pictures of a topic ("all" for every kind, less those `mix` has out) in a region ("world" for all of them); on hexes, no flags. */
-export const poolOf = (topic, region, grid = "square", mix = null, marked = false) => {
+export const poolOf = (topic, region, grid = "square", mix = null) => {
   const kinds = mix && Object.values(mix).some(w => w > 0) ? p => mix[p.topic] > 0 : () => true;
-  // (what is marked for removal is out unless `marked`: Settings' choice, passed by the page; the worker has no storage; a daily never)
-  return PICTURES.filter(p => (!p.mk || (marked === true && p.mk !== "l")) && (topic === "all" ? kinds(p) : p.topic === topic) && (region === "world" || p.regions.includes(region) || (region === "asia" && p.regions.includes("middle-east"))) && !(grid === "hex" && p.topic === "flags"));
+  return PICTURES.filter(p => (topic === "all" ? kinds(p) : p.topic === topic) && (region === "world" || p.regions.includes(region) || (region === "asia" && p.regions.includes("middle-east"))) && !(grid === "hex" && p.topic === "flags"));
 };
 
 /**
@@ -299,8 +296,8 @@ export const PREFER_SHARE = 0.5, HOLD_BACK = 6;
  * puzzle at this size (and grid) of the band asked ("any" for all), or failing that the nearest band (nearest: true).
  * `mix` (topicsOf the subjects on) leaves out the kinds Settings has out when the topic is "all".
  */
-export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", mix = null, seen = [], prefer = [], share = PREFER_SHARE, rand = Math.random, marked = false } = {}) {
-  const pool = poolOf(topic, region, grid, mix, marked);
+export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", mix = null, seen = [], prefer = [], share = PREFER_SHARE, rand = Math.random } = {}) {
+  const pool = poolOf(topic, region, grid, mix);
   if (!pool.length) return null;
   const ids = new Set(pool.map(p => p.id)), lately = new Set(seen), held = new Set(seen.slice(0, HOLD_BACK));
   // the draw is only made when there is something due, so a deal without (a day's picture) is the same as ever

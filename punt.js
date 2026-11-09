@@ -21,8 +21,8 @@ import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from 
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
 import { part, choice, action, line, ticks, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
-import { subjectPreset, showStar } from "./topics.js";
-import { subjectsOn, dealt, markedIn } from "./topics-on.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
 import { flags } from "./menu-flags.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
 import { roundOver } from "./random.js";
@@ -79,8 +79,7 @@ async function bankDeal(level, picks, personal = true) {
   const ids = STAGES.map(x => x.id);
   const stages = (picks.stages || ids).filter(x => ids.includes(x));
   const resolved = { stages: stages.length ? stages : ids, diffs: picks.diffs?.length ? picks.diffs.filter(d => DIFFICULTIES.includes(d)) : DIFFICULTIES };
-  // (content marked for removal is out unless Settings includes it; today's run, which is the same for everyone, never includes it)
-  const pool = dealt(MATHS.filter(q => resolved.stages.includes(q.lv) && resolved.diffs.includes(q.d)), !personal);
+  const pool = MATHS.filter(q => resolved.stages.includes(q.lv) && resolved.diffs.includes(q.d));
   // learning mode: what's due from the pile leads the next block; the rest prefers questions not yet seen (never in
   // today's run, which is the same for everyone)
   const learning = personal && pile.learning();
@@ -102,7 +101,7 @@ async function topicSources(mixPicks, personal = true) {
   const ins = TOPIC_LIST.filter(([id]) => (mixPicks.weights[id] || 0) > 0);
   return Promise.all(ins.map(async ([id, label]) => {
     const weight = mixPicks.weights[id];
-    if (CLUE_TOPICS[id]) return { id, label, weight, cat: CLUE_TOPICS[id], diffs: mixPicks.diffs, ...(personal ? {} : { include: false }) };
+    if (CLUE_TOPICS[id]) return { id, label, weight, cat: CLUE_TOPICS[id], diffs: mixPicks.diffs };
     const { deal } = await bankDeal(id, { stages: personal ? chosenPicks(id).stages : null, diffs: mixPicks.diffs }, personal);
     return { id, label, weight, ...deal };
   }));
@@ -120,7 +119,7 @@ async function mixSession(seed, length, mixPicks, { personal = true, name = name
 // length. Your own mix of subjects doesn't count; a run from a link counts only if its mix is what a preset deals.
 const standardPicks = () => ({ weights: { ...TOPIC_PRESETS.balanced.topics }, diffs: [...DIFFICULTIES] });
 /** Whether a Topics run counts for your best; fromSettings: dealt from your own topics rather than a link's. */
-const countsForBest = (mixPicks, fromSettings) => !markedIn() && DIFFICULTIES.every(d => mixPicks.diffs?.includes(d))
+const countsForBest = (mixPicks, fromSettings) => DIFFICULTIES.every(d => mixPicks.diffs?.includes(d))
   && (fromSettings ? subjectPreset(subjectsOn()) !== "custom" : isPresetMix(mixPicks.weights));
 
 /** A run's link: today's run by its date; else seed, level, length, and for a bank its stages and difficulties. */
@@ -356,7 +355,6 @@ function render() {
 
   $("ask").textContent = q.ask;
   drawPrompt(q);
-  showStar($("slip"), q);
   $("figure").hidden = !q.svg;
   if (q.svg) $("figure").innerHTML = q.svg;                       // a drawing from the bank, for patterns
   $("code").hidden = !q.code;
@@ -750,7 +748,7 @@ async function openMathsPicks() {
     for (const d of DIFFICULTIES) chip($("diffPicks"), String(d), picking.diffs.includes(d), () => {
       picking.diffs = picking.diffs.includes(d) ? picking.diffs.filter(y => y !== d) : [...picking.diffs, d];
     });
-    const n = dealt(MATHS.filter(q => picking.stages.includes(q.lv) && picking.diffs.includes(q.d))).length;
+    const n = MATHS.filter(q => picking.stages.includes(q.lv) && picking.diffs.includes(q.d)).length;
     $("mathsCount").textContent = n ? `${n} questions match.` : "Nothing matches that: pick more stages or difficulties.";
     $("mathsGo").disabled = !n;
   };

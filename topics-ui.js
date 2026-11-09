@@ -3,7 +3,7 @@
 // that opens the same control in a sheet of its own, so a game never has a topics control of its own.
 import { choice, ticks, line, action, CLOSE } from "./menu.js";
 import { SUBJECTS, SUBJECT_LIST, SUBJECT_PRESETS, subjectPreset, subjectsIn } from "./topics.js";
-import { subjectsOn, setSubjects, markedIn, setMarkedIn } from "./topics-on.js";
+import { subjectsOn, setSubjects } from "./topics-on.js";
 
 /** The control, as an element. onChange(on) after every change (the sheet and Settings need nothing more: games read the
  *  subjects when they deal). */
@@ -35,9 +35,7 @@ export function topicsControls({ onChange } = {}) {
       presets = fresh;
       sayNow();
     }, Infinity, { all: true });
-    // Content marked for removal (topics.js): kept in the knowledge base until release; a dealt question carries a star
-    const marked = choice("Content marked for removal", [["exclude", "Exclude"], ["include", "Include"]], markedIn() ? "include" : "exclude", v => { setMarkedIn(v === "include"); onChange?.(on); });
-    box.replaceChildren(presets, pick, said, marked);
+    box.replaceChildren(presets, pick, said);
   };
   draw();
   return box;

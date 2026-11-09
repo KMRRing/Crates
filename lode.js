@@ -15,7 +15,7 @@ import { createPlanetView } from "./lode-planet.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { BANK } from "./core.js";
 import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
-import { subjectsOn, markedIn } from "./topics-on.js";
+import { subjectsOn } from "./topics-on.js";
 import { flags } from "./menu-flags.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -397,7 +397,7 @@ function recordBest(sc) {
 function begin(made, mode, day = null) {
   // today's board is the same for everyone, shown by its title too 
   // a best is today's board, a linked one that deals every topic, or a random one dealt on a preset of the topics
-  const ranked = mode === "daily" || (!markedIn() && (mode === "link" ? !made.deal.mix : onPreset()));
+  const ranked = mode === "daily" || (mode === "link" ? !made.deal.mix : onPreset());
   S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, ranked, fresh: false };
   lastFound = null; clueAt = 0; peek = -1; message = null; clockFrom = null;
   view.clear();

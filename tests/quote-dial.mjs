@@ -63,7 +63,7 @@ check(QUOTES.every(q => same(axisOf(q), axisOf({ ...q }))), "a question's ruler 
 
 // ---------- a place and a value ----------
 {
-  const q = QUOTES.find(x => x.id === "tr-05"), a = axisOf(q);                    // the Suez Canal's length, 193 km
+  const q = QUOTES.find(x => x.id === "ge-13"), a = axisOf(q);                    // the Panama Canal, 82 km
   check(valueAt(a, 0) === a.lo && valueAt(a, 1) === a.hi, "the ends are the ruler's ends");
   check(Math.abs(posOf(a, q.truth) - Math.log10(q.truth / a.lo) / DECADES) < 1e-9, "a log ruler is even in doublings: a place is a share of the decades");
   const p = 0.37, v = valueAt(a, p);

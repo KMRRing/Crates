@@ -9,7 +9,7 @@ const RAW = JSON.parse(new TextDecoder().decode(
  * carry the same clue (the mapping is many-to-many); since = the batch that added the pair (0 = original).
  */
 export const BANK = RAW.map(a => ({
-  name: a.n, cat: a.c, group: a.g, aliases: a.a, entity: a.e, mk: a.mk,
+  name: a.n, cat: a.c, group: a.g, aliases: a.a, entity: a.e,
   words: a.w.map(([w, hint, topics, d, alt, since = 0, entity, mk]) => ({ w, hint, topics, d, alt, since, entity, mk })),
 }));
 

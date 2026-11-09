@@ -13,7 +13,7 @@ let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } else console.log(`ok   ${what}`); };
 
 const pool = N.pool();
-check(pool.length >= 150 && pool.every(p => /^\d{3,6}$/.test(p.answer)), `the pool is ${pool.length} questions with whole-number answers`);
+check(pool.length >= 100 && pool.every(p => /^\d{3,6}$/.test(p.answer)), `the pool is ${pool.length} questions with whole-number answers`);
 check(new Set(pool.map(p => p.text)).size === pool.length && !pool.some(p => /\bthis\b/i.test(p.text)), "each stands alone, none twice");
 check(E.KINDS.numbers === "Numbers" && E.kindOf("numbers") === "numbers", "Numbers is a kind of clue");
 

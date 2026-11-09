@@ -61,7 +61,7 @@ check(T.subjectPreset(partial) === "custom" && T.subjectsIn(partial).length === 
 // a game's mix from the subjects
 const stemOnly = T.cleanSubjects(T.SUBJECT_PRESETS.stem.topics);
 const mq = T.mixFromSubjects(lists.quote, T.TOPIC_OF.quote, stemOnly);
-check(mq.refining === 1 && mq.art === 0 && mq.trade === 0, "with STEM on, Quote deals refining (energy) and not art or trade");
+check(mq.scale === 1 && mq.art === 0 && mq.people === 0, "with STEM on, Quote deals scale (science) and not art or people");
 const mp = T.mixFromSubjects(lists.punt, T.TOPIC_OF.punt, stemOnly, puntBase);
 check(mp.maths === 2 && mp.physics === 2 && mp.art === 0 && mp.skiing === 0, "…and Punt deals maths and physics at its weight, not art or skiing");
 const ml = T.mixFromSubjects(lists.lots, T.TOPIC_OF.lots, T.cleanSubjects({ ...T.SUBJECT_PRESETS.none.topics, sport: 1 }));

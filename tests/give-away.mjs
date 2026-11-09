@@ -31,5 +31,5 @@ for (const b of CHOICE_BANKS) {
   total += MATHS.length;
   for (const q of MATHS) if (givesAway(q)) { left++; console.log(`  ${b}: ${q.q.slice(0, 90)} → ${q.a.map(i => q.o[i]).join(" / ")}`); }
 }
-check(left === 0 && total > 4000, `no question of the ${total} in the banks built from kb/ has its answer in it${left ? ` (${left} do: run node tools/build-kb.mjs)` : ""}`);
+check(left === 0 && total > 2000, `no question of the ${total} in the banks built from kb/ has its answer in it${left ? ` (${left} do: run node tools/build-kb.mjs)` : ""}`);
 process.exit(bad ? 1 : 0);

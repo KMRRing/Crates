@@ -17,7 +17,7 @@ check(paint.every(p => p.year <= 1930 && !E.LATE.has(p.answer)), "no painting af
 for (const name of ["Pablo Picasso", "Salvador Dalí", "Andy Warhol", "Frida Kahlo", "Edward Hopper"]) check(!paint.some(p => p.answer === name), `${name} is out`);
 for (const name of ["Leonardo da Vinci", "Claude Monet", "Vincent van Gogh", "Henri Matisse", "Wassily Kandinsky"]) check(paint.some(p => p.answer === name), `${name} is in`);
 check(paint.every(p => p.options.includes(p.answer) && new Set(p.options).size === p.options.length), "every painting's options hold its answer once");
-check(flag.length >= 190 && flag.every(f => f.options.includes(f.answer)), `flags (${flag.length}), each among its options`);
+check(flag.length >= 110 && flag.every(f => f.options.includes(f.answer)), `flags (${flag.length}), each among its options`);
 check(outline.length >= 60 && outline.length <= 160, `outlines (${outline.length}): the larger countries only`);
 check(outline.some(o => o.name === "France") && !outline.some(o => o.name === "Luxembourg"), "France has an outline worth showing, Luxembourg not");
 check(new Set(outline.map(o => o.name)).size === outline.length, "no outline twice");

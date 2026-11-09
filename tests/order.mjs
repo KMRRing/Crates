@@ -9,8 +9,6 @@ const { QUOTES } = await import("../quote-bank.js");
 const { LIVES, MOST, BY_ID, FEWEST, FAMILIES, familyOf, bestIn, size, dealRun, topicsIn, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
 const { TOPICS, TOPIC_PRESETS, presetOf, cleanTopics } = await import("../quote-engine.js");
 const { roundTrip, same } = await import("./rtdb.js");
-const { setMarkedIn } = await import("../topics-on.js");
-setMarkedIn(true);   // the pool is checked whole; what Exclude leaves out is checked at the end
 import fs from "node:fs";
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -36,8 +34,8 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   const mixed = FAMILIES.filter(f => f.mixed), length = familyOf("metres");
   check(mixed.length >= 4 && length.unit === "length" && length.units.includes("km") && length.units.includes("metres"), `${mixed.length} families put units together (${mixed.map(f => f.unit).join(", ")}); metres and kilometres are one`);
   check(familyOf("km") === length && familyOf("no such unit").units.join() === "no such unit" && !familyOf("no such unit").mixed, "a run saved under a unit still finds its family, and an unknown unit is its own");
-  const a = BY_ID.get("tr-05"), b = BY_ID.get("tr-06");        // the Suez Canal (193 km) and the Ever Given (400 metres)
-  check(a.unit === "km" && b.unit === "metres" && a.truth < b.truth && size(a.id) > size(b.id), "193 km is longer than 400 metres though 193 is the smaller number");
+  const a = BY_ID.get("ge-13"), b = BY_ID.get("ct-17");        // the Panama Canal (82 km) and the Burj Khalifa (828 metres)
+  check(a.unit === "km" && b.unit === "metres" && a.truth < b.truth && size(a.id) > size(b.id), "82 km is longer than 828 metres though 82 is the smaller number");
   const run = dealRun("quantities", 21, null);
   const line = [...run.deck].map(id => ({ id })).sort((x, y) => size(x.id) - size(y.id));
   check(sorted(line) && line.every((c, i) => i === 0 || fits(line, c.id, i) || size(line[i - 1].id) === size(c.id)), "a line of cards in different units is in order of their sizes");
@@ -80,7 +78,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   const ids = dates.map(q => q.id), last = dealRun("dates", 7, null, new Set(ids.slice(0, ids.length - 5)));
   check(cards(last).length === 16 && last.recycled && ids.slice(ids.length - 5).every(id => cards(last).includes(id)), "a deal short of fresh cards takes all that are left, then reaches back, and says so");
   // a mix of topics: the same, within the topics in
-  const trader = cleanTopics({ trade: 2, markets: 2, art: 0, people: 0, wine: 0 });
+  const trader = cleanTopics({ people: 2, wine: 2, art: 0 });
   const t1 = dealRun("dates", 11, trader, new Set()), t2 = dealRun("dates", 11, trader, new Set(cards(t1)));
   check(cards(t1).every(id => BY_ID.get(id).cat !== "art") && !cards(t2).some(id => cards(t1).includes(id)) && cards(t2).every(id => BY_ID.get(id).cat !== "art"), "with a mix the unseen ones are drawn within its topics");
   // quantities: a family you've played has its unseen cards first, and a family with none unseen is rare, not barred
@@ -100,7 +98,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
 {
   const cat = id => BY_ID.get(id).cat, cards = run => [run.line[0].id, ...run.deck];
   const balanced = TOPIC_PRESETS.balanced.topics, none = Object.fromEntries(TOPICS.map(([id]) => [id, 0]));
-  check(topicsIn("dates").map(([id]) => id).join() === "trade,wine,art,people,markets" && topicsIn("quantities").length === TOPICS.length && !topicsIn("stories").length,
+  check(topicsIn("dates").map(([id]) => id).join() === "wine,art,people" && topicsIn("quantities").length === TOPICS.length && !topicsIn("stories").length,
     "each mode's topics: the categories its cards are in (none for the stories)");
   check([11, 12, 13].every(seed => same(dealRun("dates", seed), dealRun("dates", seed, balanced)) && same(dealRun("quantities", seed), dealRun("quantities", seed, balanced))),
     "every topic in deals a run as it always was, so today's run is the same whatever anyone's mix");
@@ -110,15 +108,15 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   // twice as likely per card is twice as often only for a small topic: a topic with a share s of the pool is dealt 2 / (1 + s)
   // times as often, so a big one (Trade, once the law's years joined it) would sink below the band
   let more = 0, inn = 0;
-  for (let seed = 0; seed < 300; seed++) { more += cards(dealRun("dates", seed, { ...noArt, markets: 2 })).filter(id => cat(id) === "markets").length; inn += cards(dealRun("dates", seed, noArt)).filter(id => cat(id) === "markets").length; }
+  for (let seed = 0; seed < 300; seed++) { more += cards(dealRun("dates", seed, { ...noArt, wine: 2 })).filter(id => cat(id) === "wine").length; inn += cards(dealRun("dates", seed, noArt)).filter(id => cat(id) === "wine").length; }
   check(more / inn > 1.6 && more / inn < 2.3, `a topic more is dealt about twice as often as in (${(more / inn).toFixed(2)} times)`);
-  const refining = { ...none, refining: 1 }, q = dealRun("quantities", 7, refining);
-  check(cards(q).length >= 6 && cards(q).every(id => cat(id) === "refining" && familyOf(q.unit).units.includes(BY_ID.get(id).unit)), "quantities: one family with six cards or more in the topics in, and only those cards");
+  const refining = { ...none, geo: 1 }, q = dealRun("quantities", 7, refining);
+  check(cards(q).length >= 6 && cards(q).every(id => cat(id) === "geo" && familyOf(q.unit).units.includes(BY_ID.get(id).unit)), "quantities: one family with six cards or more in the topics in, and only those cards");
   const wine = dealRun("dates", 9, { ...none, wine: 1 });
   check(wine.wide && cards(wine).length === 16 && topicsIn("dates").length && [...new Set(cards(wine).map(cat))].length > 1 && FEWEST > 5,
     "a mix that leaves too few cards deals from every topic, and says so");
-  check(presetOf(balanced) === "balanced" && presetOf(TOPIC_PRESETS.trader.topics) === "trader" && presetOf(noArt) === "custom" && presetOf(cleanTopics({ art: 7, wine: 0 })) === "custom"
-    && cleanTopics({ art: 7, wine: 0 }).art === 1 && cleanTopics(null).trade === 1, "a mix is a preset's or your own; a weight it doesn't know is in");
+  check(presetOf(balanced) === "balanced" && presetOf(noArt) === "custom" && presetOf(cleanTopics({ art: 7, wine: 0 })) === "custom"
+    && cleanTopics({ art: 7, wine: 0 }).art === 1 && cleanTopics(null).geo === 1, "a mix is a preset's or your own; a weight it doesn't know is in");
   const t = freshTable({}, { seed: 3, weights: noArt });
   check(cards(t.run).every(id => cat(id) !== "art"), "a table's first game dealt from the dealer's mix");
   const g = freshTable({}, { seed: 4 });
@@ -196,18 +194,9 @@ const seat = (name, slot) => ({ name, slot, pid: `p${slot}`, online: true });
     "the record counts the cards placed, each player's share adding up to it");
 }
 
-// Exclude (the default): a run is dealt without what is marked for removal; Include deals it too; a daily never does
+// a daily's cards are those of a run of your own, seed for seed
 {
-  const marked = id => !!BY_ID.get(id)?.mk;
-  const deals = (daily, seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) => seeds.flatMap(s => ["dates", "quantities"].flatMap(m => dealRun(m, s, null, null, daily).deck));
-  setMarkedIn(false);
-  const out = deals(false);
-  check(out.length > 100 && out.every(id => !marked(id)), `Exclude: no card marked for removal in ${out.length} dealt`);
-  setMarkedIn(true);
-  check(deals(false, Array.from({ length: 40 }, (_, i) => i + 1)).some(marked), "Include: cards marked for removal are dealt");
-  check(deals(true).every(id => !marked(id)), "Include: a daily still deals none");
-  setMarkedIn(false);
-  check(dealRun("dates", 11, null, null, true).deck.join() === dealRun("dates", 11, null, null, false).deck.join(), "Exclude: a daily's cards are those of a run of your own, seed for seed");
+  check(dealRun("dates", 11, null, null, true).deck.join() === dealRun("dates", 11, null, null, false).deck.join(), "a daily's cards are those of a run of your own, seed for seed");
 }
 
 console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${FAMILIES.length} quantity families (${FAMILIES.map(f => `${f.unit} ${f.ids.length}`).join(", ")}); a run, its topics and a table of three played through`);

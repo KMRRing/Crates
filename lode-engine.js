@@ -11,14 +11,7 @@ import { CONTINENTS } from "./lode-continents.js";
 import { KB_TOPICS, TOPIC_OF, drawWeighted, mixFromSubjects, even, anyIn } from "./topics.js";
 import { isWord } from "./wordlist.js";
 import { SPAN } from "./lode-themes.js";
-import { allowed } from "./topics-on.js";
 import { solidBoard } from "./mines-solid.js";
-
-// What is marked for removal (topics.js) is out of a board unless Settings includes it; a daily never includes it (the same for everyone).
-// STRICT is set while a daily is dealt; the caches below are kept for each choice.
-let STRICT = false;
-const okMk = mk => allowed(mk, STRICT);
-const incKey = () => (STRICT ? "x" : allowed("s") ? "i" : "x");
 
 export const COLS = 6, ROWS = 8, CELLS = COLS * ROWS;     // the flat boards (square, hex); the planet's is geometry("cube").n
 export const MIN_WORD = 4, MAX_WORD = 10;
@@ -141,11 +134,10 @@ function namesOf(t) {
 const wordsCache = new Map();   // by theme and choice
 /** A theme's words that fit on a board: one word of 4 to 10 letters (Björk as BJORK), each once, the easier link kept. */
 export function wordsOf(t) {
-  const ck = `${t.id}/${incKey()}`;
+  const ck = t.id;
   if (wordsCache.has(ck)) return wordsCache.get(ck);
   const own = namesOf(t), seen = new Map();
   BANK[t.i].words.forEach((w, k) => {
-    if (!okMk(w.mk)) return;
     const text = letters(w.w);
     if (!/^[A-Z]+$/.test(text) || text.length < MIN_WORD || text.length > MAX_WORD) return;
     if (own.some(n => n.length >= 4 && (text.includes(n) || n.includes(text)))) return;   // Copperbelt under Copper
@@ -456,7 +448,7 @@ function says(text, words) {
 }
 function titleOf(r, t, onBoard, level) {
   const want = LEVELS[level].title, banned = [...namesOf(t), ...onBoard];
-  const pool = BANK[t.i].words.filter(w => okMk(w.mk) && w.hint && w.hint.length <= 80 && !onBoard.includes(letters(w.w)) && !says(w.hint, banned) && !says(w.w, banned));
+  const pool = BANK[t.i].words.filter(w => w.hint && w.hint.length <= 80 && !onBoard.includes(letters(w.w)) && !says(w.hint, banned) && !says(w.w, banned));
   if (!pool.length) return { text: `A ${t.kind}`, d: 1, word: null, topic: null };
   const near = Math.min(...pool.map(w => Math.abs((w.d || 2) - want)));
   const best = pool.filter(w => Math.abs((w.d || 2) - want) === near);
@@ -596,7 +588,7 @@ function letter(r, geo, paths, spanText, picked, { reads, lean: leanCost }) {
 const makeable = new Map();
 /** Whether a theme can make a board at a level: some of its words, as the level weighs them, fill the board. */
 export function canMake(t, level, shape = "square") {
-  const key = `${t.id}/${level}/${shape}/${incKey()}`;
+  const key = `${t.id}/${level}/${shape}`;
   if (!makeable.has(key)) {
     const r = seeded(hashOf(key));
     makeable.set(key, t.span.some(s => !!chooseWords(r, t, level, null, s, geometry(shape).n)));
@@ -605,7 +597,7 @@ export function canMake(t, level, shape = "square") {
 }
 /** The themes a choice deals from: the countries of a region ("world": all) that can make a board at the level. */
 export function themesFor({ region = "world", level = "medium", shape = "square" } = {}) {
-  return THEMES.filter(t => okMk(BANK[t.i].mk) && (region === "world" || t.regions.includes(region)) && canMake(t, level, shape));
+  return THEMES.filter(t => (region === "world" || t.regions.includes(region)) && canMake(t, level, shape));
 }
 /** The theme for a seed, from a list, passing over those dealt lately where it can. */
 export function pickTheme(seed, list, avoid = []) {
@@ -619,9 +611,8 @@ export const SLACK = 40;              // how far outside its band a dealt board 
  * seed's theme, or, if that theme can't make a board inside the level's band (Freight's words make no Easy board),
  * the next the seed picks, and so on: the same on every device. Returns { deal (with its theme), board }, or null.
  */
-export function boardFor({ seed, level = "medium", shape = "square", mix = null, theme = null, region = "world", avoid = [], daily = false }) {
-  STRICT = daily;
-  try { return boardOf({ seed, level, shape, mix, theme, region, avoid }); } finally { STRICT = false; }
+export function boardFor({ seed, level = "medium", shape = "square", mix = null, theme = null, region = "world", avoid = [] }) {
+  return boardOf({ seed, level, shape, mix, theme, region, avoid });
 }
 function boardOf({ seed, level, shape, mix, theme, region, avoid }) {
   if (theme) { const board = makeBoard({ seed, theme, level, shape, mix }); return board ? { deal: { seed, theme, level, shape, mix }, board } : null; }

@@ -17,7 +17,7 @@ check(slots.every(s => pick(["topple.js", "topple-levels.js", "tests/topple-rule
 check(["tests/topple-rules.mjs", "tests/syntax.mjs", "tests/imports.mjs"].every(t => slots.every(s => pick(["topple.js"], s).includes(t))), "a game's push runs its quick tests, and the quick ones that read every page, whatever the slice");
 check(QUICK.filter(t => !isSlow(t)).length >= 4 && slots.every(s => QUICK.filter(t => !isSlow(t)).every(t => pick(["README.md", "CLAUDE.md", "docs/sudoku.md", "sw.js"], s).includes(t))) && pick(["README.md"], 0).length < 30, "documents alone run the quick ones and a slice");
 check(slots.every(s => pick(["kb/entities.js"], s).includes("tests/kb.mjs") === !isSlow("tests/kb.mjs")) && slots.every(s => pick(["seats.js"], s).includes("tests/seats.mjs") === !isSlow("tests/seats.mjs")), "a shared file runs the quick tests that load it or are named for it (kb/entities.js: kb; seats.js: seats)");
-check(loading("law-bank.js").includes("tests/fair-options.mjs") && loading("kb/links.js").includes("tests/kb.mjs"), "a bank or a kb/ file is found in the tests that read it, through the files they name");
+check(loading("skiing-bank.js").includes("tests/fair-options.mjs") && loading("kb/links.js").includes("tests/kb.mjs"), "a bank or a kb/ file is found in the tests that read it, through the files they name");
 check(slots.every(s => pick(["tools/build-kb.mjs"], s).length < ALL.length / 2) && slots.every(s => pick(["style.css", "suite.js", "kb/entities.js"], s).length < ALL.length / 2), "a shared file no longer runs everything");
 // each push's slice is different, and the slices together are every test the pick doesn't already run
 const seen = new Set(slots.flatMap(s => pick(["README.md"], s)));

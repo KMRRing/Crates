@@ -1,6 +1,6 @@
 const E = await import("../chart-engine.js");
 const { PLACES, CATS } = await import("../chart-bank.js");
-const DEALT_PLACES = PLACES.filter(p => !p.mk);   // Exclude (the default) deals these; the engine is tried on all of them
+const DEALT_PLACES = PLACES;
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const ids = new Set(PLACES.map(p => p.id));
@@ -68,8 +68,8 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   // regions: a place goes by its country, Russia and Turkey by their side of the Urals and the Bosphorus. Korbi, 7 Nov 2026: Chart has only Worldwide and the six continents (no Middle East, no sub-regions), so the Gulf is Asia
   const EVERY = PLACES;
   const R = q => E.regionsOfPlace(EVERY.find(p => p.name.startsWith(q)), REGION_OF).join("+");
-  check(R("Ras Tanura") === "asia" && R("Norilsk") === "asia" && R("The Ceyhan terminal") === "asia" && R("The port of Rotterdam") === "europe" && R("The port of Santos") === "south-america",
-    `regions: Ras Tanura ${R("Ras Tanura")}, Norilsk ${R("Norilsk")}, Ceyhan ${R("The Ceyhan terminal")}, Rotterdam ${R("The port of Rotterdam")}, Santos ${R("The port of Santos")}`);
+  check(R("Dubai") === "asia" && R("Vladivostok") === "asia" && R("Istanbul") === "europe" && R("Lima") === "south-america",
+    `regions: Dubai ${R("Dubai")}, Vladivostok ${R("Vladivostok")}, Istanbul ${R("Istanbul")}, Lima ${R("Lima")}`);
   // topics, a mix of them (each out, in or more): Balanced and the dropdown's old topics deal exactly as they did, one
   // topic all ten from itself, Balanced at most two of a kind; a topic out never, a topic more more often
   const countries = COUNTRIES.map(c => ({ id: c.id, cat: "countries" })), bank = [...PLACES.filter(p => !E.LOCAL.has(p.cat)), ...countries];
@@ -142,9 +142,9 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
 // the right country, within 600 km, counts as knowing a place, in Chart's pile as in Deck's review
 {
   const { COUNTRIES } = await import("../chart-countries.js");
-  const norilsk = PLACES.find(p => p.name.startsWith("Norilsk")), inRussia = { lat: 66, lon: 95 }, inKazakhstan = { lat: 49, lon: 70 };
+  const norilsk = PLACES.find(p => p.name.startsWith("Vladivostok")), inRussia = { lat: 45, lon: 132 }, inKazakhstan = { lat: 49, lon: 70 };
   check(E.HOME_KM === 600 && E.homeOf(norilsk, inRussia, COUNTRIES)?.name === "Russia" && !E.homeOf(norilsk, inKazakhstan, COUNTRIES) && !E.homeOf(norilsk, null, COUNTRIES),
-    "a pin inside the place's own country is found there (Norilsk, pinned in Russia); one in another country isn't; no pin, no home");
+    "a pin inside the place's own country is found there (Vladivostok, pinned in Russia); one in another country isn't; no pin, no home");
 }
 // a table of two to six (chart-table.js): everyone pins the same place, the reveal once everyone at the table has, each
 // player's points with their own clues' discount, the reveal's order, who the table waits for, the grace for the slow,

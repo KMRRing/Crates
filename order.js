@@ -11,8 +11,8 @@
 // hand, the team's lives, each card marked with who placed it.
 import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
 import { withUnit, topicsDealt } from "./quote-engine.js";
-import { subjectPreset, showStar } from "./topics.js";
-import { subjectsOn, markedIn } from "./topics-on.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
 import { flags } from "./menu-flags.js";
 import * as pile from "./pile.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
@@ -44,7 +44,7 @@ const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
 const mixFor = mode => { const w = topicsDealt(subjectsOn()); return topicsIn(mode).some(([id]) => w[id] > 0) ? w : null; };
 /** A run counts for your best if it's today's, or dealt on a preset of the subjects (All on, Culture, STEM, Trade), not on
  *  a mix of your own; the stories have no topics. */
-const ranked = (mode, daily) => daily || mode === "stories" || (!markedIn() && subjectPreset(subjectsOn()) !== "custom");
+const ranked = (mode, daily) => daily || mode === "stories" || subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- your own run ----------
 let S = read(RUN, null);
@@ -117,7 +117,6 @@ function render() {
     $("ask").textContent = R.mode === "dates" ? `When? Tap where it goes in ${G ? "the" : "your"} line` : R.mode === "stories" ? STORIES.get(R.story).ask : familyOf(R.unit).mixed ? "How much? Tap where it goes" : `How much, in ${R.unit}? Tap where it goes`;
     // a family of several units (metres and kilometres) says which one this card is in
     $("card").textContent = cardText(q) + (R.mode === "quantities" && familyOf(R.unit).mixed ? ` (in ${q.unit})` : "");
-    showStar($("deal"), q);
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
     if (!q.pic) { showPicture(pic, null); delete pic.dataset.title; }

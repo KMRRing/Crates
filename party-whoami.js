@@ -7,22 +7,19 @@
 // every card at the end. The crib on each card, what kb/ says of that identity (a person's written by hand), helps the
 // others answer.
 import { DECKS, WHO } from "./party-whoami-bank.js";
-import { allowed } from "./topics-on.js";
 import { h, button, countdown, waitingFor, names } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
-import { isMarked } from "./topics.js";
 import { showPicture } from "./pics.js";
 
 export const WRITE = "write", MIXED = "mixed";
 const deckOf = id => DECKS.find(d => d.id === id) || null;
 const homeDeck = id => DECKS.find(d => d.ids.includes(id)) || null;
 const SHOWN = 3;                      // crib lines shown before "More"
-// A mix: every deck but one kept for learning (People worth knowing), each identity once (someone marked
-// for the party and for learning is in two decks)
+// A mix: every deck but one kept for learning (People worth knowing), each identity once (someone for the
+// party and for learning is in two decks)
 const MIX = [...new Set(DECKS.filter(d => d.mix !== false).flatMap(d => d.ids))];
 /** The identities a game deals from: its deck's, or the mix's. */
-// (what is marked for removal is out unless Settings includes it: the host's)
-export const poolOf = deck => (deck === MIXED ? MIX : (deckOf(deck) || DECKS[0]).ids).filter(id => allowed(WHO[id]?.mk));
+export const poolOf = deck => (deck === MIXED ? MIX : (deckOf(deck) || DECKS[0]).ids);
 
 /** What a player's identity is, as the table says it: "a famous person" (as the deck being played calls it, for
  *  someone in two decks), or "someone Mei picked". */
@@ -53,7 +50,7 @@ function freshest(pool, shown, rng) {
   return [...shuffle(pool.filter(id => !when.has(id)), rng), ...pool.filter(id => when.has(id)).sort((a, b) => when.get(a) - when.get(b))];
 }
 function deal(s, uids, rng, shown) {
-  // a deck thinned below the table by what is marked for removal (Food, Brands) is topped up from the mix
+  // a deck too thin for the table is topped up from the mix
   let from = freshest(poolOf(s.deck), shown, rng);
   if (from.length < uids.length) from = [...from, ...freshest(poolOf(MIXED).filter(id => !from.includes(id)), shown, rng)];
   const picked = from.slice(0, uids.length);
@@ -108,7 +105,7 @@ export default {
     "Nobody types anything: the table says whether a guess is right. When you're done, the host shows every card, and the phones say who everyone was.",
   ],
   options: [
-    // a deck the setting leaves too few for a table of twelve is not offered (Exclude: Food and Brands, nearly all marked)
+    // a deck with too few for a table of twelve is not offered
     { id: "deck", label: "Who you are", value: "people", get choices() { return [...DECKS.filter(d => poolOf(d.id).length >= 12).map(d => [d.id, d.name]), [MIXED, "A mix"], [WRITE, "You write them"]]; } },
     { id: "timer", hidden: true, label: "A turn's clock", value: "0", choices: [["0", "None"], ["60", "1 minute"], ["120", "2 minutes"]] },
   ],
@@ -289,15 +286,13 @@ function card(s, u, ctx, nameOfU, cur, { open = false, action = null } = {}) {
   more?.addEventListener("toggle", () => { if (more.open) opened.add(key); else opened.delete(key); });
   const pic = w?.p ? h("span", { class: "wa-pic" }) : null;
   if (pic) showPicture(pic, w.p, { width: 120, alt: w.n }).catch(() => pic.remove());
-  // the star of what is marked for removal (style.css .marked-star), in the card's corner
-  const star = isMarked(w) ? h("span", { class: "marked-star", role: "img", "aria-label": "Marked for removal", title: "Marked for removal" }, "★") : null;
-  return h("li", { class: `wa-card has-star${u === cur ? " now" : ""}` },
+  return h("li", { class: `wa-card${u === cur ? " now" : ""}` },
     h("div", { class: "wa-card-head" }, h("span", { class: "wa-name" }, nameOfU(u)), u === cur ? h("span", { class: "wa-status" }, "asking") : action),
     h("div", { class: "wa-card-body" }, pic,
       h("div", { class: "wa-card-text" },
         h("span", { class: "wa-who" }, who.n),
         who.by ? h("span", { class: "wa-by" }, `picked by ${nameOfU(who.by)}`) : s.deck === MIXED && who.id ? h("span", { class: "wa-by" }, homeDeck(who.id)?.name || "") : null,
-        crib.length ? h("ul", { class: "wa-crib" }, ...crib.slice(0, shown).map(c => h("li", {}, c))) : null, more)), star);
+        crib.length ? h("ul", { class: "wa-crib" }, ...crib.slice(0, shown).map(c => h("li", {}, c))) : null, more)));
 }
 
 /** The end: everyone, and who they were. */

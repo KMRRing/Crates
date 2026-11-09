@@ -30,7 +30,7 @@ export const worst = (...ms) => ms.reduce((a, b) => (b && RANK[b] > RANK[a] ? b 
 /** What each build writes: `public`, the build CI, the published app and the tests use, holds everything but the living, each item
  *  carrying its mark if it is marked for removal (`mk`: s or p); `personal` holds the living too (for the tests of the writing).
  *  Which the games deal is decided at run time by Settings' choice, Exclude (the kept: u, r, t) or Include. */
-export const LEVELS = { public: new Set(["u", "r", "t", "s", "p"]), personal: new Set(["u", "r", "t", "s", "p", "l"]) };
+export const LEVELS = { public: new Set(["u", "r", "t"]), personal: new Set(["u", "r", "t", "l"]) };
 /** The kept tiers: universal, regional and theme. Marked for removal: specialist and personal. */
 export const KEPT = new Set(["u", "r", "t"]);
 /** The compact mark an item carries when it is marked for removal (or living, in the one place a living thing stays: Crates). */

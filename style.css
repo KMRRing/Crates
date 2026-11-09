@@ -979,9 +979,3 @@ html :is(.rd-tag, .rd-row, .rd-next) svg.k-ico { color: inherit; }
 .rd-next-count { flex: none; min-width: 1.25rem; text-align: center; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--brass-lo); }
 .rd-next .btn { flex: none; min-height: 2.375rem; padding: .35rem .9rem; }
 .rd-next-fuse { position: absolute; left: 0; right: 0; bottom: 0; height: .1875rem; background: var(--brass-lo); transform-origin: left; }
-
-/* Marked for removal (topics.js showStar): what is specialist or personal, kept in the knowledge base until release, carries a
-   brass star on the rim of its card (the top edge, right of centre) when Settings includes it. Out of the flow, so it moves nothing; a card
-   whose edge is busy sets --star-top, --star-right and --star-bg itself. */
-.has-star { position: relative; }
-.marked-star { position: absolute; top: var(--star-top, -.5rem); right: var(--star-right, 1rem); z-index: 2; padding: 0 .1875rem; font-size: .875rem; line-height: 1; color: var(--brass); background: var(--star-bg, var(--sheet)); pointer-events: none; }

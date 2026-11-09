@@ -33,17 +33,17 @@ check(K.says("Brazilian real", "Brazil") && K.says("The Swiss franc", "Swiss") &
 
 // ---------- the knowledge entries ----------
 const all = K.kbEntries(), fwd = all.filter(e => e.dir === "fwd"), rev = all.filter(e => e.dir === "rev");
-check(fwd.length > 3000 && rev.length > 3000, `entries both ways round (${fwd.length} forward, ${rev.length} reverse)`);
+check(fwd.length > 1000 && rev.length > 900, `entries both ways round (${fwd.length} forward, ${rev.length} reverse)`);
 check(all.every(e => /^[A-Z]{3,13}$/.test(e.letters) && e.enumer.split(/[,-]/).reduce((n, x) => n + Number(x), 0) === e.letters.length),
   "every entry's letters are A to Z, three to thirteen, and its enumeration adds up to them");
 check(new Set(all.map(e => e.key)).size === all.length, "every entry has a key of its own");
 const nameOf = e => [K.BANK[e.a].name, K.BANK[e.a].aliases].flat();
 check(fwd.every(e => !nameOf(e).some(n => K.says(`${e.lead} ${e.hint}`, n))), "no forward clue says its answer (Brazilian real, Swiss franc)");
 check(rev.every(e => !nameOf(e).some(n => K.says(e.answer, n))), "no reverse answer has the country or commodity's name in it");
-const brown = rev.find(e => e.answer === "Brown cheese"), troll = rev.find(e => e.answer === "Troll");
-check(!brown && !!troll && troll.lead === "Norway" && troll.letters === "TROLL", "a reverse clue whose reason has its answer's word is left out (Brown cheese); Troll is in");
-const vikings = fwd.find(e => e.lead === "Vikings" && e.answer === "Norway");
-check(!!vikings && vikings.alts.includes("SWEDEN") && !vikings.alts.includes("DENMARK"), "a forward clue keeps its other answers of its length (Vikings: Sweden, not Denmark)");
+const troll = rev.find(e => e.answer === "Stockfish");
+check(!!troll && troll.lead === "Norway" && troll.letters === "STOCKFISH", "a reverse clue is kept when its reason does not say its answer (Stockfish)");
+const vikings = fwd.find(e => e.lead === "Hanseatic League" && e.answer === "Norway");
+check(!!vikings && vikings.alts.includes("SWEDEN") && !vikings.alts.includes("DENMARK"), "a forward clue keeps its other answers of its length (Hanseatic League: Sweden, not Denmark)");
 check(fwd.some(e => e.answer === "Britain") && fwd.some(e => e.answer === "USA") && !fwd.some(e => e.letters === "UK"), "the UK goes in as Britain, the United States as USA");
 
 // ---------- three grids for what follows (the generator's own checks are in tests/crossword-grids.mjs) ----------
@@ -138,9 +138,9 @@ check(E.lessons(p3, play3, e => e !== helpedOne).length === kb3.length - 1, "at 
 const themed = E.makePuzzle({ seed: 900, level: "medium", mode: "theme" }), keyOnly = E.lessons(themed, E.freshPlay(themed));
 check(!keyOnly.some(x => x.e.kind === "key") && keyOnly.every(x => x.helped), "a theme's keystone teaches nothing of its own; an empty grid's entries all go back");
 const card = K.reviewCard(troll, S.seeded(4)), cardF = K.reviewCard(vikings, S.seeded(4));
-check(card.name && card.answer === "Troll" && card.prompt.startsWith("Norway: ") && card.options.length === 4 && card.options[card.right[0]] === "Troll" && card.need === 1,
+check(card.name && card.answer === "Stockfish" && card.prompt.startsWith("Norway: ") && card.options.length === 4 && card.options[card.right[0]] === "Stockfish" && card.need === 1,
   "a reverse entry's review card: name the clue from its reason and its country (Deck's name-it), with four options");
-check(cardF.answer === "Norway" && cardF.prompt.startsWith("Vikings: ") && cardF.options.every(o => K.BANK.some(a => a.name === o && a.cat === "country")) && cardF.about.includes("norway"),
+check(cardF.answer === "Norway" && cardF.prompt.startsWith("Hanseatic League: ") && cardF.options.every(o => K.BANK.some(a => a.name === o && a.cat === "country")) && cardF.about.includes("norway"),
   "a forward entry's card names the country, its options other countries, and it carries what it's about");
 
 // ---------- the table ----------

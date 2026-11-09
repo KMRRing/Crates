@@ -23,7 +23,7 @@ import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo, markOf } from
 import { markDone } from "./today-core.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
-import { subjectsOn, markedIn } from "./topics-on.js";
+import { subjectsOn } from "./topics-on.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { branchPath } from "./rooms.js";
@@ -237,7 +237,7 @@ let upcoming = null;                                              // { key, got 
 const dealKey = size => JSON.stringify([settings.topic, settings.region, settings.band, settings.grid, size, pile.mode()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
-  return dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, seen, prefer, marked: markedIn() });
+  return dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, seen, prefer });
 }
 async function nextPick(size) {
   const key = dealKey(size);
@@ -679,7 +679,7 @@ function factText() {
   if (fact.id === pic.id) return fact.text;
   const id = pic.id;
   fact = { id, text: "" };
-  factFor(pic, { marked: markedIn(), mix: mixFromSubjects([...KB_TOPICS.country, ...KB_TOPICS.commodity], TOPIC_OF.kb, subjectsOn()) }).then(t => { if (pic?.id === id) { fact = { id, text: t }; drawLine(); } });
+  factFor(pic, { mix: mixFromSubjects([...KB_TOPICS.country, ...KB_TOPICS.commodity], TOPIC_OF.kb, subjectsOn()) }).then(t => { if (pic?.id === id) { fact = { id, text: t }; drawLine(); } });
   return "";
 }
 function drawReveal() {
@@ -820,7 +820,7 @@ const inParty = /[?&]party=[A-Za-z]{4}\b/.test(location.search);
 let chosen = false;                                               // Split or Race picked in the menu this time
 function matchDeal() {
   const size = sizeNow(), grid = settings.grid;
-  const got = dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []), marked: markedIn() })
+  const got = dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []) })
     || dealPicture({ topic: "countries", region: "world", size: "medium", grid });
   // a party's first match is a race (a table of friends each with a phone); a pair's is split, and the menu's choice
   // is the next match's

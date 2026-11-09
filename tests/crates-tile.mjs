@@ -12,7 +12,7 @@ const bank = JSON.parse(Buffer.from(window.CRATES_BANK, "base64").toString("utf8
 const words = [...new Set(bank.flatMap(a => a.w.map(w => w[0])))];
 
 const long = words.filter(w => runsOf(w).some(r => r.length > LINE));
-check(words.length > 1000 && long.length === 0, `no run on any of ${words.length} tiles is longer than ${LINE} letters${long.length ? `: ${long.slice(0, 5)}` : ""}`);
+check(words.length > 500 && long.length === 0, `no run on any of ${words.length} tiles is longer than ${LINE} letters${long.length ? `: ${long.slice(0, 5)}` : ""}`);
 const changed = words.filter(w => tileText(w).replace(/­/g, "") !== w.replace(/­/g, ""));
 check(changed.length === 0, "breaking a word never changes its letters");
 check(tileText("Kangaroo") === "Kangaroo" && tileText("Hammerfest").includes("­"), "a word that fits stays whole, a longer one is cut");

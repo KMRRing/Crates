@@ -22,7 +22,6 @@ import { codexTabs } from "./codex-tabs.js";
 import { setRich } from "./rich.js";
 import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
-import { markedIn } from "./topics-on.js";
 import { scopeNow, labelOf, openScope } from "./deck-row.js";
 import { inScope, sayScope, revised, asked, aboutTopic } from "./deck-scope.js";
 import { check } from "./typing.js";
@@ -97,8 +96,7 @@ function drawSubjects() {
   $("subjects").replaceChildren(...rows.map(([s, r]) => {
     const d = document.createElement("div"), b = document.createElement("b"), span = document.createElement("span"), bar = document.createElement("i"), fill = document.createElement("em");
     b.textContent = SUBJECTS[s].label;
-    // what a subject holds: the kept things, or all of them when Settings includes what is marked for removal
-    const total = markedIn() ? SUBJECTS[s].total : Math.max(SUBJECTS[s].kept ?? SUBJECTS[s].total, r.learned.size, 1);
+    const total = Math.max(SUBJECTS[s].total, r.learned.size, 1);
     span.textContent = `${r.working.size ? `${r.working.size} to learn${r.due.size ? ` (${r.due.size} due)` : ""}` : ""}${r.working.size && r.learned.size ? " · " : ""}${r.learned.size ? `${r.learned.size} learned` : ""} of ${total}`;
     if (r.due.size) span.className = "due";
     fill.style.width = `${Math.min(100, (r.learned.size / total) * 100).toFixed(1)}%`;

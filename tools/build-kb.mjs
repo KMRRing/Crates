@@ -7,13 +7,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { givesAway } from "../give-away.js";
-import { LEVELS, KEPT, mkOf, entityMark, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
+import { LEVELS, entityMark, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings", "law"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "sayings"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
-  pics: "pics-list.js", marks: "kb-marks.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
+  pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
 /** What the build writes (tools/audit-lib.mjs, docs/the-knowledge-base.md "Who the games ask about"): `public`, the default, holds
  *  every item but the living, each marked for removal carrying `mk` (s specialist, p personal); the games decide at run time which
@@ -35,23 +35,25 @@ export async function build({ level = "public" } = {}) {
   const clues = new Map();
   for (const l of LINKS) if (l.rel === "clue") (clues.get(l.to) || clues.set(l.to, []).get(l.to)).push(l);
   // each answer and each clue carries its entity (e, and a clue's seventh place), so the pile knows what was missed
-  const raw = ENTITIES.filter(e => e.crates !== undefined).sort((a, b) => a.crates - b.crates).map(e => ({
+  const kept = id => dealt.has(entityMark(id));
+  const answers = ENTITIES.filter(e => e.crates !== undefined && kept(e.id)).sort((a, b) => a.crates - b.crates);
+  const place = new Map(answers.map((e, i) => [e.id, i]));
+  const raw = answers.map(e => ({
     n: e.name, c: e.sets.includes("country") ? "country" : "commodity", g: e.sets.find(s => s.startsWith("group:")).slice(6), a: e.aliases, e: e.id,
-    w: (clues.get(e.id) || []).sort((x, y) => x.pos - y.pos).map(l => [l.w ?? of(l.from).name, l.hint, l.aspects, l.d, l.alt.map(id => of(id).crates), l.since ?? 0, l.from, ...(mkOf(entityMark(l.from)) ? [mkOf(entityMark(l.from))] : [])]),
-    mk: mkOf(entityMark(e.id)),
+    w: (clues.get(e.id) || []).filter(l => kept(l.from)).sort((x, y) => x.pos - y.pos).map(l => [l.w ?? of(l.from).name, l.hint, l.aspects, l.d, l.alt.filter(id => place.has(id)).map(id => place.get(id)), l.since ?? 0, l.from]),
   })).map(defined);
   const crates = Buffer.from(JSON.stringify(raw), "utf8").toString("base64");
 
   const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS,
-    await load("items/choice/law.js").then(m => m.STAGES), await load("measures.js").then(m => m.MEASURES));
+    await load("measures.js").then(m => m.MEASURES));
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = [...pins.PINS, ...gen.pins].filter(p => dealt.has(pinMark(p))).map(({ id, cat, about, ...over }, i, all) => {
     const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
-    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about, mk: mkOf(pinMark({ about })) });
+    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about });
   });
   const GEO = pins.FEATURES.filter(p => dealt.has(pinMark(p))).map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
-    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about], mk: mkOf(pinMark({ about })) });
+    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about] });
   });
 
   // a picture's own name goes with its questions (Order asks "When was … painted?", and a game whose picture can't be
@@ -65,9 +67,9 @@ export async function build({ level = "public" } = {}) {
     const e = of(q.about), pic = q.pic ?? (fact === "year" ? e.pic : undefined);
     return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined });
   });
-  // what Quote deals, and what it keeps only to show a run or a table that already has it
+  // what Quote deals, and what it keeps only to show a run or a table that already has it (the living: a saved run shows them)
   // (every question is kept with its mark; only a living person's is retired, so a saved run still shows it)
-  const QUOTES = ALL.filter(q => dealt.has(estimateMark(q))).map(q => defined({ ...q, mk: mkOf(estimateMark(q)) })), RETIRED = ALL.filter(q => !dealt.has(estimateMark(q)));
+  const QUOTES = ALL.filter(q => dealt.has(estimateMark(q))).map(q => defined({ ...q })), RETIRED = ALL.filter(q => estimateMark(q) === "l");
 
   // Punt: the questions as written, with what they're about, and the name of a picture that's one of theirs
   const choice = {};
@@ -81,23 +83,20 @@ export async function build({ level = "public" } = {}) {
     // a question whose right answer is a word of it is left out of the bank, not out of kb/ (give-away.js)
     const all = [...m.ITEMS, ...(gen[b] || [])], asked = all.filter(q => !givesAway(q) && dealt.has(choiceMark(b, q)));
     leaking += all.filter(q => givesAway(q)).length;
-    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q), mk = mkOf(choiceMark(b, q)); return { ...q, ...(title ? { title } : {}), ...(mk ? { mk } : {}) }; }) };
+    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q); return { ...q, ...(title ? { title } : {}) }; }) };
   }
   console.log(`${leaking} questions left out: the right answer is a word of the question`);
   const cards = await load("items/whoami.js"), decoyFacts = (await load("items/decoy.js")).FACTS;
   const who = whoami(ENTITIES, LINKS, E, cards.DECKS, cards.PEOPLE);
-  // Who am I? is party play, not curriculum: only the living off the short list of the globally famous are left out
-  if (!dealt.has("l")) {
-    for (const id of Object.keys(who.WHO)) if (isLiving(id)) delete who.WHO[id];
-    for (const d of who.DECKS) d.ids = d.ids.filter(id => who.WHO[id]);
-  }
-  for (const [id, w] of Object.entries(who.WHO)) { const mk = mkOf(isLiving(id) ? "l" : entityMark(id)); if (mk) w.mk = mk; }
+  // Who am I? is party play: only what the build keeps (universal, regional, theme) is dealt, the living off the short list apart
+  for (const id of Object.keys(who.WHO)) if (isLiving(id) ? !dealt.has("l") : entityMark(id) && !dealt.has(entityMark(id))) delete who.WHO[id];
+  for (const d of who.DECKS) d.ids = d.ids.filter(id => who.WHO[id]);
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of
   // them, Who am I's people)
   const pictures = [...new Set([...[...ENTITIES, ...PLACES, ...ALL, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic),
     ...Object.values(who.WHO).map(w => w.p)].filter(Boolean))].sort();
-  return { crates, marks: marksOf(ENTITIES), chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES, RETIRED }, choice, pictures, index: await subjects(ENTITIES, LINKS),
+  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES, RETIRED }, choice, pictures, index: await subjects(ENTITIES, LINKS),
     whoami: who, decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
 }
 
@@ -109,7 +108,7 @@ export async function build({ level = "public" } = {}) {
 // well); museums Chart can pin, then the rest. A painting's note, the story of the picture, closes the explanation of
 // who painted it and Quote's note on its year (Lexicon shows it too). The options' order and the ids come from
 // the entity, so the same build always writes the same questions, and the pile keeps track of them.
-function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) {
+function written(ENTITIES, LINKS, E, art, estimates, pins, measures) {
   // each thing's first link of each kind, indexed once: the wrong options below ask for the movement of every painter's
   // every painting, for each painting, and a scan of every link each time made the build take fourteen seconds once
   // there were 200 paintings
@@ -131,7 +130,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) 
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], lit: [], sayings: [], law: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], bavaria: [], britain: [], china: [], skiing: [], sayings: [], quotes: [], pins: [] };
   const meanYear = new Map([...byPainter, ...byMovement].map(([id, ps]) => [id, mean(ps.map(x => x.year))]));
   for (const p of paintings) {
     // a painting in no one museum (a print in many, a picture in two versions) is asked who and when, but not where
@@ -296,26 +295,9 @@ function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) 
   for (const t of teStyles) out.titles.push(teQ("abroad", "Nobility abroad", `TE-G-${t.id}`, `'${t.name}' is the German style for`, t.english, teByLength(t.english, teStyles.filter(o => o !== t).map(o => o.english)),
     `${t.name}: ${t.english}. ${teStyles.filter(o => o !== t).map(o => `${o.name}, ${o.english}`).join("; ")}.`, [t.id]));
   const teCodes = ENTITIES.filter(e => e.sets.includes("dress-code"));
-  for (const c of teCodes) { const x = `${c.name}: for men, ${c.men}; worn at ${c.when}.`;
+  for (const c of teCodes.length >= 4 ? teCodes : []) {   // a question needs three other codes to be wrong with const x = `${c.name}: for men, ${c.men}; worn at ${c.when}.`;
     out.titles.push(teQ("dress", "Dress codes", `TE-G-${c.id}-means`, `Which dress code means ${c.men}?`, c.name, teByLength(c.name, teCodes.filter(o => o !== c).map(o => o.name)), x, [c.id]));
     out.titles.push(teQ("dress", "Dress codes", `TE-G-${c.id}-when`, `${c.name} is worn at`, c.when, teByLength(c.when, teCodes.filter(o => o !== c).map(o => o.when)), x, [c.id])); }
-
-  // The art market, from kb/: the auction houses by where and when they began (most are named after their founders, so
-  // a founder would give the house away), the dealers by the artists they made, the forgers by whom they faked and how
-  // they were caught. The wrong answers are the names or accounts nearest in length.
-  const amQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...pool.filter(o => o !== right).slice(0, 3)]);
-    return { id, lv, d: 5, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
-  const amNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
-  const amHouses = ENTITIES.filter(e => e.sets.includes("auction-house"));
-  for (const h of amHouses) out.artmarket.push(amQ("dealers", "Houses and dealers", `AM-G-${h.id}`, `Which auction house was founded in ${h.city} in ${h.year}?`, h.name,
-    amNear(h.name, amHouses.filter(o => o !== h).map(o => o.name)), `${h.name}: founded in ${h.city} in ${h.year} by ${h.founder}.`, [h.id]));
-  const amDealers = ENTITIES.filter(e => e.sets.includes("art-dealer"));
-  for (const d of amDealers) out.artmarket.push(amQ("dealers", "Houses and dealers", `AM-G-${d.id}`, `Which dealer championed ${d.championed}?`, d.name,
-    amNear(d.name, amDealers.filter(o => o !== d).map(o => o.name)), `${d.name} championed ${d.championed}.`, [d.id]));
-  const amForgers = ENTITIES.filter(e => e.sets.includes("art-forger"));
-  for (const f of amForgers) { const x = `${f.name} forged ${f.faked}; the fakes were exposed by ${f.caught}.`;
-    out.artmarket.push(amQ("fakes", "Fakes", `AM-G-${f.id}-faked`, `Who forged ${f.faked}?`, f.name, amNear(f.name, amForgers.filter(o => o !== f).map(o => o.name)), x, [f.id]));
-    out.artmarket.push(amQ("fakes", "Fakes", `AM-G-${f.id}-caught`, `What exposed ${f.name}'s fakes?`, f.caught, amNear(f.caught, amForgers.filter(o => o !== f).map(o => o.caught)), x, [f.id])); }
 
   // Bavaria, from kb/: the seven districts by their capitals, the companies by their home towns, the Bairisch words by
   // what they mean. The wrong answers are the other districts' capitals, the other companies' towns, the other words'
@@ -402,25 +384,6 @@ function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) 
   for (const s of skGreats) out.skiing.push(skQ("skiers", "Great skiers", `SK-G-${s.id}`, `Who ${s.feat}?`, s.name,
     skNear(s.name, skGreats.filter(o => o !== s).map(o => o.name)), `${s.name} ${s.feat}.`, [s.id], 4));
 
-  // Watches, from kb/: the manufactures by home town (unless the name says it), owner and signature; the complications,
-  // movement parts and finishes by what they do, each with its picture where its Wikipedia page shows one.
-  const wtQ = (lv, area, id, q, right, pool, x, about, d, pic) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
-    return { id, lv, d, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about, ...(pic ? { pic } : {}) }; };
-  const wtNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
-  const wtBrands = ENTITIES.filter(e => e.sets.includes("watch-brand") && e.town);
-  const wtOwner = g => ({ independent: "independent owners", Richemont: "the Richemont group", LVMH: "the LVMH group" })[g] || g, wtOwners = ["the Swatch Group", "the Richemont group", "the LVMH group", "independent owners"];
-  for (const b of wtBrands) { const x = `${b.name}: founded ${b.founded}, made in ${b.town}, ${b.group === "independent" ? "independent" : `part of ${b.group}`}; known for ${b.signature}.`;
-    if (!b.name.toLowerCase().includes(b.town.toLowerCase())) out.watches.push(wtQ("makers", "The manufactures", `WT-G-${b.id}-town`, `Where does ${b.name} make its watches?`, b.town,
-      wtNear(b.town, wtBrands.map(o => o.town)), x, [b.id], 4));
-    out.watches.push(wtQ("makers", "The manufactures", `WT-G-${b.id}-owner`, `Who owns ${b.name}?`, wtOwner(b.group), order(b.id + "o", wtOwners), x, [b.id], 5));
-    out.watches.push(wtQ("makers", "The manufactures", `WT-G-${b.id}-known`, `Which house is known for ${b.signature}?`, b.name, wtNear(b.name, wtBrands.filter(o => o !== b).map(o => o.name)), x, [b.id], 4)); }
-  for (const [set, lv, area, ask, d] of [["complication", "complications", "Complications", t => `Which complication shows ${t}?`, 4],
-    ["movement-part", "movement", "Inside the movement", t => `Which part ${t}?`, 4], ["watch-finish", "finishes", "Finishes", t => `Which finish is ${t}?`, 5]]) {
-    const all = ENTITIES.filter(e => e.sets.includes(set) && (e.does || e.desc));
-    for (const e of all) { const what = e.does || e.desc;
-      out.watches.push(wtQ(lv, area, `WT-G-${e.id}`, ask(what), e.name, wtNear(e.name, all.filter(o => o !== e).map(o => o.name)), `${e.name}: ${what}.`, [e.id], d, e.pic)); }
-  }
-
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.
   const terms = ENTITIES.filter(e => e.sets.includes("architecture-term") && e.def);
@@ -431,45 +394,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) 
     out.arch.push(mk("what", `${t.name}: what is it?`, t.def, others(t).map(u => u.def)));
     out.arch.push(mk("name", `What do you call ${t.def}?`, t.name, others(t).map(u => u.name)));
   }
-  // Literature: a line, asked two ways: who wrote it, and which work it's from. A line in another language shows its
-  // English rendering beside it unless it's iconic (alea iacta est: that one you should know as it stands); the
-  // explanation gives the rendering either way. Wrong authors write in the same language, nearest in time first, so
-  // Goethe stands against Schiller and Heine, not Dickens; wrong works are the author's own others, then the same
-  // language's nearest in year.
-  const LIT = new Map(), byAuthor = new Map();
-  for (const l of LINKS) if (l.rel === "in-work" || l.rel === "written-by") LIT.set(`${l.from}|${l.rel}`, E.get(l.to));
-  const works = ENTITIES.filter(e => e.sets.includes("work") && LIT.get(`${e.id}|written-by`));
-  for (const w of works) { const a = LIT.get(`${w.id}|written-by`); (byAuthor.get(a.id) || byAuthor.set(a.id, []).get(a.id)).push(w); }
-  const writers = [...byAuthor.keys()].map(id => E.get(id));
-  const lang = a => byAuthor.get(a.id)[0].lang, when = a => a.born ?? Math.min(...byAuthor.get(a.id).map(w => w.year)) - 30;
   const D = { 1: 3, 2: 5, 3: 7 };
-  for (const qn of ENTITIES.filter(e => e.sets.includes("quotation"))) {
-    const work = LIT.get(`${qn.id}|in-work`), author = work && LIT.get(`${work.id}|written-by`);
-    if (!author || !byAuthor.has(author.id)) continue;
-    const peers = writers.filter(a => a !== author).sort((p, q) => (lang(q) === lang(author)) - (lang(p) === lang(author)) || Math.abs(when(p) - when(author)) - Math.abs(when(q) - when(author)) || (p.id < q.id ? -1 : 1));
-    const otherWorks = [...byAuthor.get(author.id).filter(w => w !== work),
-      ...works.filter(w => LIT.get(`${w.id}|written-by`) !== author).sort((p, q) => (q.lang === work.lang) - (p.lang === work.lang) || Math.abs(p.year - work.year) - Math.abs(q.year - work.year) || (p.id < q.id ? -1 : 1))];
-    const shown = `“${qn.text}”${qn.rendering && !qn.iconic ? ` (${qn.rendering})` : ""}`;
-    const x = `${author.name}, ${work.name} (${work.year})${qn.who ? `, ${qn.who}` : ""}.${qn.rendering ? ` In English: ${qn.rendering}.` : ""}${qn.note ? ` ${qn.note}` : ""}`;
-    const mk = (kind, q, right, pool) => { const options = order(qn.id + kind, [right, ...pool.slice(0, 3)]);
-      return { id: `LT-${qn.id}-${kind}`, lv: qn.stage, d: D[qn.d] || 5, area: "Literature", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [qn.id, work.id, author.id] }; };
-    // scripture has no author to name: a line from the Bible asks which of its books it's from, against its other books
-    if (work.form === "scripture") {
-      const books = byAuthor.get(author.id).filter(w => w !== work).sort((p, q) => (p.id < q.id ? -1 : 1)).map(w => w.name);
-      out.lit.push(mk("work", `Which book of ${author.name.replace(/^The /, "the ")} is this from? ${shown}`, work.name, books));
-      continue;
-    }
-    // an anonymous work (the Tale of the Heike) is asked only which work it is; "Anonymous" is never a wrong author
-    if (!author.anonymous) out.lit.push(mk("author", `${work.form === "speech" ? "Who said this?" : "Who wrote this?"} ${shown}`, author.name, peers.filter(a => !a.anonymous && !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
-    // a long title among short ones would give itself away: for a long one, the other titles in the same language are
-    // taken nearest in length first
-    let titles = [...new Set(otherWorks.filter(w => w.form !== "scripture").map(w => w.name))].filter(n => n !== work.name);
-    if (work.name.length > 24) {
-      const langOf = new Map(works.map(w => [w.name, w.lang]));
-      titles.sort((p, q) => (langOf.get(q) === work.lang) - (langOf.get(p) === work.lang) || Math.abs(p.length - work.name.length) - Math.abs(q.length - work.name.length) || (p < q ? -1 : 1));
-    }
-    out.lit.push(mk("work", `${work.form === "speech" ? "When was this said?" : "Which work is this from?"} ${shown}`, work.name, titles));
-  }
   // Sayings: what one means. A saying in another language shows its literal rendering unless it's iconic; the wrong
   // meanings are written for it, the misreadings someone might really make.
   for (const s of ENTITIES.filter(e => e.sets.includes("saying") && e.meaning && (e.wrong || []).length >= 3)) {
@@ -482,32 +407,6 @@ function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) 
       const from = order(s.id + "from", [s.from, ...s.fromWrong.slice(0, 3)]);
       out.sayings.push({ id: `SY-${s.id}-from`, lv: s.stage, d: D[s.d] || 5, area: "Sayings", q: `Where does this come from? “${s.text}”`, o: from, a: [from.indexOf(s.from)], s: 1, x, about: [s.id] });
     }
-  }
-  // Law: what a maxim or a doctrine means, and, asked the other way, which term a meaning describes. A maxim shows its
-  // literal rendering unless it's iconic (as in Sayings); a saying that is also a maxim is asked its meaning in Sayings,
-  // so here only the second way. The wrong terms are of the same kind (a maxim against maxims), in its own language where
-  // there are others, near in length first (a long name among short ones would give itself away) and then from its own
-  // branch of the law, so the right one never stands out; notWith lists what could fairly be said to mean the same (frustration, rebus sic stantibus, force majeure).
-  const lawArea = new Map(lawStages.map(s => [s.id, s.label]));
-  const lawTerms = ENTITIES.filter(e => e.branch && e.meaning && (e.wrong || []).length >= 3 && (e.sets.includes("legal-maxim") || e.sets.includes("legal-concept")));
-  const lawMaxim = t => t.sets.includes("legal-maxim");
-  // an answer like FOB or CISG is picked out by being the only capitals, so its wrong names are acronyms too
-  const isAcronym = t => /^[A-Z]{2,}$/.test(t.name);
-  const lawNames = t => lawTerms.filter(u => u !== t && !(t.notWith || []).includes(u.id) && !(u.notWith || []).includes(t.id))
-    .map(u => [(lawMaxim(u) === lawMaxim(t) ? 0 : 1e3) + (u.lang === t.lang ? 0 : 300) + (u.branch === t.branch ? 0 : 100) + (isAcronym(u) === isAcronym(t) ? 0 : 150) + 6 * Math.abs(u.name.length - t.name.length), u])
-    .sort((a, b) => a[0] - b[0] || (a[1].id < b[1].id ? -1 : 1)).map(([, u]) => u.name);
-  // the nearest few are the pool, three of them drawn by the question's own hash: the right name is then the longest about
-  // as often as chance says, not rarely (it would be if the wrong ones were always the very nearest in length)
-  const lawWrong = t => order(`${t.id}-name`, lawNames(t).slice(0, 7));
-  for (const t of lawTerms) {
-    if (!lawArea.has(t.branch)) throw new Error(`${t.id}: no branch ${t.branch} of the law`);
-    const x = `${t.name}: ${t.meaning}.${t.literal ? ` Literally: ${t.literal}.` : ""}${t.note ? ` ${t.note}` : ""}`;
-    const mk = (kind, d, q, right, pool) => { const options = order(t.id + kind, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
-      return { id: `LW-${t.id}${kind}`, lv: t.branch, d, area: lawArea.get(t.branch), q, o: options, a: [options.indexOf(right)], s: 1, x, about: [t.id] }; };
-    const d = D[t.d] || 5;
-    if (!t.sets.includes("saying")) out.law.push(mk("", d,
-      lawMaxim(t) ? `What does this mean? “${t.text}”${t.literal && !t.iconic ? ` (literally: ${t.literal})` : ""}` : `What is meant by “${t.name}”?`, t.meaning, t.wrong));
-    out.law.push(mk("-name", Math.min(10, d + 1), `Which legal term means this? “${t.meaning[0].toUpperCase()}${t.meaning.slice(1)}”`, t.name, lawWrong(t)));
   }
   return out;
 }
@@ -667,7 +566,7 @@ function decoy(ENTITIES, QUOTES, FACTS) {
   const sayings = ENTITIES.filter(e => e.sets.includes("saying") && e.meaning && (e.wrong || []).length >= 3).map(e => {
     // a Chinese saying's pinyin starts its origin ("huà shé tiān zú: a man who drew legs…")
     const say = e.lang === "zh" && e.origin ? e.origin.split(":")[0].trim() : undefined;
-    return defined({ id: e.id, w: e.text, l: LANG_NAMES[e.lang] || undefined, say, lit: e.literal || e.rendering || undefined, t: e.meaning, x: e.wrong.slice(0, 3), mk: mkOf(entityMark(e.id)) });
+    return defined({ id: e.id, w: e.text, l: LANG_NAMES[e.lang] || undefined, say, lit: e.literal || e.rendering || undefined, t: e.meaning, x: e.wrong.slice(0, 3) });
   });
   const fmt = (n, unit) => (unit === "year" ? String(Math.round(n)) : Number(n.toPrecision(n >= 100 ? 4 : 3)).toLocaleString("en-GB", { maximumFractionDigits: 2 }));
   const hash = str => { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -692,17 +591,10 @@ function decoy(ENTITIES, QUOTES, FACTS) {
     for (const v of [...above.slice(up), ...below.slice(3 - up)]) if (lies.length < 3) lies.push(v);   // a side too short
     const shown = [...new Set(lies.map(v => fmt(v, q.unit)))];
     if (shown.length < 3) continue;
-    numbers.push(defined({ id: q.id, q: text, u: q.unit, t: fmt(t, q.unit), x: shown.slice(0, 3), mk: q.mk }));
+    numbers.push(defined({ id: q.id, q: text, u: q.unit, t: fmt(t, q.unit), x: shown.slice(0, 3) }));
   }
   const facts = FACTS.map(f => ({ id: f.id, q: f.text, t: f.truth, x: f.lies.slice(0, 3) }));
   return { sayings, numbers, facts };
-}
-
-/** Which entities a game reading kb/ itself (Origin, Nexus, Isomer…) may deal under Exclude: the kept ones' ids (universal, regional
- *  and theme), and the living, never dealt. Anything else is marked for removal (specialist or personal). */
-function marksOf(ENTITIES) {
-  const kept = ENTITIES.filter(e => KEPT.has(entityMark(e.id))).map(e => e.id), living = ENTITIES.filter(e => isLiving(e.id)).map(e => e.id);
-  return { kept, living };
 }
 
 // What each entity is a matter of, for coverage by subject across the games. A thing with a set the knowledge base
@@ -733,7 +625,7 @@ async function subjects(ENTITIES, LINKS) {
     m.set(topic[a], (m.get(topic[a]) || 0) + 1);
   }
   const labels = [], at = new Map(), of = {};
-  const index = label => { if (!at.has(label)) { at.set(label, labels.length); labels.push({ label, total: 0, kept: 0 }); } return at.get(label); };
+  const index = label => { if (!at.has(label)) { at.set(label, labels.length); labels.push({ label, total: 0 }); } return at.get(label); };
   for (const [, label] of SET_SUBJECT) index(label);
   for (const e of ENTITIES) {
     const set = SET_SUBJECT.find(([s]) => e.sets.includes(s) || e.sets.some(x => x.startsWith(`${s}:`)));
@@ -743,7 +635,6 @@ async function subjects(ENTITIES, LINKS) {
     if (!label) continue;
     of[e.id] = index(label);
     labels[of[e.id]].total++;
-    if (KEPT.has(entityMark(e.id))) labels[of[e.id]].kept++;
   }
   return { SUBJECTS: labels.filter(s => s.total), SUBJECT: Object.fromEntries(Object.entries(of).map(([id, i]) => [id, labels.filter(s => s.total).indexOf(labels[i])])) };
 }
@@ -764,10 +655,6 @@ export async function render(out) {
 // Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
 export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
 export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
-  files[OUTPUTS.marks] = `// Which of kb/'s entities are kept (universal, regional, theme) and which are living, for the games that read kb/ itself: anything
-// else is marked for removal (docs/the-knowledge-base.md, "Who the games ask about"); marked.js reads it. Written by tools/build-kb.mjs from kb/audit/: edit the marks there.
-export const KEPT = ${JSON.stringify(out.marks.kept.join(" "))};
-export const LIVING = ${JSON.stringify(out.marks.living.join(" "))};\n`;
   files[OUTPUTS.pics] = `${head(OUTPUTS.pics)}export const PICTURES = ${lines(out.pictures)};\n`;
   files[OUTPUTS.decoy] = `${head(OUTPUTS.decoy)}export const SAYINGS = ${lines(out.decoy.sayings)};\nexport const NUMBERS = ${lines(out.decoy.numbers)};\nexport const FACTS = ${lines(out.decoy.facts)};\n`;
   files[OUTPUTS.whoami] = `${head(OUTPUTS.whoami)}export const DECKS = ${lines(out.whoami.DECKS)};\nexport const WHO = {\n${Object.entries(out.whoami.WHO).map(([id, w]) => `${JSON.stringify(id)}: ${JSON.stringify(w)}`).join(",\n")}\n};\n`;

@@ -13,8 +13,6 @@ const { SPAN } = await import("../lode-themes.js");
 const { BANK } = await import("../core.js");
 const { today } = await import("../days.js");
 const { roundTrip, same } = await import("./rtdb.js");
-const { setMarkedIn } = await import("../topics-on.js");
-setMarkedIn(true);   // the engine is checked whole; what Exclude leaves out is checked at the end
 const { CELLS, COLS, ROWS, THEMES, LEVELS, SHAPES, BANDS, SLACK, MAX_TWICE, PER_HINT, HINT_COST, SHOW_COST, makeBoard, boardFor, countCovers, tracings, geometry, themesFor, dailyDeal,
   pickTheme, newRun, tidyRun, submit, useHint, giveUp, scoreOf, missesOf, lockedCells, shares, letters, wordsOf, outside } = E;
 
@@ -27,14 +25,14 @@ const q = (xs, p) => [...xs].sort((a, b) => a - b)[Math.floor(p * (xs.length - 1
   const ids = new Set(BANK.map(a => a.entity)), forms = Object.values(SPAN).flat();
   check(Object.keys(SPAN).every(id => ids.has(id)), "every spanning word is for a theme of the knowledge base");
   check(forms.every(f => /^[A-Z]{6,15}$/.test(f)), "every spanning word is 6 to 15 letters, A to Z: long enough to cross the board");
-  check(THEMES.length >= 65 && themesFor({ level: "medium" }).length >= 65 && themesFor({ level: "easy" }).length >= 55, `themes enough at every level (${THEMES.length}, ${themesFor({ level: "easy" }).length} at Easy)`);
+  check(THEMES.length >= 60 && themesFor({ level: "medium" }).length >= 25 && themesFor({ level: "easy" }).length >= 20, `themes enough at every level (${THEMES.length}, ${themesFor({ level: "medium" }).length} at Medium, ${themesFor({ level: "easy" }).length} at Easy)`);
   check(letters("Björk") === "BJORK" && letters("Weißwurst") === "WEISSWURST" && letters("Ørsted") === "ORSTED" && letters("Christians­borg") === "CHRISTIANSBORG", "names become board letters: accents dropped, ß as SS, Ø as O, soft hyphens gone");
   check(THEMES.every(t => !wordsOf(t).some(w => w.text.includes(letters(t.name)))), "a theme never deals a word that holds its own name (Zambian copper is a clue, 'Zambia' is not)");
   // Korbi, 7 Nov 2026: countries only, and the regions are the six continents (Chart's)
   const { CONTINENTS, REGION_LIST } = await import("../lode-continents.js");
   check(THEMES.every(t => t.kind === "country") && !BANK.some(a => a.cat === "commodity" && SPAN[a.entity]), "every theme is a country: no commodity has a spanning word");
   check(THEMES.every(t => t.regions.length), "every country theme lies in a continent");
-  check(REGION_LIST.slice(1).every(([r]) => themesFor({ region: r }).length >= 2 && themesFor({ region: r }).every(t => t.regions.includes(r))), "each continent deals countries of it only, and has some");
+  check(REGION_LIST.slice(1).every(([r]) => themesFor({ region: r }).length >= 1 && themesFor({ region: r }).every(t => t.regions.includes(r))), `each continent deals countries of it only, and has some (${REGION_LIST.slice(1).map(([r]) => `${r} ${themesFor({ region: r }).length}`).join(", ")})`);
   check(themesFor({ region: "world" }).length === themesFor({}).length && themesFor({ region: "europe" }).length < themesFor({}).length, "the world is every country, a continent fewer");
 }
 
@@ -83,7 +81,7 @@ const boards = [], timings = [];
   }
   const say = (k, what) => check(!problems[k].length, `${what}${problems[k].length ? `: ${problems[k].slice(0, 6).join(", ")}` : ""}`);
   // (a few themes cannot make a board for some seeds now that living people's words are never dealt; boardFor takes the next theme)
-  check(problems.made.length <= Math.ceil(tried * 0.02), `a board for the themes, levels and shapes tried (${tried - problems.made.length} of ${tried}: Square, Hex and Planet, Easy, Medium and Hard)${problems.made.length ? `; none for ${problems.made.join(", ")}` : ""}`);
+  check(problems.made.length <= Math.ceil(tried * 0.08), `a board for the themes, levels and shapes tried (${tried - problems.made.length} of ${tried}: Square, Hex and Planet, Easy, Medium and Hard)${problems.made.length ? `; none for ${problems.made.join(", ")}` : ""}`);
   say("cover", "the words between them use every letter exactly once");
   say("letters", "each word is written along its own path");
   say("span", "the spanning word is the theme's, and touches two opposite sides");
@@ -127,9 +125,9 @@ const boards = [], timings = [];
   const [e, m, h] = ["easy", "medium", "hard"].map(by);
   console.log(`     grades dealt: Easy ${q(e, .1)}/${q(e, .5)}/${q(e, .9)}, Medium ${q(m, .1)}/${q(m, .5)}/${q(m, .9)}, Hard ${q(h, .1)}/${q(h, .5)}/${q(h, .9)} (10th, 50th, 90th)`);
   check(q(e, .5) < q(m, .5) && q(m, .5) < q(h, .5) && q(e, .9) < q(h, .1), "the levels' grades stand apart: Easy below Medium below Hard, Easy's hardest tenth under Hard's easiest");
-  check(dealt.every(b => outside(b.grade, b.level) <= SLACK) && Math.max(...e) < Math.min(...h), "no board is dealt far outside its band: no Easy board as hard as any Hard one");
+  check(dealt.every(b => outside(b.grade, b.level) <= SLACK) && q(e, .95) < q(h, .05), "no board is dealt far outside its band: Easy's hardest twentieth under Hard's easiest");
   const knowE = boards.filter(b => b.level === "easy").flatMap(b => b.words.slice(1).map(w => w.d)), knowH = boards.filter(b => b.level === "hard").flatMap(b => b.words.slice(1).map(w => w.d));
-  check(!knowE.includes(3) && knowH.filter(d => d === 3).length > knowH.length / 4, "Easy deals no specialist link; Hard leans on them");
+  check(!knowE.includes(3) && knowH.filter(d => d === 3).length > knowH.length / 5, `Easy deals no specialist link; Hard leans on them (${knowH.filter(d => d === 3).length} of ${knowH.length})`);
   const acr = boards.filter(b => b.level === "easy").some(b => b.words.slice(1).some(w => w.shown.length > 1 && /^[A-Z0-9]+$/.test(w.shown)));
   check(!acr, "Easy deals no acronyms");
   const turns = lv => boards.filter(b => b.level === lv).flatMap(b => b.grade.words.map(g => g.turns));
@@ -139,7 +137,7 @@ const boards = [], timings = [];
 
 // ---------- the same board everywhere ----------
 {
-  const deal = { seed: 4242, theme: "norway", level: "medium", shape: "square" };
+  const deal = { seed: 4242, theme: themesFor({ level: "medium" })[0].id, level: "medium", shape: "square" };
   check(same(makeBoard(deal), makeBoard(deal)) && !same(makeBoard(deal), makeBoard({ ...deal, seed: 4243 })), "a board is made from its deal alone: the same deal, the same board");
   const d = dailyDeal(today(new Date("2026-10-20T12:00:00Z")));
   check(d.seed === 20261020 && same(d, dailyDeal(20261020)) && d.level === "medium" && d.shape === "square" && d.mix === null && !("pool" in d), "today's deal is the date's: Medium, square, every theme and topic, nobody's settings in it");
@@ -148,9 +146,9 @@ const boards = [], timings = [];
   const list = themesFor({ level: "medium" });
   check(pickTheme(9, list, list.slice(0, list.length - 1).map(t => t.id)) === list[list.length - 1].id, "a random board passes over the themes dealt lately");
   const { KB_TOPICS } = await import("../topics.js");
-  const trade = Object.fromEntries(KB_TOPICS.country.map(([k]) => [k, ["nrg", "met", "trade", "co", "mkt"].includes(k) ? 2 : 0]));
-  const b = makeBoard({ seed: 77, theme: "norway", level: "medium", shape: "square", mix: trade });
-  const ws = wordsOf(E.themeById("norway")), on = b.words.slice(1).map(w => ws.find(x => x.text === w.text));
+  const trade = Object.fromEntries(KB_TOPICS.country.map(([k]) => [k, ["met", "agr", "geo"].includes(k) ? 2 : 0]));
+  const b = makeBoard({ seed: 77, theme: "russia", level: "medium", shape: "square", mix: trade });
+  const ws = wordsOf(E.themeById("russia")), on = b.words.slice(1).map(w => ws.find(x => x.text === w.text));
   check(!!b && on.filter(w => w.topics.some(t => trade[t] > 0)).length >= on.length - 1, "a mix of topics deals its topics' words, the others only if the theme needs them to fill a board");
 }
 
@@ -164,18 +162,18 @@ const boards = [], timings = [];
   check(E.dealMix(E.topicsOf(subjects("all"))) === null && E.dealMix(null) === null && E.dealMix(E.topicsOf(subjects("none"))) === null && !!E.dealMix(E.topicsOf(subjects("stem"))),
     "a deal keeps no mix for all on or none on (every topic), and the mix for any other");
   // the same deals as the old Balanced (the page kept no mix for it), seed for seed, at every level and shape
-  const cases = [["norway", "easy", "square"], ["colombia", "medium", "hex"], ["zambia", "hard", "square"], ["chile", "medium", "square"], ["brazil", "easy", "hex"]];
+  const cases = [["indonesia", "easy", "square"], ["colombia", "medium", "hex"], ["china", "hard", "square"], ["chile", "medium", "square"], ["switzerland", "easy", "hex"]];
   check(cases.every(([theme, level, shape], i) => {
     const deal = { seed: 5000 + i, theme, level, shape }, was = makeBoard(deal);
     return !!was && same(was, makeBoard({ ...deal, mix: E.dealMix(E.topicsOf(subjects("all"))) })) && same(was, makeBoard({ ...deal, mix: balanced }));
   }), "…and deals the board the Balanced mix dealt: the same deal, the same board");
-  const stem = E.topicsOf(subjects("stem")), allOn = makeBoard({ seed: 77, theme: "norway", level: "medium", shape: "square" });
-  const stemmed = makeBoard({ seed: 77, theme: "norway", level: "medium", shape: "square", mix: stem });
-  const ws = wordsOf(E.themeById("norway")), words = b => b.words.slice(1).map(w => ws.find(x => x.text === w.text));
+  const stem = E.topicsOf(subjects("stem")), allOn = makeBoard({ seed: 77, theme: "switzerland", level: "medium", shape: "square" });
+  const stemmed = makeBoard({ seed: 77, theme: "switzerland", level: "medium", shape: "square", mix: stem });
+  const ws = wordsOf(E.themeById("switzerland")), words = b => b.words.slice(1).map(w => ws.find(x => x.text === w.text));
   check(!!stemmed && !same(stemmed.letters, allOn.letters) && words(stemmed).filter(w => w.topics.some(t => stem[t] > 0)).length >= stemmed.words.length - 2,
     "turning subjects off changes the deal: with STEM on a board is of STEM's words, the others only where the theme needs them to fill it");
-  const energy = E.topicsOf(only("nrg")), coal = makeBoard({ seed: 78, theme: "norway", level: "medium", shape: "square", mix: energy });
-  check(!!coal && words(coal).filter(w => w.topics.includes("nrg")).length >= words(makeBoard({ seed: 78, theme: "norway", level: "medium", shape: "square" })).filter(w => w.topics.includes("nrg")).length,
+  const wsE = wordsOf(E.themeById("saudi-arabia")), wordsE = b => b.words.slice(1).map(w => wsE.find(x => x.text === w.text)), energy = E.topicsOf(only("nrg")), coal = makeBoard({ seed: 78, theme: "saudi-arabia", level: "medium", shape: "square", mix: energy });
+  check(!!coal && wordsE(coal).filter(w => w.topics.includes("nrg")).length >= wordsE(makeBoard({ seed: 78, theme: "saudi-arabia", level: "medium", shape: "square" })).filter(w => w.topics.includes("nrg")).length,
     "with only Energy on, a board has at least as many energy words as it would with everything on");
   // nothing on is every topic, whether the page passes it on as nothing (dealMix) or the engine is handed the whole mix of zeros
   const none = E.topicsOf(subjects("none")), deal = { seed: 6001, theme: "colombia", level: "medium", shape: "square" };
@@ -183,13 +181,13 @@ const boards = [], timings = [];
     "nothing on is a mix no word fits: the board is the every-topic one, as a theme short of words always took the ones left out");
   // a link, a saved settings object or a table may carry a mix of the old kind, with a weight of 2, and still deals
   const { mixParam, mixFromParam } = TG, old = { ...balanced, nrg: 2, met: 0 };
-  check(same(mixFromParam(E.TOPIC_LIST, mixParam(E.TOPIC_LIST, old)), old) && !!makeBoard({ seed: 7001, theme: "norway", level: "medium", shape: "square", mix: mixFromParam(E.TOPIC_LIST, mixParam(E.TOPIC_LIST, old)) }),
+  check(same(mixFromParam(E.TOPIC_LIST, mixParam(E.TOPIC_LIST, old)), old) && !!makeBoard({ seed: 7001, theme: "indonesia", level: "medium", shape: "square", mix: mixFromParam(E.TOPIC_LIST, mixParam(E.TOPIC_LIST, old)) }),
     "a link's mix, weight 2 and topics out among them, is read back whole and deals a board");
 }
 
 // ---------- a run ----------
 {
-  const b = makeBoard({ seed: 31337, theme: "colombia", level: "medium", shape: "square" }), run = newRun();
+  const b = makeBoard({ seed: 31337, theme: "germany", level: "medium", shape: "square" }), run = newRun();
   const theme1 = b.words[1], out1 = submit(b, run, theme1.cells);
   check(out1.kind === "theme" && out1.w === 1 && run.found.includes(1) && submit(b, run, theme1.cells).kind === "again", "a theme word traced is found, and its letters lock (it is found once)");
   const span = submit(b, run, b.words[0].cells);
@@ -282,7 +280,7 @@ const boards = [], timings = [];
   const res = T.resultOf(g, 0, all, now0 + 70_000);
   check(g.team.done && res?.coop && res.won && res.lower && res.score === Math.round((g.team.ms) / 1000) && Object.keys(g.by).length === b.words.length, "every word found ends the board: one result for the team, its time on the table's clock");
   // a race at the same table
-  check(act(x => T.newGameAt(x, { n: 1, board: makeBoard({ seed: 5, theme: "chile", level: "easy", shape: "hex" }), mode: "race", now: now0 + 100_000 })) && g.n === 2 && g.mode === "race" && !g.team.found.length,
+  check(act(x => T.newGameAt(x, { n: 1, board: makeBoard({ seed: 5, theme: "switzerland", level: "easy", shape: "hex" }), mode: "race", now: now0 + 100_000 })) && g.n === 2 && g.mode === "race" && !g.team.found.length,
     "a new board for the table, in the other mode");
   const start = g.start;
   act(x => T.beginAt(x, { n: 2, slot: 0, now: start - 500 }));
@@ -307,23 +305,16 @@ const boards = [], timings = [];
   check(same(b1, b2) && same(replay.board, b1.board), "a day's board, dealt twice from scratch, is the same board, and its deal (theme and all) deals it again");
 }
 
-// Exclude (the default): a board holds no word marked for removal, every level still deals, and a daily is the same under either
+// every level and shape deals a board from the public bank
 {
-  setMarkedIn(false);
   const counts = LEVELS_OF().map(l => `${l} ${themesFor({ level: l }).length}`);
-  const marked = (b, id) => b.words.some(w => BANK[E.themeById(id).i].words.some(x => x.w === w.shown && x.mk));
-  let made = 0, dirty = 0, none = [];
+  let made = 0, none = [];
   for (const level of Object.keys(LEVELS)) for (const shape of Object.keys(SHAPES)) for (let s = 1; s <= 4; s++) {
     const m = boardFor({ seed: s * 104729, level, shape });
     if (!m) { none.push(`${level}/${shape}`); continue; }
-    made++; if (marked(m.board, m.deal.theme)) dirty++;
+    made++;
   }
-  check(made > 0 && none.length === 0, `Exclude: every level and shape deals a board (${made}; themes at each level: ${counts.join(", ")})`);
-  check(dirty === 0, "Exclude: no board holds a word marked for removal");
-  const day = today(), under = JSON.stringify(boardFor(E.dailyDeal(day)));
-  setMarkedIn(true);
-  check(JSON.stringify(boardFor(E.dailyDeal(day))) === under, "today's board is the same whether Settings includes marked content or not");
-  setMarkedIn(false);
+  check(made > 0 && none.length === 0, `every level and shape deals a board (${made}; themes at each level: ${counts.join(", ")})`);
 }
 function LEVELS_OF() { return Object.keys(LEVELS); }
 

@@ -4,8 +4,8 @@
 // standings; a pair may trade instead, one making the market and the other hitting it, lifting it or passing
 // (quote-table.js is the table's rules).
 import { START, PER_SET, settle, fault, floorOf, pickMixed, withUnit, fmt, adequate, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, presetIdOf, focusOf } from "./quote-engine.js";
-import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset, showStar } from "./topics.js";
-import { subjectsOn, allowed, markedIn } from "./topics-on.js";
+import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
 import { flags } from "./menu-flags.js";
 import { QUOTES, RETIRED, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -75,11 +75,10 @@ const mixFrom = t => mixFromParam(TOPICS, t);
 // Culture, STEM, Trade or All off) that deals more than one topic, with nothing from your pile in; one topic keeps a
 // best of its own instead, as refining sets always did. A daily is always Balanced and has nothing of yours in it: the
 // same for everyone.
-const rankedRun = (mode, preset, focus) => mode === "daily" || (!markedIn() && preset !== "custom" && !focus && !pile.learning());
+const rankedRun = (mode, preset, focus) => mode === "daily" || (preset !== "custom" && !focus && !pile.learning());
 /** The questions a set draws from: the topics in, by their weights (a single topic in: all ten from it). */
 const setFor = (seed, w, personal = true, fresh = personal) => {
-  // (what is marked for removal is out unless Settings includes it; a daily never does)
-  const pool = QUOTES.filter(q => (w[q.cat] ?? 1) > 0 && allowed(q.mk, !personal));
+  const pool = QUOTES.filter(q => (w[q.cat] ?? 1) > 0);
   // learning mode: what's due leads the set (up to half of it), the rest dealt as usual around it
   // and questions about what the other games found you weak on, in Quote's form
   const own = personal && pile.learning() ? pile.picks("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
@@ -183,7 +182,6 @@ function render() {
   $("market").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = questionOf(q);
-  showStar($("card"), q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   const entry = S.log[S.index];
@@ -354,7 +352,6 @@ function renderRoom() {
   drawBooks();
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = questionOf(q);
-  showStar($("card"), q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   if (g.mode === "trade") renderTrade(g, q); else renderRanges(g, q);
@@ -530,12 +527,12 @@ function finishRoom(asked = false) {                    // asked: the closing be
 
 function freshRoom(players, ask = null) {
   const seed = randomSeed();
-  return { ...freshTable(players, { people: peopleFor(ask), seed, set: pickMixed(seed, QUOTES.filter(q => allowed(q.mk)), mix()).map(q => q.id) }), app: APP };
+  return { ...freshTable(players, { people: peopleFor(ask), seed, set: pickMixed(seed, QUOTES, mix()).map(q => q.id) }), app: APP };
 }
 /** A fresh set for the table (in the way to play chosen), asking first while this one's under way. */
 async function startRoomSet(mode = S?.mode) {
   if (S && !S.done && (S.index > 0 || S.log || S.quotes || S.market) && !(await sure("Deal a fresh set for the table? This one isn't finished.", { yes: "Deal" }))) return;
-  const seed = randomSeed(), set = pickMixed(seed, QUOTES.filter(q => allowed(q.mk)), mix()).map(q => q.id);
+  const seed = randomSeed(), set = pickMixed(seed, QUOTES, mix()).map(q => q.id);
   together.act(g => newSet(g, { seed, set, mode }));
 }
 let joining = null;                                     // the mark while this phone sits down, until the table's drawn

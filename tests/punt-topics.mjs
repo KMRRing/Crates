@@ -27,7 +27,7 @@ const subjects = k => T.cleanSubjects(T.SUBJECT_PRESETS[k].topics);
 const allOn = T.cleanSubjects(null);
 
 // the old Balanced preset, written out as it was: every topic in twice, except the four specialist banks, in once
-const OLD_BALANCED = Object.fromEntries(P.TOPIC_LIST.map(([id]) => [id, ["watches", "skiing", "artmarket", "titles"].includes(id) ? 1 : 2]));
+const OLD_BALANCED = Object.fromEntries(P.TOPIC_LIST.map(([id]) => [id, ["skiing", "titles"].includes(id) ? 1 : 2]));
 check(same(P.topicsOf(allOn), OLD_BALANCED), "every subject on: each topic at its old Balanced weight (the four niche banks once, the rest twice)");
 check(same(P.topicsOf(null), OLD_BALANCED) && same(P.topicsOf(undefined), OLD_BALANCED), "nothing kept is every subject on");
 check(same(P.TOPIC_PRESETS.balanced.topics, OLD_BALANCED), "Balanced is still there, for the one that reads it");
@@ -47,10 +47,10 @@ check(["maths", "physics", "chemistry", "code", "refining", "reasoning", "patter
 const stemRun = dealt(stem, 31, 100);
 check(stemRun.length === 100 && stemRun.every(q => stemIds.includes(q.src)) && new Set(stemRun.map(q => q.src)).size === stemIds.length, "a STEM run deals only those topics, and every one of them");
 const culture = P.topicsOf(subjects("culture"));
-check(culture.art === 2 && culture.wine === 2 && culture.skiing === 1 && culture.watches === 1 && culture.maths === 0 && culture.physics === 0 && culture.commodities === 0,
-  "Culture on: art, wine, the specialist banks at their own weight (skiing, watches once); no maths, physics or commodities");
+check(culture.art === 2 && culture.wine === 2 && culture.skiing === 1 && culture.maths === 0 && culture.physics === 0 && culture.commodities === 0,
+  "Culture on: art, wine, the specialist banks at their own weight (skiing once); no maths, physics or commodities");
 const noArt = P.topicsOf({ ...allOn, art: 0 });
-check(noArt.art === 0 && noArt.architecture === 0 && noArt.artmarket === 0 && noArt.maths === 2 && noArt.wine === 2, "one subject off takes out its banks only (art: Art, Architecture, Art market)");
+check(noArt.art === 0 && noArt.architecture === 0 && noArt.maths === 2 && noArt.wine === 2, "one subject off takes out its banks only (art: Art, Architecture)");
 const ids = Object.keys(T.TOPIC_OF.punt);
 check(ids.length === P.TOPIC_LIST.length && P.TOPIC_LIST.every(([id]) => mapped(T.TOPIC_OF.punt, id)), "every topic of Punt belongs to a subject");
 

@@ -14,7 +14,7 @@ const { ESTIMATES } = await import("../kb/items/estimates.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const E = new Map(ENTITIES.map(e => [e.id, e]));
-const CHOICE = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings", "law"];
+const CHOICE = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "sayings"];
 
 // the banks as the personal build writes them (everything kb/ holds): the checks of what kb/ knows read these, since the
 // published banks hold only the universal part (docs/the-knowledge-base.md, "Who the games ask about")
@@ -46,7 +46,8 @@ check([...PINS, ...FEATURES].every(p => { const e = E.get(p.about); return Numbe
   "every pin is on a place with a position, every feature has its shape");
 const paintings = ENTITIES.filter(e => e.sets.includes("painting"));
 check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted-by") && Number.isFinite(p.year) && p.pic), `${paintings.length} paintings, each with its painter, year and picture`);
-// the questions the knowledge base writes: every painting is asked in Punt (who, where, movement) and Quote (its year),
+// the questions the knowledge base writes: every painting is asked in Punt (who, where, movement) and Quote (its year, unless a
+// specialist audience's: the public build leaves that one out),
 // by hand or by the build (where it hangs, when it hangs anywhere); every museum Chart can place has its pin
 {
   const ART = full.choice.art.MATHS, QUOTES = [...full.quote.QUOTES, ...full.quote.RETIRED], PLACES = full.chart.PLACES;
@@ -55,7 +56,8 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
   const pinned = new Set(PLACES.map(p => p.about));
   // a painting with no museum (a private collection, stolen, in many versions) has no "where" to ask
   const hangs = new Set(LINKS.filter(l => l.rel === "hangs-in").map(l => l.from));
-  const all = paintings.every(p => ["who", "when", ...(hangs.has(p.id) ? ["where"] : [])].every(lv => asked.has(`${p.id}:${lv}`)) && dated.has(p.id));
+  const { AUDIENCE } = await import("../kb/items/estimates.js");
+  const all = paintings.every(p => ["who", "when", ...(hangs.has(p.id) ? ["where"] : [])].every(lv => asked.has(`${p.id}:${lv}`)) && (dated.has(p.id) || (AUDIENCE[p.id] ?? 1) === 3));
   const gen = ART.filter(q => q.id.startsWith("AR-G-"));
   const fair = gen.every(q => q.o.length === 4 && new Set(q.o).size === 4 && q.a.length === 1 && q.o[q.a[0]] !== undefined);
   check(all && fair && ENTITIES.filter(e => e.sets.includes("museum") && e.lat !== undefined).every(m => pinned.has(m.id)),
@@ -75,70 +77,47 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
   const asked = new Map([...ESTIMATES.filter(q => q.about && q.fact).map(q => [`${q.about}:${q.fact}`, byId.get(q.id)]),
     ...carried.filter(({ m, e }) => byId.has(`mq-${m.key}-${e.id}`)).map(({ m, e }) => [`${e.id}:${m.key}`, byId.get(`mq-${m.key}-${e.id}`)])]);
   check(carried.every(({ m, e }) => Number.isFinite(e[m.key]) && e[m.key] > 0), `${carried.length} figures, each a positive number`);
-  const unasked = carried.filter(({ m, e }) => !asked.has(`${e.id}:${m.key}`));
+  const { AUDIENCE } = await import("../kb/items/estimates.js");
+  const unasked = carried.filter(({ m, e }) => !asked.has(`${e.id}:${m.key}`) && (AUDIENCE[e.id] ?? 1) !== 3);
   check(!unasked.length, `every figure is a question in Quote${unasked.length ? `: not ${unasked.slice(0, 4).map(({ e, m }) => `${e.id}.${m.key}`)}` : ""}`);
   const wrong = carried.filter(({ m, e }) => { const q = asked.get(`${e.id}:${m.key}`); return q && (q.truth !== e[m.key] || q.unit !== m.unit); });
   check(!wrong.length, `a question's truth is the thing's figure, in the measure's unit${wrong.length ? `: ${wrong.slice(0, 3).map(({ e, m }) => `${e.id}.${m.key}`)}` : ""}`);
   check(MEASURES.every(m => m.unit === "year" || m.unit in UNITS || m.unit === "million"), "every measure's unit is one Order can line up (kb/units.js)");
   const built = QUOTES.filter(q => q.id.startsWith("mq-"));
   const leaks = built.filter(q => q.q.replace(/,/g, "").includes(String(q.truth)) && q.truth > 99);
-  check(built.length >= 500 && new Set(built.map(q => q.id)).size === built.length && !leaks.length, `${built.length} questions written from figures, each once, none naming its own answer`);
+  check(built.length >= 400 && new Set(built.map(q => q.id)).size === built.length && !leaks.length, `${built.length} questions written from figures, each once, none naming its own answer`);
   const count = (set, key) => ENTITIES.filter(e => e.sets.includes(set) && e[key] !== undefined).length;
   check(count("country", "area") === ENTITIES.filter(e => e.sets.includes("country")).length && count("country", "population") >= 160 && count("feature:river", "length") >= 55 && count("feature:lake", "area") >= 28 && count("feature:desert", "area") >= 20 && count("feature:range", "top") >= 25,
     `every country has its area; ${count("country", "population")} their population, ${count("feature:river", "length")} rivers their length, ${count("feature:lake", "area")} lakes their area, ${count("feature:desert", "area")} deserts, ${count("feature:range", "top")} ranges their highest summit`);
 }
-// who the games may ask (3 November 2026, Korbi: "less specific, more key"; docs/the-knowledge-base.md, "Who the games ask
-// about"): every entity has a mark (u universal, r regional, s specialist, p personal, l living), every estimate its review
-// audience (1, 2, 3 = u, r, s), and the published banks deal only the universal; what isn't dealt stays in kb/ and the
-// personal build (node tools/build-kb.mjs --personal) holds it all
+// who the games may ask (9 November 2026, Korbi: Crates is the public version; everything specialist or personal went to
+// Offcrate; docs/the-knowledge-base.md, "Who the games ask about"): kb/ holds only the universal (u), regional (r) and theme (t),
+// every entity has its mark, and every bank is what kb/ gives, with nothing left over from the living or the marked
 {
   const { AUDIENCE } = await import("../kb/items/estimates.js");
   const { QUOTES, RETIRED } = await import("../quote-bank.js");
   const { PLACES } = await import("../chart-bank.js");
   const { GEO } = await import("../chart-geo.js");
   const { WHO } = await import("../party-whoami-bank.js");
-  const unmarked = ENTITIES.filter(e => !["u", "r", "t", "s", "p", "l"].includes(ENTITY[e.id]));
-  check(!unmarked.length, `all ${ENTITIES.length} entities have their mark (kb/audit/marks.js)${unmarked.length ? `: not ${unmarked.slice(0, 5).map(e => e.id)}; node tools/audit-marks.mjs adds new ones` : ""}`);
+  const unmarked = ENTITIES.filter(e => !["u", "r", "t"].includes(ENTITY[e.id]));
+  check(!unmarked.length, `all ${ENTITIES.length} entities are universal, regional or theme (kb/audit/marks.js)${unmarked.length ? `: not ${unmarked.slice(0, 5).map(e => e.id)}; what is specialist, personal or living belongs in Offcrate` : ""}`);
   check(Object.keys(ENTITY).every(id => E.has(id)), "no mark for an entity that doesn't exist");
   const badEst = ESTIMATES.filter(q => ![1, 2, 3].includes(q.audience));
   check(!badEst.length, `every one of ${ESTIMATES.length} estimates has its review audience (1, 2 or 3)${badEst.length ? `: not ${badEst.slice(0, 5).map(q => q.id)}` : ""}`);
-  const dealt = new Set(QUOTES.map(q => q.id)), kept = new Set(RETIRED.map(q => q.id));
-  const all = [...full.quote.QUOTES, ...full.quote.RETIRED];
-  // nothing is removed (Korbi, 3 November 2026): every item is carried and says by `mk` whether it is marked for removal (specialist,
-  // personal) or, in Crates alone, living; an item without `mk` is kept (universal, regional, theme). Settings' Exclude deals the kept.
-  check(all.every(q => dealt.has(q.id) !== kept.has(q.id)) && QUOTES.length + RETIRED.length === all.length && RETIRED.every(q => isLiving(q.about?.[0] ?? q.about)),
-    `Quote carries ${QUOTES.length} questions, and ${RETIRED.length} retired (living only), each in one list only`);
+  const marked = [...QUOTES, ...PLACES, ...GEO].filter(x => x.mk !== undefined);
+  check(!marked.length && RETIRED.every(q => isLiving(q.about?.[0] ?? q.about)), `Quote, Chart and Punt's banks hold nothing marked for removal; Quote retires only the living (${RETIRED.length})`);
   const wrong = [];
-  for (const q of QUOTES) if (q.mk !== mkOf(estimateMark(q))) wrong.push(`quote/${q.id}`);
-  for (const p of PLACES) if (p.mk !== mkOf(pinMark(p))) wrong.push(`chart/${p.id}`);
-  for (const p of GEO) if (p.mk !== mkOf(pinMark(p))) wrong.push(`geo/${p.id}`);
-  for (const b of CHOICE) for (const q of (await import(`../${b}-bank.js`)).MATHS) if (q.mk !== mkOf(choiceMark(b, q))) wrong.push(`${b}/${q.id}`);
-  check(!wrong.length, `every item of Quote, Chart and Punt's banks carries the mark it has in kb/ (none for kept)${wrong.length ? `: ${wrong.slice(0, 5)}` : ""}`);
-  check(QUOTES.some(q => q.mk) && QUOTES.some(q => !q.mk) && PLACES.some(p => p.mk) && PLACES.some(p => !p.mk), "both marked and kept items are in the banks");
-  check(QUOTES.concat(PLACES, GEO).every(x => x.mk === undefined || x.mk === "s" || x.mk === "p"), "a marked item is specialist or personal (living is never in a dealt bank)");
-  // the entities for the games that read kb/ itself (marked.js, built into kb-marks.js)
-  const { markedEntity, mkOfEntity } = await import("../marked.js");
-  const badEnt = ENTITIES.filter(e => (markedEntity(e.id) !== ["s", "p"].includes(entityMark(e.id))) || (mkOfEntity(e.id) !== (entityMark(e.id) === "l" ? "l" : KEPT.has(entityMark(e.id)) ? undefined : "s")));
-  check(!badEnt.length, `kb-marks.js agrees with the mark of every entity${badEnt.length ? `: ${badEnt.slice(0, 5).map(e => e.id)}` : ""}`);
-  // Exclude never deals a marked item, Include does, the living never, a daily never includes
-  const { dealable, isMarked, starOf, STAR } = await import("../topics.js");
-  const { setMarkedIn, dealt: dealtNow, allowed } = await import("../topics-on.js");
-  setMarkedIn(false);
-  const ex = dealtNow(QUOTES);
-  setMarkedIn(true);
-  const inc = dealtNow(QUOTES), day = dealtNow(QUOTES, true);
-  setMarkedIn(false);
-  check(ex.length > 0 && ex.every(q => !q.mk) && inc.length === QUOTES.length && inc.some(q => q.mk) && day.length === ex.length, `Exclude deals ${ex.length} of Quote's ${QUOTES.length}, none marked; Include deals all; a daily deals as Exclude`);
-  check(!allowed("l") && dealable([{ mk: "l" }, { mk: "s" }, {}], true).length === 2 && dealable([{ mk: "s" }, {}]).length === 1, "the living are never dealt, even when marked content is included");
-  check(isMarked("s") && isMarked({ mk: "p" }) && !isMarked({}) && !isMarked("l") && starOf({ mk: "s" }) === STAR && starOf({}) === "" && /aria-label="Marked for removal"/.test(STAR) && STAR.includes("★"), "the star: markup with its accessible label for a marked item, nothing for a kept one");
+  for (const q of QUOTES) if (!KEPT.has(estimateMark(q))) wrong.push(`quote/${q.id}`);
+  for (const p of PLACES) if (!KEPT.has(pinMark(p))) wrong.push(`chart/${p.id}`);
+  for (const p of GEO) if (!KEPT.has(pinMark(p))) wrong.push(`geo/${p.id}`);
+  for (const b of CHOICE) for (const q of (await import(`../${b}-bank.js`)).MATHS) if (!KEPT.has(choiceMark(b, q))) wrong.push(`${b}/${q.id}`);
+  check(!wrong.length, `every item of Quote, Chart and Punt's banks is universal, regional or theme${wrong.length ? `: ${wrong.slice(0, 5)}` : ""}`);
   check(Object.keys(WHO).every(id => !isLiving(id)), "Who am I? deals no living person off the short list of the globally famous");
-  check(full.quote.QUOTES.length === all.length && full.chart.PLACES.length >= PLACES.length,
-    "the personal build holds the dealt ones and more");
   const strays = Object.keys(AUDIENCE).filter(id => !E.has(id) || ![2, 3].includes(AUDIENCE[id]));
   check(!strays.length, `the review of the questions the build writes names entities that exist${strays.length ? `: ${strays.slice(0, 5)}` : ""}`);
 }
-const floor = { entities: 4396, clue: 5526, pins: 415, features: 172, estimates: 355 };
+const floor = { entities: 3596, clue: 1154, pins: 539, features: 172, estimates: 349 };
 const now = { entities: ENTITIES.length, clue: LINKS.filter(l => l.rel === "clue").length, pins: PINS.length, features: FEATURES.length, estimates: ESTIMATES.length };
-check(Object.entries(floor).every(([k, v]) => now[k] >= v), `nothing lost since the move: ${Object.entries(now).map(([k, v]) => `${v} ${k}`).join(", ")}`);
+check(Object.entries(floor).every(([k, v]) => now[k] >= v), `nothing lost since the cut to the public version: ${Object.entries(now).map(([k, v]) => `${v} ${k}`).join(", ")}`);
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

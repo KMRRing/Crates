@@ -12,9 +12,7 @@ import { partyTable } from "./party-harness.js";
 import { gameById, mergeShown, shownOf, recall } from "../party-core.js";
 import whoami, { cribOf, needed, poolOf, WRITE, MIXED } from "../party-whoami.js";
 import { DECKS, WHO } from "../party-whoami-bank.js";
-import { setMarkedIn } from "../topics-on.js";
 
-setMarkedIn(true);   // the decks are checked whole; the Exclude default is checked at the end
 import { PEOPLE as EVERYONE } from "../kb/items/whoami.js";
 import { isLiving } from "../tools/audit-lib.mjs";
 import { ENTITIES } from "../kb/entities.js";
@@ -26,7 +24,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const all = [...new Set(DECKS.flatMap(d => d.ids))];
 const famous = DECKS.find(d => d.id === "people"), learn = DECKS.find(d => d.id === "learn");
 const rest = DECKS.filter(d => d !== famous && d !== learn).flatMap(d => d.ids);
-check(DECKS.length >= 8 && DECKS.every(d => d.ids.length >= 50 && d.name && d.a), `${DECKS.length} decks of 50 or more (${DECKS.map(d => `${d.name} ${d.ids.length}`).join(", ")})`);
+check(DECKS.length >= 7 && DECKS.every(d => d.ids.length >= 40 && d.name && d.a), `${DECKS.length} decks of 40 or more (${DECKS.map(d => `${d.name} ${d.ids.length}`).join(", ")})`);
 check(all.every(id => WHO[id]) && new Set(rest).size === rest.length && rest.every(id => !famous.ids.includes(id) && !learn.ids.includes(id)),
   `${all.length} identities, each in one deck but the people marked for both`);
 
@@ -41,7 +39,7 @@ const own = PEOPLE.filter(p => p.id).map(p => p.id), kb = new Set(ENTITIES.map(e
 check(own.length >= 50 && own.every(id => !kb.has(id)), `${own.length} people are Who am I's alone: kb/ doesn't hold them, so Punt and the rest never ask about them`);
 check(PEOPLE.every(p => { const w = WHO[idOf(p)]; return w.n === p.n && w.c.length >= 4 && w.c.join("|") === p.c.join("|") && w.p; }),
   "every person's crib is the one written by hand, four lines or more, with a picture's page");
-check(cribOf("neil-armstrong")[0] === "An American astronaut" && WHO["schwarzen-egger"].n === "Arnold Schwarzenegger" && WHO.napoleon.a?.includes("Napoleon"),
+check(cribOf("neil-armstrong")[0] === "An American astronaut" && WHO["john-f-kennedy"].n === "John F. Kennedy" && WHO.napoleon.a?.includes("Napoleon"),
   "a person of kb/'s keeps kb/'s names as other names, not its lines (Neil Armstrong is no longer “a writer”)");
 const mix = poolOf(MIXED);
 check(new Set(mix).size === mix.length && mix.includes("napoleon") && mix.includes("taylor-swift") && mix.includes("norway") && !mix.includes("howqua")
@@ -205,31 +203,16 @@ check(mergeShown(["a", "b", "c"], ["b", "d"]).join() === "a,c,b,d" && mergeShown
   await t.end();
 }
 {
-  // a deck dealt out: its last unseen first, then those shown longest ago, never one twice in a game
-  const twelve = Array.from({ length: 12 }, (_, i) => `P${i}`), brands = DECKS.find(d => d.id === "brands").ids;
+  // a deck dealt out: its unseen first, then those shown longest ago, never one twice in a game. Gods and monsters is the
+  // deck whose size sits between five and six games of twelve (75), so the sixth game still has fifteen unseen to choose from
+  const twelve = Array.from({ length: 12 }, (_, i) => `P${i}`), deck = DECKS.find(d => d.id === "myth").ids;
   const t = await partyTable(twelve);
-  for (let game = 0; game < 5; game++) { await t.start("whoami", { deck: "brands" }); await t.end(); }
-  const shown = shownOf(t.branch, "whoami"), left = brands.filter(id => !shown.includes(id));
-  await t.start("whoami", { deck: "brands" });
-  const dealt = used(t), oldest = shown.slice(0, 12 - left.length);
-  check(brands.length === 63 && left.length === 3 && new Set(dealt).size === 12 && left.every(id => dealt.includes(id)) && oldest.every(id => dealt.includes(id)),
-    "brands dealt out to twelve, five times: the sixth game deals the three left, then the nine shown longest ago");
-}
-
-// Exclude (the default): what is marked for removal is not dealt, a deck it leaves too few for a table is not offered, and a game
-// that asks for one is topped up from the mix
-{
-  setMarkedIn(false);
-  const dealtIds = poolOf(MIXED);
-  check(dealtIds.length > 0 && dealtIds.every(id => !WHO[id].mk), "Exclude: the mix holds nothing marked for removal");
-  check(poolOf("brands").length < 12 && poolOf("people").length >= 12, "Exclude: Brands is thinned to a few, People is not");
-  const deckChoices = whoami.options.find(o => o.id === "deck").choices.map(c => c[0]);
-  check(!deckChoices.includes("brands") && deckChoices.includes("people") && deckChoices.includes(MIXED), "Exclude: a deck too thin for a table is not offered");
-  const t = await partyTable(Array.from({ length: 12 }, (_, i) => `P${i}`));
-  await t.start("whoami", { deck: "brands" });
-  const ids = used(t);
-  check(new Set(ids).size === 12 && ids.every(id => !WHO[id].mk), "Exclude: Brands asked for at a table of twelve is dealt twelve, none marked");
-  setMarkedIn(true);
+  for (let game = 0; game < 5; game++) { await t.start("whoami", { deck: "myth" }); await t.end(); }
+  const shown = shownOf(t.branch, "whoami"), left = deck.filter(id => !shown.includes(id));
+  await t.start("whoami", { deck: "myth" });
+  const dealt = used(t);
+  check(left.length === deck.length - 60 && new Set(dealt).size === 12 && dealt.every(id => left.includes(id)),
+    `${deck.length} gods and monsters dealt to twelve, five times: the sixth game deals twelve of the ${left.length} not yet shown`);
 }
 
 console.log(bad ? `party-whoami: ${bad} failed` : "party-whoami: every check passed");

@@ -7,9 +7,8 @@
 // one's distance and points and the standings (chart-table.js is the table's rules).
 import { PER_SET, regionSpan, pickMixed, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, bestTopicOf, comparableMix, focusOf, OLD_TOPICS, OLD_NAMES, oldTopicOf, topicOf, LOCAL, REGIONS, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
 import { part, choice, action, line as menuLine, todayPart } from "./menu.js";
-import { cleanMix, anyIn, mixParam, mixFromParam, subjectPreset, SUBJECT_PRESETS, showStar } from "./topics.js";
-import { subjectsOn, allowed, markedIn } from "./topics-on.js";
-import { mkOfEntity } from "./marked.js";
+import { cleanMix, anyIn, mixParam, mixFromParam, subjectPreset, SUBJECT_PRESETS } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
 import { flags } from "./menu-flags.js";
 import { missOf, isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, clueIn, pinIn, revealNow, nextIn, moveOnNow, settleUp, entryAt, totals, placeRows, standingRows, resultOf, initials } from "./chart-table.js";
 import { presentSlots, seated } from "./duel-core.js";
@@ -25,15 +24,14 @@ const CATS = { ...BANK_CATS, trade: "Commodities", physical: "Physical", countri
 const KIND = { river: "river", range: "mountain range", desert: "desert", plateau: "plateau or basin", lake: "lake" };
 // the countries join them: an outline, pinned anywhere inside
 const COUNTRY_PLACES = COUNTRIES.map(c => ({ id: `co-${c.id}`, cat: "countries", name: c.name, lat: c.lat, lon: c.lon, country: c.name, regions: c.regions,
-  kind: "country", geo: { rings: c.rings }, about: c.about, mk: c.about ? mkOfEntity(c.about) : undefined, flag: c.flag, neighbours: c.neighbours,
+  kind: "country", geo: { rings: c.rings }, about: c.about, flag: c.flag, neighbours: c.neighbours,
   note: `${c.flag} ${c.name}, in ${c.regions.map(r => REGIONS[r].name).join(" and ")}. ${c.neighbours.length ? `It borders ${c.neighbours.join(", ")}.` : "It has no land neighbours."}` }));
 const withRegions = p => { const regions = p.regions || regionsOfPlace(p, REGION_OF); return { ...p, regions, region: regions.length ? REGIONS[regions[0]].name : p.region }; };
-const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about, mk: g.mk })), ...COUNTRY_PLACES].map(withRegions);
+const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about })), ...COUNTRY_PLACES].map(withRegions);
 /** What a selection deals from: the places of its mix's topics in, in its region ("world": anywhere). */
 // a sub-region's own places (Bavaria's towns, Scotland's glens: Local places) are dealt only in sub-regions they belong
 // to: Scottish towns in Scotland and in Britain, never in Europe or the world
-// (what is marked for removal is out unless Settings includes it; a daily never does)
-const poolOf = ({ topics, region = "world" } = {}, daily = false) => PLACES.filter(p => (topics?.[topicOf(p.cat)] ?? 1) > 0 && allowed(p.mk, daily)
+const poolOf = ({ topics, region = "world" } = {}, daily = false) => PLACES.filter(p => (topics?.[topicOf(p.cat)] ?? 1) > 0
   && (region === "world" || p.regions.includes(region)) && !LOCAL.has(p.cat));
 import { LAND, BORDERS } from "./world.js";
 import { DETAIL } from "./chart-detail.js";
@@ -131,7 +129,7 @@ const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString
 // the subjects' when you deal it, the mix's own when a link does) that deals more than one topic, worldwide, learning
 // mode or not; one topic, your own mix, or a region keeps its best here only.
 const STANDARD = { topics: OLD_TOPICS.all, region: "world" };
-const rankedRun = (mode, sel, onPreset) => mode === "daily" || (!markedIn() && onPreset && !focusOf(sel.topics) && sel.region === "world");
+const rankedRun = (mode, sel, onPreset) => mode === "daily" || (onPreset && !focusOf(sel.topics) && sel.region === "world");
 /** The set for a seed and a selection, with what the learning mode picks from the pile (within the selection) leading it, and `fresh` (your own sets, not a link's) keeping off what was dealt lately;
  *  a daily is the same for everyone, so nothing of yours goes into it. */
 function setFor(seed, sel, personal = true, fresh = personal) {
@@ -503,7 +501,6 @@ function render() {
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
   }
   $("cat").textContent = p.cat === "countries" ? "Country" : p.geo ? `Physical · a ${p.kind}` : CATS[p.cat];
-  showStar($("cat").closest(".ch-card"), p);
   picture(p);
   // the task in words while you pin ("Pin the Hermitage", then what the name carried and what counts); its name at the reveal
   const ask = askFor(p), told = [ask.about, ask.rule].filter(Boolean).join(" ");

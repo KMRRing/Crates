@@ -121,14 +121,14 @@ export const TOPIC_OF = {
     hist: "hist", cult: "cult", screen: "screen", style: "style", sport: "sport", ppl: "ppl", sci: "sci", lang: "lang",
     orig: "geo", prod: "trade", uses: "sci", spec: "sci", mkts: "fin", logi: "trade", reg: "pol", firm: "co", past: "hist", life: "lang",
   },
-  quote: { trade: "trade", cities: "cities", wine: "food", art: "art", people: "ppl", geo: "geo", markets: "fin", refining: "nrg", scale: "sci" },
+  quote: { cities: "cities", wine: "food", art: "art", people: "ppl", geo: "geo", scale: "sci" },
   chart: { cities: "cities", countries: "geo", trade: "trade", geo: "geo", physical: "nat", art: "art", museums: "art", architecture: "art", myth: "cult",
     history: "hist", people: "ppl", wine: "food", local: "geo" },
   nonogram: { countries: "geo", flags: "geo" },
   lots: { wp: "lang", ph: "lang", mn: "lang", th: "lang", mk: "fin", sc: "sci", pl: "geo", cu: "cult", sp: "sport", fd: "food" },
   punt: { countries: "geo", commodities: "trade", maths: "math", refining: "nrg", reasoning: "math", words: "lang", cities: "cities", flags: "geo", patterns: "math",
-    wine: "food", art: "art", economics: "mkt", physics: "sci", chemistry: "sci", code: "sci", philosophy: "rel", religion: "rel", watches: "style", skiing: "sport",
-    china: "geo", britain: "geo", bavaria: "geo", swiss: "geo", artmarket: "art", titles: "hist", lit: "cult", sayings: "lang", law: "pol", merchants: "trade",
+    wine: "food", art: "art", economics: "mkt", physics: "sci", chemistry: "sci", code: "sci", philosophy: "rel", religion: "rel", skiing: "sport",
+    china: "geo", britain: "geo", bavaria: "geo", swiss: "geo", titles: "hist", sayings: "lang", merchants: "trade",
     mythology: "cult", architecture: "art" },
 };
 /** A game's mix of its own topics, from the subjects that are on: each topic of `list` ([id, label]) in at its `base`
@@ -137,24 +137,4 @@ export function mixFromSubjects(list, map, on, base = {}) {
   const out = {};
   for (const [id] of list) out[id] = (on?.[map[id]] ?? 1) > 0 ? (base[id] ?? 1) : 0;
   return out;
-}
-
-// ---- content marked for removal (docs/the-knowledge-base.md, "Who the games ask about") ----------------------------------
-// Every item the banks hold carries its mark when it is marked for removal: `mk` "s" (specialist) or "p" (personal), or "l"
-// (a living person, in the one list that must keep it: Crates'). Unmarked is kept (universal, regional, theme). Settings has one
-// choice, Exclude (the default) or Include (topics-on.js); a game forms its pool with `dealable`, next to where it applies the
-// subjects. Living is never dealt.
-/** Whether an item (or a bare mark letter) is marked for removal. */
-export const isMarked = x => { const m = typeof x === "string" ? x : x?.mk; return m === "s" || m === "p"; };
-/** What a game may deal from `list` (items with `mk`): without what is marked for removal unless `include`; the living never. */
-export const dealable = (list, include = false) => list.filter(x => !x.mk || (include && x.mk !== "l"));
-/** The star a marked item carries wherever its prompt is drawn (style.css `.marked-star`), as markup. */
-export const STAR = '<span class="marked-star" role="img" aria-label="Marked for removal" title="Marked for removal">★</span>';
-export const starOf = x => (isMarked(x) ? STAR : "");
-/** Puts the star in a card's corner for `x` (an item or a mark), or takes it away: call it after the card is drawn. */
-export function showStar(el, x) {
-  if (!el) return;
-  el.classList.add("has-star");
-  for (const s of el.querySelectorAll(":scope > .marked-star")) s.remove();
-  if (isMarked(x)) el.insertAdjacentHTML("beforeend", STAR);
 }

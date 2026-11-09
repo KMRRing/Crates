@@ -13,7 +13,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 // ---------- the questions ----------
-check(SAYINGS.length >= 300 && NUMBERS.length >= 500 && FACTS.length >= 60, `${SAYINGS.length} sayings, ${NUMBERS.length} numbers, ${FACTS.length} odd facts`);
+check(SAYINGS.length >= 150 && NUMBERS.length >= 500 && FACTS.length >= 60, `${SAYINGS.length} sayings, ${NUMBERS.length} numbers, ${FACTS.length} odd facts`);
 for (const [kind, deck] of Object.entries(DECKS)) {
   const ids = new Set(deck.map(x => x.id));
   check(ids.size === deck.length, `${kind}: every question once`);
@@ -51,8 +51,8 @@ check(FACTS.every(f => f.q.split("___").length === 2), "an odd fact has one blan
   check(shown("2000", oil) === "2,000" && shown("about 1855", year) === "1855" && shown("Kangaroos.", emus) === "Kangaroos" && shown("lots", oil) === "", "a lie as the table sees it: a number written as the truth's are");
   check(lieProblem("lots", oil) === "Write a number." && lieProblem("1855", year).startsWith("That's the truth") && lieProblem("camels", emus) === "", "what's wrong with a lie, in words");
   check(!["kangaroos", "rabbits", "camels"].some(v => isTruth(v, emus)), "the house's lies stand as lies");
-  const saying = question("sayings", SAYINGS.find(x => x.l === "Chinese" && x.lit));
-  check(saying.q.startsWith("“") && /literally/.test(saying.sub) && !/[一-鿿]/.test(saying.voice), "a Chinese saying is read out by what it says literally, not by its characters");
+  const saying = question("sayings", SAYINGS.find(x => x.l === "German" && x.lit));
+  check(saying.q.startsWith("“") && /literally/.test(saying.sub) && !/[一-鿿]/.test(saying.voice), "a saying with a literal sense shows it under the word, and is read out as a question about the word (the Chinese sayings left with the specialist content)");
 }
 
 // ---------- a game ----------

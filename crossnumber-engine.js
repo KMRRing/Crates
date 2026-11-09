@@ -58,6 +58,8 @@ function fits(grid, word, r, c, dir, lo, hi) {
     const a = r + dr * i, b = c + dc * i, have = at(a, b);
     if (have) {
       if (have !== word[i]) return null;
+      // a crossing is across the other entry's way: a neighbour of this square along ours is another entry's, laid the same way (694 inside 1694)
+      if ((i > 0 && at(a - dr, b - dc)) || (i < n - 1 && at(a + dr, b + dc))) return null;
       cross++;
       continue;
     }

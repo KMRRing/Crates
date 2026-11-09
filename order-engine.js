@@ -6,7 +6,6 @@
 import { QUOTES } from "./quote-bank.js";
 import { TOPICS } from "./quote-engine.js";
 import { drawWeighted } from "./topics.js";
-import { allowed } from "./topics-on.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
 import { DIMENSIONS, dimensionOf, sizeOf } from "./kb/units.js";
 
@@ -32,9 +31,6 @@ export const FAMILIES = Object.values(QUOTES.filter(q => q.unit !== "year").redu
 export const familyOf = unit => FAMILIES.find(f => f.unit === unit || f.units.includes(unit)) || { unit, ids: [], units: [unit], mixed: false, label: unit };
 /** Your best in a family: the keys it was kept under before the units were put together count too. */
 export const bestIn = (best, fam) => Math.max(0, best[`q:${fam.unit}`] ?? 0, ...fam.units.map(u => best[`q:${u}`] ?? 0));
-// Content marked for removal (topics.js) is out of a deal unless Settings includes it; a daily never does.
-const datesFor = daily => DATES.filter(id => allowed(BY_ID.get(id).mk, daily));
-const familiesFor = (daily, least = 6) => FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => allowed(BY_ID.get(id).mk, daily)) })).filter(f => f.ids.length >= least);
 // stories: each event a card whose truth is its place in the story
 export const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
 for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
@@ -65,7 +61,7 @@ const even = (mode, weights) => !weights || topicsIn(mode).every(([id]) => (weig
  * page lets them go (cards are forgotten when too few are left to deal from, not on a clock).
  */
 export function dealRun(mode, seed, weights = null, seen = null, daily = false, prefer = []) {
-  const DATES_ = datesFor(daily), FAMILIES_ = familiesFor(daily);
+  const DATES_ = DATES, FAMILIES_ = FAMILIES.filter(f => f.ids.length >= 6);
   const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1;
   const isNew = id => !seen?.has(id), newFirst = xs => (seen ? [...xs.filter(isNew), ...xs.filter(id => !isNew(id))] : xs);
   let ids, unit = "year", story = null, wide = false, recycled = false;

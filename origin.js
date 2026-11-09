@@ -13,8 +13,8 @@ import { defaultIs3D, onDefaultChange } from "./mode3d.js";
 import { draw as drawGlobe, drawFlat, flatFor, pick as pickCountry, viewOf, A_MIN, A_MAX } from "./origin-globe.js";
 import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
-import { subjectPreset, showStar } from "./topics.js";
-import { subjectsOn, markedIn } from "./topics-on.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
 import { flags } from "./menu-flags.js";
 import { regionOf } from "./region.js";
 import { regionsOf } from "./origin-engine.js";
@@ -218,7 +218,7 @@ function dueCountries(region) {
 }
 function newRun(daily) {
   const region = regionOf("origin");
-  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix(), daily, { region, prefer: daily ? [] : dueCountries(region) }), daily, day: daily ? today() : null, ranked: daily || (!markedIn() && onPreset()) };
+  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix(), daily, { region, prefer: daily ? [] : dueCountries(region) }), daily, day: daily ? today() : null, ranked: daily || onPreset() };
   save(); render();
 }
 const current = () => G?.run || S;                              // the run on the screen: the table's while at one
@@ -296,7 +296,6 @@ function render() {
     if (opened.has(key)) li.append(el("span", "", c.hint));
     return li;
   }));
-  showStar($("card"), R.mk || R.clues.slice(0, R.shown).find(c => c.mk)?.mk);
   $("clues").lastElementChild?.scrollIntoView({ block: "nearest" });
   $("guesses").replaceChildren(...R.guesses.map((g, i) => {
     const t = heat(away(g, R.id).km), li = el("li", "og-g"), by = G ? R.guessedBy[i] : null;

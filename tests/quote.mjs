@@ -23,17 +23,17 @@ check(a.length === E.PER_SET && JSON.stringify(a) === JSON.stringify(b) && JSON.
     "topics: the bank's categories; every one in deals the set as it always was");
   const noArt = { ...all, art: 0 }, sets = Array.from({ length: 200 }, (_, seed) => E.pickMixed(seed, QUOTES, noArt));
   check(sets.every(s => s.length === E.PER_SET && !count(s, "art") && perCat(s) <= 2 && new Set(s.map(q => q.id)).size === s.length), "a topic out: none of it, still ten, at most two from a topic in");
-  const tradeMore = Array.from({ length: 200 }, (_, seed) => E.pickMixed(seed, QUOTES, { ...noArt, trade: 2 }));
-  const n = xs => xs.reduce((a, s) => a + count(s, "trade"), 0), ratio = n(tradeMore) / n(sets);
-  check(tradeMore.every(s => count(s, "trade") <= 4) && ratio > 1.4 && ratio < 2.6, `a topic more: up to four, dealt about twice as often as in (${ratio.toFixed(2)} times)`);
-  const refining = E.pickMixed(5, QUOTES, Object.fromEntries(E.TOPICS.map(([id]) => [id, id === "refining" ? 1 : 0])));
-  check(refining.length === E.PER_SET && refining.every(q => q.cat === "refining"), "one topic in: all ten from it, as a refining set");
+  const tradeMore = Array.from({ length: 200 }, (_, seed) => E.pickMixed(seed, QUOTES, { ...noArt, people: 2 }));
+  const n = xs => xs.reduce((a, s) => a + count(s, "people"), 0), ratio = n(tradeMore) / n(sets);
+  check(tradeMore.every(s => count(s, "people") <= 4) && ratio > 1.4 && ratio < 2.6, `a topic more: up to four, dealt about twice as often as in (${ratio.toFixed(2)} times)`);
+  const refining = E.pickMixed(5, QUOTES, Object.fromEntries(E.TOPICS.map(([id]) => [id, id === "scale" ? 1 : 0])));
+  check(refining.length === E.PER_SET && refining.every(q => q.cat === "scale"), "one topic in: all ten from it, as a refining set");
   // the page deals from the topics in only (the rest taken out first): a set still of ten, one topic's as it always was
   const only = ids => Object.fromEntries(E.TOPICS.map(([id]) => [id, ids.includes(id) ? 1 : 0])), poolOf = w => QUOTES.filter(q => w[q.cat] > 0);
-  const three = only(["trade", "markets", "refining"]), rf = only(["refining"]);
+  const three = only(["cities", "wine", "scale"]), rf = only(["scale"]);
   check(E.pickMixed(5, poolOf(three), three).length === E.PER_SET && JSON.stringify(E.pickMixed(5, poolOf(rf), rf)) === JSON.stringify(E.pickSet(5, poolOf(rf), E.PER_SET, E.PER_SET)),
     "from the topics in alone: three topics fill a set of ten; one topic's set is the refining set it always was");
-  check(E.presetOf(all) === "balanced" && E.presetOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.presetOf(noArt) === "custom" && E.cleanTopics({ trade: 2, art: "x" }).art === 1,
+  check(E.presetOf(all) === "balanced" && E.presetOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.presetOf(noArt) === "custom" && E.cleanTopics({ people: 2, art: "x" }).art === 1,
     "a mix is a preset's or your own; a weight it doesn't know is in");
 }
 
@@ -51,10 +51,10 @@ check(a.length === E.PER_SET && JSON.stringify(a) === JSON.stringify(b) && JSON.
   const noArt = seeds.map(seed => E.pickMixed(seed, QUOTES, E.topicsDealt(off("art"))));
   check(!E.topicsOf(off("art")).art && E.topicsOf(off("art")).wine === 1 && noArt.every(s => s.length === E.PER_SET && !has(s, "art") && new Set(s.map(q => q.id)).size === s.length)
     && noArt.some((s, i) => !same(s, E.pickSet(seeds[i], QUOTES))), "Art & architecture off: no art, still ten, and the deal is not Balanced's");
-  check(cats(E.topicsOf(off("geo"))) === "trade,cities,wine,art,people,markets,refining,scale" && cats(E.topicsOf(off("food"))) === "trade,cities,art,people,geo,markets,refining,scale"
+  check(cats(E.topicsOf(off("geo"))) === "cities,wine,art,people,scale" && cats(E.topicsOf(off("food"))) === "cities,art,people,geo,scale"
     && same(E.topicsOf(off("sport")), E.topicsOf(on)), "Geography off takes geography, Food & drink takes wine, Sport (none of Quote's) takes nothing");
-  check(cats(E.topicsOf(preset("culture"))) === "wine,art,people" && cats(E.topicsOf(preset("stem"))) === "refining,scale" && cats(E.topicsOf(preset("trade"))) === "trade,markets,refining",
-    `the presets: Culture deals ${cats(E.topicsOf(preset("culture")))}, STEM ${cats(E.topicsOf(preset("stem")))}, Trade ${cats(E.topicsOf(preset("trade")))}`);
+  check(cats(E.topicsOf(preset("culture"))) === "wine,art,people" && cats(E.topicsOf(preset("stem"))) === "scale",
+    `the presets: Culture deals ${cats(E.topicsOf(preset("culture")))}, STEM ${cats(E.topicsOf(preset("stem")))}`);
   const artOnly = Tp.cleanSubjects(Object.fromEntries(Tp.SUBJECTS.map(s => [s.id, s.id === "art" ? 1 : 0])));
   const one = E.pickMixed(5, QUOTES, E.topicsDealt(artOnly));
   check(one.length === E.PER_SET && one.every(q => q.cat === "art") && E.focusOf(E.topicsOf(artOnly)) === "art" && E.focusOf(E.topicsOf(on)) === null,
@@ -64,11 +64,11 @@ check(a.length === E.PER_SET && JSON.stringify(a) === JSON.stringify(b) && JSON.
     && !E.TOPICS.some(([id]) => E.topicsOf(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 }))[id]) && same(E.topicsDealt(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 })), E.topicsDealt(on)),
     "nothing on, or only subjects Quote has none of: no topic in, so every topic is dealt");
   // a link or a saved set carries a mix, not the subjects: which preset's deal it is, an earlier preset's mix still known, the weights of the earlier control still dealt
-  check(E.presetIdOf(E.topicsOf(on)) === "all" && E.presetIdOf(E.topicsOf(preset("culture"))) === "culture" && E.presetIdOf(E.topicsOf(preset("stem"))) === "stem" && E.presetIdOf(E.topicsOf(preset("trade"))) === "trade"
-    && E.presetIdOf(E.TOPIC_PRESETS.trader.topics) === "trader" && E.presetIdOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.presetIdOf(E.topicsOf(off("art"))) === "custom" && E.presetIdOf({ ...E.topicsOf(on), trade: 2, art: 0 }) === "custom",
-    "a mix is a preset's deal (All on, Culture, STEM, Trade) or an earlier preset's (Trader, Culture night), else your own");
-  const heavy = seeds.map(seed => E.pickMixed(seed, QUOTES, { ...E.topicsOf(on), trade: 2, art: 0 }));
-  check(heavy.every(s => s.length === E.PER_SET && !has(s, "art")) && heavy.some(s => s.filter(q => q.cat === "trade").length > 2), "a link's mix with a topic more still deals (up to four of it), a topic out never");
+  check(E.presetIdOf(E.topicsOf(on)) === "all" && E.presetIdOf(E.topicsOf(preset("culture"))) === "culture" && E.presetIdOf(E.topicsOf(preset("stem"))) === "stem"
+    && E.presetIdOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.presetIdOf(E.topicsOf(off("art"))) === "custom" && E.presetIdOf({ ...E.topicsOf(on), trade: 2, art: 0 }) === "custom",
+    "a mix is a preset's deal (All on, Culture, STEM) or an earlier preset's (Trader, Culture night), else your own");
+  const heavy = seeds.map(seed => E.pickMixed(seed, QUOTES, { ...E.topicsOf(on), people: 2, art: 0 }));
+  check(heavy.every(s => s.length === E.PER_SET && !has(s, "art")) && heavy.some(s => s.filter(q => q.cat === "people").length > 2), "a link's mix with a topic more still deals (up to four of it), a topic out never");
 }
 
 // the tiers: every question has SS/S/A/B radii in order, and a difficulty 1–5
@@ -93,11 +93,11 @@ check(easy.delta < yS.delta && hard.delta > yS.delta && E.adequate("A") && !E.ad
 check(E.fault(city, 10, 5) && E.fault(city, 0, 5) && E.fault(city, NaN, 5) && !E.fault(city, 1, 5), "faults: ask below bid, a zero bid, a missing number");
 {
   // the same number twice: a market on one figure, for when you know it exactly
-  const opec = QUOTES.find(q => q.id === "tr-34"), exact = E.settle(opec, 12, 12), near = E.settle(opec, 11.5, 12.5), off = E.settle(opec, 11, 11);
-  check(!E.fault(opec, 12, 12) && E.fault(opec, 13, 12), "the same number as bid and ask is a market; an ask below the bid still isn't");
-  check(exact.grade === "SS" && exact.inside && exact.delta > near.delta && near.grade !== "SS", `12–12 on OPEC's 12 members is SS, exact, and pays more than 11.5–12.5 (${exact.grade} ${exact.delta}, ${near.grade} ${near.delta})`);
-  check(!off.inside && off.grade !== "SS" && off.delta < exact.delta, `11–11 is outside, graded by how far it is (one country out: ${off.grade} ${off.delta}), and pays less than exact`);
-  const t = E.trade(opec, 12, 12, "hit");
+  const opec = QUOTES.find(q => q.id === "ge-08"), exact = E.settle(opec, 27, 27), near = E.settle(opec, 26.5, 27.5), off = E.settle(opec, 26, 26);
+  check(!E.fault(opec, 27, 27) && E.fault(opec, 28, 27), "the same number as bid and ask is a market; an ask below the bid still isn't");
+  check(exact.grade === "SS" && exact.inside && exact.delta > near.delta && near.grade !== "SS", `27–27 on the EU's 27 members is SS, exact, and pays more than 26.5–27.5 (${exact.grade} ${exact.delta}, ${near.grade} ${near.delta})`);
+  check(!off.inside && off.grade !== "SS" && off.delta < exact.delta, `26–26 is outside, graded by how far it is (one country out: ${off.grade} ${off.delta}), and pays less than exact`);
+  const t = E.trade(opec, 27, 27, "hit");
   check(Number.isFinite(t.maker) && Number.isFinite(t.taker), "a partner can trade against a market on one figure");
 }
 check(E.withUnit(450.3, { unit: "$ million" }) === "$450.3 million" && E.withUnit(1937, { unit: "year" }) === "1937" && E.withUnit(37, { unit: "million" }) === "37 million" && E.withUnit(11104, { unit: "$ a tonne" }) === "$11,104 a tonne",

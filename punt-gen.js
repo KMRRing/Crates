@@ -9,7 +9,6 @@ import { normalize } from "./typing.js";
 import { mentions } from "./give-away.js";
 import { pairKey } from "./known.js";
 import { SUBJECT_PRESETS, TOPIC_OF, mixFromSubjects, subjectsIn } from "./topics.js";
-import { markedIn } from "./topics-on.js";
 
 // questions: a standard run's length; diff: clue difficulties, dealt in these proportions; multi: how often a clue
 // that fits several answers shows more than one of them. Every question has four options, filling the 2×2 grid.
@@ -37,16 +36,12 @@ export const LEVELS = {
   code: { label: "Code", questions: 15, maths: true, bank: "./cs-bank.js", note: "Data and algorithms, code to read, paradigms, systems and the web." },
   philosophy: { label: "Philosophy", questions: 15, maths: true, bank: "./phil-bank.js", note: "The ancients and moderns, ethics and politics, knowledge and mind." },
   religion: { label: "Religion", questions: 15, maths: true, bank: "./rel-bank.js", note: "The faiths, their calendars, food rules and etiquette: what to know before the meeting." },
-  watches: { label: "Watches", questions: 15, maths: true, bank: "./watches-bank.js", note: "The manufactures, complications, the movement inside, finishes, history, the icons, seals and standards." },
   skiing: { label: "Skiing", questions: 15, maths: true, bank: "./skiing-bank.js", note: "Resorts, ski areas, races and runs, great skiers, history, technique and rules, avalanches, passes and food." },
   china: { label: "China", questions: 15, maths: true, bank: "./china-bank.js", note: "History, provinces and places, food, tea, inventions, thinkers, festivals and language, trade and markets." },
   britain: { label: "Britain", questions: 15, maths: true, bank: "./britain-bank.js", note: "Scotland's history, places, whisky, customs, money, inventors and words; the constitution, the City, English history, Wales." },
   bavaria: { label: "Bavaria", questions: 15, maths: true, bank: "./bavaria-bank.js", note: "History, places, beer, customs and food, Bairisch, art and science, business." },
-  artmarket: { label: "Art market", questions: 15, maths: true, bank: "./artmarket-bank.js", note: "How auctions work, records, houses and dealers, provenance and loot, fakes, fairs." },
   titles: { label: "Etiquette", questions: 15, maths: true, bank: "./titles-bank.js", note: "The peerage, nobility abroad, orders and honours, dress codes, manners and address, heraldry." },
-  lit: { label: "Literature", questions: 15, maths: true, bank: "./lit-bank.js", note: "Who wrote it, and in which work: lines from Homer to Kafka in their own words (English, German, French, Italian, Spanish, Russian, Greek, Latin, Chinese and more), a rendering beside those in other languages." },
   sayings: { label: "Sayings", questions: 15, maths: true, bank: "./sayings-bank.js", note: "What it means: Latin tags, German and English idioms, French expressions, Chinese chengyu, the trading floor's own, and the catchphrases and slang of films, shows and the internet the world over, with where they come from." },
-  law: { label: "Law", questions: 15, maths: true, bank: "./law-bank.js", note: "The maxims and ideas worth knowing, tilted to trade: title, risk and Incoterms, bills of lading and charters, credits and guarantees, contracts, courts and arbitration, property, wrongs, reading a statute, trade rules, companies." },
   merchants: { label: "Mercantilism", questions: 15, maths: true, bank: "./merchants-bank.js", note: "Merchant powers from the Silk Road to the opium trade, the Hanse and Venice, the chartered companies, bankers and their tools, mercantilism." },
   mythology: { label: "Mythology", questions: 15, maths: true, bank: "./myth-bank.js", note: "The gods of Greece and Rome, heroes and monsters, the Norse, Egypt, and myth in words." },
   architecture: { label: "Architecture", questions: 15, maths: true, bank: "./arch-bank.js", note: "Styles as ideas, buildings by sight, and the parts of a building." },
@@ -99,13 +94,7 @@ const mix = (seed, start) => (seed ^ Math.imul(start + 1, 0x9E3779B1)) >>> 0;
 
 // ---------- the bank, indexed ----------
 // every clue-answer pair (k: its key in known.js, by the entities), and for each clue text, which answers carry it
-const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.hint, d: w.d, k: w.entity ? pairKey(a.entity, w.entity) : null, mk: w.mk === "l" || a.mk === "l" ? "l" : w.mk || a.mk })));
-// content marked for removal (topics.js `dealable`): Settings' Exclude or Include, read as a batch is dealt; a source can fix it
-// (today's run deals as Exclude: `include: false`)
-let INCL = null;
-const allowed = mk => !mk || ((INCL ?? markedIn()) && mk !== "l");
-// `mk` for a dealt question that holds something marked for removal (the star on its slip, topics.js); nothing, kept whole in the run
-const marked = (...ms) => (ms.includes("p") ? { mk: "p" } : ms.includes("s") ? { mk: "s" } : {});
+const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.hint, d: w.d, k: w.entity ? pairKey(a.entity, w.entity) : null })));
 const CARRIERS = new Map();
 for (const p of PAIRS) { if (!CARRIERS.has(p.w)) CARRIERS.set(p.w, new Set()); CARRIERS.get(p.w).add(p.a); }
 const pairOf = (a, w) => PAIRS.find(p => p.a === a && p.w === w);
@@ -138,10 +127,10 @@ export const TOPIC_LIST = [["countries", "Countries"], ["commodities", "Commodit
   ...Object.entries(LEVELS).filter(([, L]) => L.maths).map(([id, L]) => [id, L.label])];
 const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
 // Balanced is what a topic is dealt at when its subject is on: every topic in and dealt twice as often as one weighted 1,
-// except the four specialist banks (watches, skiing, the art market, etiquette), which are in once. It was the menu's
+// except the two specialist banks (skiing, etiquette), which are in once. It was the menu's
 // default preset; Trader and Culture night went with the menu's own topics control, since Settings has presets for
 // every game now (Culture, STEM, Trade) and a topic is on or off, not "more".
-const NICHE = ["watches", "skiing", "artmarket", "titles"];
+const NICHE = ["skiing", "titles"];
 export const TOPIC_PRESETS = {
   balanced: { label: "Balanced", topics: { ...allTopics(2), ...Object.fromEntries(NICHE.map(id => [id, 1])) } },
 };
@@ -189,7 +178,7 @@ export function mixQuestions(seed, sources, count, dealt = [], name = { mode: "k
     if (!counts[i]) return;
     const before = dealt.filter(q => q.src === t.id).length, tseed = mix(seed, hashOf(t.id));
     let qs;
-    if (t.cat) { ONLY = t.cat; INCL = t.include ?? null; try { qs = makeQuestions(tseed, null, counts[i], before, used, name, clueLevel(t.diffs)); } finally { ONLY = null; INCL = null; } }
+    if (t.cat) { ONLY = t.cat; try { qs = makeQuestions(tseed, null, counts[i], before, used, name, clueLevel(t.diffs)); } finally { ONLY = null; } }
     else qs = mathsQuestions(tseed, t.pool, t.stages, counts[i], before, t.dueKeys, t.seenKeys);
     for (const q of qs) out.push({ ...q, src: t.id, topic: t.label });
   });
@@ -198,7 +187,7 @@ export function mixQuestions(seed, sources, count, dealt = [], name = { mode: "k
 
 /** A clue-answer pair of this difficulty not used yet in the run (once a difficulty runs dry, its pairs come round again). */
 function freshPair(rnd, used, d) {
-  const mine = x => x.d === d && allowed(x.mk) && (!ONLY || BANK[x.a].cat === ONLY);
+  const mine = x => x.d === d && (!ONLY || BANK[x.a].cat === ONLY);
   let pool = PAIRS.filter(x => mine(x) && !used.has(x.w));
   if (!pool.length) { PAIRS.filter(mine).forEach(x => used.delete(x.w)); pool = PAIRS.filter(mine); }
   return pick(rnd, pool);
@@ -206,7 +195,7 @@ function freshPair(rnd, used, d) {
 
 /** Wrong options: same kind of answer, mostly from the same region or sector (so they're plausible). */
 function decoys(rnd, a, avoid, count) {
-  const kin = (x, sameGroup) => BANK[x].cat === BANK[a].cat && allowed(BANK[x].mk) && !avoid.has(x) && (!sameGroup || BANK[x].group === BANK[a].group);
+  const kin = (x, sameGroup) => BANK[x].cat === BANK[a].cat && !avoid.has(x) && (!sameGroup || BANK[x].group === BANK[a].group);
   const near = shuffle(rnd, BANK.map((_, x) => x).filter(x => kin(x, true)));
   const far = shuffle(rnd, BANK.map((_, x) => x).filter(x => kin(x, false) && !near.includes(x)));
   return [...near, ...far].slice(0, count);
@@ -216,7 +205,7 @@ function decoys(rnd, a, avoid, count) {
 function clueQuestion(rnd, L, used, d) {
   const n = OPTIONS;
   const p = freshPair(rnd, used, d), carriers = CARRIERS.get(p.w);
-  const others = shuffle(rnd, [...carriers].filter(x => x !== p.a && allowed(BANK[x].mk) && BANK[x].cat === BANK[p.a].cat));
+  const others = shuffle(rnd, [...carriers].filter(x => x !== p.a && BANK[x].cat === BANK[p.a].cat));
   // sometimes more than one of the answers carrying the clue is offered; at least one option is always wrong
   const extra = others.length && rnd() < L.multi ? (rnd() < 0.5 ? 1 : 2) : 0;
   const right = [p.a, ...others.slice(0, Math.min(extra, n - 2))];
@@ -230,7 +219,7 @@ function clueQuestion(rnd, L, used, d) {
     ask: right.length > 1 ? `Which ${PLURAL_NOUN[BANK[p.a].cat]} is this about?` : `Which ${NOUN[BANK[p.a].cat]} is this about?`,
     options: options.map(x => ({ label: BANK[x].name, right: right.includes(x) })), need: right.length,
     notes: right.map(x => ({ label: BANK[x].name, text: pairOf(x, p.w)?.hint || p.hint })),
-    d: Math.min(...ds), key: p.w, ...marked(p.mk, ...right.map(x => BANK[x].mk)),
+    d: Math.min(...ds), key: p.w,
     about: entitiesOf([[p.a, p.w], ...right.map(x => [x, null])]),     // the clue's entity and the right answers', for the pile
     pairs: keysOf(right.map(x => [x, p.w])),                           // recognised, if picked right
   };
@@ -242,10 +231,10 @@ function answerQuestion(rnd, L, used, d) {
   const p = freshPair(rnd, used, d);
   const a = p.a, mine = new Set(BANK[a].words.map(w => w.w));
   const extra = rnd() < L.multi ? 1 : 0;
-  const second = extra && n > 2 ? pick(rnd, BANK[a].words.filter(w => w.w !== p.w && allowed(w.mk) && L.diff.includes(w.d) && !names(w.w, a))) : null;
+  const second = extra && n > 2 ? pick(rnd, BANK[a].words.filter(w => w.w !== p.w && L.diff.includes(w.d) && !names(w.w, a))) : null;
   const right = [p.w, ...(second ? [second.w] : [])];
   // wrong clues: from answers of the same kind, mostly nearby, that this answer doesn't carry
-  const pool = decoys(rnd, a, new Set([a]), 12).flatMap(x => BANK[x].words.filter(w => allowed(w.mk) && !mine.has(w.w) && L.diff.includes(w.d)).map(w => w.w));
+  const pool = decoys(rnd, a, new Set([a]), 12).flatMap(x => BANK[x].words.filter(w => !mine.has(w.w) && L.diff.includes(w.d)).map(w => w.w));
   const wrong = shuffle(rnd, [...new Set(pool)]).slice(0, n - right.length);
   if (wrong.length < n - right.length || right.some(w => names(w, a)) || wrong.some(w => names(w, a))) return null;
   const options = shuffle(rnd, [...right, ...wrong]);
@@ -254,7 +243,6 @@ function answerQuestion(rnd, L, used, d) {
     kind: "answer", cat: BANK[a].cat, prompt: BANK[a].name, ask: right.length > 1 ? "Which clues go with" : "Which clue goes with",
     options: options.map(w => ({ label: w, right: right.includes(w) })), need: right.length,
     notes: right.map(w => ({ label: w, text: pairOf(a, w).hint })),
-    ...marked(BANK[a].mk, ...right.map(w => BANK[a].words.find(x => x.w === w)?.mk)),
     d: Math.min(...ds), key: p.w,
     about: entitiesOf([[a, null], ...right.map(w => [a, w])]),
     pairs: keysOf(right.map(w => [a, w])),
@@ -271,7 +259,7 @@ function nameQuestion(rnd, L, used, d, known) {
   if (!p) return null;
   const a = p.a, word = BANK[a].words.find(w => w.w === p.w);
   if (names(p.w, a) || normalize(p.hint).includes(normalize(p.w))) return null;   // nothing to recall if it's given away
-  const others = BANK[a].words.filter(w => w.w !== p.w && allowed(w.mk) && !names(w.w, a));
+  const others = BANK[a].words.filter(w => w.w !== p.w && !names(w.w, a));
   if (others.length < n - 1) return null;
   const options = shuffle(rnd, [p.w, ...shuffle(rnd, others).slice(0, n - 1).map(w => w.w)]);
   const topics = (word.topics || []).map(t => TOPIC[t]).filter(Boolean);
@@ -279,14 +267,14 @@ function nameQuestion(rnd, L, used, d, known) {
     kind: "name", cat: BANK[a].cat, prompt: p.hint, ask: `Name it · ${BANK[a].name}${topics.length ? ` · ${topics.join(", ")}` : ""}`,
     options: options.map(w => ({ label: w, right: w === p.w })), need: 1, answer: p.w,
     notes: [{ label: p.w, text: `${BANK[a].name}: ${p.hint}` }],
-    d: p.d, key: p.w, pair: p.k, ...marked(p.mk),
+    d: p.d, key: p.w, pair: p.k,
     about: entitiesOf([[a, p.w], [a, null]]),
   };
 }
 
 /** A clue recognised before (known: known.js's record) and not in the run yet: one not named yet if there is one. */
 function knownPair(rnd, used, known) {
-  const pool = PAIRS.filter(p => p.k && known[p.k] && allowed(p.mk) && !used.has(p.w) && (!ONLY || BANK[p.a].cat === ONLY)), unnamed = pool.filter(p => !known[p.k].named);
+  const pool = PAIRS.filter(p => p.k && known[p.k] && !used.has(p.w) && (!ONLY || BANK[p.a].cat === ONLY)), unnamed = pool.filter(p => !known[p.k].named);
   return unnamed.length ? pick(rnd, unnamed) : pool.length ? pick(rnd, pool) : null;
 }
 
@@ -337,7 +325,7 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
     out.push({
       kind: "maths", cat: "maths", prompt: q.q, ask: "",           // no stage-and-level marker over the question: the slip is for the question
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
-      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.title && { title: q.title }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, key: q.id, ...marked(q.mk),
+      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.title && { title: q.title }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, key: q.id,
     });
   }
   return out;

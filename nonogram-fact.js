@@ -19,16 +19,16 @@ const sentence = t => `${t.trim().split(/(?<=[a-z0-9)])\.\s+(?=[A-Z])/)[0].repla
 export const factFor = async (pic, opts) => short(await factOf(pic, opts));
 /** A fact kept to what two lines hold: cut at a word, with an ellipsis, if it runs on. */
 const short = t => (t.length <= 150 ? t : `${t.slice(0, 147).replace(/\s+\S*$/, "")}…`);
-async function factOf(pic, { marked = false, mix = null } = {}) {
+async function factOf(pic, { mix = null } = {}) {
   // Settings' subjects apply to what is said as to what is dealt: a clue about a subject that is off is not the one shown
-  const allowed = w => (!w.mk || (marked && w.mk !== "l")) && (!mix || Math.max(0, ...(w.topics || []).map(t => mix[t] ?? 1)) > 0);
+  const allowed = w => (!mix || Math.max(0, ...(w.topics || []).map(t => mix[t] ?? 1)) > 0);
   const m = await warm();
   const entry = m?.BANK.find(a => a.entity === pic.about && a.cat === "country");
   if (entry?.words.some(allowed)) {
     const ok = entry.words.filter(allowed), easy = ok.filter(w => w.d <= 2), from = easy.length ? easy : ok, w = from[hash(pic.id) % from.length];
     return `${w.w}: ${sentence(w.hint).replace(/^(A|An|The|One|Its|Their|This|Where|Home)\b/, t => t.toLowerCase())}`;
   }
-  const places = PLACES.filter(p => (p.country === pic.name || p.country === `the ${pic.name}`) && (!p.mk || (marked && p.mk !== "l")));
+  const places = PLACES.filter(p => (p.country === pic.name || p.country === `the ${pic.name}`));
   const p = places.length ? places[hash(pic.id) % places.length] : null;
   if (p) return `${p.name}: ${sentence(p.note)}`;
   // nothing written of it: who it borders (or that it is an island), which the outline itself shows
