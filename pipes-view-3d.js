@@ -87,7 +87,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   // The camera's slide across the plate (two fingers, or the middle button), in world units along the screen's right and up; it eases like the rest of the camera.
   let panX = 0, panY = 0, panXT = 0, panYT = 0;
   let orbitMemo = { az: 22 * P.DEG, el: P.LOOK_EL, zoom: 1 };
-  let turns = [], tMs = 0, runStart = -1, runEnd = Infinity, wake0 = 0, driveOn = false;
+  let stillWas = false, turns = [], tMs = 0, runStart = -1, runEnd = Infinity, wake0 = 0, driveOn = false;
   let G_ = [], byId = new Map(), phases = new Map(), sets = new Map(), ghostSets = new Map(), arbors = [], staffs = null, chatB = null, rubyD = null, rubyL = null;
   let jamHeat = null, sparks = null, parts = null, geoCache = new Map(), litSq = new Set(), stepTrains = new Map(), lastFrameRef = null;
   let bridgesDyn = [], posts = null, bscrews = null;
@@ -302,6 +302,14 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       const beat = 1 / (2 * sink.n * Math.abs(sink.rate)), ms = beat * (f.T0 || 6000), kk = Math.max(1, Math.ceil(170 / ms));
       stepTrains.set(k, beat * kk);
     });
+    // an escapement station: the whole train it sits in jumps one second at a time, the balance beating once a jump
+    for (const pin of plan?.pins || []) {
+      if (pin.goal?.type !== "escape") continue;
+      const r = G_.find(x => x.c === pin.c && x.id === pin.c * 8 + (pin.goal.w ?? 0)) || G_.find(x => x.c === pin.c);
+      if (!r || !r.rate) continue;
+      const beat = 1 / (2 * r.n * Math.abs(r.rate)), ms = beat * (f.T0 || 6000);
+      stepTrains.set(pin.train ?? r.train ?? 0, beat * Math.max(1, Math.ceil(1000 / ms)));
+    }
     // ghost: the piece held over a square, translucent
     for (const e of ghostSets.values()) e.mesh.count = 0;
     // a hint names its piece "kind@rot"; a ghost its kind and rot
@@ -319,6 +327,9 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const wasSolved = lastFrameRef?.solved;
     if (f.solved && !wasSolved) { runStart = tMs; runEnd = tMs + RUN_MS; wake0 = tMs; } else if (!f.solved) { runEnd = Infinity; }
     if (!lastFrameRef) wake0 = tMs;
+    if (f.unwind && !lastFrameRef?.unwind) runEnd = tMs + 1500;                    // a spring let go with nothing to hold it: it spins out in a moment
+    if (f.still && !stillWas) runEnd = lastFrameRef ? tMs : -1e9;                   // a mechanical movement that is not wound rests (it eases to a stop if it was turning)
+    stillWas = !!f.still;
     lastFrameRef = f;
     focus = f.focus ?? focus;
     if (f.look != null && f.look !== lookOn) setLook(f.look);
@@ -401,7 +412,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const screenOf = (x, y, z) => { _p.set(x, y, z).applyMatrix4(tilter.matrixWorld).project(camera); return [(_p.x + 1) / 2 * w, (1 - _p.y) / 2 * h]; };
   const pxPer = () => h / (camera.top - camera.bottom);
   /** A train's complication wakes when its sink is solved (status ok) or the whole movement is. */
-  function awakeOf(k) { return !frame?.unwind && (!!frame?.solved || !!frame?.res?.comps?.some(c => c.train === k && c.status === "ok")); }
+  function awakeOf(k) { return !frame?.unwind && !frame?.still && (!!frame?.solved || !!frame?.res?.comps?.some(c => c.train === k && c.status === "ok")); }
 
   // ---------- the tilt, the camera, the loop ----------
   const TMAX = P.TILT_MAX * 1.25;

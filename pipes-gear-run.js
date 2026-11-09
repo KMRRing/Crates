@@ -103,6 +103,9 @@ export function createPuzzle(deps) {
     // 9 Nov 2026, Korbi: "mechanical watch levels should have a wind button. winding a spring before it is connected to the escapement should rapidly unwind; once connected, it should
     // tick tock." Wind borrows the solved run: connected (an escape wheel meeting its goal) it runs at the going pace and the escapement ticks; not connected it spins ten times
     // faster with the escapement still, and stops.
+    // 9 Nov 2026, Korbi: "if the watch isn't wound and mechanical, it shouldn't move. When wound, it should spin out, unless it's connected to an escapement, in which case the escapement
+    // should start visibly working and the whole gear train jumps one second at a time." A mechanical level rests until Wind is pressed (`still`).
+    if (mechanical()) { f.still = !windMode; f.solved = !!windMode; }
     if (windMode) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
     last = f;
     view.draw(f);
