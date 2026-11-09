@@ -400,7 +400,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   function applyTilt() {
     tilter.rotation.set(tx, 0, tz);
     tilter.updateMatrixWorld(true);
-    shadowMesh.position.set(-tz * 2.2, -1.1, 0.4 + tx * 2.2);
+    shadowMesh?.position.set(-tz * 2.2, -1.1, 0.4 + tx * 2.2);
     if (glassMat?.map) glassMat.map.offset.set(-tz * 1.4, tx * 1.4);
   }
   /** How far the view may slide: the part of the plate that is out of the frame when zoomed in, and a little over the edge so a corner can be centred. */
