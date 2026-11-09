@@ -15,6 +15,8 @@ check([...people.values()].filter(l => l.length > 1).length >= 20 && MEETINGS.le
 check(MEETINGS.filter(x => x.alt).length >= 35, `${MEETINGS.filter(x => x.alt).length} facts have a second wording`);
 check(MEETINGS.every(x => x.who && x.place && x.what && x.why && x.region && Number.isInteger(x.year)), "every meeting is complete");
 check(MEETINGS.every(x => x.year >= 1200 && x.year <= 1700), "every year is inside the age of the Hansa to the late age of exploration");
+check(MEETINGS.filter(x => x.pic).length >= 90 && MEETINGS.every(x => !x.pic || (/^[A-Z]/.test(x.pic) && !/^File:|https?:/.test(x.pic))), `${MEETINGS.filter(x => x.pic).length} meetings have a picture, named by an English Wikipedia page`);
+check(["Mao Kun map", "Piri Reis map", "Sidereus Nuncius", "Mona Lisa"].every(t => MEETINGS.some(x => x.pic === t)), "maps, drafts and paintings are all there");
 check(MEETINGS.every(x => x.what.length <= 56 && (x.alt || "").length <= 56 && x.why.length <= 140), "the clauses and reasons are short enough for a phone");
 check(MEETINGS.every(x => [x.what, x.alt].filter(Boolean).every(t => /^[a-z]/.test(t) && !/[.!]$/.test(t))), "a clause follows the name: lower case, no full stop");
 check(MEETINGS.every(x => !x.alt || (x.alt !== x.what && !MEETINGS.some(y => y !== x && (y.alt || y.what) === x.alt))), "a second wording differs from the first and from every other fact");

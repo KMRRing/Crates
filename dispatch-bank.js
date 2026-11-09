@@ -47,13 +47,45 @@ const ALT = {
   "mansa-musa": "floods Cairo with gold on his pilgrimage", "sejong-the-great": "has a simple script made for common readers", "sonni-ali": "makes Timbuktu a Songhai city", "tokugawa-ieyasu": "receives the shogunate from the emperor",
   koxinga: "drives the Dutch from Formosa",
 };
+// The picture of a meeting (Korbi, 9 Nov 2026: maps for the navigators, drafts for the scientists, paintings for the artists and
+// rulers): the English Wikipedia page whose lead image pics.js shows, by meeting id. Only works and portraits made before 1700, so
+// the image is public domain (docs/licences-images-and-engines.md); a person whose page leads with a statue or a photograph, or
+// whose likeness is unknown, has none. The titles could not be looked up from the sandbox (Wikipedia is out of its reach): a title
+// without an image shows nothing, as pics.js does for any page, so a wrong one costs the picture, not the game.
+const PIC = {
+  // maps and charts: navigators, explorers, merchants
+  "zheng-he": "Mao Kun map", "marco-polo-1271": "Catalan Atlas", "mansa-musa": "Catalan Atlas", "ibn-battuta-1352": "Catalan Atlas", "vasco-da-gama": "Cantino planisphere",
+  "martin-waldseemuller": "Waldseemüller map", "piri-reis": "Piri Reis map", "gerardus-mercator": "Mercator 1569 world map", "abraham-ortelius": "Theatrum Orbis Terrarum",
+  // drafts: scientists, mathematicians, printers
+  fibonacci: "Liber Abaci", "johannes-gutenberg": "Gutenberg Bible", "nicolaus-copernicus": "De revolutionibus orbium coelestium", "andreas-vesalius": "De humani corporis fabrica",
+  "tycho-brahe": "Uraniborg", "tycho-brahe-1572": "SN 1572", "galileo-galilei-1610": "Sidereus Nuncius", "galileo-galilei-1633": "Galileo affair", "johannes-kepler": "Astronomia nova",
+  "johannes-kepler-1619": "Harmonices Mundi", "johannes-kepler-1627": "Rudolphine Tables", "william-harvey": "De Motu Cordis", "hugo-grotius-1625": "De jure belli ac pacis",
+  "erasmus-1511": "In Praise of Folly", "martin-luther-1522": "Luther Bible", "luca-pacioli": "Luca Pacioli",
+  // paintings: artists, rulers, and the people painted
+  "leonardo-da-vinci-1498": "The Last Supper (Leonardo)", "leonardo-da-vinci-1503": "Mona Lisa", "hans-holbein-the-younger": "The Ambassadors (Holbein)", "georg-gisze": "Portrait of Georg Gisze",
+  "henry-viii-1520": "Field of the Cloth of Gold", "elizabeth-i-1588": "Armada Portrait",
+};
+// a person's page for the rest, where its lead is a portrait made before 1700 (or, for the later of two, a painting of the age)
+const PERSON = {
+  "henry-the-navigator": "Henry the Navigator", "christopher-columbus": "Christopher Columbus", "bartolomeu-dias": "Bartolomeu Dias", "pedro-alvares-cabral": "Pedro Álvares Cabral",
+  "afonso-de-albuquerque": "Afonso de Albuquerque", "vasco-nunez-de-balboa": "Vasco Núñez de Balboa", "ferdinand-magellan": "Ferdinand Magellan", "juan-sebastian-elcano": "Juan Sebastián Elcano",
+  "francisco-pizarro": "Francisco Pizarro", "moctezuma-ii": "Moctezuma II", "jacques-cartier": "Jacques Cartier", "henry-hudson": "Henry Hudson", "willem-barentsz": "Willem Barentsz", "abel-tasman": "Abel Tasman",
+  "jan-van-riebeeck": "Jan van Riebeeck", "jan-pieterszoon-coen": "Jan Pieterszoon Coen", "francis-drake": "Francis Drake", koxinga: "Koxinga", "kublai-khan": "Kublai Khan", "ibn-battuta": "Ibn Battuta",
+  "marco-polo": "Marco Polo", "galileo-galilei": "Galileo Galilei", "christiaan-huygens": "Christiaan Huygens", "john-napier": "John Napier", "antonie-van-leeuwenhoek": "Antonie van Leeuwenhoek",
+  "aldus-manutius": "Aldus Manutius", "hugo-grotius": "Hugo Grotius", erasmus: "Erasmus", "niccolo-machiavelli": "Niccolò Machiavelli", "leonardo-da-vinci": "Leonardo da Vinci",
+  "lorenzo-de-medici": "Lorenzo de' Medici", "cosimo-de-medici": "Cosimo de' Medici", "henry-viii": "Henry VIII of England", "elizabeth-i": "Elizabeth I of England", "charles-v": "Charles V, Holy Roman Emperor",
+  "philip-ii": "Philip II of Spain", "jakob-fugger": "Jakob Fugger", "martin-luther": "Martin Luther", "william-of-orange": "William the Silent", "mehmed-ii": "Mehmed the Conqueror", "ivan-iii": "Ivan III of Russia",
+  "gustav-vasa": "Gustav I of Sweden", "frederick-ii": "Frederick II, Holy Roman Emperor", "matteo-ricci": "Matteo Ricci", "francis-xavier": "Francis Xavier", "tokugawa-ieyasu": "Tokugawa Ieyasu", akbar: "Akbar",
+  babur: "Babur", "nur-jahan": "Nur Jahan", shivaji: "Shivaji", "kangxi-emperor": "Kangxi Emperor", "nzinga-of-ndongo": "Nzinga of Ndongo and Matamba", malintzin: "La Malinche", "leonardo-loredan": "Leonardo Loredan",
+  "andrea-doria": "Andrea Doria", "thomas-gresham": "Thomas Gresham", "gerardus-mercator-1541": "Gerardus Mercator",
+};
 // fame is the person's, so a later meeting of theirs has the same
 const seen = new Set();
 const m = (who, place, year, region, what, why, alt) => {
   const pid = idOf(who), id = seen.has(pid) ? `${pid}-${year}` : pid;
   seen.add(pid);
   if (!NAT[pid]) throw new Error(`dispatch-bank: no nationality for ${who}`);
-  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2 };
+  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, pic: PIC[id] ?? PERSON[id] ?? PERSON[pid] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2 };
 };
 
 export const MEETINGS = [
@@ -209,6 +241,7 @@ export const MEETINGS = [
   m("Akbar", "Fatehpur Sikri", 1575, "asia", "opens a house of worship for debate between faiths", "Scholars of several religions argued before him, and he grew sceptical of orthodoxy.", "hears Muslims, Hindus, Jains and Zoroastrians dispute"),
 ];
 
+for (const table of [PIC, PERSON, ALT]) for (const k of Object.keys(table)) if (!MEETINGS.some(x => x.id === k || (table === PERSON && x.pid === k))) throw new Error(`dispatch-bank: ${k} is no meeting`);
 export const REGIONS = [...new Set(MEETINGS.map(x => x.region))];
 export const meetingOf = id => MEETINGS.find(x => x.id === id) || null;
 /** Every meeting of one person, in the order of their years. */

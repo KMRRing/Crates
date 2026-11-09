@@ -1,6 +1,7 @@
 // Almanac's people of Dispatch: each person with their meetings, as the list view shows them. A fact with a second wording is
 // one item here, both wordings together (Korbi, 9 Nov 2026); Dispatch reads one aloud and sets the other in the notes.
 import { MEETINGS, meetingsOfPerson } from "./dispatch-bank.js";
+import { showPicture, pictureName } from "./pics.js";
 
 const fold = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const PEOPLE = [...new Map(MEETINGS.map(x => [x.pid, x])).values()].map(x => ({ pid: x.pid, who: x.who, nat: x.nat, keys: [x.who, x.nat].map(fold), meetings: meetingsOfPerson(x.pid) }));
@@ -31,6 +32,7 @@ export function fillPerson(box, pid, el) {
   for (const x of p.meetings) {
     const sec = el("section", "lx-sec");
     sec.append(el("h3", null, `${x.year} · ${x.place}`));
+    if (x.pic) { const pic = el("div", "lx-pic"); sec.append(pic); showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic }); }
     sec.append(el("p", "lx-note", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`));
     if (x.alt) sec.append(el("p", "lx-note", `Also put: ${x.alt}.`));
     sec.append(el("p", "lx-note", x.why));

@@ -9,6 +9,7 @@ import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
+import { showPicture, pictureName } from "./pics.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "dispatch:run", BEST = "dispatch:best", DAILY = "dispatch:daily";
@@ -68,7 +69,11 @@ function render() {
     const bar = el("div", "dp-time"), fill = el("i"); bar.append(fill); fill.id = "fill";
     const scene = el("article", "dp-scene");
     scene.append(el("p", "dp-place", `${x.place} · ${x.year}`), el("h2", "dp-who", x.who), el("p", "dp-nat", x.nat), el("p", "dp-said", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`), el("p", "dp-why", x.why));
+    const pic = el("figure", "dp-pic");
+    pic.hidden = true;
+    if (x.pic) scene.prepend(pic);
     stage.replaceChildren(bar, scene);
+    if (x.pic) showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic });
     $("goBtn").textContent = S.idx + 1 < n ? "Next" : "To my notes";
     drawTime();
   } else {

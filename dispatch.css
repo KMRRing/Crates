@@ -13,6 +13,10 @@ html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
 .dp-time { height: .3rem; margin: 0 0 .9rem; background: var(--tile-edge); }
 .dp-time i { display: block; height: 100%; width: 0; background: var(--dp-in); }
 .dp-scene { padding: 1rem .9rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); }
+.dp-pic { margin: 0 0 .7rem; display: grid; gap: .25rem; justify-items: center; }
+.dp-pic[hidden] { display: none; }
+.dp-pic img { width: 100%; height: 9.5rem; object-fit: contain; background: var(--tile); border-radius: 3px; }
+.dp-pic small { font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
 .dp-place { margin: 0; font-size: .86rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 .dp-who { margin: .35rem 0 .5rem; font-size: 1.45rem; line-height: 1.15; letter-spacing: .04em; color: var(--ink); }
 .dp-nat { margin: -.3rem 0 .55rem; font-size: .88rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
