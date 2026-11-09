@@ -187,15 +187,30 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     engrave.material.map?.dispose?.();
     const t = drawn(W, (c, s, hh) => {
       const sx = s / (rect[1] - rect[0] - 0.5), toX = x => (x - (rect[0] + 0.25)) * sx, toY = z => (z - (rect[2] + 0.15)) * sx;
-      c.strokeStyle = `rgba(${ink},.16)`; c.lineWidth = 1.2;
-      if (P.isRound(plan)) {
-        // a round plate: each square that is ground, outlined, and the plate's own ring
-        plan.terrain.forEach((t, k) => { if (t !== "void") c.strokeRect(toX(k % cols - cols / 2), toY(Math.floor(k / cols) - rows / 2), sx, sx); });
-        c.beginPath(); c.arc(toX(0), toY(0), (rect[1] - rect[0]) / 2 * sx - 0.2 * sx, 0, Math.PI * 2); c.stroke();
-        return;
+      // 9 Nov 2026, Korbi: "maybe the grid should be a guilloche". The plate is engine-turned: two fields of interlaced wavy lines, one running against the other, with the squares
+      // kept only as faint ticks at their corners so a piece still has its place.
+      const x0 = toX(rect[0] + 0.25), x1 = toX(rect[1] - 0.25), y0 = toY(rect[2] + 0.15), y1 = toY(rect[3] - 0.15), round = P.isRound(plan);
+      c.save();
+      c.beginPath();
+      if (round) c.arc(toX(0), toY(0), (rect[1] - rect[0]) / 2 * sx - 0.2 * sx, 0, Math.PI * 2); else c.rect(x0, y0, x1 - x0, y1 - y0);
+      c.clip();
+      const gap = sx * 0.045, lam = sx * 0.5, amp = gap * 1.15, nLines = Math.ceil((y1 - y0) / gap) + 2;
+      c.lineWidth = 0.9;
+      for (const [alpha, sign] of [[0.2, 1], [0.15, -1]]) {
+        c.strokeStyle = `rgba(${ink},${alpha})`;
+        for (let j = -1; j < nLines; j++) {
+          c.beginPath();
+          for (let x = x0; x <= x1 + 4; x += 4) { const y = y0 + j * gap + amp * Math.sin((x - x0) / lam * Math.PI * 2 + j * 0.55 * sign); x === x0 ? c.moveTo(x, y) : c.lineTo(x, y); }
+          c.stroke();
+        }
       }
-      for (let i = 0; i <= cols; i++) { c.beginPath(); c.moveTo(toX(i - cols / 2), toY(-rows / 2)); c.lineTo(toX(i - cols / 2), toY(rows / 2)); c.stroke(); }
-      for (let j = 0; j <= rows; j++) { c.beginPath(); c.moveTo(toX(-cols / 2), toY(j - rows / 2)); c.lineTo(toX(cols / 2), toY(j - rows / 2)); c.stroke(); }
+      c.restore();
+      c.strokeStyle = `rgba(${ink},.3)`; c.lineWidth = 1.4;
+      const tick = sx * 0.07;
+      const cell = (i, j) => { for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const px = toX(i - cols / 2 + a), py = toY(j - rows / 2 + b), sa = a ? -1 : 1, sb = b ? -1 : 1; c.beginPath(); c.moveTo(px + sa * tick, py); c.lineTo(px, py); c.lineTo(px, py + sb * tick); c.stroke(); } };
+      if (round) plan.terrain.forEach((t, k) => { if (t !== "void") cell(k % cols, Math.floor(k / cols)); });
+      else { for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) cell(i, j); }
+      if (round) return;
       c.fillStyle = `rgba(${ink},.55)`; c.textAlign = "center"; c.font = `600 ${Math.round(sx * 0.2)}px Georgia, serif`;
       c.fillText("CODEX  ·  CALIBRE " + (plan?.cal || 10 + (plan?.trains?.length || 1)), toX(0), toY(rows / 2 + 0.62));
       c.font = `${Math.round(sx * 0.12)}px Georgia, serif`; c.fillStyle = `rgba(${ink},.42)`;
@@ -502,13 +517,14 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   }
   const pointers = new Map();
   let drag = null, pinch = null, mid = null, lastTap = { t: 0, x: 0, y: 0 };      // mid: a pan by the mouse's middle button
-  const mine = e => e.target === canvas || e.target === host;
+  const mine = e => host.contains(e.target) && !e.target.closest?.("button, a, input");       // anywhere on the board, so the second finger of a pinch need not land on the canvas itself
   host.addEventListener("mousedown", e => { if (e.button === 1 && mine(e)) e.preventDefault(); });         // no autoscroll circle
+  host.addEventListener("contextmenu", e => { if (mine(e)) e.preventDefault(); });                               // the right button pans like the middle one
   host.addEventListener("pointerdown", e => {
-    if (mine(e) && e.pointerType === "mouse" && e.button === 1) { e.preventDefault(); mid = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { host.setPointerCapture(e.pointerId); } catch { /* none */ } view.wake(); return; }
+    if (mine(e) && e.pointerType === "mouse" && (e.button === 1 || e.button === 2)) { e.preventDefault(); mid = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { host.setPointerCapture(e.pointerId); } catch { /* none */ } view.wake(); return; }
     if (!mine(e) || (e.pointerType === "mouse" && e.button !== 0)) return;
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
-    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoomT, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 }; drag = null; return; }
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoomT, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 }; drag = null; dragging = false; onGesture?.({ type: "cancel" }); return; }   // the first finger's tap, press or carried piece is the game's no more
     const hh = view.hit(e.clientX, e.clientY);
     skipFinish();
     view.wake();
@@ -551,7 +567,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   };
   host.addEventListener("pointerup", lift, true);
   host.addEventListener("pointercancel", lift, true);
-  canvas.addEventListener("wheel", e => { if (!lookOn) return; e.preventDefault(); zoomT = clamp(zoomT * (e.deltaY < 0 ? 1.12 : 0.89), 1, P.ORBIT.zoom); orbitMemo.zoom = zoomT; wakeLoop(); }, { passive: false });
+  canvas.addEventListener("wheel", e => { e.preventDefault(); zoomT = clamp(zoomT * (e.deltaY < 0 ? 1.12 : 0.89), 1, P.ORBIT.zoom); if (lookOn) orbitMemo.zoom = zoomT; wakeLoop(); }, { passive: false });
   canvas.addEventListener("webglcontextlost", e => { e.preventDefault(); onLost?.(); });
 
   // ---------- the theme ----------

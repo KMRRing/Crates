@@ -113,6 +113,8 @@ export function createPuzzle(deps) {
     drawHand();
     drawWorkings(f.res);
     drawLayers();
+    // 9 Nov 2026, Korbi: the "wants ×11/2" chips over the wheels are "quite distracting, middle of the screen": the workings strip says the same, so they show in Look only
+    $("board").classList.toggle("show-chips", looking);
     drawText(f.res);
     return f.res;
   }
@@ -232,7 +234,7 @@ export function createPuzzle(deps) {
     }
     const turns = document.createElement("small");
     turns.className = "pi-turns";
-    turns.textContent = L.rotate ? "↻ Turn" : "No turning";
+    turns.textContent = L.rotate ? (mechanical() ? "↻" : "↻ Turn") : "No turning";
     chips.push(turns);
     if (mechanical()) {
       const w = document.createElement("button");
@@ -502,6 +504,11 @@ export function createPuzzle(deps) {
   }
   /** A pointer down on the board (from the view): a tap, a long press that lifts, or a drag of a laid piece. */
   function onBoardDown(g) {
+    if (g.type === "cancel") {                                    // a second finger came down: the camera's, not the game's
+      if (press) { press.done = true; clearTimeout(press.timer); }
+      if (drag) onCancel();
+      return;
+    }
     if (g.type !== "down") return;
     if (frame || run.solved || running) return;
     const hit = view.hit(g.clientX, g.clientY);
