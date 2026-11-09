@@ -163,7 +163,7 @@ function flashCell(from, to) {
   c.classList.add("tick");
 }
 function render() {
-  const won = S.status === "won", k = won ? S.shots : S.shots + 1, earn = starsOf(lvl, { status: "won", shots: k });
+  const won = S.status === "won", k = won ? S.shots : S.shots + 1, earn = starsOf(lvl, { status: "won", shots: k, log: [{ c: aim.charge }] });   // a gentle level counts the power of the shot, so the shot now aimed
   $("lvId").textContent = daily ? `Daily ${lvl.id}` : lvl.id;
   $("lvName").textContent = lvl.name;
   const gw = goalWords(lvl);
@@ -271,7 +271,7 @@ function noteDaily(n) {
 const dateWords = d => `${String(d % 100).padStart(2, "0")}/${String(Math.floor(d / 100) % 100).padStart(2, "0")}/${Math.floor(d / 10000)}`;
 /** The result as a few words to paste: the day, the level, the stars and the shots. */
 async function share() {
-  const earn = starsOf(lvl, { status: "won", shots: S.shots });
+  const earn = starsOf(lvl, S);
   const text = `Columbiad · today's level, ${dateWords(daily)}\n${lvl.id} ${lvl.name} · ${starsWords(earn)} · ${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}`;
   try { await navigator.clipboard.writeText(text); say("Result copied"); } catch { say("Couldn't copy the result"); }
 }

@@ -587,6 +587,6 @@ export function apply(lvl, s0, mv, o = {}) {
 /** Three stars for a win with the first shot, two with the second or third, one with any other; none before a win. */
 export function stars(lvl, s) {
   if (s.status !== "won") return 0;
-  if (lvl.thrift) { const c = s.log.length ? s.log[s.log.length - 1].c : Infinity; return c <= lvl.thrift[0] ? 3 : c <= lvl.thrift[1] ? 2 : 1; }      // a gentle level: the stars are for the least power
+  if (lvl.thrift) { const c = s.log?.length ? s.log[s.log.length - 1].c : Infinity; return c <= lvl.thrift[0] ? 3 : c <= lvl.thrift[1] ? 2 : 1; }      // a gentle level: the stars are for the least power
   return s.shots === 1 ? 3 : s.shots <= 3 ? 2 : 1;
 }
