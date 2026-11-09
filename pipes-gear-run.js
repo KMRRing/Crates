@@ -28,7 +28,7 @@ export function createPuzzle(deps) {
   const indexOf = id => LEVELS.findIndex(l => l.id === id);
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
   let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
-  let undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
+  let windMode = null, windTimer = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
   let running = false, jamKey = "", kind = "2d", mod3d = null;
 
   // ---------- keeping ----------
@@ -56,6 +56,7 @@ export function createPuzzle(deps) {
     if (!r || r.sig !== sigOf(spec) || fresh) r = saved.runs[spec.id] = { sig: sigOf(spec), laid: {}, sel: null, selRot: null, lifts: 0, hints: 0, solved: 0 };
     run = r;
     laid = E.unpackLaid(L, run.laid);
+    clearTimeout(windTimer); windMode = null;
     undoStack = []; hint = null; jamKey = ""; focus = null; looking = false; liftMode = false;
     persist();
   }
@@ -99,6 +100,10 @@ export function createPuzzle(deps) {
     ensureView();
     const f = E.frameOf(L, laid, { hint, focus, look: looking, ...extra });
     f.solved = !!run.solved && f.res.solved;           // a level is only seen turning once it has been finished here
+    // 9 Nov 2026, Korbi: "mechanical watch levels should have a wind button. winding a spring before it is connected to the escapement should rapidly unwind; once connected, it should
+    // tick tock." Wind borrows the solved run: connected (an escape wheel meeting its goal) it runs at the going pace and the escapement ticks; not connected it spins ten times
+    // faster with the escapement still, and stops.
+    if (windMode) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
     last = f;
     view.draw(f);
     return f;
@@ -194,6 +199,18 @@ export function createPuzzle(deps) {
     box.style.setProperty("--rows", rows.length);
     box.replaceChildren(...rows);
   }
+  const mechanical = () => !!spec.v && (L.trains.some(t => ["escape", "tourbillon"].includes(t.sink.goal?.type)) || spec.pins?.some(p => p.goal?.type === "escape"));
+  /** The Wind button of a mechanical movement. */
+  function wind() {
+    if (frame || running || !last) return;
+    const ok = !!run.solved || (last.res.comps || []).some(c => c.type === "escape" && c.status === "ok") || (last.res.comps || []).some(c => c.type === "tourbillon" && c.status === "ok");
+    windMode = ok ? "tick" : "unwind";
+    clearTimeout(windTimer);
+    render();
+    view.runNow?.();
+    if (!ok) for (let i = 0; i < 6; i++) setTimeout(() => sound(0.5 - i * 0.05), i * 110);
+    windTimer = setTimeout(() => { windMode = null; render(); }, ok ? 9000 : 1700);
+  }
   function drawLayers() {
     const box = $("layers"), on = !!spec.v;
     box.hidden = !on;
@@ -217,6 +234,15 @@ export function createPuzzle(deps) {
     turns.className = "pi-turns";
     turns.textContent = L.rotate ? "↻ Turn" : "No turning";
     chips.push(turns);
+    if (mechanical()) {
+      const w = document.createElement("button");
+      w.type = "button";
+      w.className = "pi-layer pi-wind";
+      w.textContent = "Wind";
+      w.setAttribute("aria-label", "Wind the mainspring");
+      w.addEventListener("click", wind);
+      chips.push(w);
+    }
     const lookB = $("pzLook");
     lookB.hidden = false;
     lookB.textContent = looking ? "Done" : "Look";

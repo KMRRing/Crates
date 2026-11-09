@@ -295,3 +295,9 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-q .pi-turn { position: absolute; right: 0; top: 0; padding: .02rem .16rem; background: var(--pi-ground); font-size: .7rem; font-weight: 800; font-style: normal; line-height: 1.1; color: var(--pi-in); pointer-events: none; }
 .pi-layers-row .pi-turns { margin-left: auto; margin-right: .5rem; white-space: nowrap; }
 .pi-layers-row .pi-turns + .pi-look { margin-left: 0; }
+.pi-layers-row .pi-wind { width: auto; padding: 0 .6rem; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; }
+.pi-layers-row .pi-layer, .pi-layers-row .pi-look { flex: none; }
+.pi-layers-row { gap: .25rem; }
+.pi-layers-row .pi-turns { margin: 0 auto 0 .1rem; font-size: .56rem; letter-spacing: .04em; }
+.pi-layers-row .pi-wind { padding: 0 .45rem; }
+.pi-layers-row .pi-look { padding: 0 .55rem; margin-left: 0; }

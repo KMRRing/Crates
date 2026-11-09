@@ -377,7 +377,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const screenOf = (x, y, z) => { _p.set(x, y, z).applyMatrix4(tilter.matrixWorld).project(camera); return [(_p.x + 1) / 2 * w, (1 - _p.y) / 2 * h]; };
   const pxPer = () => h / (camera.top - camera.bottom);
   /** A train's complication wakes when its sink is solved (status ok) or the whole movement is. */
-  function awakeOf(k) { return !!frame?.solved || !!frame?.res?.comps?.some(c => c.train === k && c.status === "ok"); }
+  function awakeOf(k) { return !frame?.unwind && (!!frame?.solved || !!frame?.res?.comps?.some(c => c.train === k && c.status === "ok")); }
 
   // ---------- the tilt, the camera, the loop ----------
   const TMAX = P.TILT_MAX * 1.25;
