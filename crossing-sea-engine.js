@@ -109,20 +109,26 @@ export function best(fromPlace, toPlace, closed = []) {
 // Easy: port to port. Medium: one end inland. Hard: both. Never two places in one country, and the sea between them long
 // enough (4+ lanes on the best path) to have somewhere to go wrong.
 const KINDS = { easy: [false, false], medium: [true, false], hard: [true, true] };
-export function dealRun(seed, level = "medium") {
+export function dealRun(seed, level = "medium", ok = () => true) {
+  // `ok(country)`: the region; at least one end in it (a region with few ports can't have both), and everywhere if that fails
+  const run = anywhere => {
   const r = rng(seed), [inA, inB] = KINDS[level] || KINDS.medium, used = new Set(), out = [];
   const pool = inland => places.filter(p => p.inland === inland);
   const tries = r() < 0.5 ? [inA, inB] : [inB, inA];     // which end is inland in a medium shipment varies
   let guard = 0;
   while (out.length < ROUTES && guard++ < 4000) {
     const A = shuffle(r, pool(tries[0]))[0], B = shuffle(r, pool(tries[1]))[0];
-    if (!A || !B || used.has(A.name) || used.has(B.name) || A.country === B.country) continue;
+    if (!A || !B || used.has(A.name) || used.has(B.name) || A.country === B.country || (!anywhere && !ok(A.country) && !ok(B.country))) continue;
     const top = best(A.name, B.name);
     if (!top || top.path.length < 5 || top.load === top.discharge) continue;
     out.push({ from: A.name, to: B.name, best: Math.round(top.cost) });
     used.add(A.name); used.add(B.name);
   }
-  return { level, seed, routes: out };
+  return out;
+  };
+  let routes = run(false);
+  if (routes.length < ROUTES) routes = run(true);
+  return { level, seed, routes };
 }
 
 // ---------- a shipment in play ----------

@@ -23,7 +23,7 @@ import { part, choice, action, line, ticks, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, dealt, markedIn } from "./topics-on.js";
-import { topicsPart } from "./topics-ui.js";
+import { flags } from "./menu-flags.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
 import { roundOver } from "./random.js";
 
@@ -975,15 +975,6 @@ let pickLength = null;                                        // the length the 
 let pickCopies = [];                                          // the menu's copies of the bar's pickers: [button, source, fallback]
 new MutationObserver(() => { for (const [b, src, fb] of pickCopies) b.textContent = src.textContent || fb; })
   .observe($("mathsBar"), { childList: true, characterData: true, subtree: true });
-/** What the topics line adds for Punt: when the subjects on leave it nothing to deal, that a run deals every topic; at a
- *  table, whose topics are dealt; else, with some off, that today's run ignores them (it says nothing when all are on or off,
- *  as the run is then the same). */
-function topicsNote() {
-  const on = subjectsOn(), preset = subjectPreset(on);
-  if (dealsEverything(on)) return "Punt has nothing on these, so a run deals every topic";
-  if (together.room) return "A table's run is dealt from the topics of whoever starts it";
-  return preset === "all" || preset === "none" ? "" : "Today's run deals every topic";
-}
 function drawMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -1000,10 +991,8 @@ function drawMenu() {
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
   // what a run deals: the topics set in Settings (a line and a link here, never a control of its own), the difficulties
   // for all of them, and each subject bank's stages; a change applies to the next run
-  const inMix = topicsOf(subjectsOn()), content = part(body, "content");
-  content.append(...topicsPart(content, topicsNote()));
-  content.append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${MIX.questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; })
-  );
+  flags(body, { name: "Punt", game: "punt", topics: true, learning: !together.room,
+    own: [choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${MIX.questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; })] });
   if (together.room) {
     const max = maxShare(S);
     part(body, "together").append(choice("Purses", Object.entries(MODES), modeOf(S), switchMode),

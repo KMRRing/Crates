@@ -74,5 +74,18 @@ check(E.matches(country("Turkey"), "  TURKEY  "), "case and spaces don't matter"
 const owner = new Map();
 for (const p of paint) for (const n of E.painterNames(p.answer)) { const had = owner.get(n); check(!had || had === p.answer, `"${n}" names two painters (${had}, ${p.answer})`); owner.set(n, p.answer); }
 
+// buildings (Punt's architecture bank), and the Pictures row and the narrowed pools (Korbi, 9 Nov 2026)
+const { MATHS: ARCH } = await import("../arch-bank.js");
+const build = E.buildings(ARCH), allPools = { painting: paint, building: build, flag, outline };
+check(build.length >= 60 && build.every(b => b.pic && b.answer && b.kind === "building") && new Set(build.map(b => b.answer)).size === build.length, `${build.length} buildings, each with a picture and its name`);
+for (const level of E.LEVELS) {
+  const mixed = E.dealRun(5, level, allPools), kinds = mixed.items.map(i => i.kind).sort().join();
+  check(mixed.items.length === 5 && kinds === "building,flag,flag,outline,painting", `a run of every kind at ${level}: ${kinds}`);
+  for (const only of ["painting", "building", "flag", "outline"]) check(E.dealRun(9, level, allPools, only).items.every(i => i.kind === only) && E.dealRun(9, level, allPools, only).items.length === 5, `Pictures: only ${only} at ${level}`);
+}
+const noArt = E.dealRun(3, "easy", { ...allPools, painting: [], building: [] });
+check(noArt.items.length === 5 && noArt.items.every(i => i.kind === "flag" || i.kind === "outline"), "a pool left empty (a region has no paintings) leaves the mix");
+check(E.dealRun(3, "easy", allPools, "painting").items.map(i => i.answer).join() === E.dealRun(3, "easy", allPools, "painting").items.map(i => i.answer).join(), "the same seed deals the same run");
+
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log(`spyglass: ${paint.length} paintings, ${flag.length} flags and ${outline.length} outlines, runs dealt at every level, sharpening and scoring and typed answers checked`);

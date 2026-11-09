@@ -281,7 +281,7 @@ const shuffle = (rand, xs) => { const a = xs.slice(); for (let i = a.length - 1;
 export const poolOf = (topic, region, grid = "square", mix = null, marked = false) => {
   const kinds = mix && Object.values(mix).some(w => w > 0) ? p => mix[p.topic] > 0 : () => true;
   // (what is marked for removal is out unless `marked`: Settings' choice, passed by the page; the worker has no storage; a daily never)
-  return PICTURES.filter(p => (!p.mk || (marked === true && p.mk !== "l")) && (topic === "all" ? kinds(p) : p.topic === topic) && (region === "world" || p.regions.includes(region)) && !(grid === "hex" && p.topic === "flags"));
+  return PICTURES.filter(p => (!p.mk || (marked === true && p.mk !== "l")) && (topic === "all" ? kinds(p) : p.topic === topic) && (region === "world" || p.regions.includes(region) || (region === "asia" && p.regions.includes("middle-east"))) && !(grid === "hex" && p.topic === "flags"));
 };
 
 /**

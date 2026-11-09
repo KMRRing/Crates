@@ -11,7 +11,7 @@ import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, 
 import { kbEntry, entriesAbout, reviewCard, BANK } from "./crossword-kb.js";
 import { subjectPreset } from "./topics.js";
 import { subjectsOn, markedIn, allowed } from "./topics-on.js";
-import { topicsPart } from "./topics-ui.js";
+import { flags } from "./menu-flags.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, todayPart, onPause, isPaused } from "./menu.js";
 import { ramp } from "./ramp.js";
@@ -1076,11 +1076,9 @@ function openMenu() {
   play_.prepend(action("New grid", () => newGrid(false), "primary"));
   todayPart(body, { app: "crossword", play: () => openToday(), playing });
   if (playing) part(body, "play").append(action("Start today's again", () => restartToday(), "link"));
-  const content = part(body, "content");
   const knowledge = s.kind !== "classic" && s.kind !== "numbers";
-  content.append(choice("Clues", Object.entries(KINDS), s.kind, v => { setSetting("kind", v); openMenu(); }),
-    // Settings' topics, in a sheet from here, for the next random grid (today's takes every topic)
-    ...(knowledge ? topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do") : []));
+  // Settings' topics, in a sheet from here, for the next random grid (today's takes every topic); the clues are the grid's own choice
+  flags(body, { name: "Crossword", game: "crossword", topics: knowledge, learning: knowledge, own: [choice("Clues", Object.entries(KINDS), s.kind, v => { setSetting("kind", v); openMenu(); })] });
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);
   part(body, "about").append(line(bests.length ? `Best: ${bests.join(" · ")} · ${solvedN} solved` : "No grid solved yet"),

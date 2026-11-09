@@ -60,17 +60,18 @@ function remember(it, code, now) {
 }
 
 /**
- * The learning mode, one for every game (its menu's "Learning mode"):
+ * The learning mode, one for every game (shown in each game's menu, Settings; the games screen's Choose sheet has it too):
  *   norepeat  deals nothing from the piles, and keeps what it deals fresh: nothing again until the rest has had its turn
- *   learn     what's newest: the shortest-term pile first (due or not), so a new miss is drilled before it can fade
- *   revision  what's due, the longest-term pile first (what a lapse would cost most); how the games always dealt
- *   mixed     both, one then the other: the shortest-term and the longest-term due together
- * The old on/off switch is read as revision/no repeats.
+ *   revision  Revise: what's due, the longest-term pile first (what a lapse would cost most); how the games always dealt
+ *   learn     Learn: what's newest, the ultra-short and the short pile mixed one for one, due or not, so a new miss is
+ *             drilled before it can fade; nothing from the longer piles
+ * Korbi, 9 Nov 2026: three modes, "no repeats, revise, learn". The fourth, Mixed, is gone; a mode saved as it reads as Revise.
+ * The old on/off switch is read as revise/no repeats.
  */
-export const MODES = [["norepeat", "No repeats"], ["learn", "Learn"], ["revision", "Revision"], ["mixed", "Mixed"]];
+export const MODES = [["norepeat", "No repeats"], ["revision", "Revise"], ["learn", "Learn"]];
 export function mode() {
   const s = read(SETTINGS, {});
-  return MODES.some(([m]) => m === s.mode) ? s.mode : s.learning === false ? "norepeat" : "revision";
+  return MODES.some(([m]) => m === s.mode) ? s.mode : s.learning === false ? "norepeat" : "revision";     // "mixed" (gone) and anything unknown: revise
 }
 export function setMode(m) { if (MODES.some(([k]) => k === m)) write(SETTINGS, { ...read(SETTINGS, {}), mode: m }); }
 /** Whether the piles deal anything (every mode but No repeats). */
@@ -165,21 +166,15 @@ export function due(game = null, at = Date.now()) {
   return all(game).filter(it => !it.learned && it.due <= at).sort((a, b) => b.pile - a.pile || a.due - b.due);
 }
 /**
- * What the learning mode deals now, from a game's items (or every game's), in the order to deal it:
- * revision is due(); learn the shortest-term pile first, due or not yet; mixed takes one of each in turn (the
- * shortest-term, then the longest-term due), nothing twice; No repeats nothing.
+ * What the learning mode deals now, from a game's items (or every game's), in the order to deal it: revise is due(); learn
+ * the ultra-short and short piles mixed one for one (the shorter first), due or not yet; No repeats nothing.
  */
 export function picks(game = null, at = Date.now()) {
   const m = mode();
   if (m === "norepeat") return [];
-  const revise = due(game, at);
-  if (m === "revision") return revise;
-  const learn = all(game).filter(it => !it.learned).sort((a, b) => a.pile - b.pile || a.due - b.due);
-  if (m === "learn") return learn;
-  const out = [], taken = new Set();
-  for (let i = 0; i < Math.max(learn.length, revise.length); i++) {
-    for (const it of [learn[i], revise[i]]) if (it && !taken.has(it.id)) { taken.add(it.id); out.push(it); }
-  }
+  if (m === "revision") return due(game, at);
+  const young = pile => all(game).filter(it => !it.learned && it.pile === pile).sort((a, b) => a.due - b.due), a = young(0), b = young(1), out = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) for (const it of [a[i], b[i]]) if (it) out.push(it);
   return out;
 }
 /** Counts per pile for a game or all, plus learned and due. */

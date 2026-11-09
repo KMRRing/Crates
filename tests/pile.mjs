@@ -56,11 +56,14 @@ check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's ba
   check(P.mode() === "revision" && P.learning(), "the default mode is revision (what was 'on')");
   check(names(P.picks("chart")) === "quarter,week,day,new,fresh", `revision: longest-term first: ${names(P.picks("chart"))}`);
   P.setMode("learn");
-  check(names(P.picks("chart")) === "new,fresh,day,week,quarter", `learn: shortest-term first: ${names(P.picks("chart"))}`);
-  P.setMode("mixed");
-  check(names(P.picks("chart")) === "new,quarter,fresh,week,day", `mixed: one of each in turn, nothing twice: ${names(P.picks("chart"))}`);
-  by("day").due = Date.now() + 86400000;                   // not due: learn deals it, revision doesn't
-  P.setMode("learn"); check(P.picks("chart").some(it => it.key === "day"), "learn also deals what isn't due yet");
+  check(names(P.picks("chart")) === "new,fresh", `learn: the ultra-short and short piles only: ${names(P.picks("chart"))}`);
+  P.record("chart", "short", {}, "miss"); P.answer("chart", "short", true);       // one step up: the short pile, ten minutes away
+  check(names(P.picks("chart")) === "new,short,fresh", `learn mixes the two piles one for one: ${names(P.picks("chart"))}`);
+  check(!names(P.picks("chart")).includes("day"), "learn deals nothing from the longer piles");
+  P.forget("chart", "short");
+  localStorage.setItem("pile:settings", JSON.stringify({ mode: "mixed" })); check(P.mode() === "revision", "a mode saved as Mixed (gone) reads as Revise");
+  by("day").due = Date.now() + 86400000;
+  P.setMode("learn"); check(P.picks("chart").some(it => it.key === "new" && it.due > 0), "learn deals what isn't due yet too");
   P.setMode("revision"); check(!P.picks("chart").some(it => it.key === "day"), "revision deals only what's due");
   P.setMode("norepeat");
   check(!P.learning() && P.picks("chart").length === 0 && P.weakElsewhere("quote").size === 0, "no repeats deals nothing from the piles");

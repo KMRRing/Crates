@@ -38,10 +38,18 @@ export function rng(seed) {
 }
 /** Today's set: one for the day, the same for everyone. */
 export const dailySet = day => SETS[Math.floor(rng(day * 31 + 7)() * SETS.length)];
-/** A set not dealt lately (`seen`, newest first) from a group ("all" for every one), the one longest ago if all have been. */
-export function dealSet(group = "all", seen = [], rand = Math.random) {
-  const pool = SETS.filter(s => group === "all" || s.group === group);
-  if (!pool.length) return SETS[0];
+/**
+ * A set not dealt lately (`seen`, newest first), the one longest ago if all have been. `from` is a group name ("all" for every one), or
+ * { subjects: the subject ids on (null for all), region: a continent or "world", prefer: set ids the learning mode wants back }: a
+ * region with no set in it deals from the rest of the world, and the preferred sets that are in the pool come first.
+ */
+export function dealSet(from = "all", seen = [], rand = Math.random) {
+  const o = typeof from === "string" ? { group: from } : from;
+  let pool = SETS.filter(s => (!o.group || o.group === "all" || s.group === o.group) && (!o.subjects || o.subjects.includes(s.subject)));
+  if (o.region && o.region !== "world" && pool.some(s => s.regions.includes(o.region))) pool = pool.filter(s => s.regions.includes(o.region));
+  if (!pool.length) pool = SETS;
+  const want = pool.filter(s => o.prefer?.includes(s.id));
+  if (want.length) return want[Math.floor(rand() * want.length)];
   const fresh = pool.filter(s => !seen.includes(s.id));
   if (fresh.length) return fresh[Math.floor(rand() * fresh.length)];
   return pool.slice().sort((a, b) => seen.indexOf(b.id) - seen.indexOf(a.id))[0];

@@ -104,3 +104,16 @@ export const SETS = [
     "Cabernet Sauvignon", "Merlot", "Cabernet Franc", "Petit Verdot", "Malbec", ["Carménère", "Carmenere"]]),
   s("base-metals", "Wine and trade", "The six classic base metals", "Name the six classic base metals traded on the London Metal Exchange.", [["Aluminium", "Aluminum"], "Copper", "Zinc", "Nickel", "Lead", "Tin"]),
 ];
+
+// What each set is about (topics.js: the suite's one list of subjects, so Settings' Topics governs Census as it does every knowledge
+// game, Korbi 9 Nov 2026: "the topics here are census-only, which should be avoided") and which continents it belongs to (region-core.js).
+// A set with no continent (the G20, the oceans, the periodic groups) is only in Worldwide.
+const SUBJECT = { "eu-capitals": "cities", g20: "pol", g7: "pol", asean: "pol", pgms: "met", "base-metals": "met", "greek-letters": "lang", nato: "lang", wonders: "hist", "henry-wives": "hist", tudors: "hist",
+  olympians: "rel", muses: "art", tragedies: "art", "first-growths": "food", "bordeaux-grapes": "agr" };
+const REGIONS = { africa: ["africa"], "south-america": ["south-america"], "central-america": ["north-america"], eu: ["europe"], "eu-capitals": ["europe"], "germany-borders": ["europe"], nordic: ["europe"], alpine: ["europe"],
+  asean: ["asia"], cantons: ["europe"], laender: ["europe"], "us-states": ["north-america"], canada: ["north-america"], australia: ["oceania"], "great-lakes": ["north-america"],
+  "henry-wives": ["europe"], tudors: ["europe"], olympians: ["europe"], muses: ["europe"], tragedies: ["europe"], "first-growths": ["europe"], "bordeaux-grapes": ["europe"] };
+for (const x of SETS) {
+  x.subject = SUBJECT[x.id] || (x.group === "Geography" ? "geo" : "sci");
+  x.regions = REGIONS[x.id] || [];
+}

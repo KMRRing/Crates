@@ -6,11 +6,11 @@
 // pair's duo match, a party's), everyone pins the same place on their own phone, and the reveal shows every pin, each
 // one's distance and points and the standings (chart-table.js is the table's rules).
 import { PER_SET, regionSpan, pickMixed, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, bestTopicOf, comparableMix, focusOf, OLD_TOPICS, OLD_NAMES, oldTopicOf, topicOf, LOCAL, REGIONS, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
-import { part, choice, action, line as menuLine, mirror, todayPart } from "./menu.js";
+import { part, choice, action, line as menuLine, todayPart } from "./menu.js";
 import { cleanMix, anyIn, mixParam, mixFromParam, subjectPreset, SUBJECT_PRESETS, showStar } from "./topics.js";
 import { subjectsOn, allowed, markedIn } from "./topics-on.js";
 import { mkOfEntity } from "./marked.js";
-import { topicsPart } from "./topics-ui.js";
+import { flags } from "./menu-flags.js";
 import { missOf, isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, clueIn, pinIn, revealNow, nextIn, moveOnNow, settleUp, entryAt, totals, placeRows, standingRows, resultOf, initials } from "./chart-table.js";
 import { presentSlots, seated } from "./duel-core.js";
 import { leaderboard, rank } from "./standings.js";
@@ -975,14 +975,6 @@ async function copyLink() {
 // sheet that sets them for every game, and the region), Settings (learning mode), About (your bests here, a link); at a
 // table, the topics and region of a fresh set for everyone (the region deals it at once, the topics the next) and the
 // table's own part
-/** What the topics line adds for this game: how many of its topics the subjects leave in, and what that means for your best. */
-function topicsNote() {
-  const on = subjectsOn(), w = topicsOf(on), n = TOPICS.filter(([id]) => w[id] > 0).length, p = subjectPreset(on), one = focusOf(w);
-  if (p === "none" || p === "all") return "";                 // the line says all there is to say
-  if (!n) return "None are Chart's, so every topic is dealt";
-  if (one) return `Chart deals ${TOPICS.find(([id]) => id === one)[1]} alone, a set with a best of its own`;
-  return `Chart deals ${n} of its ${TOPICS.length} topics${p === "custom" ? "; your own mix keeps no best" : ""}`;
-}
 /** The map's two looks: flat or a globe from space (with no choice kept, the suite's default, mode3d.js). A choice for this device, taking effect at once. */
 const viewChoice = () => choice("Map", [["2d", "2D map"], ["3d", "3D globe"]], mode3d ? "3d" : "2d", v => {
   mode3d = v === "3d";
@@ -995,22 +987,17 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room) {
-    if (S) {                                                  // a fresh set for the table is dealt from the topics of whoever deals it
-      const note = topicsNote();
-      part(body, "content").append(...topicsPart(body, note ? `${note}; a fresh set is dealt from yours` : "A fresh set is dealt from yours"), mirror("Region", $("region")));
-    }
-    part(body, "settings").append(viewChoice());
+    // a fresh set for the table is dealt from the topics of whoever deals it
+    flags(body, { name: "Chart", game: "chart", ...(S ? { region: { mirror: $("region") }, topics: true } : {}), own: [viewChoice()] });
     part(body, "together").append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(selOf(S).region), "primary"),
       ...(S?.done ? [action("Final standings", () => finishRoom(true))] : []), action("Back to solo", () => together.leave(), "link"));
   } else {
     const play = part(body, "play");
     play.append(action("Start a set", () => confirmStart("random"), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
-    const content = part(body, "content");
     // the topics and the region are for random sets: today's is the same for everyone, every topic and worldwide
-    content.append(...topicsPart(content, topicsNote()), mirror("Region", $("region")));
+    flags(body, { name: "Chart", game: "chart", region: { mirror: $("region") }, topics: true, learning: true, own: [viewChoice()] });
     todayPart(body, { app: "chart", play: () => confirmStart("daily"), playing: S?.mode === "daily" && S.seed === today() && !S.done });   // confirmStart asks before it leaves a set
-    part(body, "settings").append(viewChoice());
     const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
       menuLine(!key ? `${what}: your own mix keeps no best` : `${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),

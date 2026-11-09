@@ -64,7 +64,7 @@ const even = (mode, weights) => !weights || topicsIn(mode).every(([id]) => (weig
  * same few don't come round while hundreds wait. A deal that has to reach back into the seen ones says `recycled`, and the
  * page lets them go (cards are forgotten when too few are left to deal from, not on a clock).
  */
-export function dealRun(mode, seed, weights = null, seen = null, daily = false) {
+export function dealRun(mode, seed, weights = null, seen = null, daily = false, prefer = []) {
   const DATES_ = datesFor(daily), FAMILIES_ = familiesFor(daily);
   const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1;
   const isNew = id => !seen?.has(id), newFirst = xs => (seen ? [...xs.filter(isNew), ...xs.filter(id => !isNew(id))] : xs);
@@ -89,6 +89,8 @@ export function dealRun(mode, seed, weights = null, seen = null, daily = false) 
     unit = fam.unit; ids = newFirst(shuffle(r, fam.ids));
     recycled = fresh(fam) < Math.min(fam.ids.length, DATES_PER_RUN);      // a run is rarely longer than that
   }
+  // the cards the learning mode has due (`prefer`; none in a daily or a story) lead, up to a quarter of a run
+  if (prefer.length && !daily && mode !== "stories") { const lead = prefer.filter(id => ids.includes(id) || (mode === "dates" ? DATES_.includes(id) : familyOf(unit)?.ids.includes(id))).slice(0, Math.ceil(DATES_PER_RUN / 4)); ids = [...lead, ...ids.filter(id => !lead.includes(id))]; if (mode === "dates") ids = ids.slice(0, DATES_PER_RUN); }
   return { seed, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false, ...(wide ? { wide } : {}), ...(recycled && seen ? { recycled } : {}) };
 }
 export const truth = id => BY_ID.get(id).truth;

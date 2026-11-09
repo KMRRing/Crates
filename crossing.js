@@ -3,6 +3,9 @@
 // beyond and each mistake. The rules are crossing-engine.js's; this file keeps the run, draws the map (Chart's projection,
 // pan and pinch) and the page. Sea mode (ports, straits, canals, rivers) is crossing-sea-engine.js's, and its map and
 // buttons crossing-sea-ui.js's; here it only joins the run, the menu and the canvas.
+import { flags } from "./menu-flags.js";
+import { regionOf } from "./region.js";
+import { inRegions } from "./region-core.js";
 import { LEVELS, ROUTES, FULL, dealRun, begin, here, cross, back, giveUp, crossed, scoreOf, clean, totalOf, shortest, neighbours, countryOf, onLand } from "./crossing-engine.js";
 import * as SE from "./crossing-sea-engine.js";
 import * as SU from "./crossing-sea-ui.js";
@@ -35,9 +38,14 @@ const isSea = () => S?.mode === "sea";
 /** The ramp of a mode: land keeps the key it launched with, sea has its own (`crossing:ramp:sea`). */
 const startLevel = (mode = modeNow()) => ramp("crossing", LEVELS, { start: "easy", id: mode === "sea" ? "sea" : "" });
 const bestKey = (mode, level) => (mode === "sea" ? `sea:${level}` : level);
+/** Whether a country (by its name) is in the region chosen; a daily is the same for everyone, so it ignores it. */
+const regionByName = new Map(COUNTRIES.map(c => [c.name, c.regions]));
+let dailyRun = false;
+const inRegionNow = name => dailyRun || inRegions(regionOf("crossing"), regionByName.get(name));
 function newRun(daily = false) {
+  dailyRun = daily;
   const mode = modeNow(), seed = daily ? today() * 7919 + 11 : Math.floor(Math.random() * 2 ** 31), level = daily ? "medium" : startLevel(mode);
-  S = { ...(mode === "sea" ? SE.dealRun(seed, level) : dealRun(seed, level)), mode, daily, day: daily ? today() : null, index: 0, scores: [], over: false, total: 0, seen: [] };
+  S = { ...(mode === "sea" ? SE.dealRun(seed, level, inRegionNow) : dealRun(seed, level, inRegionNow)), mode, daily, day: daily ? today() : null, index: 0, scores: [], over: false, total: 0, seen: [] };
   S.now = (isSea() ? SE.begin : begin)(S.routes[0]);
   save(); refit(); render();
 }
@@ -279,7 +287,7 @@ function openMenu() {
   startLevel();                                    // the shared level row follows the mode's ramp
   body.replaceChildren();
   part(body, "play").append(action("New run", () => { $("menuDlg").close(); newRun(false); }, "primary"));
-  part(body, "content").append(choice("Mode", [["land", "Land"], ["sea", "Sea"]], modeNow(), setMode));
+  flags(body, { name: "Crossing", game: "crossing", region: true, own: [choice("Mode", [["land", "Land"], ["sea", "Sea"]], modeNow(), setMode)] });
   const got = read(DAILY, {})[today()];
   todayPart(body, {
     app: "crossing", done: got != null, result: got != null ? `${got} of ${ROUTES * FULL}` : "",

@@ -15,7 +15,10 @@ import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, 
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
 import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
-import { topicsPart } from "./topics-ui.js";
+import { flags } from "./menu-flags.js";
+import { regionOf } from "./region.js";
+import { regionsOf } from "./origin-engine.js";
+import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, toggle, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
@@ -206,8 +209,16 @@ const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 // ---------- the run: your own, or the table's ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
+/** The countries the learning mode would have come back in this run: its own due ones, then what other games found you weak on. */
+function dueCountries(region) {
+  if (!pile.learning()) return [];
+  const pool = ANSWERS.filter(id => region === "world" || regionsOf(id).includes(region)).map(id => ({ key: id, about: [id] }));
+  const own = pile.picks("origin").map(it => it.key);
+  return pile.dealDue("origin", pool, own, Math.ceil(PER_RUN / 2));
+}
 function newRun(daily) {
-  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix(), daily), daily, day: daily ? today() : null, ranked: daily || (!markedIn() && onPreset()) };
+  const region = regionOf("origin");
+  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix(), daily, { region, prefer: daily ? [] : dueCountries(region) }), daily, day: daily ? today() : null, ranked: daily || (!markedIn() && onPreset()) };
   save(); render();
 }
 const current = () => G?.run || S;                              // the run on the screen: the table's while at one
@@ -221,7 +232,7 @@ function guess(text) {
   if (R.guesses.includes(id)) { toast("Already guessed"); return; }
   chosen = null;
   if (G) { colourMap(); guessTogether(id); return; }
-  if (guessIn(S, id) === "found") count();                      // a wrong guess turns up the next clue
+  if (guessIn(S, id) === "found") { learn(S.rounds[S.index]); count(); }                      // a wrong guess turns up the next clue
   save(); render();
 }
 /** The last country decided: the run's total is final, so it counts at once, for your best and today's, not when
@@ -244,7 +255,19 @@ function another() {
 }
 function giveUp() {
   if (G) { giveUpTogether(); return; }
-  if (S && giveUpIn(S)) { count(); save(); render(); }
+  if (S && giveUpIn(S)) { learn(S.rounds[S.index]); count(); save(); render(); }
+}
+/** The learning piles (pile.js): a country given up, or found only after four clues or two wrong guesses, comes back as a question to
+ *  Deck and to Origin's next runs; one found cleanly that was on a pile moves up it. */
+function learn(R) {
+  if (S?.daily || !R?.done) return;
+  const name = PLACE.get(R.id)?.name, clean = R.done === "found" && R.shown <= 2 && !R.guesses.length;
+  if (!name) return;
+  if (clean) { if (pile.has("origin", R.id)) pile.answer("origin", R.id, true); return; }
+  const near = ANSWERS.filter(id => id !== R.id && regionsOf(id).some(g => regionsOf(R.id).includes(g))).sort();
+  const others = near.map((id, i) => [(i * 7919 + R.id.length * 31) % 997, PLACE.get(id)?.name]).sort((a, b) => a[0] - b[0]).map(x => x[1]).filter(Boolean).slice(0, 3);
+  pile.record("origin", R.id, { ask: "Origin · which country", prompt: R.clues.slice(0, 2).map(c => c.hint).join(". "), options: [name, ...others], right: [0],
+    note: `${name}: ${R.clues[0]?.hint ?? ""}`, about: [R.id] }, R.done === "found" ? "clue" : "miss");
 }
 function next() {
   if (G) { nextTogether(); return; }
@@ -470,9 +493,9 @@ function openMenu() {
     return;
   }
   part(body, "play").append(action("New run", () => newRun(false), "primary"));
-  const content = part(body, "content");
-  // your topics (the clues they leave out) are for random runs; today's is the same for everyone
-  content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; today's run deals every topic"));
+  // your topics (the clues they leave out) and the region are for random runs; today's is the same for everyone
+  flags(body, { name: "Origin", game: "origin", region: true, topics: true, learning: true });
+  if (!onPreset()) part(body, "content").append(line("Your own mix doesn't count for your best; today's run deals every topic"));
   todayPart(body, { app: "origin", play: openToday, playing: !!S?.daily && !S.over });   // openToday asks before it leaves a run you've started
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${ANSWERS.length} countries`));

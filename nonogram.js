@@ -5,6 +5,8 @@
 // and the strokes, names the picture, plays the computer (a partner with half the clues)
 // and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
+import { flags } from "./menu-flags.js";
+import { regionOf } from "./region.js";
 import { PICTURES, TOPICS, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember, ringsOf } from "./nonogram-pictures.js";
 import { drawGlobe } from "./nonogram-globe.js";
 import { factFor, warm } from "./nonogram-fact.js";
@@ -51,7 +53,7 @@ const S3 = Math.sqrt(3);
 // the old mode "picture" (every kind) is Countries.
 const FIXED = { region: "world", band: "any", nameIt: true, mistakes: "shown", computer: "off", pace: "medium" };
 const kept = read(SETTINGS, {});
-const settings = { together: kept.together === "race" ? "race" : "split", mode: "countries", grid: "square", topic: "countries", ...FIXED };
+const settings = { together: kept.together === "race" ? "race" : "split", mode: "countries", grid: "square", topic: "countries", ...FIXED, region: regionOf("nonogram") };       // Korbi, 9 Nov 2026: the Region setting is back (the shared one)
 const applyMode = m => {
   settings.mode = m === "picture" ? "countries" : m;
   settings.grid = m === "hex" ? "hex" : "square";
@@ -1030,8 +1032,7 @@ function openMenu() {
   if (S && !S.done) play.append(action("Start this one again", restart, "link"));
   play.append(action("The rules", showRules, "link"));
   if (!COOP) todayPart(body, { app: "nonogram", play: () => start("daily"), playing: today0, busy: started() && !today0 });
-  const c = content();
-  if (!COOP) c.append(modeChoice());
+  if (!COOP) flags(body, { name: "Nonogram", game: "nonogram", region: { onChange: r => { settings.region = r; } }, learning: true, own: [modeChoice()] });
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const times = read(TIMES, {}), stats = read(STATS, {});
   const bests = S && pic && !COOP ? times[bestKey()] : null;

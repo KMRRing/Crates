@@ -16,7 +16,7 @@ import { wants3D, onDefaultChange } from "./mode3d.js";
 import { BANK } from "./core.js";
 import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
-import { topicsPart } from "./topics-ui.js";
+import { flags } from "./menu-flags.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -546,26 +546,13 @@ function openMenu() {
 }
 function menuSolo(body) {
   part(body, "play").append(action("New board", () => confirmStart("random"), "primary"));
-  const content = part(body, "content");
-  content.append(mirror("Region", $("region")));
-  contentChoices(content);
+  // the region is the header's dropdown, mirrored; the topics and the region are for random boards (today's is the same for everyone)
+  flags(body, { name: "Lode", game: "lode", region: { mirror: $("region") }, topics: true, learning: true, own: [viewChoice()] });
   todayPart(body, { app: "lode", play: () => start("daily"), playing: S?.mode === "daily" && S.day === today(), busy: started() });
-  part(body, "settings").append(viewChoice());
-  if (S && !S.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
+  if (S && !S.run.done) part(body, "play").append(action("Show the words still hidden", giveUpNow, "link"));
   const about = part(body, "about"), times = read(TIMES, {});
   about.append(line(S ? `${LEVELS[S.deal.level].label}, ${SHAPES[S.deal.shape].toLowerCase()}: ${times[bestKey(S)] != null ? `best ${fmt(times[bestKey(S)])}` : "no best yet"}. A hint adds ${HINT_COST} s.` : ""),
     action("Copy a link to this board", copyLink, "link"));
-}
-/** What the topics line says of them for Lode: a word of a topic left out still comes when a theme can't fill a board
- *  without it, and a mix of your own isn't ranked. Nothing is said with all on or none on (every topic is dealt). */
-function topicsNote() {
-  const p = subjectPreset(subjectsOn());
-  if (p === "all" || p === "none") return "";
-  return `A left-out topic's words come only when a theme can't fill a board without them${p === "custom" ? ". Your own mix doesn't count for your best" : ""}`;
-}
-/** Topics (Settings', changed in a sheet from here): what the next random board deals from. The region is the header's dropdown, mirrored above. */
-function contentChoices(box) {
-  box.append(...topicsPart(box, topicsNote()));
 }
 function menuTable(body) {
   const table = part(body, "together");
@@ -575,10 +562,8 @@ function menuTable(body) {
   nextMode ??= G.mode;
   table.append(choice("Next board", Object.entries(MODES), nextMode, v => { nextMode = v; openMenu(); }));
   table.append(action("A new board", dealForTable, "primary"));
-  const content = part(body, "content");
-  content.append(mirror("Region", $("region")));
-  part(body, "settings").append(viewChoice());
-  if (!context()?.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
+  flags(body, { name: "Lode", game: "lode", region: { mirror: $("region") }, own: [viewChoice()] });
+  if (!context()?.run.done) part(body, "play").append(action("Show the words still hidden", giveUpNow, "link"));
   part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
 }
 

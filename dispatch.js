@@ -1,10 +1,13 @@
 // Dispatch: a day of meetings with notable people, read once; then your notes of the day come back spoiled (a name swapped for
 // another's, a place wrong, a line left blank) and you put them right from memory. The score is the share of slots right.
 // The meetings are dispatch-bank.js's, the dealing, spoiling and marking dispatch-engine.js's; this file keeps the run and the page.
-import { LEVELS, LEVEL_IDS, SLOTS, SLOT_LABEL, meetingOf, textOf, dealDay, dailyDay, takeNotes, options, score } from "./dispatch-engine.js";
+import { continentOf, MEETINGS, LEVELS, LEVEL_IDS, SLOTS, SLOT_LABEL, meetingOf, textOf, dealDay, dailyDay, takeNotes, options, score } from "./dispatch-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, todayPart, isPaused } from "./menu.js";
+import { flags } from "./menu-flags.js";
+import { regionOf } from "./region.js";
+import * as pile from "./pile.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
@@ -27,9 +30,32 @@ const limit = () => LEVELS[S.level].read * 1000;
 
 function newRun(daily = false) {
   const level = daily ? "medium" : startLevel();
-  const ids = daily ? dailyDay(today()) : dealDay(level);
+  const ids = daily ? dailyDay(today()) : dealDay(level, Math.random, { region: regionOf("dispatch"), prefer: dueMeetings() });
   S = { v: 1, level, daily, day: daily ? today() : null, ids, notes: takeNotes(ids, level), phase: "read", idx: 0, ms: 0, pct: 0, fixed: 0 };
   save(); render();
+}
+
+/** The meetings the learning mode would bring back in this day: its own due ones (pile.js), most overdue first. */
+function dueMeetings() {
+  if (!pile.learning()) return [];
+  return pile.picks("dispatch").map(it => it.key).filter(id => meetingOf(id)).slice(0, 3);
+}
+/** The learning piles: a meeting with a slot wrong or blank at the end comes back as a question about its first such slot (to Deck
+ *  and to Dispatch's next days); one with all three right that was on a pile moves up it. Today's day is the same for everyone and
+ *  teaches nothing. */
+function learn() {
+  if (S.daily) return;
+  const { marks } = score(S.ids, S.notes);
+  S.ids.forEach((id, i) => {
+    const x = meetingOf(id), miss = SLOTS.find(slot => !marks[i][slot]);
+    if (!miss) { if (pile.has("dispatch", id)) pile.answer("dispatch", id, true); return; }
+    const same = MEETINGS.filter(y => y.id !== id && textOf(miss, y) !== textOf(miss, x));
+    const near = [...same.filter(y => continentOf(y) === continentOf(x)), ...same.filter(y => continentOf(y) !== continentOf(x))];
+    const pick = near.map((y, k) => [((k + id.length) * 7919) % 997 + (continentOf(y) === continentOf(x) ? 0 : 1000), textOf(miss, y)]).sort((a, b) => a[0] - b[0]);
+    const others = [...new Set(pick.map(a => a[1]))].slice(0, 3);
+    const prompt = miss === "who" ? `${x.place}, ${x.year}: ${x.what}` : miss === "where" ? `${x.who} ${x.what} (${x.year})` : `${x.who} in ${x.place}, ${x.year}`;
+    pile.record("dispatch", id, { ask: `Dispatch · ${miss === "what" ? "what was said" : miss}`, prompt, options: [textOf(miss, x), ...others], right: [0], note: `${x.who} (${x.nat}), ${x.place}, ${x.year}: ${x.why}` }, "miss");
+  });
 }
 
 // ---------- the end ----------
@@ -42,6 +68,7 @@ function handIn() {
   if (S.daily) { const d = read(DAILY, {}); if (!(d[S.day] >= S.pct)) { d[S.day] = S.pct; write(DAILY, d); } }
   else { startLevel(); if (S.pct === 100) ramp.won(true); else if (S.pct >= 70) ramp.won(false); else ramp.lost(); }
   roundOver("dispatch");
+  learn();
   save(); render();
   setTimeout(showDone, 250);
 }
@@ -147,6 +174,7 @@ function openMenu() {
     app: "dispatch", done: got != null, result: got != null ? `${got}%` : "",
     play: () => { $("menuDlg").close(); openToday(); }, playing: !!S?.daily && S.day === today() && S.phase !== "done", busy: started(),
   });
+  flags(body, { name: "Dispatch", game: "dispatch", region: true, learning: true });   // both are for random days; today's is the same for everyone
   const best = read(BEST, {});
   part(body, "about").append(line(LEVEL_IDS.map(l => `${l[0].toUpperCase()}${l.slice(1)} ${LEVELS[l].n} meetings, ${LEVELS[l].read} s each${best[l] != null ? ` (best ${best[l]}%)` : ""}`).join("; ") + "."),
     line("Read each meeting once: who it was and their nationality, where, and what they said. Then your notes come back with some details wrong or blank, and a fact may be worded another way. Some people turn up twice in a day. Put the notes right from memory."));

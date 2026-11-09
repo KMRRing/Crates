@@ -2,8 +2,15 @@
 // it's worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
 // gives four answers to choose from, Medium eight, Hard a line to type in. The rules are spyglass-engine.js's; this file
 // keeps the run, draws the lens and builds the page.
-import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
+import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
 import { MATHS as ART } from "./art-bank.js";
+import { MATHS as ARCH } from "./arch-bank.js";
+import { flags as menuFlags } from "./menu-flags.js";
+import { regionOf } from "./region.js";
+import { inRegions } from "./region-core.js";
+import { subjectsOn } from "./topics-on.js";
+import { subjectsIn } from "./topics.js";
+import * as pile from "./pile.js";
 import { MATHS as FLAGS } from "./flags-bank.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { pictureUrls } from "./pics.js";
@@ -23,7 +30,20 @@ const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JS
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-const POOLS = { painting: paintings(ART), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF) };
+const POOLS = { painting: paintings(ART), building: buildings(ARCH), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF) };
+// Region and Topics (the shared settings) narrow what is dealt: a flag and an outline are in a region by their country; a painting and a
+// building have none (Worldwide only). Topics: paintings and buildings are Art & architecture, flags and outlines Geography; with no
+// topic on every one is. Pictures (this game's own row) is a kind, or all. A daily is the same for everyone, so it uses none of them.
+const regionsOfCountry = new Map(COUNTRIES.map(c => [c.about || c.id, c.regions]));
+const PICTURES = [["all", "All"], ["painting", "Paintings"], ["building", "Buildings"], ["flag", "Flags"], ["outline", "Outlines"]];
+const KIND = "spyglass:pictures";
+const poolsFor = daily => {
+  if (daily) return POOLS;
+  const region = regionOf("spyglass"), on = new Set(subjectsIn(subjectsOn())), topic = k => !on.size || on.has(k === "painting" || k === "building" ? "art" : "geo");
+  const inR = { painting: () => region === "world", building: () => region === "world", flag: f => inRegions(region, regionsOfCountry.get(f.id)), outline: o => inRegions(region, REGION_OF[o.answer]) };
+  return Object.fromEntries(Object.entries(POOLS).map(([k, list]) => [k, topic(k) ? list.filter(inR[k]) : []]));
+};
+const picturesNow = () => { const k = read(KIND, "all"); return PICTURES.some(([v]) => v === k) ? k : "all"; };
 const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outline: "Which country is this?" };
 
 // ---------- the run ----------
@@ -34,7 +54,7 @@ const save = () => write(RUN, S);
 const startLevel = () => ramp("spyglass", LEVELS, { start: "easy" });
 function newRun(daily = false) {
   const seed = daily ? today() * 6151 + 7 : Math.floor(Math.random() * 2 ** 31), level = daily ? "medium" : startLevel();
-  S = { ...dealRun(seed, level, POOLS), daily, day: daily ? today() : null, index: 0, scores: [], elapsed: 0, wrong: 0, tried: [], over: false, total: 0 };
+  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], elapsed: 0, wrong: 0, tried: [], over: false, total: 0 };
   save(); begin();
 }
 const item = () => S.items[S.index];
@@ -115,7 +135,7 @@ async function begin() {
   try { source = await sourceFor(item()); } finally { done(); }
   if (me !== token) return;
   if (!source) {                                   // a painting that won't load (offline): a flag or outline in its place
-    const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, POOLS).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
+    const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
   }
   phase = "look"; render();
@@ -192,6 +212,7 @@ function frame(now) {
 
 // ---------- guessing ----------
 function good() {
+  learn(S.wrong ? "wrong" : "right");
   const points = worth(fraction(S.elapsed, S.level), S.wrong);
   S.scores[S.index] = points;
   conclude(`+${points}`);
@@ -208,7 +229,19 @@ function conclude(text) {
 function showCaption() { $("caption").textContent = item().caption; $("caption").hidden = false; }
 function pass() {
   if (phase !== "look") return;
-  S.scores[S.index] = 0; conclude("Passed");
+  S.scores[S.index] = 0; learn("pass"); conclude("Passed");
+}
+/** The learning piles (pile.js): a picture passed on, or named only after a wrong guess, comes back as a question (Deck, and Spyglass's next runs would
+ *  draw on it through the other games); one named cleanly that was on a pile moves up it. Outlines have no picture to ask with. */
+function learn(why) {
+  const it = item();
+  if (S.daily || it.kind === "outline") return;
+  const key = `${it.kind}/${it.answer}`;
+  if (why === "right") { if (pile.has("spyglass", key)) pile.answer("spyglass", key, true); return; }
+  const others = [...it.options.filter(o => o !== it.answer), ...POOLS[it.kind].map(p => p.answer).filter(a => a !== it.answer)].filter((o, i, all) => all.indexOf(o) === i).slice(0, 3);   // none were shown on Hard
+  const payload = it.kind === "flag" ? { ask: "Spyglass · which flag", prompt: `${it.emoji} Which country's flag is this?`, options: [it.answer, ...others], right: [0], note: it.caption }
+    : { ask: it.kind === "building" ? "Spyglass · which building" : "Spyglass · which painting", prompt: it.kind === "building" ? "Which building is this?" : "Who painted this?", pic: it.pic, options: [it.answer, ...others], right: [0], note: it.caption, about: it.about };
+  pile.record("spyglass", key, payload, why);
 }
 function guess(text) {
   if (phase !== "look") return null;
@@ -287,10 +320,12 @@ function openMenu() {
     app: "spyglass", done: got != null, result: got != null ? `${got} of ${ROUNDS * FULL}` : "",
     play: () => { $("menuDlg").close(); newRun(true); }, playing: !!S?.daily && S.day === today() && !S.over, busy: !!S && !S.over && S.index > 0,
   });
-  part(body, "content").append(choice("Flags and outlines", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
-    line("Black and white takes the colour out; Ink leaves only light and dark, so a flag is told by its shapes. From the next picture."));
+  menuFlags(body, { name: "Spyglass", game: "spyglass", region: true, topics: true, learning: true, own: [
+    choice("Pictures", PICTURES, picturesNow(), v => write(KIND, v)),
+    choice("Flags and outlines", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
+    line("Black and white takes the colour out; Ink leaves only light and dark, so a flag is told by its shapes. From the next picture.")] });
   const best = read(BEST, {});
-  part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
+  part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.building.length} buildings, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

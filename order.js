@@ -13,7 +13,8 @@ import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRu
 import { withUnit, topicsDealt } from "./quote-engine.js";
 import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
-import { topicsPart } from "./topics-ui.js";
+import { flags } from "./menu-flags.js";
+import * as pile from "./pile.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -56,7 +57,7 @@ const markSeen = ids => { const had = new Set(seenIds()); if (ids.some(id => !ha
 const forget = ids => { const out = new Set(ids); write(SEEN, seenIds().filter(id => !out.has(id))); };
 function newRun(mode, daily) {
   const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31);
-  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds()), daily), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
+  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds()), daily, daily || mode === "stories" || !pile.learning() ? [] : pile.picks("order").map(it => it.key)), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
   if (S.recycled) { forget(mode === "dates" ? DATES : familyOf(S.unit).ids); delete S.recycled; }
   if (tracked(S)) markSeen([S.line[0].id]);
   save(); render();
@@ -67,9 +68,19 @@ function place(slot) {
   if (!S || S.over || !S.deck.length) return;
   const { id, ok, at } = placeCard(S, slot, { fresh: true });
   if (tracked(S)) markSeen([id]);
+  learn(id, ok);
   if (!ok) toast(`${valueOf(BY_ID.get(id))}: it goes ${whereIn(S.line, at)}`);
   if (S.over) end();
   save(); render();
+}
+/** The learning piles (pile.js): a card placed wrong comes back as a question (to Deck, and as a lead card in Order's next runs); one placed
+ *  right that was on a pile moves up it. Not in a daily or a story, nor at a table. */
+function learn(id, ok) {
+  if (S.daily || S.mode === "stories") return;
+  if (ok) { if (pile.has("order", id)) pile.answer("order", id, true); return; }
+  const q = BY_ID.get(id), year = q.unit === "year", t = q.truth;
+  const wrong = year ? [t - 4, t + 7, t - 13].map(v => ({ ...q, truth: v })) : [0.5, 2, 5].map(f => ({ ...q, truth: t * f }));
+  pile.record("order", id, { ask: year ? "Order · which year" : "Order · how much", prompt: q.q, options: [valueOf(q), ...wrong.map(valueOf)], right: [0], note: q.note || valueOf(q) }, "miss");
 }
 function end() {
   const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;
@@ -323,9 +334,9 @@ function openMenu() {
   }
   pick ??= { mode: S?.mode || "dates" };
   part(body, "play").append(action("New run", () => newRun(pick.mode, false), "primary"));
-  const content = part(body, "content");
-  content.append(choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); }));
-  topicsFor(content, pick.mode, true);
+  flags(body, { name: "Order", game: "order", topics: topicsIn(pick.mode).length > 0, learning: pick.mode !== "stories",
+    own: [choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); })] });
+  if (topicsIn(pick.mode).length) part(body, "content").append(line("Today's run deals every topic"));
   // today's run of the Order chosen, kept by the day and the mode
   const got = read(DAILY, {})[`${today()}/${pick.mode}`];
   todayPart(body, {

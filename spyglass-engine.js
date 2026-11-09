@@ -30,6 +30,16 @@ export function paintings(bank) {
   }
   return out;
 }
+/** The buildings of Punt's architecture bank (the ones asked "who designed this?" with a picture): { kind, pic, answer (the building), caption, d }. */
+export function buildings(bank) {
+  const seen = new Set(), out = [];
+  for (const q of bank) {
+    if (q.lv !== "buildings" || !q.pic || !q.title || seen.has(q.title)) continue;
+    seen.add(q.title);
+    out.push({ kind: "building", pic: q.pic, answer: q.title, caption: (q.x || "").split(/\.\s/)[0], d: q.d, about: q.about });
+  }
+  return out;
+}
 /** The flags of Punt's flags bank: { kind, emoji, answer, options, caption, lv }. */
 export function flags(bank) {
   const out = [];
@@ -52,7 +62,10 @@ const keep = {
   painting: (p, level) => (level === "easy" ? p.d <= 3 : level === "hard" ? p.d >= 3 : true),
   flag: (f, level) => (level === "easy" ? f.lv === "ea" : level === "medium" ? f.lv !== "ha" : f.lv !== "ea"),
   outline: (o, level) => o.rank < (level === "easy" ? 55 : level === "medium" ? 90 : 1e9),
+  building: (b, level) => (level === "easy" ? b.d <= 4 : level === "hard" ? b.d >= 4 : true),
 };
+/** What a run is made of: five pictures in a mix, or all of one kind (the Pictures row, spyglass.js). */
+export const MIX = ["painting", "building", "flag", "flag", "outline"];
 /** The options for a picture at a level: the answer among `n`, the bank's own distractors first, then others of its kind. */
 export function choicesFor(item, n, pool, r) {
   if (!n) return [];
@@ -64,12 +77,16 @@ export function choicesFor(item, n, pool, r) {
   for (const p of [...shuffle(r, near), ...shuffle(r, far)]) { if (have.size >= n) break; have.add(p.answer); mine.push(p.answer); }
   return shuffle(r, mine.slice(0, Math.max(n, 4)));
 }
-/** A run: five pictures (two paintings, two flags, an outline, in an order that varies), no painter or country twice. */
-export function dealRun(seed, level, pools) {
-  const r = rng(seed), kinds = shuffle(r, ["painting", "painting", "flag", "flag", "outline"]), used = new Set(), out = [];
-  const all = [...pools.painting, ...pools.flag, ...pools.outline];
+/** A run: five pictures (a painting, a building, two flags, an outline, in an order that varies; or all of one kind, `only`), no
+ *  painter, building or country twice. A kind with nothing in `pools` (a region without paintings) leaves the mix. */
+export function dealRun(seed, level, pools, only = null) {
+  const r = rng(seed), have = k => (pools[k] || []).length > 0;
+  const mix = only && have(only) ? [only, only, only, only, only] : MIX.filter(have);
+  const kinds = shuffle(r, Array.from({ length: ROUNDS }, (_, i) => mix[i % mix.length])), used = new Set(), out = [];
+  const all = Object.values(pools).flat();
   for (const kind of kinds) {
     const pick = shuffle(r, pools[kind].filter(p => keep[kind](p, level) && !used.has(p.answer)))[0] || shuffle(r, pools[kind].filter(p => !used.has(p.answer)))[0];
+    if (!pick) continue;
     used.add(pick.answer);
     const item = { ...pick, cx: 0.3 + r() * 0.4, cy: 0.3 + r() * 0.4 };       // where the first look is: the middle two fifths
     item.options = choicesFor(pick, CHOICES[level], all, r);

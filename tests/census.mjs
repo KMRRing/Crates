@@ -51,6 +51,9 @@ check(E.dailySet(20261109) === E.dailySet(20261109) && new Set([20261109, 202611
 const got = new Set(); let seen = [];
 for (let i = 0; i < E.SETS.length; i++) { const s = E.dealSet("all", seen, E.rng(i + 1)); got.add(s.id); seen = [s.id, ...seen]; }
 check(got.size === E.SETS.length, "dealing in turn comes round every set before repeating one");
+check(E.SETS.every(x => x.subject && Array.isArray(x.regions)), "every set has a subject (the suite's list) and its continents");
+check(E.dealSet({ subjects: ["art"] }, [], E.rng(2)).subject === "art" && E.dealSet({ region: "oceania" }, [], E.rng(2)).id === "australia" && E.dealSet({ region: "europe", subjects: ["geo"] }, [], E.rng(5)).regions.includes("europe"), "topics and a region choose the pool");
+check(E.dealSet({ subjects: [], region: "world" }, [], E.rng(1)) && E.dealSet({ prefer: ["nato"] }, ["nato"], E.rng(1)).id === "nato", "an empty pool deals from everything; a wanted set comes first");
 check(E.dealSet("Science", [], E.rng(3)).group === "Science" && E.dealSet("Science", E.SETS.filter(s => s.group === "Science").map(s => s.id), E.rng(3)).group === "Science", "a group deals its own sets, even once all have been seen");
 console.log(bad ? `${bad} FAILED` : "all passed");
 process.exit(bad ? 1 : 0);

@@ -20,6 +20,14 @@ export const textOf = (slot, meeting) => (slot === "who" ? `${meeting.who} (${me
 /** The meeting held in a note's slot, or null. */
 const held = v => (v ? meetingOf(v) : null);
 
+// A meeting's `region` is a fine one for the "near" ranking (Italy, the Levant); the Region setting (region-core.js) is by continent,
+// so it comes from the place where the fine region straddles one.
+const BY_PLACE = { "Cape York": "oceania", Tasmania: "oceania", "Table Bay": "africa", Fez: "africa", Constantinople: "europe", Gelibolu: "europe", Maragha: "asia",
+  "Isthmus of Panama": "north-america", "Porto Seguro": "south-america", Cajamarca: "south-america", "Strait of Magellan": "south-america" };
+const BY_REGION = { italy: "europe", germany: "europe", baltic: "europe", iberia: "europe", britain: "europe", lowlands: "europe", france: "europe", asia: "asia", levant: "asia", africa: "africa", americas: "north-america" };
+/** The continent a meeting is on. */
+export const continentOf = x => BY_PLACE[x.place] || BY_REGION[x.region] || "europe";
+
 const kin = x => MEETINGS.filter(y => y.pid === x.pid && y.id !== x.id && y.place !== x.place);
 function pick(list, rand) { return list[Math.floor(rand() * list.length)]; }
 function shuffle(list, rand) { const a = list.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -30,15 +38,22 @@ function shuffle(list, rand) { const a = list.slice(); for (let i = a.length - 1
  * years) the harder the level, and spread out over the bank at the easiest. No two share a place, and no person has more
  * than two. Easy leaves out the little-known (fame 3).
  */
-export function dealDay(level, rand = Math.random) {
+export function dealDay(level, rand = Math.random, { region = "world", prefer = [] } = {}) {
   const { n, twin } = LEVELS[level] || LEVELS.medium, near = level === "hard" ? 1 : level === "medium" ? .5 : 0;
-  const bank = level === "easy" ? MEETINGS.filter(x => x.fame < 3) : MEETINGS;      // the first days are of names you have heard
+  let bank = level === "easy" ? MEETINGS.filter(x => x.fame < 3) : MEETINGS;      // the first days are of names you have heard
+  // a continent with too few places for a day (Oceania has two meetings) is dealt with the rest of the world filling in
+  const here = bank.filter(x => region === "world" || continentOf(x) === region);
+  if (new Set(here.map(x => x.place)).size >= n) bank = here;
+  else if (here.length) bank = [...here, ...bank.filter(x => !here.includes(x))];
   const pairs = bank.filter(x => kin(x).some(y => bank.includes(y)));
-  const pivot = pick(rand() < twin && pairs.length ? pairs : bank, rand), chosen = [pivot], places = new Set([pivot.place]);
+  // what the learning mode wants back leads the day (its first meeting pivots), when it is on this continent
+  const want = prefer.map(meetingOf).filter(x => x && bank.includes(x));
+  const pivot = want[0] || pick(rand() < twin && pairs.length ? pairs : here.length ? here : bank, rand), chosen = [pivot], places = new Set([pivot.place]);
   const ofPerson = new Map([[pivot.pid, 1]]);
   if (rand() < twin) { const mate = pick(kin(pivot).filter(y => bank.includes(y)), rand); if (mate) { chosen.push(mate); places.add(mate.place); ofPerson.set(pivot.pid, 2); } }
   const rank = x => (x.region === pivot.region ? 0 : 1) * near * 60 + Math.abs(x.year - pivot.year) * near + rand() * (near ? 40 : 1000);
-  for (const x of bank.filter(x => x !== pivot).sort((a, b) => rank(a) - rank(b))) {
+  const lead = new Set(want.slice(1, Math.ceil(n / 2)));
+  for (const x of bank.filter(x => x !== pivot).sort((a, b) => (lead.has(b) - lead.has(a)) || rank(a) - rank(b))) {
     if (chosen.length >= n) break;
     if (places.has(x.place) || (ofPerson.get(x.pid) || 0) >= 2) continue;
     chosen.push(x); places.add(x.place); ofPerson.set(x.pid, (ofPerson.get(x.pid) || 0) + 1);

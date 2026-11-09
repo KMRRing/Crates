@@ -91,7 +91,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   check(q3.deck.length >= 5 && q3.recycled, "every card seen: a deal still comes, and says it went back over them");
   check(!dealRun("stories", 2, null, allSeen).recycled && dealRun("stories", 2, null, allSeen).story === dealRun("stories", 2).story, "a story is dealt whole, as it was, and has nothing to forget");
   const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
-  check(/dealRun\(mode, seed, daily \? null : mixFor\(mode\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\), daily\)/.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
+  check(/dealRun\(mode, seed, daily \? null : mixFor\(mode\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\), daily, /.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
   check(!/dealRun\([^)]*new Set/.test(fs.readFileSync(new URL("../order-engine.js", import.meta.url), "utf8").split("export function freshTable")[1] || ""), "a table's deal is never from one phone's memory");
 }
 

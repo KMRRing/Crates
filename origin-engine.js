@@ -9,6 +9,7 @@ import { LINKS } from "./kb/links.js";
 import { allowed } from "./topics-on.js";
 import { mkOfEntity } from "./marked.js";
 import { COUNTRIES } from "./chart-countries.js";
+import { inRegions } from "./region-core.js";
 import { KB_TOPICS, KB_PRESETS, TOPIC_OF, mixFromSubjects, anyIn } from "./topics.js";
 
 export const PER_RUN = 5, FULL = 100, PER_CLUE = 10, PER_GUESS = 5, LEAST = 5, MAX_CLUES = 12, MOST = 6;   // MOST: the most at one table
@@ -70,8 +71,14 @@ for (const c of COUNTRIES) for (const n of [c.name, ...(ALIASES.get(c.about || c
 // ---------- a run ----------
 /** The five countries of a seed, each with its clues for this deal, from a mix of topics (none, or a mix with no topic in
  *  at all, which is every subject off: every topic in). */
-export function dealRun(seed, weights = null, daily = false) {
-  const r = rng(seed), picks = shuffle(r, ANSWERS.filter(id => answerAllowed(id, daily))).slice(0, PER_RUN), mix = anyIn(TOPIC_LIST, weights) ? weights : null;
+const REGIONS_OF = new Map(COUNTRIES.map(c => [c.about || c.id, c.regions]));
+/** The continents a country is in. */
+export const regionsOf = id => REGIONS_OF.get(id) || [];
+export function dealRun(seed, weights = null, daily = false, { region = "world", prefer = [] } = {}) {
+  // the countries `prefer` names (what the learning mode has due) lead, up to half the run; today's run is the same for everyone
+  const r = rng(seed), pool = shuffle(r, ANSWERS.filter(id => answerAllowed(id, daily) && (daily || inRegions(region, regionsOf(id))))),
+    lead = daily ? [] : prefer.filter(id => pool.includes(id)).slice(0, Math.ceil(PER_RUN / 2)),
+    picks = [...lead, ...pool.filter(id => !lead.includes(id))].slice(0, PER_RUN), mix = anyIn(TOPIC_LIST, weights) ? weights : null;
   return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, ...(mkOfEntity(id) ? { mk: mkOfEntity(id) } : {}), clues: cluesFor(id, r, mix, daily), shown: 1, guesses: [], done: null, points: 0 })) };
 }
 /** What the country scores if found now: 100, less 10 a clue after the first and 5 a wrong guess, at least 5. */

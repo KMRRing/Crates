@@ -2,17 +2,22 @@
 // A name that is in the set is kept, one that isn't costs nothing, one you already had is said so; the clock runs out, or you give up,
 // or you have the lot. The score is the share found. The sets are census-sets.js's, the judging and the clock census-engine.js's;
 // this file keeps the run and builds the page.
-import { SETS, GROUPS, LEVEL_IDS, setOf, judge, secondsFor, percent, starsFor, dailySet, dealSet } from "./census-engine.js";
+import { SETS, LEVEL_IDS, setOf, judge, secondsFor, percent, starsFor, dailySet, dealSet } from "./census-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line, todayPart, isPaused } from "./menu.js";
+import { part, action, line, todayPart, isPaused } from "./menu.js";
+import { flags } from "./menu-flags.js";
+import { regionOf } from "./region.js";
+import { subjectsOn } from "./topics-on.js";
+import { subjectsIn } from "./topics.js";
+import * as pile from "./pile.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "census:run", BEST = "census:best", SEEN = "census:seen", DAILY = "census:daily", GROUP = "census:group";
+const RUN = "census:run", BEST = "census:best", SEEN = "census:seen", DAILY = "census:daily";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -28,10 +33,31 @@ const found = () => new Set(S.found);
 
 function newRun(daily = false) {
   const level = daily ? "medium" : startLevel(), seen = read(SEEN, []);
-  const chosen = daily ? dailySet(today()) : dealSet(read(GROUP, "all"), seen);
+  const chosen = daily ? dailySet(today()) : dealSet({ subjects: subjectsIn(subjectsOn()), region: regionOf("census"), prefer: dueSets() }, seen);
   S = { v: 1, id: chosen.id, level, daily, day: daily ? today() : null, found: [], misses: 0, ms: 0, limit: secondsFor(chosen, level) * 1000, over: false, pct: 0 };
   if (!daily) write(SEEN, [chosen.id, ...seen.filter(x => x !== chosen.id)].slice(0, SETS.length - 1));
   save(); begin();
+}
+/** The sets with a member the learning mode would bring back (pile.js keys are `<set>|<member>`). */
+function dueSets() {
+  if (!pile.learning()) return [];
+  return [...new Set(pile.picks("census").map(it => it.key.split("|")[0]))];
+}
+/** The learning piles: members missed at the end (up to three, the first of the set's order) come back as a question, "which of these
+ *  is one of ...", with members of other sets of the same group as the wrong options; a member found that was on a pile moves up it.
+ *  Today's set is the same for everyone and teaches nothing. */
+function learn() {
+  if (S.daily) return;
+  const sset = set(), mine = new Set(sset.items.flatMap(it => [it.name, ...it.alt].map(n => n.toLowerCase())));
+  const strangers = SETS.filter(x => x.group === sset.group && x.id !== sset.id).flatMap(x => x.items.map(it => it.name)).filter(n => !mine.has(n.toLowerCase()));
+  sset.items.forEach((it, i) => {
+    const key = `${sset.id}|${it.name}`;
+    if (S.found.includes(i)) { if (pile.has("census", key)) pile.answer("census", key, true); return; }
+    if (sset.items.filter((_, j) => j < i && !S.found.includes(j)).length >= 3) return;
+    const others = strangers.map((n, k) => [((k + i) * 7919) % 997, n]).sort((a, b) => a[0] - b[0]).map(a => a[1]).slice(0, 3);
+    if (others.length < 3) return;
+    pile.record("census", key, { ask: "Census · which belongs", prompt: sset.title, options: [it.name, ...others], right: [0], note: `${it.name} is one of ${sset.title.toLowerCase()}.` }, "miss");
+  });
 }
 function begin() {
   $("title").textContent = set().title;
@@ -70,6 +96,7 @@ function finish(why) {
   if (S.daily) { const d = read(DAILY, {}); if (!(d[S.day] >= S.pct)) { d[S.day] = S.pct; write(DAILY, d); } }
   else { startLevel(); const stars = starsFor(S.pct); if (stars === 3) ramp.won(true); else if (stars === 2) ramp.won(false); else ramp.lost(); }
   roundOver("census");
+  learn();
   save(); render();
   setTimeout(showDone, why === "all" ? 500 : 250);
 }
@@ -137,8 +164,7 @@ function openMenu() {
     app: "census", done: got != null, result: got != null ? `${got}%` : "",
     play: () => { $("menuDlg").close(); openToday(); }, playing: !!S?.daily && S.day === today() && !S.over, busy: started(),
   });
-  part(body, "content").append(choice("Sets", [["all", "All"], ...GROUPS.map(g => [g, g])], read(GROUP, "all"), v => write(GROUP, v)),
-    line("Applies from the next set. Easy gives half as much time again, Hard under three quarters."));
+  flags(body, { name: "Census", game: "census", region: true, topics: true, learning: true });   // for random sets; today's is the same for everyone
   const best = read(BEST, {}), done = Object.keys(best).length;
   part(body, "about").append(line(`${SETS.length} sets; ${done ? `${done} played, ${Object.values(best).filter(p => p >= 100).length} complete.` : "none played yet."}`),
     line("Type the members of the set, in any order. Case, accents and a slip of a letter don't matter; a name that isn't in the set costs nothing."));

@@ -17,8 +17,8 @@ import { IN_FRAME, markOf } from "./suite.js";
 import { sure } from "./sure.js";
 import { todayState } from "./today-core.js";
 
-export const PARTS = ["play", "content", "together", "settings", "about"];
-const LABEL = { play: "", content: "Content", together: "Together", settings: "Settings", about: "About" };
+export const PARTS = ["play", "content", "together", "settings", "own", "about"];
+const LABEL = { play: "", content: "Content", together: "Together", settings: "Settings", own: "", about: "About" };       // "own": the game's own settings, headed by its name (data-label; menu-flags.js)
 const LONG = 120;                           // characters: longer than this, an explanation folds away
 
 /** A part of the menu, made in `body` and laid out in its place: part(body, "settings").append(...). */
@@ -240,7 +240,8 @@ function shape(body) {
     // parts in the standard order, each with its heading (Play needs none: it's the top), after anything unmarked
     for (const box of body.querySelectorAll(":scope > [data-part]")) {
       const name = box.dataset.part;
-      if (LABEL[name] && !box.querySelector(":scope > .menu-h")) { const h = document.createElement("h4"); h.className = "menu-h"; h.textContent = LABEL[name]; box.prepend(h); }
+      const head = LABEL[name] || box.dataset.label;
+      if (head && !box.querySelector(":scope > .menu-h")) { const h = document.createElement("h4"); h.className = "menu-h"; h.textContent = head; box.prepend(h); }
       box.hidden = ![...box.children].some(c => !c.classList.contains("menu-h"));   // a part with nothing in it stays out of sight
     }
     // long explanations, wherever they are, into one closed "How it works" at the very bottom

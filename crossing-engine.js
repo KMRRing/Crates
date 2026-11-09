@@ -58,19 +58,27 @@ export function shortest(a, b) {
 export const parOf = (a, b) => distances(a).get(b) ?? null;
 
 // ---------- a deal ----------
-/** A run: five routes of the level, no country twice among the starts and goals. Same seed, same run. */
-export function dealRun(seed, level = "medium") {
-  const [lo, hi] = PAR_RANGE[level] || PAR_RANGE.medium, r = rng(seed), used = new Set(), routes = [];
-  const starts = shuffle(r, LAND);
-  for (const from of starts) {
-    if (routes.length === ROUTES) break;
-    if (used.has(from)) continue;
-    const d = distances(from);
-    const goals = shuffle(r, LAND.filter(g => !used.has(g) && d.get(g) >= lo && d.get(g) <= hi));
-    if (!goals.length) continue;
-    routes.push({ from, to: goals[0], par: d.get(goals[0]) });
-    used.add(from); used.add(goals[0]);
-  }
+/** A run: five routes of the level, no country twice among the starts and goals. Same seed, same run. `ok(country)` is the region: both
+ *  ends in it if that makes a whole run, else only the start (a region of few connected countries), else everywhere. */
+export function dealRun(seed, level = "medium", ok = () => true) {
+  const [lo, hi] = PAR_RANGE[level] || PAR_RANGE.medium;
+  const make = (startOk, goalOk) => {
+    const r = rng(seed), used = new Set(), routes = [];
+    for (const from of shuffle(r, LAND.filter(startOk))) {
+      if (routes.length === ROUTES) break;
+      if (used.has(from)) continue;
+      const d = distances(from);
+      const goals = shuffle(r, LAND.filter(g => goalOk(g) && !used.has(g) && d.get(g) >= lo && d.get(g) <= hi));
+      if (!goals.length) continue;
+      routes.push({ from, to: goals[0], par: d.get(goals[0]) });
+      used.add(from); used.add(goals[0]);
+    }
+    return routes;
+  };
+  const any = () => true;
+  let routes = make(ok, ok);
+  if (routes.length < ROUTES) routes = make(ok, any);
+  if (routes.length < ROUTES) routes = make(any, any);
   return { level, seed, routes };
 }
 
