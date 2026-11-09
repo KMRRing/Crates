@@ -265,6 +265,7 @@ export function fly(lvl, ini, o = {}) {
   let gi = 0, cur = rings[0] || tg || null, ring = cur ? cur.r : 0, swp = 0;
   let x = ini.x, y = ini.y, vx = ini.vx, vy = ini.vy, t = ini.t || 0;
   const t0 = t, tEnd = t0 + tMax;
+  const entries = [];
   let hit = null, inside = false, core = Infinity, near = Infinity, tNear = t, end = "time", body = null, length = 0, steps = 0;
   const every = o.record || 0, rec = every ? [t, x, y] : null;
   let lastRx = x, lastRy = y, acc = 0;
@@ -346,6 +347,7 @@ export function fly(lvl, ini, o = {}) {
       // the arrival speed asked of this ring: a gate's own, else the level's goal (soft: at or below, fast: at or above)
       const lim = gated ? cur : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
       const ok = (lim.soft === undefined || speed <= lim.soft) && (lim.fast === undefined || speed >= lim.fast) && (cur.win === undefined || (ut >= cur.win[0] && ut <= cur.win[1]));
+      if (entries.length < 24) entries.push({ t: ut, x: ux, y: uy, ok, gate: gi, speed });   // every entry into a ring, for the picture and the sound
       if (gated && gi < rings.length - 1) {
         if (ok) {                                           // a gate passed in order: the next ring is the one to enter
           gi++; cur = rings[gi]; ring = cur.r; near = Infinity; core = Infinity; tNear = nt;
@@ -403,7 +405,7 @@ export function fly(lvl, ini, o = {}) {
   }
   if (rec) rec.push(t, x, y);
   const won = !!hit && hit.ok;
-  return { end, body, t, x, y, vx, vy, hit, won, near, tNear, core: hit ? (orbit ? 0.5 : core) : Infinity, gates: gi, sweep: swp, path: rec ? Float64Array.from(rec) : null, length, steps };
+  return { end, body, t, x, y, vx, vy, hit, won, near, tNear, core: hit ? (orbit ? 0.5 : core) : Infinity, gates: gi, entries, sweep: swp, path: rec ? Float64Array.from(rec) : null, length, steps };
 }
 
 // ---------- shots ----------

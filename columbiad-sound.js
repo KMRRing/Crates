@@ -92,6 +92,16 @@ const VOICES = {
       tone(c, t + d, { freq: f * 2.76, to: f * 2.75, gain: 0.05, dur: 0.6 });
     });
   },
+  /** A gate passed in order: one bright bell, the first step of the chime. */
+  ping(c, t) {
+    tone(c, t, { freq: 880, to: 878, gain: 0.26, dur: 0.7 });
+    tone(c, t, { freq: 880 * 2.76, to: 880 * 2.75, gain: 0.04, dur: 0.3 });
+  },
+  /** In the ring but not valid (too fast, too slow, too early): a low, dull two-note step down. */
+  dull(c, t) {
+    tone(c, t, { freq: 330, to: 320, gain: 0.25, dur: 0.25, type: "triangle" });
+    tone(c, t + 0.12, { freq: 247, to: 235, gain: 0.25, dur: 0.35, type: "triangle" });
+  },
   /** On missing: a hollow thud, wood on turf. */
   thud(c, t) {
     tone(c, t, { freq: 168, to: 62, gain: 0.7, dur: 0.32 });

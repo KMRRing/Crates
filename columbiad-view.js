@@ -47,7 +47,7 @@ export function createView(canvas, hooks = {}) {
   let W = 1, H = 1, dpr = 1, u = 1;                                   // css pixels, device ratio, the page's rem over 16
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const cam = { x: 0, y: 0, k: 100 }, goal = { x: 0, y: 0, k: 100 };
-  let lvl = null, aim = { angle: 90, charge: 0 }, cone = null, coneAlpha = 1, ghosts = [], rope = null, won = false, hitAt = null, flare = 0;
+  let lvl = null, aim = { angle: 90, charge: 0 }, cone = null, coneAlpha = 1, ghosts = [], rope = null, won = false, hitAt = null, flare = 0, passed = 0, pings = [];
   let frame = null, coneBox = null, fresh = false;
   const ins = { t: 0, r: 0, b: 0, l: 0 };                             // what the page's controls cover, in css pixels: the world is fitted into the rest
   let clock = 0, bodies = [], sun = sunOf(135, 0.5), spin = 0;        // the game's time now; the bodies to draw; the Earth's turn (turns)
@@ -262,7 +262,7 @@ export function createView(canvas, hooks = {}) {
     }
     const p = ringAt(lvl, T, now()), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
     if (x + R * 2 < 0 || x - R * 2 > W || y + R * 2 < 0 || y - R * 2 > H) return;
-    const last = i === n - 1, col = won && last ? GOOD : BRASS, lim = n > 1 ? T : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
+    const last = i === n - 1, col = (won && last) || (!last && flight && i < passed) || (!last && live && i < passed) ? GOOD : BRASS, lim = n > 1 ? T : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
     const g = ctx.createRadialGradient(x, y, 0, x, y, R);
     g.addColorStop(0, `rgba(${col},${won && last ? 0.4 : 0.1})`); g.addColorStop(1, `rgba(${col},${won && last ? 0.22 : 0.05})`);
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
@@ -299,6 +299,10 @@ export function createView(canvas, hooks = {}) {
     if (T.win) label(`T+${T.win[0]}–${T.win[1]} s`, x, y + R + 14 * u, BRASS_HI);
     if (goal.type === "orbit" && last) label(`↻ ${goal.sweep}°`, x, y + R + 14 * u, BRASS_HI);
     if (goal.type === "return" && last) label("down here", x, y - R - 8 * u, BRASS_HI);
+    for (const q of pings) if (q.i === i) {              // a pulse out of the ring each time the shell enters it: green when the arrival counts, red when it does not
+      ctx.lineWidth = 3 * u; ctx.strokeStyle = `rgba(${q.ok ? GOOD : BAD},${(1 - q.age / 0.8) * 0.9})`;
+      ctx.beginPath(); ctx.arc(x, y, R * (1 + (q.age / 0.8) * 1.2), 0, 6.2832); ctx.stroke();
+    }
     if (flare > 0 && last) {
       ctx.lineWidth = 3 * u; ctx.strokeStyle = `rgba(${GOOD},${flare * 0.9})`;
       ctx.beginPath(); ctx.arc(x, y, R * (1 + (1 - flare) * 1.6), 0, 6.2832); ctx.stroke();
@@ -483,9 +487,9 @@ export function createView(canvas, hooks = {}) {
     const pre = prepared && prepared.res === res ? prepared : prepare(res), pts = pre.pts;
     prepared = null;
     const t0 = p[0], T = p[3 * (n - 1)] - t0, wall = over.wall ?? pre.wall;
-    flight = { res, p, n, t0, T, rate: T / wall, gt: 0, i: 0, slow: 1, prevD: Infinity, hit: false, wall, elapsed: 0 };
+    flight = { res, p, n, t0, T, rate: T / wall, gt: 0, i: 0, slow: 1, prevD: Infinity, hit: false, wall, elapsed: 0, e: 0 };
     live = { pts, upto: 1, head: [pts[0], pts[1]] };
-    won = false; hitAt = null; flare = 0;
+    won = false; hitAt = null; flare = 0; passed = 0; pings = [];
     flash = 1; pulse = reduced() ? 0 : 1; coneAlpha = 0.4;
     wake();
   }
@@ -505,6 +509,15 @@ export function createView(canvas, hooks = {}) {
     hooks.onEnd?.(f.res);
     wake();
   }
+  /** The shell enters a ring: a pulse and sparks (green when the arrival counts, red when not), and the hook for the sound and the words. The last ring's valid entry is the win, which hit() marks. */
+  function enter(en, f) {
+    const list = lvl.gates || [lvl.target], last = en.gate >= list.length - 1;
+    if (en.ok && !last) passed = Math.max(passed, en.gate + 1);
+    if (en.ok && last) return;
+    pings.push({ i: en.gate, ok: en.ok, age: 0 });
+    for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, s = 0.2 + Math.random() * 0.8; sparks.push({ x: en.x, y: en.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, age: 0, life: 0.5 + Math.random() * 0.4, good: en.ok }); }
+    hooks.onEnter?.(en);
+  }
   function hit(h) {
     won = true; hitAt = [h.x, h.y]; flare = 1;
     for (let i = 0; i < 26; i++) { const a = Math.random() * 6.2832, s = 0.3 + Math.random() * 1.2; sparks.push({ x: h.x, y: h.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, age: 0, life: 0.7 + Math.random() * 0.6, good: i % 3 === 0 }); }
@@ -515,6 +528,8 @@ export function createView(canvas, hooks = {}) {
     if (flash > 0) flash = Math.max(0, flash - dt / 0.3);
     if (pulse > 0) pulse = Math.max(0, pulse - dt / 0.7);
     if (flare > 0) flare = Math.max(0, flare - dt / 0.9);
+    for (const q of pings) q.age += dt;
+    while (pings.length && pings[0].age > 0.8) pings.shift();
     for (const p of smoke) { p.age += dt; if (p.age > 0) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.8; p.vy *= 1 - dt * 0.8; } }
     for (let i = smoke.length - 1; i >= 0; i--) if (smoke[i].age > smoke[i].life) smoke.splice(i, 1);
     for (const s of sparks) { s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= 1 - dt * 2.5; s.vy *= 1 - dt * 2.5; }
@@ -536,6 +551,8 @@ export function createView(canvas, hooks = {}) {
       const i = f.i;
       live.upto = i + 1;
       live.head = [live.pts[2 * i] + (live.pts[2 * i + 2] - live.pts[2 * i]) * w, live.pts[2 * i + 1] + (live.pts[2 * i + 3] - live.pts[2 * i + 1]) * w];
+      const es = f.res.entries || [];
+      while (f.e < es.length && f.gt >= es[f.e].t - f.t0) enter(es[f.e++], f);
       if (!f.hit && f.res.hit && f.res.hit.ok && f.gt >= f.res.hit.t - f.t0) { f.hit = true; hit(f.res.hit); }
       if (f.gt >= f.T) finishFlight();
       else if (!quick) {
@@ -553,7 +570,7 @@ export function createView(canvas, hooks = {}) {
     const e = 1 - Math.exp(-dt * 5.5);
     cam.x += (goal.x - cam.x) * e; cam.y += (goal.y - cam.y) * e; cam.k *= Math.pow(goal.k / cam.k, e);
   }
-  const moving = () => !!flight || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || !!charging || flash > 0 || pulse > 0 || flare > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
+  const moving = () => !!flight || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || !!charging || flash > 0 || pulse > 0 || flare > 0 || pings.length > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
   function tick(ts) {
     raf = 0;
     if (held) return;
@@ -591,7 +608,7 @@ export function createView(canvas, hooks = {}) {
           globe: textured ? createGlobe("moon", { tilt: v.tilt ?? 8, tint }) : null });
       });
       if (bodies.some(b => b.globe)) warm(() => { draw(); wake(); });
-      flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; smoke.length = 0; sparks.length = 0; flash = 0; pulse = 0; settleAt = 0; coneAlpha = 1;
+      flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; passed = 0; pings = []; smoke.length = 0; sparks.length = 0; flash = 0; pulse = 0; settleAt = 0; coneAlpha = 1;
       draw();
     },
     // these only note the change and ask for a frame; the page's hooks.before runs in that frame, ahead of the drawing

@@ -207,6 +207,10 @@ const view = createView($("scene"), {
     view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, stamp()) : null);
   },
   onHit() { sound.play("chime"); },
+  onEnter(en) {                                          // a gate passed, or a ring entered that does not count (and why, while it is still on the screen)
+    sound.play(en.ok ? "ping" : "dull");
+    if (!en.ok) say(missWords({ hit: en, gates: en.gate, near: 0, end: "through" }), 2600);
+  },
   onImpact() { sound.hushStop(); sound.play("thud"); },
   onEnd(res) {
     sound.hushStop();
