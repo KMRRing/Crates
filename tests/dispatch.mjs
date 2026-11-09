@@ -1,5 +1,5 @@
 import { MEETINGS, REGIONS, meetingsOfPerson } from "../dispatch-bank.js";
-import { meetingHits } from "../almanac-meetings.js";
+import { ENTITIES } from "../kb/entities.js";
 import { LEVELS, LEVEL_IDS, SLOTS, dealDay, dailyDay, takeNotes, options, score, textOf, meetingOf, rng } from "../dispatch-engine.js";
 
 let bad = 0;
@@ -84,9 +84,17 @@ for (const level of LEVEL_IDS) {
 {
   const x = MEETINGS.find(y => y.alt);
   check(textOf("what", x) === x.alt && textOf("what", x) !== x.what && textOf("who", x) === `${x.who} (${x.nat})`, "the notes show the second wording and the nationality");
-  const hits = meetingHits("luther");
-  check(hits.length >= 1 && hits[0].meetings.length >= 3 && hits[0].nat === "German", "the Almanac finds a person with all their meetings");
-  check(meetingHits("venetian").some(p => p.who === "Marco Polo"), "the Almanac finds people by nationality");
+}
+// kb/ holds every person and meeting as Dispatch has them (the Almanac and the games that read kb/ take them from there): each person an
+// entity with their nationality and meetings, worded as the bank has them
+{
+  const byId = new Map(ENTITIES.map(e => [e.id, e]));
+  const home = new Map(); for (const e of ENTITIES) for (const x of e.meetings || []) home.set(x.id, { e, x });
+  check(MEETINGS.every(m => { const h = home.get(m.id); return h && h.x.year === m.year && h.x.place === m.place && h.x.what === m.what && (h.x.alt ?? null) === m.alt && h.x.why === m.why && (h.x.pic ?? null) === m.pic && h.e.nat === m.nat; }), "every meeting is in kb/ on its person's entity, worded as the bank has it (node tools/dispatch-to-kb.mjs writes them)");
+  check(ENTITIES.filter(e => e.meetings).every(e => e.meetings.every(x => MEETINGS.find(m => m.id === x.id))), "kb/ holds no meeting the bank doesn't");
+  const sets = ENTITIES.filter(e => e.meetings).map(e => e.sets.join());
+  check(sets.every(s => /person/.test(s)), "a person with meetings is a person in kb/");
+  check(byId.get("martin-luther")?.meetings.length === 3 && byId.get("columbus")?.nat === "Genoese", "Luther has his three meetings; Columbus, Crates' clue word, carries his");
 }
 // ---- the lists
 for (const level of LEVEL_IDS) for (const slot of SLOTS) {

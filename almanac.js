@@ -8,11 +8,10 @@ import { QUOTES } from "./quote-bank.js";
 import { VIEW, INCLUDED, filterKb } from "./almanac-view.js";
 import { markedIn } from "./topics-on.js";
 import { withUnit } from "./quote-engine.js";
-import { showPicture } from "./pics.js";
+import { showPicture, pictureName } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, line, action, markButton } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
-import { meetingHits, fillPerson } from "./almanac-meetings.js";
 import { defaultIs3D } from "./mode3d.js";
 import { parseHash, formatHash } from "./almanac-nav.js";
 import "./pwa.js";
@@ -100,18 +99,10 @@ function listResults() {
     box.append(row);
     return;
   }
-  const hits = search(text), people = meetingHits(text);
-  if (!hits.length && !people.length) { box.append(el("p", "lx-lead", "Nothing by that name.")); return; }
+  const hits = search(text);
+  if (!hits.length) { box.append(el("p", "lx-lead", "Nothing by that name.")); return; }
   const list = el("div", "lx-list");
   for (const e of hits) list.append(entityButton(e));
-  // the people of Dispatch, with their meetings: one item each, a fact's two wordings together
-  for (const p of people) {
-    const b = el("button", "lx-hit");
-    b.type = "button";
-    b.append(el("b", null, `${p.who} (${p.nat})`), el("small", null, `person · ${p.meetings.length === 1 ? "1 meeting" : `${p.meetings.length} meetings`}`));
-    b.addEventListener("click", () => openPerson(p.pid));
-    list.append(b);
-  }
   box.append(list);
 }
 
@@ -121,7 +112,7 @@ function listResults() {
 const REL = { clue: ["A clue to", "Clues to it"], link: ["Linked to", "Linked from"], in: ["In", "Within it"],
   "painted-by": ["Painted by", "Paintings"], "hangs-in": ["Hangs in", "On its walls"], movement: ["Movement", "Works"],
   "designed-by": ["Designed by", "Designs"], style: ["Style", "In this style"], city: ["Stands in", "Buildings here"],
-  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"], "in-work": ["From the work", "Lines"], "written-by": ["Written by", "Works"] };
+  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"], "in-work": ["From the work", "Lines"], "active-in": ["Active in", "People active here"], "written-by": ["Written by", "Works"] };
 const ORDER = ["clue", "link", "painted-by", "hangs-in", "movement", "designed-by", "style", "city", "from", "led-to", "in"];
 function groupsOf(id) {
   const rels = new Set([...(OUT.get(id) || []), ...(IN.get(id) || [])].map(l => l.rel));
@@ -174,9 +165,20 @@ function fillEntry(box, id, nav = {}) {
   if (e.literal) said.push(`Literally: ${e.literal}.`);
   if (e.meaning) said.push(`Means ${e.meaning}.`);
   if (e.who) said.push(e.who.replace(/^./, c => c.toUpperCase()) + ".");
+  if (e.nat) said.push(`Nationality: ${e.nat}.`);
   if (e.region || e.country) said.push([e.country && e.country !== e.name ? e.country : "", e.region].filter(Boolean).join(", "));
   if (e.year) said.push(`${e.circa ? "Around " : ""}${e.year}`);
   for (const s of said) box.append(el("p", "lx-note", s));
+  // Dispatch's meetings with a person (kb/ holds them as `meetings`): a fact worded two ways is one item, both wordings in it
+  for (const x of e.meetings || []) {
+    const sec = el("section", "lx-sec");
+    sec.append(el("h3", null, `${x.year} · ${x.place}`));
+    if (x.pic) { const pic = el("div", "lx-pic"); sec.append(pic); showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic }); }
+    sec.append(el("p", "lx-note", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`));
+    if (x.alt) sec.append(el("p", "lx-note", `Also put: ${x.alt}.`));
+    sec.append(el("p", "lx-note", x.why));
+    box.append(sec);
+  }
   const facts = FACTS.get(id) || [];
   if (facts.length) {
     const sec = el("section", "lx-sec");
@@ -224,17 +226,6 @@ function open(id, push = true) {
   there.type = "button";
   there.addEventListener("click", () => goSky(id));
   head.append(there);
-  box.scrollTop = 0;
-}
-/** A person of Dispatch as an entry of their own. No step in the history: the back button leads to the results. */
-function openPerson(pid) {
-  showList(false);
-  const box = $("entry");
-  $("results").hidden = true; box.hidden = false;
-  const head = fillPerson(box, pid, el), back = el("button", "btn lx-sky-btn", "Back to results");
-  back.type = "button";
-  back.addEventListener("click", () => goList());
-  head.append(back);
   box.scrollTop = 0;
 }
 /** The list view on screen (the star chart off it); `push` adds a step to the browser's history. */
