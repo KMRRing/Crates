@@ -79,7 +79,7 @@ function outlineSource(name) {
 }
 /** A flag or an outline as the look has it: greyscale, or ink (black or white by brightness, so only the shapes are left). Paintings keep their
  *  colour (Korbi, 9 Nov 2026): in ink a painting is a smudge. */
-function looked(src) {
+function looked(src, lines) {
   const look = read(LOOK, "colour");
   if (!src || look === "colour") return src;
   try {
@@ -87,8 +87,9 @@ function looked(src) {
     const x = c.getContext("2d"); x.drawImage(src.img, 0, 0, src.w, src.h);
     const im = x.getImageData(0, 0, c.width, c.height), d = im.data;
     for (let i = 0; i < d.length; i += 4) {
-      const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], v = look === "ink" ? (y > 118 ? 245 : 20) : y;
-      d[i] = d[i + 1] = d[i + 2] = v;
+      const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], v = look === "ink" ? (y > 118) !== !!lines : null;
+      // ink is parchment on off-black (Korbi, 9 Nov 2026): an outline's lines are the parchment, a flag's light parts
+      if (v === null) d[i] = d[i + 1] = d[i + 2] = y; else { d[i] = v ? 232 : 20; d[i + 1] = v ? 220 : 26; d[i + 2] = v ? 190 : 31; }
     }
     x.putImageData(im, 0, 0);
     return { img: c, w: src.w, h: src.h };
@@ -96,7 +97,7 @@ function looked(src) {
 }
 async function sourceFor(it) {
   if (it.kind === "flag") return looked(await flagSource(it));
-  if (it.kind === "outline") return looked(outlineSource(it.name));
+  if (it.kind === "outline") return looked(outlineSource(it.name), true);
   const urls = await pictureUrls(it.pic, 960);
   if (!urls) return null;
   for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return { img, w: img.naturalWidth, h: img.naturalHeight }; } catch { /* try the original */ } }
@@ -141,7 +142,18 @@ function draw() {
   ctx.save(); ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2); ctx.clip();
   paint(ctx, cw, ch);
   ctx.restore();
-  if (unveil < 1) { ctx.lineWidth = Math.max(3, Math.min(cw, ch) * 0.018); ctx.strokeStyle = brass; ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+  if (unveil < 1) rim(ctx, cw, ch, R, 1 - t);
+}
+/** The lens's brass rim: a lit gradient band with a dark edge either side, so it reads as turned metal. */
+function rim(ctx, cw, ch, R, alpha) {
+  const w = Math.max(5, Math.min(cw, ch) * 0.03), g = ctx.createLinearGradient(cw / 2 - R, ch / 2 - R, cw / 2 + R, ch / 2 + R);
+  for (const [o, c] of [[0, "#F4DC9A"], [.25, "#C99B45"], [.5, "#7A5522"], [.72, "#D9B160"], [1, "#8A6128"]]) g.addColorStop(o, c);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2);
+  ctx.lineWidth = w + 4; ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.stroke();
+  ctx.lineWidth = w; ctx.strokeStyle = g; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R - w * 0.28, 0, Math.PI * 2); ctx.lineWidth = Math.max(1, w * 0.14); ctx.strokeStyle = "rgba(255,244,205,.55)"; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R - w / 2 - 1, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.stroke();
+  ctx.restore();
 }
 /** The picture through the glass: the part of it in view for the moment's zoom and blur. */
 function paint(ctx, cw, ch) {

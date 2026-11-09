@@ -6,8 +6,13 @@
 .sg-ask { margin: 0; font-size: 1.05rem; font-weight: 600; }
 .sg-worth { margin: 0; font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; }
 .sg-worth b { color: var(--ink); }
-.sg-lens { position: relative; min-height: 0; border: .4rem solid var(--brass); border-radius: 6px; overflow: hidden; background: var(--yard);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .45), inset 0 .25rem 1.1rem rgba(0, 0, 0, .35); }
+/* a turned brass rim: lit from the top left, a bevel inside and a dark seat outside (Korbi, 9 Nov 2026) */
+.sg-lens { position: relative; min-height: 0; border: .55rem solid transparent; border-radius: 8px; overflow: hidden;
+  background: linear-gradient(var(--yard), var(--yard)) padding-box,
+    linear-gradient(135deg, #F4DC9A 0%, #C99B45 22%, #7A5522 45%, #D9B160 68%, #8A6128 85%, #E8CB82 100%) border-box;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 .2rem .6rem rgba(0, 0, 0, .35); }
+.sg-lens::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .7), inset 0 0 0 2px rgba(255, 238, 190, .35), inset 0 .3rem 1.1rem rgba(0, 0, 0, .5); }
 .sg-lens canvas { display: block; width: 100%; height: 100%; }
 .sg-caption { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: .45rem .7rem; font-size: .8rem; line-height: 1.3; background: rgba(16, 24, 31, .78); color: #F3ECDC; }
 .sg-caption[hidden] { display: none; }
