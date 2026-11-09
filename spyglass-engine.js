@@ -8,6 +8,7 @@
 // drawn from the map's own data; no photograph is used.
 export const ROUNDS = 5, LEVELS = ["easy", "medium", "hard"];
 export const FULL = 100, FLOOR = 10, WRONG = 15;
+export const DEAD = 2;                                          // seconds at the start when nothing comes on
 export const SECONDS = { easy: 25, medium: 20, hard: 20 };      // from blur to sharp
 export const CHOICES = { easy: 4, medium: 8, hard: 0 };         // options shown; none: type the answer
 const FULL_RES = 640, FIRST_RES = 6, FIRST_ZOOM = 0.3;
@@ -97,11 +98,15 @@ export function dealRun(seed, level, pools, only = null) {
 
 // ---------- sharpening and scoring ----------
 /** How much of its time a picture has had, 0 to 1. */
-export const fraction = (seconds, level) => Math.max(0, Math.min(1, seconds / SECONDS[level]));
+export const fraction = (seconds, level) => Math.max(0, Math.min(1, (seconds - DEAD) / (SECONDS[level] - DEAD)));
+/** What the points are charged for: the clock's own fraction plus whatever the player pushed the focus on ahead of it, at most all of it. The charge
+ *  is the player's push at once (the picture shows it), then the clock keeps adding to it while the picture stands still, until the two meet (Korbi, 10 Nov 2026). */
+export const spent = (seconds, level, push = 0) => Math.min(1, fraction(seconds, level) + Math.max(0, push));
 /** The look at that moment: `res` pixels across (blur), `zoom` the part of the picture's width in view (1 is all of it). */
+// (Korbi, 10 Nov 2026: the reveal starts much slower and speeds up slowly, hence the exponents above 1.)
 export function focus(u) {
   const t = Math.max(0, Math.min(1, u));
-  return { res: Math.round(FIRST_RES * Math.pow(FULL_RES / FIRST_RES, Math.pow(t, 0.8))), zoom: FIRST_ZOOM + (1 - FIRST_ZOOM) * Math.pow(t, 1.1) };
+  return { res: Math.round(FIRST_RES * Math.pow(FULL_RES / FIRST_RES, Math.pow(t, 1.8))), zoom: FIRST_ZOOM + (1 - FIRST_ZOOM) * Math.pow(t, 1.6) };
 }
 /** What a right answer is worth now: 100 falling to 10 as the picture sharpens, less 15 for each wrong guess; nothing below 0. */
 export const worth = (u, wrong = 0) => Math.max(0, Math.round(FULL - (FULL - FLOOR) * Math.max(0, Math.min(1, u))) - WRONG * wrong);

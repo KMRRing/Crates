@@ -2,7 +2,7 @@
 // does not turn it), and the sooner you say what it is the more it's worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
 // gives four answers to choose from, Medium eight, Hard a line to type in. The rules are spyglass-engine.js's; this file
 // keeps the run, draws the lens and builds the page.
-import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
+import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, spent, focus, worth, matches, norm } from "./spyglass-engine.js";
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as ARCH } from "./arch-bank.js";
 import { flags as menuFlags } from "./menu-flags.js";
@@ -50,12 +50,13 @@ const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outlin
 // S: { seed, level, daily, day, items, index, scores: [points per picture, null while it's open], elapsed (seconds on the open one),
 //      wrong (guesses so far on it), tried (typed guesses already counted), over, total }
 let S = read(RUN, null);
+if (S && S.push == null) S.push = 0;
 if (S && S.elapsed == null) { S.elapsed = (S.best || 0) * SECONDS[S.level]; delete S.best; delete S.dial; }       // a run saved while the player turned the focus
 const save = () => write(RUN, S);
 const startLevel = () => ramp("spyglass", LEVELS, { start: "easy" });
 function newRun(daily = false) {
   const seed = daily ? today() * 6151 + 7 : Math.floor(Math.random() * 2 ** 31), level = daily ? "medium" : startLevel();
-  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], elapsed: 0, wrong: 0, tried: [], over: false, total: 0 };
+  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], elapsed: 0, push: 0, wrong: 0, tried: [], over: false, total: 0 };
   save(); begin();
 }
 const item = () => S.items[S.index];
@@ -150,7 +151,11 @@ async function begin() {
   }
   phase = "look"; render();
 }
-const u = () => (phase === "shown" ? reveal.at : fraction(S.elapsed, S.level));
+// The focus on show: the clock's, or the player's own if they have pushed the slider ahead of it. The clock runs on underneath and the push
+// does not grow when they let go, so the picture stands still until the clock has caught up with it (Korbi, 10 Nov 2026).
+const seen = () => Math.max(fraction(S.elapsed, S.level), S.push || 0);
+const u = () => (phase === "shown" ? reveal.at : seen());
+const owed = () => spent(S.elapsed, S.level, S.push);                 // what the points are charged for (the push counts at once, the clock goes on adding to it)
 
 // ---------- the lens ----------
 const canvas = $("lens"), box = $("seat"), low = document.createElement("canvas");
@@ -176,8 +181,10 @@ function draw() {
 function paint(ctx, cw, ch, pic = source, out = 1) {
   const { res, zoom: z0 } = focus(u()), zoom = z0 * out, a = cw / ch, W0 = Math.max(pic.w, pic.h * a), H0 = W0 / a, it = item();
   const W = W0 * zoom, H = H0 * zoom;
-  const cx = Math.max(W / 2 - (W0 - pic.w) / 2, Math.min(pic.w - W / 2 + (W0 - pic.w) / 2, zoom < 1 ? it.cx * pic.w : pic.w / 2));
-  const cy = Math.max(H / 2 - (H0 - pic.h) / 2, Math.min(pic.h - H / 2 + (H0 - pic.h) / 2, zoom < 1 ? it.cy * pic.h : pic.h / 2));
+  // a window wider than the picture (the answer drawing back) is centred on it: clamped, its two limits cross and it would slide off to one side
+  const mid = (win, whole, margin, want) => win >= whole + 2 * margin ? whole / 2 : Math.max(win / 2 - margin, Math.min(whole - win / 2 + margin, want));
+  const cx = mid(W, pic.w, (W0 - pic.w) / 2, zoom < 1 ? it.cx * pic.w : pic.w / 2);
+  const cy = mid(H, pic.h, (H0 - pic.h) / 2, zoom < 1 ? it.cy * pic.h : pic.h / 2);
   const sx = cx - W / 2, sy = cy - H / 2;
   // the part of the window that lies on the picture (a wide window around a narrow picture leaves margins)
   const ix0 = Math.max(0, sx), iy0 = Math.max(0, sy), ix1 = Math.min(pic.w, sx + W), iy1 = Math.min(pic.h, sy + H);
@@ -200,7 +207,8 @@ function frame(now) {
   if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
     S.elapsed += dt;
     if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
-    $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(u(), S.wrong) }));
+    $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(owed(), S.wrong) }));
+    if (!dragging) $("focus").value = Math.round(u() * 1000);               // the slider follows the focus as the clock brings it on
   } else if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
   if (phase === "shown") { unveil = Math.min(1, unveil + dt / 0.6); tint = Math.min(1, tint + dt / 1.1); } else tint = 0;
   draw();
@@ -209,13 +217,13 @@ function frame(now) {
 // ---------- guessing ----------
 function good() {
   learn(S.wrong ? "wrong" : "right");
-  const points = worth(fraction(S.elapsed, S.level), S.wrong);
+  const points = worth(owed(), S.wrong);
   S.scores[S.index] = points;
   conclude(`+${points}`);
 }
 function bad() { S.wrong++; save(); }
 function conclude(text) {
-  reveal = { from: fraction(S.elapsed, S.level), at: fraction(S.elapsed, S.level) };
+  reveal = { from: seen(), at: seen() };
   phase = "shown"; save();
   $("worth").textContent = text;
   showCaption();
@@ -249,7 +257,7 @@ function guess(text) {
 }
 function next() {
   if (phase !== "shown" || S.over) return;
-  S.index++; S.elapsed = 0; S.wrong = 0; S.tried = [];
+  S.index++; S.elapsed = 0; S.push = 0; S.wrong = 0; S.tried = [];
   save(); begin();
 }
 function endRun() {
@@ -268,7 +276,8 @@ function render() {
   $("where").textContent = S.over ? `Run over · ${S.level}` : `Picture ${Math.min(S.index + 1, S.items.length)} of ${S.items.length}${S.daily ? " · today's" : ""} · ${S.level}`;
   $("score").textContent = `Score ${S.scores.reduce((a, b) => a + (b || 0), 0)}`;
   $("ask").textContent = ASK[item().kind];
-  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(u(), S.wrong) : "–" }));
+  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(owed(), S.wrong) : "–" }));
+  const dial = $("focus"); dial.disabled = phase !== "look"; dial.value = Math.round(u() * 1000);
   $("passBtn").hidden = phase === "shown";
   $("nextBtn").hidden = phase !== "shown" || S.over;
   const opts = $("opts");
@@ -347,4 +356,16 @@ else begin();
 if (S && S.over) showDone();
 
 // for tests and debugging
+// the focus slider: pull the picture into focus ahead of the clock, and a right answer is worth less at once; it cannot be pulled back
+let dragging = false;
+$("focus").addEventListener("pointerdown", () => { dragging = true; });
+addEventListener("pointerup", () => { dragging = false; });
+$("focus").addEventListener("input", e => {
+  if (phase !== "look") return;
+  const v = e.target.value / 1000;
+  if (v > seen()) S.push = v;
+  e.target.value = Math.round(seen() * 1000);
+  $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(owed(), S.wrong) }));
+});
+$("focus").addEventListener("change", () => { dragging = false; save(); });
 window.__spyglass = { get state() { return S; }, get phase() { return phase; }, guess, pass, next, newRun, setElapsed: x => { if (S) S.elapsed = x; } };

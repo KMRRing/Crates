@@ -48,9 +48,10 @@ check(last.res <= 8 && last.zoom <= 0.31, `it starts blurred and close (${last.r
 for (let k = 1; k <= 20; k++) { const f = E.focus(k / 20); check(f.res >= last.res && f.zoom >= last.zoom, `sharpening never reverses (${k}/20)`); last = f; }
 check(last.res === 640 && Math.abs(last.zoom - 1) < 1e-9, "at the end it is sharp and whole");
 check(E.focus(-1).res === E.focus(0).res && E.focus(9).res === 640, "outside its time it stays at its ends");
-check(E.fraction(12.5, "easy") === 0.5 && E.fraction(99, "hard") === 1 && E.fraction(-3, "easy") === 0, "the fraction of the time gone, 0 to 1");
+check(E.fraction(E.DEAD, "easy") === 0 && E.fraction(E.DEAD + (25 - E.DEAD) / 2, "easy") === 0.5 && E.fraction(1, "easy") === 0 && E.fraction(99, "hard") === 1 && E.fraction(-3, "easy") === 0, "the fraction of the time gone, 0 to 1");
 
 // ---------- scoring ----------
+check(E.spent(0, "easy", 0.6) === 0.6 && E.spent(E.DEAD + (25 - E.DEAD) * 0.5, "easy", 0.6) === 1 && E.spent(E.DEAD + (25 - E.DEAD) * 0.2, "easy", 0.6) === 0.8, "a push is charged at once, then the clock adds to it up to the whole");
 check(E.worth(0) === 100 && E.worth(1) === 10 && E.worth(0.5) === 55, "100 falling to 10");
 check(E.worth(0, 1) === 85 && E.worth(1, 1) === 0 && E.worth(1, 5) === 0, "15 off for each wrong guess, never below 0");
 check(E.worth(0.2) > E.worth(0.4), "earlier is worth more");
