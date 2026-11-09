@@ -125,6 +125,16 @@ export function createPuzzle(deps) {
     const top = sh.wheels[sh.ports[0]?.w ?? 0];
     b.dataset.m = top.m;
     b.dataset.l = sh.layers[1];
+    // 9 Nov 2026, Korbi: "when there are multiple levels due to arbors, it's not very clear which part on the menu goes to what level on the watch. selecting 1/2/3 should make this obvious."
+    // Every tile of a layered plate names the layers its wheels stand on, and a layer picked below dims the tiles that have no wheel on it.
+    if (layered()) {
+      const ls = [...new Set(sh.wheels.map(w => w.l))].sort(), tag = document.createElement("i");
+      tag.className = "pi-lay";
+      tag.textContent = ls.join("·");
+      b.append(tag);
+      b.dataset.on = ls.join("");
+      if (focus) b.classList.add(ls.includes(focus) ? "lay-on" : "lay-off");
+    }
     return b;
   }
   function drawHand() {
@@ -289,7 +299,10 @@ export function createPuzzle(deps) {
     hint = null;
     if (L.fixed[c] || !L.cap[c]) return void render();
     const cur = sel(), here = laid[c];
-    if (cur && here !== cur) {
+    // 9 Nov 2026, Korbi: "in levels that allow turning, sometimes left clicking something doesn't turn it after putting it down." A tile of the same kind still held used to
+    // swap with the laid piece (a no-op to the eye); the same kind turns it, only another kind swaps.
+    const same = !!here && L.rotate && cur === E.keyOf(L, here);
+    if (cur && here !== cur && !same) {
       if (!layAt(c, cur, rotFor(cur, c))) return void render();
     } else if (here) {
       const { kind } = E.pieceOf(here);

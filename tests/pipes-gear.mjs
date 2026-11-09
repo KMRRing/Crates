@@ -12,6 +12,7 @@ import { LEGACY, OLD_KIND, transformLevel } from "../pipes-gear-legacy.js";
 import { FIXTURES } from "../pipes-gear-fixture.js";
 import * as Old from "../pipes-train.js";
 import { LEVELS as OLD_LEVELS } from "../pipes-train-levels.js";
+import { LEVELS } from "../pipes-gear-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -250,6 +251,13 @@ const row = (n, o = {}) => ({
     if (s.sols.length !== count || !s.sols.some(x => key(x.laid) === key(L.sols[0]))) { ok = false; why += ` k${k}: ${s.sols.length} answers, not ${count}`; }
   }
   check(ok, `all eight turns and mirrors of a plate with an asymmetric elbow keep the answer and the number of answers (${count})${why}`);
+}
+
+{ // 9 Nov 2026: the run's tap turns a laid piece when a tile of the same kind is still held; that compares the hand key with keyOf(laid piece)
+  const L = E.parseLevel(LEVELS.find(l => l.rotate)), laid = E.emptyLaid(L), key = E.handKinds(L)[0];
+  let c = -1;
+  for (let i = 0; i < L.cap.length && c < 0; i++) if (E.lay(L, laid, i, key, 0) === "laid") c = i;
+  check(c >= 0 && E.keyOf(L, laid[c]) === key, "a laid piece of a turning level has the same key as its tile in the hand");
 }
 
 if (bad) { console.log(`\n${bad} failed`); process.exit(1); }

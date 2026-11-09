@@ -71,31 +71,14 @@ function escapementSet(c, scale = 1, metal = 0xd9a949) {
   };
 }
 
-/** The wheel that drives a sink, drawn on the side the power comes in by (opposite the way the instrument reaches out): larger than the sink's own, of the train's
- *  metal, meshed with it and turning the other way, so a player can see which side to bring the train to. It lies at the plate (under the layer-1 wheels): a wheel
- *  laid on that side hides it, and it is only a picture (the engine's sink has one port, on this side). */
-function driverGear(c, group, r, out) {
-  const { THREE, G, P, mk, gearMat } = c, ns = r.n, m = r.m;
-  const nd = Math.max(ns + 4, Math.min(Math.round(ns * 2), Math.floor(120 / m)));
-  const geo = G.wheelGeometry({ n: nd, m, pinion: false }), a = Math.atan2(out[1], out[0]), cAng = a + Math.PI;     // the contact direction, from the sink to this wheel
-  const g = new THREE.Group(); g.position.set(r.wx, 0, r.wz); g.rotation.y = -a; g.userData.dock = true; group.add(g);     // `dock`: a compact instrument's scaling leaves it alone
-  const turn = new THREE.Group(); turn.position.x = -(P.pitchR(ns, m) + P.pitchR(nd, m)); g.add(turn);
-  const body = mk(geo, gearMat[m] || gearMat[5], turn, { cast: false }); body.position.y = 0.005;
-  return {
-    update(cx) {
-      const s = cx.angle(r.id) * P.DEG, d = cAng + Math.PI + Math.PI / nd - (ns / nd) * (s - cAng);          // a tooth of the sink at the contact meets a gap here
-      turn.rotation.y = -d + a;
-      g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
-    },
-  };
-}
-
+// 9 Nov 2026, Korbi: "the escapement wheel (the big one on the ground) is sometimes so big that it goes through the watch case." The driving wheel is now the
+// sink-sized twin of buildDock (meshed on the port side, always within the board), not a wheel up to twice the sink's size that a compact instrument left unscaled.
 /** Escapement on a sink: the escape wheel stands on the sink's arbor, the fork and balance beyond it, out into the margin. */
 export function buildEscapement(c, group, r, out, k) {
   const { THREE, P } = c, g = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g);
-  const metal = metalOf(r), set = escapementSet(c, 1, metal), drive = driverGear(c, group, r, out);
+  const metal = metalOf(r), set = escapementSet(c, 1, metal), drive = buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
   g.add(set.group);
   const base = P.LAYER_Y[r.layer] + P.THICK + 0.03;
   set.group.position.y = base;
@@ -118,7 +101,7 @@ export function buildTourbillon(c, group, r, out, k) {
   const { THREE, G, M, P, mk } = c, g = new THREE.Group(), cage = new THREE.Group();
   g.position.set(r.wx, 0, r.wz);
   group.add(g); g.add(cage);
-  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, R = 0.56, metal = metalOf(r), drive = driverGear(c, group, r, out);
+  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, R = 0.56, metal = metalOf(r), drive = buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
   const low = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), metal), up = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), metal);
   G.polish(low, 2); G.polish(up, 2); up.translate(0, 0.3, 0);
   const posts = G.merge([0, 1, 2].map(i => { const a = i * TAU / 3 + 0.4, p = new THREE.CylinderGeometry(0.034, 0.034, 0.3, 10); p.translate(Math.cos(a) * (R - 0.035), 0.15, Math.sin(a) * (R - 0.035)); G.tint(p, metal); return p.toNonIndexed(); }));
@@ -148,7 +131,7 @@ export function buildChime(c, group, r, out, goal, k) {
   const { THREE, G, M, P, mk } = c, g = new THREE.Group(), turn = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g); g.add(turn);
-  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, RD = 0.56, NT = 7, step = 0.062, metal = metalOf(r), drive = driverGear(c, group, r, out);
+  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, RD = 0.56, NT = 7, step = 0.062, metal = metalOf(r), drive = buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
   const tipX = i => 0.12 + 0.065 * i + 0.08, tz = i => (i - (NT - 1) / 2) * step;     // tine i's tip over the disc (graded: longer tines are lower notes)
   const disc = G.tint(G.slab(G.shapeOf(G.circle(RD, 64), [G.circle(0.04, 10)]), 0.04, 0.008, 2), metal); G.polish(disc, 2);
   const tune = Array.isArray(goal?.tune) ? goal.tune : [0, 2, 4, 2, 5, 4, 2, 0, 3, 1, 4, 6, 4, 2, 1, 3];
