@@ -157,15 +157,15 @@ export function stepClock(g, beat, duty = 0.3) {
 
 // ---------- the look: the three looks (Codex day, Codex night, Office night; Office day is its cool twin) ----------
 // The plates are calm (Korbi, 4 November 2026: Shunt's case neutral silver so the coloured parts read): a pale rhodium plate, silver bridges and a
-// silver case, the wheels and the rubies the colour. The light is Shunt's, which is Topple's.
+// 9 Nov 2026, Korbi: the metal rim was "ugly": the case is satin brass (Codex) or blued steel (Office), not fluted chrome. silver plate, the wheels and the rubies the colour. The light is Shunt's, which is Topple's.
 const SILVER = {
   codex: {
-    day: { case: 0xcdd0d4, plate: 0xc9ccd0, bridge: 0xd8dade, steel: 0xb9bec6, field: 0x2a2f36, paper: 0xe9e3d3 },
-    night: { case: 0xb4b8be, plate: 0xa9adb3, bridge: 0xbfc3c9, steel: 0x9ea3ab, field: 0x1a1e24, paper: 0xcfc8b6 },
+    day: { case: 0xc9a25f, plate: 0xc9ccd0, bridge: 0xd8dade, steel: 0xb9bec6, field: 0x2a2f36, paper: 0xe9e3d3 },
+    night: { case: 0x9c7d4a, plate: 0xa9adb3, bridge: 0xbfc3c9, steel: 0x9ea3ab, field: 0x1a1e24, paper: 0xcfc8b6 },
   },
   office: {
-    day: { case: 0xd2d7dc, plate: 0xc5cbd2, bridge: 0xd8dde2, steel: 0xb4bcc6, field: 0x232a33, paper: 0xe6eaee },
-    night: { case: 0xa9b1ba, plate: 0x9ba4ae, bridge: 0xb3bbc5, steel: 0x929ba6, field: 0x161b22, paper: 0xc9d0d8 },
+    day: { case: 0x6f7c8c, plate: 0xc5cbd2, bridge: 0xd8dde2, steel: 0xb4bcc6, field: 0x232a33, paper: 0xe6eaee },
+    night: { case: 0x586372, plate: 0x9ba4ae, bridge: 0xb3bbc5, steel: 0x929ba6, field: 0x161b22, paper: 0xc9d0d8 },
   },
 };
 /** The wheels' metals by module (design: fine rose gold, standard gilt, coarse blued steel), then pinions (polished steel), arbors, the dial. */

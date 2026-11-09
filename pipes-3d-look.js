@@ -87,7 +87,7 @@ export function createLook(renderer, detail = 2) {
   const M = {
     plate: envify(std({ color: 0xc9ccd0, metalness: 0.95, roughness: 0.4, normalMap: tex.perlage, normalScale: N2(0.2) }), 0.55),
     plateEdge: polished({ color: 0xc9ccd0, metalness: 1, roughness: 0.12 }, 1),
-    caseM: polished({ color: 0xcdd0d4, metalness: 1, roughness: 0.2, normalMap: tex.flute, normalScale: N2(0.7) }, 0.9),
+    caseM: polished({ color: 0xc9a25f, metalness: 0.9, roughness: 0.34, normalMap: tex.perlage, normalScale: N2(0.25) }, 0.6),
     bridge: envify(std({ color: 0xd8dade, metalness: 1, roughness: 0.26, normalMap: tex.geneva, normalScale: N2(0.9) }), 0.85),
     bridgeEdge: polished({ color: 0xe2e5e9, metalness: 1, roughness: 0.1 }, 1.1),
     steel: polished({ color: 0xb9bec6, metalness: 1, roughness: 0.2, vertexColors: false }, 1),
