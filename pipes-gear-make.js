@@ -287,6 +287,19 @@ export function makeLevel(seed, o) {
   };
   tryDrop(added.bridges, c => { const was = spec.map[Math.floor(c / o.cols)][c % o.cols]; setMap(c, "."); return () => setMap(c, was); });
   tryDrop(added.pins, c => { const i = spec.pins.findIndex(p => p.c === c), pin = spec.pins.splice(i, 1)[0]; return () => spec.pins.splice(i, 0, pin); });
+  // 9 Nov 2026, Korbi: pieces fixed on the plate force directions, because of arbors on other layers. `forcePins` pins that many stacks or risers of the answer whatever else the plate
+  // needs (a pin only narrows the answers, so the plate stays solved, and its answers can only get fewer).
+  if (o.forcePins) {
+    let left = o.forcePins;
+    for (const c of shuffled(Object.keys(wanted).map(Number), r)) {
+      if (left <= 0) break;
+      if (!/^[KR]/.test(pieceOf(wanted[c]).kind) || ends.has(c) || spec.pins.some(p => p.c === c)) continue;
+      const { kind, rot } = pieceOf(wanted[c]);
+      spec.pins.push({ c, kind, rot, train: routes.findIndex(R => R.passes.some(p => p.c === c)) });
+      spec.clicks = spec.clicks.filter(k => k.c !== c);
+      left--;
+    }
+  }
   tryDrop(added.clicks, c => { const i = spec.clicks.findIndex(p => p.c === c), k = spec.clicks.splice(i, 1)[0]; return () => spec.clicks.splice(i, 0, k); });
   L = build();
   fin = solve(L, maxSols + 1, Math.max(limit, target * 3));
