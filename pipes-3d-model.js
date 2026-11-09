@@ -57,7 +57,7 @@ let cur = MARGIN;
 /** Sets the margins the plate and the case are drawn with (the view calls it with marginsFor(plan) when a level is set). */
 export const useMargins = mg => { cur = mg || MARGIN; };
 export const CASE_GAP = 0.34;                                  // the case's band beyond the plate
-export const LUG_L = 0.8;                                      // how far a lug reaches out of the case
+export const LUG_L = 1.0;                                      // how far a lug reaches out of the case
 export const lugX = rect => Math.min(0.55 * (rect[1] - rect[0]) / 2, 1.7);
 export const GLASS_Y = 0.98;                                   // the sapphire's height
 

@@ -111,8 +111,16 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     {
       const lx = P.lugX(rect), lug = G.lugGeometry(P.LUG_L), reach = round ? s => Math.sqrt(Math.max(0, ((x1 - x0) / 2 + P.CASE_GAP) ** 2 - lx * lx)) : s => (s > 0 ? z1 : -z0) + P.CASE_GAP;
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        const m = mesh(lug, M.caseM, { at: [sx * lx, -0.44, sz * (reach(sz) - 0.1)], receive: false });
-        if (sz < 0) m.rotation.y = Math.PI;
+        if (!round) { const m = mesh(lug, M.caseM, { at: [sx * lx, -0.5, sz * (reach(sz) - 0.1)], receive: false }); if (sz < 0) m.rotation.y = Math.PI; continue; }
+        // a round case: the lug is baked in place and its foot is laid on the case's wall (every vertex near the case is brought to the wall's radius), so the band flows into the horn
+        const gg = lug.clone(), p = gg.attributes.position, Rout = (x1 - x0) / 2 + P.CASE_GAP, Z0 = Math.sqrt(Rout * Rout - lx * lx);
+        for (let i = 0; i < p.count; i++) {
+          const vz = p.getZ(i); let X = sx * lx + sz * p.getX(i), Z = sz * (Z0 + vz - 0.08);
+          { const s = Math.min(1, Math.max(0, (vz - 0.1) / 0.7)), w = 1 - s * s * (3 - 2 * s), r = Math.hypot(X, Z), k = 1 + ((Rout - 0.04) / r - 1) * w; X *= k; Z *= k; }
+          p.setXYZ(i, X, p.getY(i), Z);
+        }
+        p.needsUpdate = true; gg.computeVertexNormals();
+        mesh(gg, M.caseM, { at: [0, -0.5, 0], receive: false });
       }
       const cr_ = mesh(G.crownGeometry(), M.caseM, { at: [round ? (x1 - x0) / 2 + P.CASE_GAP - 0.04 : x1 + P.CASE_GAP - 0.04, -0.1, (round ? 0 : (z0 + z1) / 2)], receive: false });
       void cr_;
@@ -194,14 +202,21 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       // 9 Nov 2026, Korbi: "making the playing field obvious because of the guilloche pattern. Basket weave. Each square has straight guilloche and the adjacent ones are 90 degrees
       // turned." Every square of the board is ruled with fine parallel lines, horizontal on one colour of a chessboard and vertical on the other, so the squares read without a grid;
       // the margin keeps the plate's plain satin.
-      const gap = sx * 0.028, inset = sx * 0.02, round = P.isRound(plan);
-      c.lineWidth = 0.8;
+      const gap = sx * 0.028, inset = sx * 0.015, round = P.isRound(plan), hi = "255,255,255", lo = "10,14,20", px1 = Math.max(1, sx / 90);
+      // 9 Nov 2026, Korbi: "the horizontal and vertical guilloches reflect light very differently": a square ruled across is a pale, bright field with fine dark lines, a square ruled
+      // down a dark one with bright and dark lines, and each square has its own thin edge, so the squares read at once (in the glass's light as much as at rest).
+      c.lineWidth = Math.max(0.8, px1 * 0.5);
       const ruled = (i, j) => {
         const px = toX(i - cols / 2), py = toY(j - rows / 2), horiz = (i + j) % 2 === 0;
         c.save(); c.beginPath(); c.rect(px + inset, py + inset, sx - 2 * inset, sx - 2 * inset); c.clip();
-        c.strokeStyle = `rgba(${ink},${horiz ? 0.34 : 0.26})`; c.beginPath();
-        for (let k = gap / 2; k < sx; k += gap) { if (horiz) { c.moveTo(px, py + k); c.lineTo(px + sx, py + k); } else { c.moveTo(px + k, py); c.lineTo(px + k, py + sx); } }
-        c.stroke(); c.restore();
+        c.fillStyle = horiz ? `rgba(${hi},.42)` : `rgba(${lo},.2)`; c.fillRect(px, py, sx, sx);
+        let n = 0;
+        for (let k = gap / 2; k < sx; k += gap, n++) {
+          c.strokeStyle = horiz ? `rgba(${lo},.2)` : (n % 2 ? `rgba(${hi},.38)` : `rgba(${lo},.4)`);
+          c.beginPath(); if (horiz) { c.moveTo(px, py + k); c.lineTo(px + sx, py + k); } else { c.moveTo(px + k, py); c.lineTo(px + k, py + sx); } c.stroke();
+        }
+        c.restore();
+        c.strokeStyle = `rgba(${lo},.34)`; c.lineWidth = px1; c.strokeRect(px + inset, py + inset, sx - 2 * inset, sx - 2 * inset); c.lineWidth = Math.max(0.8, px1 * 0.5);
       };
       for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (!round || plan.terrain[j * cols + i] !== "void") ruled(i, j);
       if (round) { c.strokeStyle = `rgba(${ink},.16)`; c.lineWidth = 1.2; c.beginPath(); c.arc(toX(0), toY(0), (rect[1] - rect[0]) / 2 * sx - 0.2 * sx, 0, Math.PI * 2); c.stroke(); return; }

@@ -219,12 +219,15 @@ export function caseGeometry(rect, gap, flute = 0.05, round = false) {
   return g;
 }
 
-/** A lug, a dress watch's elongated horn: from inside the case (z = -0.15) out to z = L along +z, narrowing from w0 to w1 and dipping towards its tip, polished.
- *  9 Nov 2026, Korbi, with a photograph of a rose gold dress watch: "the slight elongated shape around the lugs are needed here. no actual straps of course." */
-export function lugGeometry(L = 0.8, w0 = 0.62, w1 = 0.36, depth = 0.46, dip = 0.3) {
-  const o = [[-w0 / 2, -0.15], [w0 / 2, -0.15], [w0 / 2, 0.12], [w0 * 0.47, L * 0.5], [w1 / 2 + 0.01, L * 0.9], [w1 * 0.36, L], [-w1 * 0.36, L], [-w1 / 2 - 0.01, L * 0.9], [-w0 * 0.47, L * 0.5], [-w0 / 2, 0.12]];
-  const g = slab(shapeOf(o), depth, 0.06, 3), p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) { const t = Math.max(0, p.getZ(i)) / L; p.setY(i, p.getY(i) - dip * t * t - 0.12 * t); }
+/** A lug, a dress watch's elongated horn: its foot flares into the case's side (so the band flows into it), then it narrows in one curve to a blunt tip at z = L along +z, dipping
+ *  as it goes, polished. 9 Nov 2026, Korbi, with a photograph of a rose gold dress watch: "the slight elongated shape around the lugs are needed here. no actual straps of course";
+ *  then "the lugs are too narrow and the case sides should smoothly transition into the lugs". */
+export function lugGeometry(L = 1.0, wTip = 0.7, wFoot = 1.7, depth = 0.56, dip = 0.3) {
+  const N = 14, half = z => wTip / 2 + (wFoot / 2 - wTip / 2) * Math.pow(Math.max(0, 1 - (z + 0.15) / (L * 0.8 + 0.15)), 2.4), left = [], right = [];
+  for (let i = 0; i <= N; i++) { const z = -0.15 + (L - 0.04 + 0.15) * i / N, w = half(Math.min(z, L * 0.8)) * (i === N ? 0.8 : 1); right.push([w, z]); left.push([-w, z]); }
+  const o = [...right, [wTip * 0.3, L], [-wTip * 0.3, L], ...left.reverse()];
+  const g = slab(shapeOf(o), depth, 0.05, 3), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const t = Math.max(0, p.getZ(i)) / L; p.setY(i, p.getY(i) - dip * t * t - 0.1 * t); }
   p.needsUpdate = true; g.computeVertexNormals();
   return polish(g, 2);
 }
