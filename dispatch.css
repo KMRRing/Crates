@@ -52,3 +52,6 @@ html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
 /* the person's portrait, small, beside the name: a square with a brass edge (no pills) */
 .dp-face { float: right; width: 3.6rem; height: 4.4rem; margin: .1rem 0 .4rem .8rem; border: 1px solid var(--brass); background: var(--sheet); overflow: hidden; }
 .dp-face .pic { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.dp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.dp-head h3 { flex: 1; }
+.dp-head .dp-face { float: none; order: 2; width: 2.6rem; height: 3.2rem; margin: 0 0 .35rem; }

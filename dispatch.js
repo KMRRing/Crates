@@ -131,7 +131,11 @@ function render() {
     S.ids.forEach((id, i) => {
       const x = meetingOf(id), card = el("section", "dp-note");
       const wrongYear = done && s.marks[i].year === false, from = wrongYear ? meetingOf(s.marks[i].storyOf) : null;
-      card.append(el("h3", wrongYear ? "dp-year-wrong" : "", wrongYear ? `${i + 1} · ${x.year}: this story is ${from.year}` : `${i + 1} · ${x.year}`));
+      // handed in: the person the note was about, as the picture of them (while writing it would give the answer away)
+      const head = el("div", "dp-head");
+      if (done && x.face) { const f = el("figure", "dp-face"); f.hidden = true; head.append(f); showPicture(f, x.face, { width: 160, alt: x.who }); }
+      head.prepend(el("h3", wrongYear ? "dp-year-wrong" : "", wrongYear ? `${i + 1} · ${x.year}: this story is ${from.year}` : `${i + 1} · ${x.year}`));
+      card.append(head);
       for (const slot of SLOTS) {
         const v = S.notes[i][slot], held = v ? meetingOf(v) : null, row = el("div", "dp-row"), b = el("button", "dp-slot", held ? textOf(slot, held) : "—");
         b.type = "button";
