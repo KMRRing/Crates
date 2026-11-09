@@ -96,7 +96,7 @@ const read = f => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 const html = read("statecraft.html");
 check(/class="statecraft full titled fit-screen/.test(html), "the page is full screen and titled");
 check(/statecraft:lessons/.test(read("statecraft.js")) && /statecraft:course/.test(read("statecraft.js")) && /statecraft:pile/.test(read("statecraft-pile.js")), "its keys are under statecraft:");
-check(/statecraft: "lessons"/.test(read("suite.js")) && /id: "statecraft"/.test(read("apps.js")) && /statecraft: APPENDIX/.test(read("random-core.js")), "the tile, the games screen's mark and Random's reason are in");
+check(/statecraft: "lessons"/.test(read("suite.js")) && /id: "statecraft"/.test(read("apps.js")) && /statecraft: "a course/.test(read("random-core.js")), "the tile, the games screen's mark and Random's reason are in");
 check(/alert\(|confirm\(|prompt\(/.test(read("statecraft.js")) === false, "no browser pop-ups");
 
 // ---------- the review pile ----------
