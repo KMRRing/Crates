@@ -107,7 +107,7 @@ function showDone() {
 // ---------- the clues ----------
 function buildRules() {
   const box = $("rules"), notes = el("div", "sw-notes");
-  box.replaceChildren(el("p", "sw-lead", `Cut the block into pieces. A number on a cube says how many cubes its piece has. No piece has more than ${level.maxSize}. Tap a face: a chisel breaks the first joint going in, a saw the whole plane, a bore the rod through that cube; glue mends a joint.`),
+  box.replaceChildren(el("p", "sw-lead", `Cut the block into pieces. A number on a cube says how many cubes its piece has. No piece has more than ${level.maxSize}. Tap a face: a chisel breaks the first joint going in, a saw the whole plane, a bore the rod through that cube; glue mends a joint. A red outline means that piece is already smaller than its number: glue it back.`),
     el("ul", "sw-census"), notes);
   for (const k of Object.keys(KIND_NAMES)) if (level.census[k]) notes.append(el("p", "", KIND_NOTES[k]));
   box.scrollTop = 0;
@@ -134,14 +134,15 @@ const pose = { ...REST, zoom: 1, px: 0, py: 0 };
 let hits = [];
 /** The cubes as drawn: a colour per piece, the pieces drifted a little apart once there is more than one. */
 function cubesOf(marks = true) {
-  const n = N(), ps = pieces(n, cuts()), j = judge(level, cuts()), bad = new Set(marks ? j.wrong : []), mid = (n - 1) / 2, out = [];
+  const n = N(), ps = pieces(n, cuts()), mid = (n - 1) / 2, out = [];
   ps.forEach((p, i) => {
     const xs = p.map(k => xyz(n, k)), cen = [0, 1, 2].map(a => xs.reduce((t, c) => t + c[a], 0) / p.length - mid);
     const drift = ps.length > 1 ? DRIFT : 0;
     for (const k of p) {
       const [x, y, z] = xyz(n, k), c = { x, y, z, ox: cen[0] * drift, oy: cen[1] * drift, oz: cen[2] * drift, color: COLOURS[i % COLOURS.length] };
       if (level.gauge[k] != null) c.label = level.gauge[k];
-      if (bad.has(k)) c.edge = "rgba(168,56,43,1)";
+      // red: cut too far, its piece is already smaller than its number (a piece still too big is just not cut yet, so it is not marked)
+      if (marks && level.gauge[k] != null && p.length < level.gauge[k]) c.edge = "rgba(168,56,43,1)";
       if (marks && hint?.cells.includes(k)) c.edge = "rgba(31,143,138,1)";
       out.push(c);
     }
@@ -179,12 +180,12 @@ function render() {
   $("viewBtn").textContent = view3d ? "Layers" : "Block";
   for (const b of document.querySelectorAll(".sw-tool")) b.classList.toggle("on", b.dataset.tool === tool);
   [...$("tabs").children].forEach((b, z) => { b.classList.toggle("on", z === layer); b.setAttribute("aria-selected", z === layer); });
-  const bad = new Set(j.wrong), pieceOf = new Map();
+  const pieceOf = new Map();
   j.pieces.forEach((p, i) => p.forEach(k => pieceOf.set(k, i)));
   for (const b of $("grid").children) {
     const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer);
     b.style.background = rgb(COLOURS[pieceOf.get(k) % COLOURS.length]);
-    b.className = `sw-sq${bad.has(k) ? " slip" : ""}${hint?.cells.includes(k) ? " hint" : ""}`;
+    b.className = `sw-sq${level.gauge[k] != null && j.pieces[pieceOf.get(k)].length < level.gauge[k] ? " slip" : ""}${hint?.cells.includes(k) ? " hint" : ""}`;
     b.firstChild.textContent = level.gauge[k] ?? "";
     b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${level.gauge[k] != null ? `, number ${level.gauge[k]}` : ""}, piece ${pieceOf.get(k) + 1}`);
   }
