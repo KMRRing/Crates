@@ -89,10 +89,10 @@ check(topicAddress("Art & Design") === "#review&topic=Art%20%26%20Design" && ask
 
 // ---------- the pages are wired to it ----------
 const apps = fs.readFileSync(root + "apps.js", "utf8"), deckJs = fs.readFileSync(root + "deck.js", "utf8"), row = fs.readFileSync(root + "deck-row.js", "utf8"), html = fs.readFileSync(root + "deck.html", "utf8");
-check(/class="rd-cell" data-deck/.test(apps) && /bindDeckRow\(\{\s*row: dlg\.querySelector\("\[data-deck\]"\)/.test(apps), "the games screen has its Deck cell, first in the banner");
+check(!/data-deck/.test(apps) && /id: "deck", sec: "knowledge"/.test(apps), "Deck is a tile in Knowledge, not a cell in the banner");
 check(/class="rd-cell" data-choose/.test(apps) && /bindChoose\(\{\s*cell: dlg\.querySelector\("\[data-choose\]"\)/.test(apps) && /deckPane\(/.test(fs.readFileSync(root + "banner.js", "utf8")), "the banner's one Choose button opens the sheet that holds Deck's choice with Random's");
-check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Deck and Random on this screen"/.test(apps) && /data-rows/.test(apps), "Settings puts the banner away, on this device (a suite: key, which doesn't sync)");
-check(/KEY = "suite:deck"/.test(row) && /deck\.html#review/.test(row) && /IN_FRAME/.test(row) && /\blan\b/.test(row), "the Deck button keeps its scope under a suite: key, starts a review by the address, and keeps out of a partner's frame and an offline party");
+check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Random on this screen"/.test(apps) && /data-rows/.test(apps), "Settings puts the banner away, on this device (a suite: key, which doesn't sync)");
+check(/KEY = "suite:deck"/.test(row), "Deck's scope is kept under a suite: key");
 check(/import\("\.\/kb-index\.js"\)/.test(row) && !/^import[^\n]*kb-index/m.test(row), "the knowledge base's index is fetched only when it's needed, not carried by every page");
 check(/revised\(session\.items, session\.at, answered/.test(deckJs) && /addEventListener\("close", reviseSession/.test(deckJs) && /return sheet;/.test(row), "Deck's page revises the stack under review when the sheet of games and topics closes");
 check(/inScope\(pile\.due\(\)/.test(deckJs) && /arrange\(\(topic \? aboutTopic\(pile\.due\(\), topic, labelOf\(kbIndex\)\) : dueNow\(\)\)/.test(deckJs) && /asked\(location\.hash\)/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");

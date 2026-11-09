@@ -1,11 +1,11 @@
-// The games screen's Choose button (README, Random mode and Deck, "Scope"): the banner under its head is Deck, Random
-// and this, one line of three, and this opens the one sheet where they are set: Random's games, Deck's games and
+// The games screen's Choose button (README, Random mode and Deck, "Scope"): the banner under its head is Random
+// and this, one line of two, and this opens the one sheet where they are set: Random's games, Deck's games and
 // topics, and the learning modes (docs/learning-modes.md). The rules and the choices are random.js's and deck-row.js's own; this is only the sheet round them.
 import { IN_FRAME } from "./suite.js";
 import { lan } from "./net.js";
 import { choice, CLOSE } from "./menu.js";
 import { randomPane, redrawRandom } from "./random.js";
-import { deckPane, redrawDeck } from "./deck-row.js";
+import { deckPane } from "./deck-row.js";
 import { learningPane } from "./learning-mode.js";
 
 let tab = "random";                      // the side the sheet last showed, for as long as the page lasts
@@ -49,7 +49,7 @@ function build(host) {
   body.prepend(choice("Choose for", [["random", "Random"], ["deck", "Deck"], ["learning", "Learning"]], tab, show));
   sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
   sheet.querySelector(".pick-head button").addEventListener("click", () => sheet.close());
-  sheet.addEventListener("close", () => { redrawRandom(); redrawDeck(); });
+  sheet.addEventListener("close", () => { redrawRandom(); });
   host.appendChild(sheet);
   show(tab);
   return sheet;

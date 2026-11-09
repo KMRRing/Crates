@@ -12,7 +12,6 @@ import { topicsControls } from "./topics-ui.js";
 import { markedIn } from "./topics-on.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
-import { bindDeckRow } from "./deck-row.js";
 import { bindChoose } from "./banner.js";
 import { bindFind, starButton } from "./games-bar.js";
 import { SOON_CODEX, SOON_OFFICE } from "./soon-logos.js";
@@ -432,9 +431,8 @@ export const APPS = [
   { id: "harbour", sec: "appendix", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
   { id: "pipes", sec: "minigames", name: "Gears", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO), players: [1, 1] },
   { id: "hong", sec: "board", name: "Mahjong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), players: [1, 4] },
-  // Deck: no tile (31 October 2026, Korbi): the banner under the head opens it, as a third choice beside Random and Choose, and
-  // its page keeps its name and logo here
-  { id: "deck", name: "Codex", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
+  // Deck: no tile from 31 October 2026 (it sat in the banner); Korbi, 9 Nov 2026: back as a tile in Knowledge, off the banner
+  { id: "deck", sec: "knowledge", name: "Codex", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
   { id: "tribute", sec: "cards", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
   { id: "spyglass", sec: "knowledge", name: "Spyglass", href: "./spyglass.html", logo: LOGO("spyglass", SPYGLASS_LOGO), players: [1, 1] },
   { id: "crossing", sec: "knowledge", name: "Crossing", href: "./crossing.html", logo: LOGO("crossing", CROSSING_LOGO), players: [1, 1] },
@@ -570,7 +568,7 @@ const THEMES = [["deco", "Codex"], ["office", "Office"]];
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
 const mode = () => document.documentElement.dataset.mode || "auto";
-// The banner under the head (Deck, Random, Choose) can be put away in Settings (on this device; on at first)
+// The banner under the head (Random, Choose) can be put away in Settings (on this device; on at first)
 const BANNER = "suite:banner";
 const bannerOn = () => { try { return localStorage.getItem(BANNER) !== "off"; } catch { return true; } };
 /** Keeps a look on this device and redraws the page in it (the logos and the menu button are the theme's own). */
@@ -593,7 +591,7 @@ function openSettings(host) {
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
     ...(theme() === "office" ? [] : [choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto"))]),   // Office is night only
-    toggle("Deck and Random on this screen", bannerOn(), on => {
+    toggle("Random on this screen", bannerOn(), on => {
       try { if (on) localStorage.removeItem(BANNER); else localStorage.setItem(BANNER, "off"); } catch { /* private mode */ }
       host.querySelector("[data-rows]")?.toggleAttribute("hidden", !on);      // at once, nothing to reload
     }),
@@ -876,7 +874,7 @@ export function bindSwitcher(button, current) {
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
-    <div class="rd-rows" data-rows${bannerOn() ? "" : " hidden"}><div class="rd-row"><div class="rd-cell" data-deck></div><div class="rd-cell" data-random></div><div class="rd-cell" data-choose></div></div></div>
+    <div class="rd-rows" data-rows${bannerOn() ? "" : " hidden"}><div class="rd-row"><div class="rd-cell" data-random></div><div class="rd-cell" data-choose></div></div></div>
     <ul class="apps-list">${tiles(shown(), current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
@@ -930,6 +928,5 @@ export function bindSwitcher(button, current) {
   }
   // Random (random.js): its row under the head, and random mode playing on in this game, or ended by your coming here
   bindRandom({ games: APPS, sections: SECTIONS, row: dlg.querySelector("[data-random]"), title: current ? button : null, current });
-  bindDeckRow({ row: dlg.querySelector("[data-deck]"), host: dlg });
   bindChoose({ cell: dlg.querySelector("[data-choose]"), host: dlg });
 }

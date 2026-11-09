@@ -1,25 +1,19 @@
-// Deck on the games screen (README, Deck, "Scope"): its plate in the banner beside Random's. Deck starts a review of
-// what's due, across the games, in one tap (deck.html#review); the banner's Choose button (banner.js) opens the sheet
-// where games and topics are left in or out, which Deck's own page opens too. The rules are deck-scope.js's; the choice is kept on this device
-// (suite:deck, the games and topics taken out; suite: keys don't sync). Deck's own page asks the same scope for its
-// review, so what the line counts is what the review deals.
+// Which games and topics Deck covers (README, Deck, "Scope"): the banner's Choose button (banner.js) opens the sheet where
+// they are left in or out, and Deck's own page opens it too. Deck itself is a tile in Knowledge again (Korbi, 9 Nov 2026:
+// its banner plate is gone). The rules are deck-scope.js's; the choice is kept on this device (suite:deck, the games and
+// topics taken out; suite: keys don't sync). Deck's own page asks the same scope for its review.
 //
 // A topic is a subject of the knowledge base, whose index (kb-index.js, 118 KB) every page would otherwise carry just
-// for this line: it's fetched only when a topic is out, or when the sheet lists them.
-import { IN_FRAME } from "./suite.js";
-import { lan } from "./net.js";
+// for this sheet: it's fetched only when the sheet lists them.
 import { ticks, line, CLOSE } from "./menu.js";
 import { waitMark } from "./loading.js";
 import * as pile from "./pile.js";
 import { GAMES } from "./pile.js";
-import { scopeOf, keptScope, inScope, topicsOf, afterTicks, sayScope } from "./deck-scope.js";
+import { scopeOf, keptScope, topicsOf, afterTicks, sayScope } from "./deck-scope.js";
 
 const KEY = "suite:deck";
-// a deck of cards, as Random's shuffle is drawn: a line icon in every theme
-const CARDS = '<svg class="k-ico rd-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3.5" width="12" height="15" rx="2"/><path d="M4 7.5V19a2 2 0 0 0 2 2h9.5"/></svg>';
 
 let index = null;                          // kb-index.js, once it's here: { SUBJECTS, SUBJECT }
-const rows = new Set();                    // the games screen's Deck cells on this page, drawn again as things change
 
 // ---------- what's kept ----------
 export function scopeNow() { try { return scopeOf(JSON.parse(localStorage.getItem(KEY))); } catch { return scopeOf(null); } }
@@ -36,51 +30,6 @@ function loadIndex() {
   if (index) return Promise.resolve(index);
   return import("./kb-index.js").then(m => (index = m), () => null);
 }
-
-/** What Deck covers now: its due cards in the order a review deals them, how many cards are in the piles, and how many
- *  of them the scope covers. `subjects` is the index when one is needed (a topic is out), else null. */
-export function covered(scope, subjects) {
-  const of = subjects ? labelOf(subjects) : null;
-  const live = pile.all().filter(it => !it.learned);
-  return { due: inScope(pile.due(), scope, of), cards: inScope(live, scope, of).length, total: live.length };
-}
-
-// ---------- the games screen's line ----------
-const button = (cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.addEventListener("click", fn); return b; };
-/** Starts a review: Deck's own page begins one where it stands, any other page goes there. */
-function review(host) {
-  if (location.pathname.endsWith("/deck.html")) {
-    host.closest?.("dialog")?.close();
-    location.hash = "#review";
-  } else location.href = new URL("./deck.html#review", location.href).href;
-}
-/** Draws Deck's plate again in the banner: the cards due now, in the scope. */
-export function redrawDeck() {
-  const scope = scopeNow(), waiting = scope.subjects.length > 0 && !index;
-  if (waiting) loadIndex().then(redrawDeck);
-  const c = waiting ? null : covered(scope, scope.subjects.length ? index : null);
-  for (const { row, host } of rows) {
-    const go = button("btn primary rd-play rd-deck", () => review(host));
-    if (waiting) go.append(waitMark(), "Deck");
-    else {
-      go.insertAdjacentHTML("beforeend", `${CARDS}<span class="rd-words"><b>Deck</b><small></small></span>`);
-      go.querySelector("small").textContent = `${c.due.length} due`;
-    }
-    go.disabled = waiting || !c.due.length;
-    row.replaceChildren(go);
-  }
-}
-/** The games screen's Deck cell (apps.js's bindSwitcher), `row`; `host` is the dialog it's in. Not in a partner's
- *  watching frame or an offline party, as Random's isn't. */
-export function bindDeckRow({ row, host }) {
-  if (!row) return;
-  row.hidden = IN_FRAME || !!lan;
-  if (row.hidden) return;
-  rows.add({ row, host: host || document.body });
-  redrawDeck();
-}
-// the pile or the scope changed on another device while the screen is open
-addEventListener("storage", e => { if (rows.size && (e.key === null || e.key === KEY || e.key === "pile:items")) redrawDeck(); });
 
 // ---------- the sheet: which games and topics ----------
 /**
@@ -121,7 +70,6 @@ export function openScope(host, options = {}) {
     sheet.innerHTML = `<div class="pick-head"><h2>Deck</h2><button class="icon-btn" type="button" aria-label="Close">${CLOSE}</button></div><div class="rd-sheet-body"></div>`;
     sheet.querySelector(".pick-head button").addEventListener("click", () => sheet.close());
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
-    sheet.addEventListener("close", redrawDeck);
     host.appendChild(sheet);
   }
   deckPane(sheet.querySelector(".rd-sheet-body"), options);
