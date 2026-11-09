@@ -58,6 +58,20 @@ function learn() {
   });
 }
 
+/** A small flag beside a nationality, only where the people are the nation's own today (Danish, Dutch, ...): a Florentine or a Mughal under
+ *  a modern flag would be an anachronism. The flags are spyglass-flags.js's (MIT, docs/licences-images-and-engines.md). No portraits of the
+ *  people: a likeness is another's image, and the suite's rule is public-domain or our own (Korbi, 9 Nov 2026: "nationality flag somewhere is a good idea"). */
+const NAT_FLAG = { Danish: "denmark", Portuguese: "portugal", German: "germany", Dutch: "netherlands", Spanish: "spain", Swedish: "sweden", French: "france", Italian: "italy",
+  Moroccan: "morocco", Chinese: "china", Japanese: "japan", Korean: "south-korea", Ethiopian: "ethiopia", Filipino: "philippines" };
+async function addFlag(host, nat) {
+  const id = NAT_FLAG[nat];
+  if (!id) return;
+  const svg = (await import("./spyglass-flags.js")).FLAG_SVG[id];
+  if (!svg || !host.isConnected) return;
+  const f = el("span", "dp-flag"); f.setAttribute("role", "img"); f.setAttribute("aria-label", `Flag of ${id.replace("-", " ")}`); f.innerHTML = svg;
+  host.prepend(f);
+}
+
 // ---------- the end ----------
 function handIn() {
   if (!S || S.phase !== "notes") return;
@@ -96,6 +110,7 @@ function render() {
     const bar = el("div", "dp-time"), fill = el("i"); bar.append(fill); fill.id = "fill";
     const scene = el("article", "dp-scene");
     scene.append(el("p", "dp-place", `${x.place} · ${x.year}`), el("h2", "dp-who", x.who), el("p", "dp-nat", x.nat), el("p", "dp-said", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`), el("p", "dp-why", x.why));
+    addFlag(scene.querySelector(".dp-nat"), x.nat);
     const pic = el("figure", "dp-pic");
     pic.hidden = true;
     if (x.pic) scene.prepend(pic);
