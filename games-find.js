@@ -46,7 +46,7 @@ export const takes = (players, count) => !count || (!!players && players[0] <= S
 /** Words other than a game's name that a person might type for it: its genre, the game it is a version of, its old name. A
  *  game's id (Slate's glyph, Almanac's lexicon) and its section's name are searched too, without being listed. */
 export const AKA = {
-  crates: "connections categories groups", punt: "trivia quiz venture purse commit", quote: "estimate range market bid ask", census: "members list recall name every type countries cantons elements",
+  crates: "connections categories groups", punt: "trivia quiz venture purse commit", quote: "estimate range market bid ask", dispatch: "meetings history memory notes names who where historical figures", census: "members list recall name every type countries cantons elements",
   origin: "countries geography clues", order: "timeline sort dates", chart: "map atlas geography pin places",
   nexus: "links graph connections", crossword: "clues grid", lode: "strands word search", isomer: "jumble anagram scramble",
   acrostic: "hidden text clues", nonogram: "picross griddlers pixel picture loom weave weaving cloth thread survey ore mining 3d deduction rock", lexicon: "lookup reference encyclopedia knowledge base",

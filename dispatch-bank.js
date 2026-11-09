@@ -1,0 +1,86 @@
+// Dispatch's meetings: one significant, documented act or word of a notable person, put in a place and a year. Hanseatic and
+// medieval trade to the late age of exploration, with the political and scientific turns beside the mercantile ones. The
+// person "tells you" the `what` (a clause that follows the name: "Waldemar IV Atterdag has just stormed Visby."), and the
+// `why` is the one line of what it meant, shown while you read and again when the notes are marked.
+//
+// Rules for an entry (tests/dispatch.mjs): the act is true and datable to that year; the place is where it was done, or where
+// the person is most closely tied to it; `what` is under about fifty-five characters so it fits a slot in the notes; no two
+// entries share a person. Korbi, 9 November 2026: mostly famous people, a few less so, so the names have to be learned.
+// regions: baltic germany italy iberia lowlands britain france asia levant americas
+const m = (who, place, year, region, what, why) => ({ id: who.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, "-").replace(/^-|-$/g, ""), who, place, year, region, what, why });
+
+export const MEETINGS = [
+  m("Fibonacci", "Pisa", 1202, "italy", "teaches merchants the Hindu-Arabic numerals", "His Liber Abaci made decimal arithmetic usable for trade accounts and exchange."),
+  m("Enrico Dandolo", "Constantinople", 1204, "italy", "has helped the crusaders take the city", "Venice took trading privileges and island holdings from the diverted Fourth Crusade."),
+  m("Frederick II", "Rimini", 1226, "germany", "grants Lübeck free imperial status", "Answerable only to the Emperor, Lübeck became the head of the Baltic trading towns."),
+  m("Marco Polo", "Genoa", 1298, "italy", "dictates his Asian travels to a cellmate", "Il Milione became Europe's main picture of China and the Mongol world."),
+  m("Ibn Battuta", "Fez", 1355, "levant", "dictates the story of nearly thirty years' travel", "His Rihla is the fullest first-hand account of the fourteenth-century Muslim world."),
+  m("Waldemar IV Atterdag", "Visby", 1361, "baltic", "has just stormed Visby on Gotland", "The attack on the Baltic's trading hub led the Hansa to war against Denmark."),
+  m("Francesco Datini", "Prato", 1395, "italy", "files every letter and ledger of his firms", "His archive of some 150,000 letters is the richest record of medieval business."),
+  m("Margaret I", "Kalmar", 1397, "baltic", "crowns her heir king of three realms", "The Kalmar Union held Denmark, Norway and Sweden under one crown until 1523."),
+  m("Zheng He", "Nanjing", 1405, "asia", "sets out with the first treasure fleet", "Seven Ming voyages reached the Indian Ocean and the coast of East Africa."),
+  m("Eric of Pomerania", "Helsingør", 1429, "baltic", "begins charging tolls on ships through the Sound", "The Sound Toll was a main revenue of the Danish crown until 1857."),
+  m("Cosimo de' Medici", "Florence", 1434, "italy", "has come home from exile to rule the city", "His bank's wealth turned the Medici into Florence's ruling family."),
+  m("Henry the Navigator", "Sagres", 1434, "iberia", "sends Gil Eanes past Cape Bojador", "The cape had been the limit of what sailors dared on Africa's Atlantic coast."),
+  m("Mehmed II", "Constantinople", 1453, "levant", "has taken the city for the Ottomans", "The end of Byzantium moved the Mediterranean's trade routes into Ottoman hands."),
+  m("Johannes Gutenberg", "Mainz", 1455, "germany", "finishes printing the 42-line Bible", "Movable type made books cheap enough for merchants, scholars and clerks alike."),
+  m("Lorenzo de' Medici", "Florence", 1478, "italy", "has survived the Pazzi conspiracy", "He ruled Florence and patronised its artists until his death in 1492."),
+  m("Leonardo da Vinci", "Milan", 1482, "italy", "offers the duke his skills as a military engineer", "His letter to Ludovico Sforza lists bridges, guns and siege engines before art."),
+  m("Christopher Columbus", "Santa Fe", 1492, "iberia", "wins royal backing to sail west to Asia", "The Capitulations of Santa Fe promised him titles and a tenth of the wealth found."),
+  m("Bartolomeu Dias", "Lisbon", 1488, "iberia", "reports rounding Africa's southern tip", "The voyage proved the Atlantic and the Indian Ocean were joined."),
+  m("Ivan III", "Novgorod", 1494, "baltic", "closes the Hansa's Peterhof depot", "Novgorod had been the Hansa's gateway to Russian furs and wax."),
+  m("Luca Pacioli", "Venice", 1494, "italy", "sets out double-entry bookkeeping in print", "His Summa spread the Venetian method of keeping accounts across Europe."),
+  m("Vasco da Gama", "Calicut", 1498, "asia", "reaches India by sea round Africa", "The Cape route let Portugal buy spices at the source, outside the Venetian trade."),
+  m("John Cabot", "Newfoundland", 1497, "americas", "claims the new found land for England", "His voyage from Bristol grounded England's later claims in North America."),
+  m("Pedro Álvares Cabral", "Porto Seguro", 1500, "americas", "lands on the coast of Brazil", "Portugal's claim followed from the line drawn at Tordesillas six years before."),
+  m("Aldus Manutius", "Venice", 1501, "italy", "introduces italic type and pocket-size books", "His Aldine press made the Greek and Latin classics portable and affordable."),
+  m("Martin Waldseemüller", "Saint-Dié", 1507, "germany", "puts the name America on a world map", "The name, from Amerigo Vespucci's first name, spread through later maps."),
+  m("Afonso de Albuquerque", "Goa", 1510, "asia", "has taken Goa for Portugal", "Goa became the capital of Portugal's chain of trading forts in Asia."),
+  m("Vasco Núñez de Balboa", "Isthmus of Panama", 1513, "americas", "has sighted the Pacific from a ridge", "He was the first European to see the Pacific from the Americas."),
+  m("Niccolò Machiavelli", "San Casciano", 1513, "italy", "writes The Prince in forced retirement", "Removed from office, he wrote the best-known handbook of political power."),
+  m("Erasmus", "Basel", 1516, "germany", "publishes the Greek New Testament", "His text and notes gave Luther and other reformers a base to argue from."),
+  m("Jakob Fugger", "Augsburg", 1519, "germany", "bankrolls the election of Charles V", "The loans bound the Habsburgs to the Fuggers' bank for generations."),
+  m("Ferdinand Magellan", "Sanlúcar de Barrameda", 1519, "iberia", "sets sail for the Spice Islands the western way", "The fleet that left with five ships and about 270 men became the first to circle the globe."),
+  m("Moctezuma II", "Tenochtitlan", 1519, "americas", "welcomes Cortés into his capital", "The meeting began the Spanish conquest of the Aztec empire."),
+  m("Martin Luther", "Worms", 1521, "germany", "refuses to recant before the Emperor", "He was outlawed, and the split in Western Christianity became permanent."),
+  m("Juan Sebastián Elcano", "Sanlúcar de Barrameda", 1522, "iberia", "has completed the first circumnavigation", "One ship and eighteen men came back with a cargo of cloves."),
+  m("Gustav Vasa", "Stockholm", 1523, "baltic", "ends Danish rule with Lübeck's help", "Lübeck's price was trading privileges in the new Swedish kingdom."),
+  m("Bartholomäus Welser", "Augsburg", 1528, "germany", "wins Venezuela as security for the Emperor's debts", "The Welser's colony failed, but it shows how far banking houses reached."),
+  m("Francisco Pizarro", "Cajamarca", 1532, "americas", "has seized the Inca ruler Atahualpa", "The Inca ransom of gold and silver began Spain's plunder of the Andes."),
+  m("Jürgen Wullenwever", "Lübeck", 1533, "baltic", "tries to break Dutch trade in the Baltic", "His Count's Feud failed and cost Lübeck much of its Baltic lead."),
+  m("Hans Holbein the Younger", "London", 1533, "britain", "paints The Ambassadors", "The double portrait shows the instruments and books of a learned court."),
+  m("Henry VIII", "London", 1534, "britain", "declares himself head of the English church", "The Act of Supremacy took England out of the papal church."),
+  m("Jacques Cartier", "Gaspé", 1534, "americas", "plants a cross claiming the land for France", "His voyages opened the St Lawrence to French fur traders."),
+  m("Nicolaus Copernicus", "Frombork", 1543, "germany", "completes the book that puts the Sun at the centre", "De revolutionibus began the shift from an Earth-centred to a Sun-centred sky."),
+  m("Andreas Vesalius", "Basel", 1543, "germany", "publishes the Fabrica, correcting Galen's anatomy", "Dissection replaced a book as the basis of knowing the body."),
+  m("Francis Xavier", "Kagoshima", 1549, "asia", "lands in Japan to preach", "He opened the Jesuit mission whose letters shaped Europe's view of Japan."),
+  m("Charles V", "Brussels", 1555, "lowlands", "gives up the Netherlands to his son", "Philip II's rule from Spain led within a decade to the Dutch Revolt."),
+  m("Gerardus Mercator", "Duisburg", 1569, "germany", "issues a world map for navigators", "On his projection a straight line follows a constant compass bearing."),
+  m("Abraham Ortelius", "Antwerp", 1570, "lowlands", "publishes the first modern atlas", "Theatrum Orbis Terrarum bound uniform maps into one volume for sale."),
+  m("Thomas Gresham", "London", 1571, "britain", "has built the Royal Exchange for the city", "The Elizabethan merchant-financier gave London a bourse to match Antwerp's."),
+  m("Tycho Brahe", "Hven", 1576, "baltic", "builds the Uraniborg observatory", "His naked-eye measurements, the best of their time, let Kepler find the planets' orbits."),
+  m("Francis Drake", "Plymouth", 1580, "britain", "returns from circling the globe with Spanish plunder", "The Golden Hind's cargo paid investors many times their stake."),
+  m("William of Orange", "The Hague", 1581, "lowlands", "leads the provinces in renouncing Philip II", "The Act of Abjuration was the founding act of the Dutch Republic."),
+  m("Philip II", "El Escorial", 1588, "iberia", "sends the Armada against England", "The fleet's defeat did not end Spain's power, but it ended its hope of invading England."),
+  m("Cornelis de Houtman", "Banten", 1596, "asia", "brings the first Dutch fleet to Java", "Dutch ships now bought pepper directly, and the VOC followed in 1602."),
+  m("Willem Barentsz", "Novaya Zemlya", 1596, "baltic", "winters on the ice seeking a northeast passage", "The crew survived the winter and the expedition's records were found in 1871."),
+  m("Elizabeth I", "London", 1600, "britain", "charters the East India Company", "A trading monopoly with a royal charter became the instrument of Britain in Asia."),
+  m("Will Adams", "Bungo", 1600, "asia", "arrives in Japan as pilot of a Dutch ship", "He became adviser to Tokugawa Ieyasu and a go-between for English and Dutch traders."),
+  m("Matteo Ricci", "Beijing", 1601, "asia", "is admitted to the Ming court with clocks and maps", "Ricci's world map and his Chinese writings carried European science east."),
+  m("Willem Janszoon", "Cape York", 1606, "asia", "makes the first recorded European landing in Australia", "The Duyfken's voyage was a Dutch search for New Guinea's trade."),
+  m("Galileo Galilei", "Venice", 1609, "italy", "shows the Senate his telescope", "He soon turned it on the Moon, Jupiter and the Milky Way."),
+  m("Johannes Kepler", "Prague", 1609, "germany", "shows that Mars moves in an ellipse", "Astronomia nova broke the old rule that heavenly motions must be circles."),
+  m("Henry Hudson", "Hudson River", 1609, "americas", "sails up the river that now bears his name", "He sailed for the Dutch East India Company, and the Dutch based New Netherland on his voyage."),
+  m("Hugo Grotius", "Leiden", 1609, "lowlands", "argues in print that the seas are free to all", "Mare Liberum defended Dutch trade against the Portuguese claim to the Indian Ocean."),
+  m("John Napier", "Edinburgh", 1614, "britain", "publishes logarithms", "Logarithms turned long multiplications into sums, a boon to navigators and astronomers."),
+  m("Thomas Roe", "Ajmer", 1616, "asia", "seeks trading rights from the Mughal emperor", "His embassy for the East India Company secured trade privileges in Mughal ports."),
+  m("Jan Pieterszoon Coen", "Batavia", 1619, "asia", "founds Batavia as the Dutch base in Asia", "The VOC's headquarters grew where the town of Jayakarta had stood."),
+  m("William Harvey", "London", 1628, "britain", "shows that the blood circulates", "De motu cordis replaced Galen's account of the blood with a pump and a loop."),
+  m("Abel Tasman", "Tasmania", 1642, "asia", "has sighted Van Diemen's Land", "The voyage for the VOC also found the coast of New Zealand."),
+  m("Jan van Riebeeck", "Table Bay", 1652, "asia", "founds a VOC supply station at the Cape", "The post to feed passing ships grew into Cape Town and a colony."),
+  m("Christiaan Huygens", "The Hague", 1656, "lowlands", "builds the first pendulum clock", "The pendulum made clocks accurate enough for science, though not yet for finding longitude at sea."),
+  m("Antonie van Leeuwenhoek", "Delft", 1676, "lowlands", "sees tiny living creatures through a single lens", "The cloth merchant turned microscopist described bacteria for the first time."),
+];
+
+export const REGIONS = [...new Set(MEETINGS.map(x => x.region))];
+export const meetingOf = id => MEETINGS.find(x => x.id === id) || null;

@@ -1,0 +1,42 @@
+/* Dispatch: a meeting at a time to read, then the day's notes to put right, slot by slot. */
+:root { --dp-in: var(--c2); --dp-good: #2F7D5B; --dp-miss: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --dp-good: #7FC2A8; --dp-miss: #E8806F; } }
+html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
+
+.dp-mark { display: inline-block; }
+.dp-mark svg { width: 100%; height: 100%; display: block; }
+.dispatch .dp-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .5rem; color: var(--ink-soft); font-size: .86rem; }
+.dp-clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dp-stage { min-height: 0; }
+
+/* reading */
+.dp-time { height: .3rem; margin: 0 0 .9rem; background: var(--tile-edge); }
+.dp-time i { display: block; height: 100%; width: 0; background: var(--dp-in); }
+.dp-scene { padding: 1rem .9rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); }
+.dp-place { margin: 0; font-size: .86rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.dp-who { margin: .35rem 0 .5rem; font-size: 1.45rem; line-height: 1.15; letter-spacing: .04em; color: var(--ink); }
+.dp-said { margin: 0 0 .8rem; font-size: 1.1rem; line-height: 1.35; }
+.dp-why { margin: 0; font-size: .9rem; line-height: 1.4; color: var(--ink-soft); }
+
+/* the notes */
+.dp-help { margin: 0 0 .6rem; font-size: .88rem; line-height: 1.35; color: var(--ink-soft); }
+.dp-note { margin: 0 0 .6rem; padding: .5rem .6rem .6rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); }
+.dp-note h3 { margin: 0 0 .35rem; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
+.dp-row { display: grid; grid-template-columns: 3.3rem minmax(0, 1fr); gap: .5rem; align-items: center; margin-top: .3rem; }
+.dp-row > span { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.dp-slot { display: block; width: 100%; padding: .4rem .55rem; text-align: left; font: inherit; font-size: .95rem; line-height: 1.25; color: var(--ink); background: transparent; border: 1px solid var(--tile-edge); border-radius: 3px; cursor: pointer; }
+.dp-slot.blank { color: var(--ink-soft); border-style: dashed; }
+.dp-slot:disabled { cursor: default; }
+.dp-slot.right { border-color: var(--dp-good); box-shadow: 0 0 0 1px var(--dp-good); }
+.dp-slot.wrong { border-color: var(--dp-miss); color: var(--dp-miss); }
+.dp-fix { margin: .15rem 0 0 3.8rem; font-size: .86rem; color: var(--dp-good); }
+
+.dp-bar { flex: none; display: flex; gap: .6rem; margin-top: .5rem; }
+.dp-bar .btn { flex: 1 1 0; }
+.dp-pick { display: grid; gap: .4rem; }
+.dp-pick .btn { text-align: left; }
+.dp-facts { margin: .2rem 0 .6rem; line-height: 1.4; }
+.dp-best { margin: 0 0 .8rem; color: var(--ink-soft); font-size: .86rem; }
+.dp-recap { margin: 0 0 .8rem; padding-left: 1.1rem; font-size: .88rem; line-height: 1.45; }
+.dp-recap b { letter-spacing: .02em; }
+#doneTitle { letter-spacing: .15em; color: var(--dp-in); }
