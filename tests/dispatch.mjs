@@ -70,6 +70,16 @@ for (const level of LEVEL_IDS) {
   check(score(ids, [{ who: b.id, where: null, what: null }, { who: null, where: null, what: null }]).marks[0].who, "who is right for either meeting of the person");
   check(!score(ids, [{ who: null, where: b.id, what: b.id }, { who: null, where: null, what: null }]).marks[0].where, "where and said are right only for their own meeting");
 }
+// the right story under the wrong year is one wrong item, the year
+{
+  const ids = ["johannes-kepler", "galileo-galilei-1633", "marco-polo"], [k, g] = ids;
+  const swapped = [{ who: g, where: g, what: g }, { who: k, where: k, what: k }, { who: "marco-polo", where: "marco-polo", what: "marco-polo" }], r = score(ids, swapped);
+  check(r.total - r.right === 2 && r.marks[0].year === false && r.marks[0].what && r.marks[2].year === undefined, `two stories under each other's years are two wrong items (${r.right} of ${r.total})`);
+  const mixed = [{ who: g, where: g, what: null }, { who: k, where: k, what: k }, { who: null, where: null, what: null }];
+  check(score(ids, mixed).marks[0].year === undefined, "a story that isn't whole is marked slot by slot");
+  let whole = 0; for (const level of LEVEL_IDS) for (let i = 0; i < 300; i++) { const d = dealDay(level, rng(i + 3)), n = takeNotes(d, level, rng(i + 11)); if (score(d, n).marks.some(m => m.year === false)) whole++; }
+  check(whole === 0, "the notes never come as a whole story under the wrong year");
+}
 // ---- the second wording
 {
   const x = MEETINGS.find(y => y.alt);

@@ -66,6 +66,9 @@ export function takeNotes(ids, level, rand = Math.random) {
     if (rows.length < 2) { rows.forEach(i => { notes[i][slot] = null; }); continue; }
     rows.forEach((i, k) => { notes[i][slot] = ids[rows[(k + 1) % rows.length]]; });
   }
+  // a note whose three slots all hold one other meeting's story is that story under the wrong year: the notes never come that way
+  // (it would be a clean answer with only the year to find); blank its last slot
+  notes.forEach((n, i) => { if (story(ids, n, i) >= 0) n.what = null; });
   const meetings = ids.map(meetingOf), has = {}, shown = {};
   meetings.forEach(x => { has[x.pid] = (has[x.pid] || 0) + 1; });
   notes.forEach(n => { const x = held(n.who); if (x) shown[x.pid] = (shown[x.pid] || 0) + 1; });
@@ -95,10 +98,19 @@ export function options(ids, slot, level, rand = Math.random) {
   return out.sort((a, b) => a.text.localeCompare(b.text));
 }
 
+/** The index of the other meeting whose whole story a note holds (who, where and said), or -1. */
+function story(ids, note, i) {
+  const j = ids.findIndex(id => id === note?.where);
+  return j >= 0 && j !== i && note.what === ids[j] && held(note.who)?.pid === meetingOf(ids[j]).pid ? j : -1;
+}
 /** How the notes stand against the meetings: { right, total, pct, marks } with marks[i][slot] true where the slot is right. */
 export function score(ids, notes) {
   const same = (slot, v, id) => slot === "who" ? !!v && held(v)?.pid === meetingOf(id).pid : v === id;
   const marks = ids.map((id, i) => Object.fromEntries(SLOTS.map(slot => [slot, same(slot, notes[i]?.[slot], id)])));
-  const right = marks.reduce((n, row) => n + SLOTS.filter(s => row[s]).length, 0), total = ids.length * SLOTS.length;
+  // the right story under the wrong year (a note holding another meeting's whole story, which you got right) is one wrong item, the
+  // year: the story's three slots stand, and one of them is not counted (Korbi, 9 Nov 2026)
+  const years = ids.map((_, i) => story(ids, notes[i], i));
+  years.forEach((j, i) => { if (j >= 0) { marks[i] = { who: true, where: true, what: true, year: false, storyOf: ids[j] }; } });
+  const right = marks.reduce((n, row) => n + SLOTS.filter(s => row[s]).length - (row.year === false ? 1 : 0), 0), total = ids.length * SLOTS.length;
   return { right, total, pct: Math.round(100 * right / total), marks };
 }

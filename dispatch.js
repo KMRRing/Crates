@@ -84,7 +84,8 @@ function render() {
     if (!done) nodes.push(el("p", "dp-help", "Your notes were written in a hurry. Some details are wrong and some are blank: tap a detail to change it, then hand the notes in. A person can appear twice, and a fact may be worded another way from how you read it."));
     S.ids.forEach((id, i) => {
       const x = meetingOf(id), card = el("section", "dp-note");
-      card.append(el("h3", "", `${i + 1} · ${x.year}`));
+      const wrongYear = done && s.marks[i].year === false, from = wrongYear ? meetingOf(s.marks[i].storyOf) : null;
+      card.append(el("h3", wrongYear ? "dp-year-wrong" : "", wrongYear ? `${i + 1} · ${x.year}: this story is ${from.year}` : `${i + 1} · ${x.year}`));
       for (const slot of SLOTS) {
         const v = S.notes[i][slot], held = v ? meetingOf(v) : null, row = el("div", "dp-row"), b = el("button", "dp-slot", held ? textOf(slot, held) : "—");
         b.type = "button";

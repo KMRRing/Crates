@@ -45,3 +45,4 @@ html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
 .dp-recap { margin: 0 0 .8rem; padding-left: 1.1rem; font-size: .88rem; line-height: 1.45; }
 .dp-recap b { letter-spacing: .02em; }
 #doneTitle { letter-spacing: .15em; color: var(--dp-in); }
+.dp-note h3.dp-year-wrong { color: var(--dp-miss); }
