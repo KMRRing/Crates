@@ -97,7 +97,7 @@ const CHAPTERS = [
     names: ["Perpetual calendar", "Minute repeater", "Tourbillon", "Grande complication"], nodes: [800, 1500, 2500, 4000],
     recipe: i => [
       { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2 }, touch: true, trains: [
-        { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, asym: true, goal: { type: "escape" }, variety: 0.2 },
+        { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, asym: true, stations: 1, stationType: "escape", goal: { type: "hands" }, variety: 0.2 },
         { m: 4, l: 1, pieces: 6, bends: 1, palette: sp([4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "date", ring: true }, stations: 1, stationType: "hands", variety: 0.2 }] },
       { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2 }, touch: true, trains: [
         { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "wheel" }, variety: 0.2 },
@@ -105,7 +105,7 @@ const CHAPTERS = [
       { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2, bridges: 2 }, trains: [
         { m: 5, l: 1, pieces: 11, bends: 2, palette: sp([5], [1, 2, 3], { S: 2, D: 3, T: 2, K: 1, R: 1 }), stacks: 3, minStacks: 2, stackOnly: rateStack, stackWeight: 6, goal: { type: "tourbillon" }, stations: 1, stationType: "hands", variety: 0.2 }] },
       { cols: 7, rows: 7, maxSols: 6, extras: { pins: 4, clicks: 2, bridges: 2 }, touch: true, trains: [
-        { m: 5, l: 1, pieces: 5, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "escape" }, variety: 0.2 },
+        { m: 5, l: 1, pieces: 5, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, stations: 1, stationType: "escape", goal: { type: "hands" }, variety: 0.2 },
         { m: 4, l: 1, pieces: 4, bends: 1, palette: sp([4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "date", ring: true }, variety: 0.2 },
         { m: 6, l: 1, pieces: 4, bends: 1, palette: sp([6], [1]), goal: { type: "chime" }, variety: 0.2 }] },
     ][i], need: () => true },
