@@ -14,7 +14,7 @@ import { sound } from "./columbiad-sound.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
-import { IN_FRAME, today, arrivedForToday } from "./suite.js";
+import { IN_FRAME, today } from "./suite.js";
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
@@ -582,6 +582,6 @@ window.__columbiad = {
 };
 
 measure();
-if (arrivedForToday() && !IN_FRAME) daily = today();          // the tile opens today's level while it is still to play; the camp's run is kept as it was
+// (Korbi, 10 Nov 2026: the game opens on the campaign, the first level for a new player, not on the daily, whatever the tile was tapped for; the daily is in the menu)
 setupLevel();
 settleAway();

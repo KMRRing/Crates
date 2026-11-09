@@ -23,19 +23,19 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 
 /* the whole game fits the screen, never scrolling: the table keeps one size all game, the tray takes the rest (and
    scrolls inside itself only on the smallest screens) */
-#app.cartel { height: 100vh; height: 100svh; box-sizing: border-box; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem);
-  display: flex; flex-direction: column; gap: .45rem; overflow: hidden; }
+#app.cartel { height: 100vh; height: 100svh; box-sizing: border-box; padding-bottom: calc(env(safe-area-inset-bottom, 0px) * .45 + .25rem);   /* (Korbi, 10 Nov 2026: the tray lower, the table down to meet it, the table wider) */
+  display: flex; flex-direction: column; gap: .2rem; overflow: hidden; }
 .ct-mark { display: inline-block; }
 .ct-mark svg { width: 100%; height: 100%; display: block; }
 
 /* the table: dark oxblood felt in a wooden rim; dice sit on it, ivory and gold */
 /* the table takes everything the turn panel doesn't: the panel keeps one height all game, so the table does too */
 .ct-table { position: relative; flex: 1 1 0; min-height: 15rem; grid-template-rows: auto minmax(0, 1fr) auto auto;
-  margin-top: .4rem; padding: .6rem .5rem .6rem; border-radius: 10px; border: 1.5px solid var(--ct-gold-edge);
+  margin: .4rem -.55rem 0; padding: .6rem .5rem .3rem; border-radius: 10px; border: 1.5px solid var(--ct-gold-edge);
   outline: 1px solid color-mix(in srgb, var(--ct-gold) 40%, transparent); outline-offset: -6px;
   background: radial-gradient(120% 90% at 50% 45%, #5A2630 0%, #3B171E 62%, #2A1015 100%);
   box-shadow: inset 0 0 0 5px #6B4128, inset 0 0 0 7px #4A2A1A, 0 6px 18px rgba(0, 0, 0, .18);
-  color: #F6EEE6; display: grid; gap: .3rem; }
+  color: #F6EEE6; display: grid; gap: .15rem; }
 .ct-seats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .45rem; align-items: start; }
 .ct-seat { display: grid; justify-items: center; align-content: start; gap: .2rem; padding: .4rem .3rem .45rem; border-radius: 1.1rem; position: relative;
   background: radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, .1), rgba(255, 255, 255, 0) 72%); }
@@ -95,7 +95,7 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-verdict.broke { background: #B23A2C; color: #fff; }
 
 /* you, at the near edge */
-.ct-mine { display: grid; justify-items: center; gap: .25rem; padding-top: .3rem; }
+.ct-mine { display: grid; justify-items: center; gap: .25rem; padding-top: .1rem; }
 .ct-mine .ct-plaque { display: flex; gap: .4rem; align-items: baseline; }
 .ct-mine-ask { margin: 0; font-size: .72rem; font-weight: 750; color: #E9C46A; text-align: center; max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

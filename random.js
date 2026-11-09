@@ -6,7 +6,7 @@
 // later, unless you Stay. While it's on, the game's title wears RANDOM and its menu opens on Next game and Stop, as the
 // games screen does. Solo only: never in a partner's watching frame, a duo match, a table, a party or an offline party.
 // The rules (which games, what a round of each is, the pick) are random-core.js's.
-import { IN_FRAME, dailyDue, notePlayed } from "./suite.js";
+import { IN_FRAME, notePlayed } from "./suite.js";
 import { lan } from "./net.js";
 import { ticks, line, menuHead, dropMenuHead, PAUSERS } from "./menu.js";
 import { ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound, clearOver } from "./random-core.js";
@@ -39,8 +39,8 @@ function go(id) {
   const app = appOf(id);
   if (!app) return;
   keepRun(id);
-  if (!dailyDue(id)) { try { clearOver(id, localStorage); } catch { /* private mode */ } }   // a finished puzzle or match isn't shown again: the game deals a new one
-  const to = new URL(dailyDue(id) ? `${app.href}#today` : app.href, location.href);
+  try { clearOver(id, localStorage); } catch { /* private mode */ }   // a finished puzzle or match isn't shown again: the game deals a new one (a random round is never the daily)
+  const to = new URL(app.href, location.href);
   // this same page again (the only game chosen): an address that differs only after # wouldn't open it afresh
   if (to.pathname === location.pathname && to.search === location.search) {
     history.replaceState(history.state, "", to.href);
