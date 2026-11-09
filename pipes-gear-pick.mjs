@@ -24,6 +24,7 @@ const speedOf = lv => F.parse(lv.spec.trains[0].sink.goal.speed);
 const notOne = lv => lv.spec.trains.some(t => t.sink.goal.speed !== "1");
 const nStack = lv => Object.values(lv.spec.sols[0]).filter(p => /^[KR]/.test(p)).length + lv.spec.pins.filter(p => /^[KR]/.test(p.kind)).length;
 // a stack that changes the tooth rate (np differs from n1) and keeps the module
+const anyStack = kind => { const p = parseKind(kind); return p.f === "K" || p.f === "R"; };
 const rateStack = kind => { const p = parseKind(kind); return p.f === "K" && p.np !== p.n1 && p.m1 === p.m2; };
 
 const CHAPTERS = [
@@ -93,22 +94,19 @@ const CHAPTERS = [
     recipe: i => ({ forcePins: 1, cols: 5, rows: i < 2 ? 5 : 6, maxSols: 4, extras: { pins: 1, clicks: 1 },
       trains: [{ m: 5, l: 1, pieces: [6, 7, 8, 9, 10][i], bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), asym: true, stacks: i > 1 ? 3 : 2, minStacks: i > 1 ? 2 : 1, stackOnly: rateStack, stackWeight: 8, stations: 1, stationType: "escape", goal: { type: "hands" }, variety: 0.2 }] }),
     need: lv => lv.spec.pins.some(p => p.goal?.type === "escape" && p.goal.speed && F.cmp(F.parse(p.goal.speed), [2, 1]) >= 0) },
-  { key: "x", book: "VI", name: "Set pieces", rule: "A watch with several complications: each train has its own mainspring and its own tooth size, and none may touch another.",
+  { key: "x", book: "VI", name: "Set pieces", rule: "One mainspring drives a whole watch: a fixed arbor hands the power from one tooth size to the next.",
     names: ["Perpetual calendar", "Minute repeater", "Tourbillon", "Grande complication"], nodes: [800, 1500, 2500, 4000],
+    // 9 Nov 2026, Korbi: one mainspring. A fixed arbor changes tooth size (yellow gold to rose gold) and carries the power on; the plate is as small as the puzzle allows.
     recipe: i => [
-      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2 }, touch: true, trains: [
-        { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, asym: true, stations: 1, stationType: "escape", goal: { type: "hands" }, variety: 0.2 },
-        { m: 4, l: 1, pieces: 6, bends: 1, palette: sp([4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "date", ring: true }, stations: 1, stationType: "hands", variety: 0.2 }] },
-      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2 }, touch: true, trains: [
-        { m: 5, l: 1, pieces: 6, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "wheel" }, variety: 0.2 },
-        { m: 6, l: 1, pieces: 6, bends: 1, palette: sp([6], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, stations: 2, stationType: "chime", goal: { type: "chime" }, variety: 0.2 }] },
+      { forcePins: 1, pinAdapter: true, cols: 6, rows: 6, maxSols: 6, extras: { pins: 2, clicks: 1 }, trains: [
+        { m: 5, l: 1, pieces: 8, bends: 2, palette: sp([5, 4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 3, minStacks: 2, stackOnly: anyStack, stackWeight: 6, stations: 1, stationType: "escape", end: { m: 4 }, goal: { type: "date", ring: true }, variety: 0.2 }] },
+      { forcePins: 1, pinAdapter: true, cols: 6, rows: 6, maxSols: 6, extras: { pins: 2, clicks: 1 }, trains: [
+        { m: 5, l: 1, pieces: 9, bends: 2, palette: sp([5, 6], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 3, minStacks: 2, stackOnly: anyStack, stackWeight: 6, stations: 2, stationType: "chime", end: { m: 6 }, goal: { type: "chime" }, variety: 0.2 }] },
       { cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2, bridges: 2 }, trains: [
         { m: 5, l: 1, pieces: 11, bends: 2, palette: sp([5], [1, 2, 3], { S: 2, D: 3, T: 2, K: 1, R: 1 }), stacks: 3, minStacks: 2, stackOnly: rateStack, stackWeight: 6, goal: { type: "tourbillon" }, stations: 1, stationType: "hands", variety: 0.2 }] },
-      { cols: 7, rows: 7, maxSols: 6, extras: { pins: 4, clicks: 2, bridges: 2 }, touch: true, trains: [
-        { m: 5, l: 1, pieces: 5, bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, stations: 1, stationType: "escape", goal: { type: "hands" }, variety: 0.2 },
-        { m: 4, l: 1, pieces: 4, bends: 1, palette: sp([4], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 1, stackOnly: rateStack, goal: { type: "date", ring: true }, variety: 0.2 },
-        { m: 6, l: 1, pieces: 4, bends: 1, palette: sp([6], [1]), goal: { type: "chime" }, variety: 0.2 }] },
-    ][i], need: () => true },
+      { forcePins: 2, pinAdapter: true, cols: 7, rows: 7, maxSols: 6, extras: { pins: 3, clicks: 2, bridges: 1 }, trains: [
+        { m: 5, l: 1, pieces: 12, bends: 3, palette: sp([5, 4, 6], [1, 2], { S: 2, D: 3, T: 2, K: 1, R: 1 }), stacks: 4, minStacks: 3, stackOnly: anyStack, stackWeight: 6, stations: 1, stationType: "escape", end: { m: 6 }, goal: { type: "chime" }, variety: 0.2 }] },
+    ][i], need: lv => lv.spec.trains[0].sink.goal?.type === "tourbillon" || lv.spec.pins.some(q => { const k = parseKind(q.kind); return (k.f === "K" || k.f === "R") && k.m1 !== k.m2; }) },
 ];
 
 const want = process.argv.slice(2);

@@ -291,7 +291,11 @@ export function makeLevel(seed, o) {
   // needs (a pin only narrows the answers, so the plate stays solved, and its answers can only get fewer).
   if (o.forcePins) {
     let left = o.forcePins;
-    for (const c of shuffled(Object.keys(wanted).map(Number), r)) {
+    // `pinAdapter`: a piece that changes tooth size goes first, so the fixed arbor is the one joining the two golds (Korbi, 9 Nov 2026)
+    const changes = c => { const q = parseKind(pieceOf(wanted[c]).kind); return q.f === "K" || q.f === "R" ? +(q.m1 !== q.m2) : 0; };
+    const order = shuffled(Object.keys(wanted).map(Number), r);
+    if (o.pinAdapter) order.sort((a, b) => changes(b) - changes(a));
+    for (const c of order) {
       if (left <= 0) break;
       if (!/^[KR]/.test(pieceOf(wanted[c]).kind) || ends.has(c) || spec.pins.some(p => p.c === c)) continue;
       const { kind, rot } = pieceOf(wanted[c]);
