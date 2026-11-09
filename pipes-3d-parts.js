@@ -210,6 +210,19 @@ export function createParts(env) {
         for (const ch of group.children.slice(before)) { if (ch.userData.dock) continue; ch.position.x -= r.wx; ch.position.z -= r.wz; sub.add(ch); }
         group.add(sub);
       }
+      // 9 Nov 2026, Korbi: later movements have an escapement between the spring and the movement. A pinned station of type "escape" wears a small one on its wheel (a picture: the
+      // rules only see the station's speed and way), reaching out to the board's margin side.
+      for (const pin of p.pins || []) {
+        if (pin.goal?.type !== "escape") continue;
+        const r = byId.get(pin.c * 8 + (pin.goal.w ?? 0));
+        if (!r) continue;
+        const before = group.children.length;
+        items.push(buildEscapement(ctxB, group, r, out(r), pin.train ?? 0, { dock: false }));
+        const sub = new THREE.Group();
+        sub.position.set(r.wx, 0.12, r.wz); sub.scale.set(COMPACT.escape, 1, COMPACT.escape);
+        for (const ch of group.children.slice(before)) { ch.position.x -= r.wx; ch.position.z -= r.wz; sub.add(ch); }
+        group.add(sub);
+      }
       if (skin) this.tint(skin);
     },
     update(ctx) { for (const it of items) it.update(ctx); },

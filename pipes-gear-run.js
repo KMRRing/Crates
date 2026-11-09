@@ -125,6 +125,8 @@ export function createPuzzle(deps) {
     const top = sh.wheels[sh.ports[0]?.w ?? 0];
     b.dataset.m = top.m;
     b.dataset.l = sh.layers[1];
+    // 9 Nov 2026, Korbi: "sometimes it's unclear whether the level allows turning or not." A tile that turns carries ↻ (a single wheel has no turn, and Book I never turns).
+    if (turnable(kind) && !key.includes("@")) { const t = document.createElement("i"); t.className = "pi-turn"; t.textContent = "↻"; t.setAttribute("aria-hidden", "true"); b.append(t); }
     // 9 Nov 2026, Korbi: "when there are multiple levels due to arbors, it's not very clear which part on the menu goes to what level on the watch. selecting 1/2/3 should make this obvious."
     // Every tile of a layered plate names the layers its wheels stand on, and a layer picked below dims the tiles that have no wheel on it.
     if (layered()) {
@@ -211,6 +213,10 @@ export function createPuzzle(deps) {
       label.textContent = "Layers";
       chips.unshift(label);
     }
+    const turns = document.createElement("small");
+    turns.className = "pi-turns";
+    turns.textContent = L.rotate ? "↻ Turn" : "No turning";
+    chips.push(turns);
     const lookB = $("pzLook");
     lookB.hidden = false;
     lookB.textContent = looking ? "Done" : "Look";

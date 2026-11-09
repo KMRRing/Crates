@@ -244,6 +244,7 @@ export function createView({ board, onGesture, onLost } = {}) {
       if (gear.fixed === "pin" && plan.pins.find(p => p.c === gear.c && p.goal) && gear.i === (plan.pins.find(p => p.c === gear.c).goal.w ?? 0)) {
         const [cx, cy] = cellXY(gear.c);
         el("circle", { cx: cx + 8, cy: cy + 52, r: 4, class: "fixed-mark" }, gTop);
+        if (plan.pins.find(p => p.c === gear.c && p.goal).goal.type === "escape") sinkArt(gWheels, gear, "escape", gear.id);     // 9 Nov 2026: an escapement station wears its balance
       }
       if (gear.fixed === "barrel") { const [cx, cy] = cellXY(gear.c); turnArrow(gTop, cx + 9, cy + 9, 0, 5, "g-turn bright"); }
     }

@@ -13,10 +13,10 @@ const F = await import(new URL("pipes-gear-frac.js", here));
 const { parseKind } = await import(new URL("pipes-gear-shapes.js", here));
 
 const BOOKS = [
-  { key: "II", name: "The train", rule: "Pieces can be turned from here on; ratios come from stacks." },
+  { key: "II", name: "The train", rule: "Quartz movements: the train just ends in the movement. Pieces can be turned from here on; ratios come from stacks." },
   { key: "III", name: "Pitches", rule: "Tooth sizes (modules) never mesh; trains of different sizes must not touch." },
   { key: "IV", name: "Layers", rule: "Wheels on different layers pass over each other; an arbor carries wheels of several sizes." },
-  { key: "V", name: "Complications", rule: "A train ends in a complication that wants an exact speed." },
+  { key: "V", name: "Complications", rule: "A train ends in a complication that wants an exact speed; from the Escapement on, a mechanical movement sits between the spring and the complication." },
   { key: "VI", name: "Grandes complications", rule: "Several trains on one plate, each with its own mainspring, tooth size and complication." },
 ];
 const sp = (m, ls, fams = { S: 2, D: 3, T: 2 }, extra = {}) => ({ mods: m, layers: ls, fams, ...extra });
@@ -85,11 +85,14 @@ const CHAPTERS = [
     recipe: i => ({ cols: 5, rows: i < 2 ? 5 : 6, maxSols: 4, extras: { pins: 2, clicks: 1 },
       trains: [{ m: 5, l: 1, pieces: [5, 6, 7, 9][i], bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), stacks: 2, minStacks: 1, stackOnly: rateStack, goal: { type: "chime" }, variety: 0.2 }] }),
     need: notOne },
-  { key: "v", book: "V", name: "Escapement", rule: "The going train is a step-up: the escape wheel must run several times faster than the barrel.",
+  // 9 Nov 2026, Korbi: "starting levels are quartz movements (the movement just linked to the watch). Later movements have an escapement: the spring has to be connected to the
+  // escapement, and then that has to be connected to the movement." So every level before this chapter ends in the movement itself (hands, dial, seconds, moon, date, chime) and this
+  // chapter's trains run spring -> pinned escape wheel (a station of type "escape", fast) -> movement.
+  { key: "v", book: "V", name: "Escapement", rule: "A mechanical movement: the spring drives the escapement (the pinned escape wheel, which must run fast), and the escapement drives the movement.",
     names: ["Anchor", "Lever", "Detent", "Co-axial", "Constant force"], nodes: [80, 160, 300, 600, 1000],
-    recipe: i => ({ cols: 5, rows: i < 2 ? 5 : 6, maxSols: 4, extras: { pins: 2, clicks: 1 },
-      trains: [{ m: 5, l: 1, pieces: [5, 6, 7, 8, 9][i], bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), asym: true, stacks: 2, minStacks: 1, stackOnly: rateStack, stackWeight: 8, goal: { type: "escape" }, variety: 0.2 }] }),
-    need: lv => F.cmp(speedOf(lv), [2, 1]) >= 0 },
+    recipe: i => ({ cols: 5, rows: i < 2 ? 5 : 6, maxSols: 4, extras: { pins: 1, clicks: 1 },
+      trains: [{ m: 5, l: 1, pieces: [6, 7, 8, 9, 10][i], bends: 1, palette: sp([5], [1, 2], { S: 2, D: 3, T: 2, K: 1 }), asym: true, stacks: 2, minStacks: 1, stackOnly: rateStack, stackWeight: 8, stations: 1, stationType: "escape", goal: { type: "hands" }, variety: 0.2 }] }),
+    need: lv => lv.spec.pins.some(p => p.goal?.type === "escape" && p.goal.speed && F.cmp(F.parse(p.goal.speed), [2, 1]) >= 0) },
   { key: "x", book: "VI", name: "Set pieces", rule: "A watch with several complications: each train has its own mainspring and its own tooth size, and none may touch another.",
     names: ["Perpetual calendar", "Minute repeater", "Tourbillon", "Grande complication"], nodes: [800, 1500, 2500, 4000],
     recipe: i => [

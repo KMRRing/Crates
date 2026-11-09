@@ -292,3 +292,6 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-q.lay-on { box-shadow: 0 0 0 2px var(--pi-in) inset; }
 .pi-q.lay-on .pi-lay { color: var(--pi-in); }
 .pi-q.lay-off { opacity: .38; }
+.pi-q .pi-turn { position: absolute; right: 0; top: 0; padding: .02rem .16rem; background: var(--pi-ground); font-size: .7rem; font-weight: 800; font-style: normal; line-height: 1.1; color: var(--pi-in); pointer-events: none; }
+.pi-layers-row .pi-turns { margin-left: auto; margin-right: .5rem; white-space: nowrap; }
+.pi-layers-row .pi-turns + .pi-look { margin-left: 0; }

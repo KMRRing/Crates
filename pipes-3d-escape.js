@@ -74,11 +74,11 @@ function escapementSet(c, scale = 1, metal = 0xd9a949) {
 // 9 Nov 2026, Korbi: "the escapement wheel (the big one on the ground) is sometimes so big that it goes through the watch case." The driving wheel is now the
 // sink-sized twin of buildDock (meshed on the port side, always within the board), not a wheel up to twice the sink's size that a compact instrument left unscaled.
 /** Escapement on a sink: the escape wheel stands on the sink's arbor, the fork and balance beyond it, out into the margin. */
-export function buildEscapement(c, group, r, out, k) {
+export function buildEscapement(c, group, r, out, k, o = {}) {
   const { THREE, P } = c, g = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g);
-  const metal = metalOf(r), set = escapementSet(c, 1, metal), drive = buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
+  const metal = metalOf(r), set = escapementSet(c, 1, metal), drive = o.dock === false ? null : buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
   g.add(set.group);
   const base = P.LAYER_Y[r.layer] + P.THICK + 0.03;
   set.group.position.y = base;
@@ -89,7 +89,7 @@ export function buildEscapement(c, group, r, out, k) {
       const awake = cx.awake(k), beat = cx.beat(k), b = awake && beat ? cx.g / beat : 0;
       const kk = set.pose(b, awake, cx.angle(r.id) * P.DEG);
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
-      drive.update(cx);
+      drive?.update(cx);
       if (awake && kk !== lastK) { c.onEvent?.({ type: "tick", train: k, tock: kk % 2 === 1 }); }
       lastK = awake ? kk : -1;
     },
