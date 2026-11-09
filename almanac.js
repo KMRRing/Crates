@@ -5,6 +5,7 @@
 // an entry (in the sky's popup, or #list&e=<id> in the list), so the browser's back button walks back through them.
 // It was Lexicon until 2 November 2026: its id, `lexicon`, stays, so saved state and Random's lists are as they were.
 import { QUOTES } from "./quote-bank.js";
+import { SETS } from "./census-sets.js";
 import { VIEW, INCLUDED, filterKb } from "./almanac-view.js";
 import { markedIn } from "./topics-on.js";
 import { withUnit } from "./quote-engine.js";
@@ -42,7 +43,10 @@ const KIND = { country: "country", city: "city", commodity: "commodity", paintin
 // the knowledge base's groups: regions for countries, families for commodities (Crates' pools)
 const GROUP = { eu: "Europe", asia: "Asia", me: "Middle East", am: "Americas", af: "Africa", soft: "soft commodity", met: "metal",
   nrg: "energy", grain: "grain", bio: "biofuel", chem: "chemical", cred: "credit", circ: "circular" };
-const kindsOf = e => (e.sets || []).map(s => s.startsWith("kind:") ? s.slice(5) : s.startsWith("feature:") ? s.slice(8)
+// `census:<set>` and `crossing:<part>` in a thing's sets say which games ask for it; they are not what it is (tools/games-to-kb.mjs)
+const CENSUS = new Map(SETS.map(s => [s.id, s.title]));
+const CROSSING = { land: "Crossing, by land", sea: "Crossing, by sea", port: "Crossing, by sea (a port)", inland: "Crossing, by sea (an inland place)" };
+const kindsOf = e => (e.sets || []).filter(s => !/^(census|crossing):/.test(s)).map(s => s.startsWith("kind:") ? s.slice(5) : s.startsWith("feature:") ? s.slice(8)
   : s.startsWith("group:") ? GROUP[s.slice(6)] || s.slice(6) : KIND[s] || s).filter((k, i, all) => all.indexOf(k) === i);
 const TOPIC = { nrg: "Energy", met: "Metals", agr: "Agriculture", mkt: "Markets", mkts: "Markets", trade: "Trade", co: "Companies", firm: "Companies",
   fin: "Finance", geo: "Geography", hist: "History", past: "History", cult: "Culture", ppl: "People", sci: "Science", food: "Food", lang: "Language",
@@ -112,7 +116,8 @@ function listResults() {
 const REL = { clue: ["A clue to", "Clues to it"], link: ["Linked to", "Linked from"], in: ["In", "Within it"],
   "painted-by": ["Painted by", "Paintings"], "hangs-in": ["Hangs in", "On its walls"], movement: ["Movement", "Works"],
   "designed-by": ["Designed by", "Designs"], style: ["Style", "In this style"], city: ["Stands in", "Buildings here"],
-  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"], "in-work": ["From the work", "Lines"], "active-in": ["Active in", "People active here"], "written-by": ["Written by", "Works"] };
+  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"], "in-work": ["From the work", "Lines"], "active-in": ["Active in", "People active here"], "written-by": ["Written by", "Works"],
+  borders: ["Borders", "Borders"], "sea-lane": ["Sea lane to", "Sea lane to"], "port-on": ["Port on", "Ports here"], "inland-of": ["Reaches the sea at", "Inland places served"] };
 const ORDER = ["clue", "link", "painted-by", "hangs-in", "movement", "designed-by", "style", "city", "from", "led-to", "in"];
 function groupsOf(id) {
   const rels = new Set([...(OUT.get(id) || []), ...(IN.get(id) || [])].map(l => l.rel));
@@ -166,6 +171,10 @@ function fillEntry(box, id, nav = {}) {
   if (e.meaning) said.push(`Means ${e.meaning}.`);
   if (e.who) said.push(e.who.replace(/^./, c => c.toUpperCase()) + ".");
   if (e.nat) said.push(`Nationality: ${e.nat}.`);
+  const census = (e.sets || []).filter(s => s.startsWith("census:")).map(s => CENSUS.get(s.slice(7))).filter(Boolean);
+  if (census.length) said.push(`In Census: ${census.join("; ")}.`);
+  const cross = (e.sets || []).filter(s => s.startsWith("crossing:")).map(s => CROSSING[s.slice(9)]).filter(Boolean);
+  if (cross.length) said.push(`On the map of ${cross.join("; ")}.`);
   if (e.region || e.country) said.push([e.country && e.country !== e.name ? e.country : "", e.region].filter(Boolean).join(", "));
   if (e.year) said.push(`${e.circa ? "Around " : ""}${e.year}`);
   for (const s of said) box.append(el("p", "lx-note", s));
