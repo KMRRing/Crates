@@ -107,7 +107,16 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const [x0, x1, z0, z1] = rect, cr = P.caseRect(cols, rows), round = P.isRound(plan);
     mesh(G.caseGeometry(rect, P.CASE_GAP, 0.05, round), M.caseM, { receive: false });
     mesh(G.plateGeometry(rect, 0.15, 0.12, round), [M.plate, M.plateEdge], { cast: false });
-    // 9 Nov 2026, Korbi: "the screws on the case are ugly": the band carries none.
+    // 9 Nov 2026, Korbi: "the screws on the case are ugly": the band carries none. Four lugs at 12 and 6 o'clock and a crown at 3, as on a dress watch (no strap).
+    {
+      const lx = P.lugX(rect), lug = G.lugGeometry(P.LUG_L), reach = round ? s => Math.sqrt(Math.max(0, ((x1 - x0) / 2 + P.CASE_GAP) ** 2 - lx * lx)) : s => (s > 0 ? z1 : -z0) + P.CASE_GAP;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const m = mesh(lug, M.caseM, { at: [sx * lx, -0.44, sz * (reach(sz) - 0.1)], receive: false });
+        if (sz < 0) m.rotation.y = Math.PI;
+      }
+      const cr_ = mesh(G.crownGeometry(), M.caseM, { at: [round ? (x1 - x0) / 2 + P.CASE_GAP - 0.04 : x1 + P.CASE_GAP - 0.04, -0.1, (round ? 0 : (z0 + z1) / 2)], receive: false });
+      void cr_;
+    }
     // the field's polished line round the board
     const gx = cols / 2, gz = rows / 2;
     mesh(round ? G.frameGeometry(-(x1 - x0) / 2 + 0.2, (x1 - x0) / 2 - 0.2, 0, 0, 0.025, 0.014, true) : G.frameGeometry(-gx - 0.02, gx + 0.02, -gz - 0.02, gz + 0.02, 0.025, 0.014), M.bridgeEdge, { cast: false });

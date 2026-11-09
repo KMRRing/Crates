@@ -56,7 +56,9 @@ export function marginsFor(plan) {
 let cur = MARGIN;
 /** Sets the margins the plate and the case are drawn with (the view calls it with marginsFor(plan) when a level is set). */
 export const useMargins = mg => { cur = mg || MARGIN; };
-export const CASE_GAP = 0.26;                                  // the case's band beyond the plate
+export const CASE_GAP = 0.34;                                  // the case's band beyond the plate
+export const LUG_L = 0.8;                                      // how far a lug reaches out of the case
+export const lugX = rect => Math.min(0.55 * (rect[1] - rect[0]) / 2, 1.7);
 export const GLASS_Y = 0.98;                                   // the sapphire's height
 
 // ---------- the board in the world ----------
@@ -157,15 +159,15 @@ export function stepClock(g, beat, duty = 0.3) {
 
 // ---------- the look: the three looks (Codex day, Codex night, Office night; Office day is its cool twin) ----------
 // The plates are calm (Korbi, 4 November 2026: Shunt's case neutral silver so the coloured parts read): a pale rhodium plate, silver bridges and a
-// 9 Nov 2026, Korbi: the metal rim was "ugly": the case is satin brass (Codex) or blued steel (Office), not fluted chrome. silver plate, the wheels and the rubies the colour. The light is Shunt's, which is Topple's.
+// 9 Nov 2026, Korbi: the metal rim was "ugly": the case is polished rose gold, not fluted chrome. silver plate, the wheels and the rubies the colour. The light is Shunt's, which is Topple's.
 const SILVER = {
   codex: {
-    day: { case: 0xc9a25f, plate: 0xc9ccd0, bridge: 0xd8dade, steel: 0xb9bec6, field: 0x2a2f36, paper: 0xe9e3d3 },
-    night: { case: 0x9c7d4a, plate: 0xa9adb3, bridge: 0xbfc3c9, steel: 0x9ea3ab, field: 0x1a1e24, paper: 0xcfc8b6 },
+    day: { case: 0xd9a285, plate: 0xc9ccd0, bridge: 0xd8dade, steel: 0xb9bec6, field: 0x2a2f36, paper: 0xe9e3d3 },
+    night: { case: 0xb07b62, plate: 0xa9adb3, bridge: 0xbfc3c9, steel: 0x9ea3ab, field: 0x1a1e24, paper: 0xcfc8b6 },
   },
   office: {
-    day: { case: 0x6f7c8c, plate: 0xc5cbd2, bridge: 0xd8dde2, steel: 0xb4bcc6, field: 0x232a33, paper: 0xe6eaee },
-    night: { case: 0x586372, plate: 0x9ba4ae, bridge: 0xb3bbc5, steel: 0x929ba6, field: 0x161b22, paper: 0xc9d0d8 },
+    day: { case: 0xd9a285, plate: 0xc5cbd2, bridge: 0xd8dde2, steel: 0xb4bcc6, field: 0x232a33, paper: 0xe6eaee },
+    night: { case: 0xb07b62, plate: 0x9ba4ae, bridge: 0xb3bbc5, steel: 0x929ba6, field: 0x161b22, paper: 0xc9d0d8 },
   },
 };
 /** The wheels' metals by module (design: fine rose gold, standard gilt, coarse blued steel), then pinions (polished steel), arbors, the dial. */
@@ -193,6 +195,9 @@ export const ORBIT = { az: 70 * DEG, el0: 35 * DEG, el1: 75 * DEG, zoom: 2 };
 export function keepPoints(cols, rows, lift = 0) {
   const [x0, x1, z0, z1] = caseRect(cols, rows), p = [];
   for (const y of [-0.5, GLASS_Y + lift]) for (const x of [x0, x1]) for (const z of [z0, z1]) p.push([x, y, z]);
+  const lx = lugX([x0, x1]);
+  for (const x of [-lx, lx]) for (const z of [z0 - LUG_L * 0.8, z1 + LUG_L * 0.8]) p.push([x, -0.4, z]);       // the lugs
+  p.push([x1 + 0.34, -0.1, 0]);                                                                                   // the crown
   return p;
 }
 /** The camera's frame at yaw az, elevation el for a card of this aspect, as fit() gives it: { H, look }. */

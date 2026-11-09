@@ -219,6 +219,21 @@ export function caseGeometry(rect, gap, flute = 0.05, round = false) {
   return g;
 }
 
+/** A lug, a dress watch's elongated horn: from inside the case (z = -0.15) out to z = L along +z, narrowing from w0 to w1 and dipping towards its tip, polished.
+ *  9 Nov 2026, Korbi, with a photograph of a rose gold dress watch: "the slight elongated shape around the lugs are needed here. no actual straps of course." */
+export function lugGeometry(L = 0.8, w0 = 0.62, w1 = 0.36, depth = 0.46, dip = 0.3) {
+  const o = [[-w0 / 2, -0.15], [w0 / 2, -0.15], [w0 / 2, 0.12], [w0 * 0.47, L * 0.5], [w1 / 2 + 0.01, L * 0.9], [w1 * 0.36, L], [-w1 * 0.36, L], [-w1 / 2 - 0.01, L * 0.9], [-w0 * 0.47, L * 0.5], [-w0 / 2, 0.12]];
+  const g = slab(shapeOf(o), depth, 0.06, 3), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const t = Math.max(0, p.getZ(i)) / L; p.setY(i, p.getY(i) - dip * t * t - 0.12 * t); }
+  p.needsUpdate = true; g.computeVertexNormals();
+  return polish(g, 2);
+}
+/** The crown: a fluted knob on a stem, axis along +x, its stem at the origin. */
+export function crownGeometry(r = 0.17, len = 0.26) {
+  const knob = new THREE.CylinderGeometry(r, r * 0.92, len, 28, 1).rotateZ(-Math.PI / 2).translate(len / 2 + 0.03, 0, 0), stem = new THREE.CylinderGeometry(r * 0.5, r * 0.5, 0.08, 14).rotateZ(-Math.PI / 2).translate(0, 0, 0);
+  return merge([knob, stem].map(x => x.toNonIndexed()));
+}
+
 // ---------- small parts ----------
 /** A staff (an arbor): a steel cylinder of unit height standing on y = 0, scaled by the view to its length. */
 export function staffGeometry(r = 0.026) { const g = new THREE.CylinderGeometry(r, r, 1, 8); g.translate(0, 0.5, 0); return g; }
