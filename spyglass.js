@@ -1,8 +1,8 @@
-// Spyglass: a picture is blurred and cropped to a small part of itself in a round spyglass; you turn the focus (Korbi, 9 Nov 2026: the player
-// controls it, not a clock) and the sharper you take it the less a right answer is worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
+// Spyglass: a picture comes into focus through a round spyglass over about 20 seconds (Korbi, 9 Nov 2026: a clock does the focusing, the player
+// does not turn it), and the sooner you say what it is the more it's worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
 // gives four answers to choose from, Medium eight, Hard a line to type in. The rules are spyglass-engine.js's; this file
 // keeps the run, draws the lens and builds the page.
-import { LEVELS, ROUNDS, FULL, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
+import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, focus, worth, matches, norm } from "./spyglass-engine.js";
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as ARCH } from "./arch-bank.js";
 import { flags as menuFlags } from "./menu-flags.js";
@@ -16,7 +16,7 @@ import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { pictureUrls } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, todayPart } from "./menu.js";
+import { part, action, line, choice, todayPart, isPaused } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
@@ -47,16 +47,15 @@ const picturesNow = () => { const k = read(KIND, "all"); return PICTURES.some(([
 const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outline: "Which country is this?" };
 
 // ---------- the run ----------
-// S: { seed, level, daily, day, items, index, scores: [points per picture, null while it's open], best (the sharpest the focus has been on the open one, 0 to 1: what a right answer is worth follows it),
-//      dial (where the focus is now),
+// S: { seed, level, daily, day, items, index, scores: [points per picture, null while it's open], elapsed (seconds on the open one),
 //      wrong (guesses so far on it), tried (typed guesses already counted), over, total }
 let S = read(RUN, null);
-if (S && S.best == null) { S.best = fraction(S.elapsed || 0, S.level); S.dial = S.best; delete S.elapsed; }       // a run saved when a clock did the focusing
+if (S && S.elapsed == null) { S.elapsed = (S.best || 0) * SECONDS[S.level]; delete S.best; delete S.dial; }       // a run saved while the player turned the focus
 const save = () => write(RUN, S);
 const startLevel = () => ramp("spyglass", LEVELS, { start: "easy" });
 function newRun(daily = false) {
   const seed = daily ? today() * 6151 + 7 : Math.floor(Math.random() * 2 ** 31), level = daily ? "medium" : startLevel();
-  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], best: 0, dial: 0, wrong: 0, tried: [], over: false, total: 0 };
+  S = { ...dealRun(seed, level, poolsFor(daily), daily ? null : picturesNow() === "all" ? null : picturesNow()), daily, day: daily ? today() : null, index: 0, scores: [], elapsed: 0, wrong: 0, tried: [], over: false, total: 0 };
   save(); begin();
 }
 const item = () => S.items[S.index];
@@ -146,12 +145,12 @@ async function begin() {
   try { source = await sourceFor(item()); } finally { done(); }
   if (me !== token) return;
   if (!source) {                                   // a painting that won't load (offline): a flag or outline in its place
-    const spare = dealRun(S.seed + 17 * (S.index + 1) + Math.round(S.best * 1000), S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
+    const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
   }
   phase = "look"; render();
 }
-const u = () => (phase === "shown" ? reveal.at : S.dial);
+const u = () => (phase === "shown" ? reveal.at : fraction(S.elapsed, S.level));
 
 // ---------- the lens ----------
 const canvas = $("lens"), box = $("seat"), low = document.createElement("canvas");
@@ -193,12 +192,16 @@ function paint(ctx, cw, ch, pic = source, out = 1) {
   lc.drawImage(pic.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx / cw * lw, dy / ch * lh, dw / cw * lw, dh / ch * lh);
   ctx.drawImage(low, 0, 0, lw, lh, 0, 0, cw, ch);
 }
-let last = 0, unveil = 0, tint = 0;                        // unveil: how far the answer has drawn the picture back to sit whole in the glass (0 close, 1 whole)
+let last = 0, savedAt = 0, unveil = 0, tint = 0;                        // unveil: how far the answer has drawn the picture back to sit whole in the glass (0 close, 1 whole)
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - last) / 1000); last = now;
   if (!S) return;
-  if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
+  if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
+    S.elapsed += dt;
+    if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
+    $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(u(), S.wrong) }));
+  } else if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
   if (phase === "shown") { unveil = Math.min(1, unveil + dt / 0.6); tint = Math.min(1, tint + dt / 1.1); } else tint = 0;
   draw();
 }
@@ -206,13 +209,13 @@ function frame(now) {
 // ---------- guessing ----------
 function good() {
   learn(S.wrong ? "wrong" : "right");
-  const points = worth(S.best, S.wrong);
+  const points = worth(fraction(S.elapsed, S.level), S.wrong);
   S.scores[S.index] = points;
   conclude(`+${points}`);
 }
 function bad() { S.wrong++; save(); }
 function conclude(text) {
-  reveal = { from: S.dial, at: S.dial };
+  reveal = { from: fraction(S.elapsed, S.level), at: fraction(S.elapsed, S.level) };
   phase = "shown"; save();
   $("worth").textContent = text;
   showCaption();
@@ -246,7 +249,7 @@ function guess(text) {
 }
 function next() {
   if (phase !== "shown" || S.over) return;
-  S.index++; S.best = 0; S.dial = 0; S.wrong = 0; S.tried = [];
+  S.index++; S.elapsed = 0; S.wrong = 0; S.tried = [];
   save(); begin();
 }
 function endRun() {
@@ -265,8 +268,7 @@ function render() {
   $("where").textContent = S.over ? `Run over · ${S.level}` : `Picture ${Math.min(S.index + 1, S.items.length)} of ${S.items.length}${S.daily ? " · today's" : ""} · ${S.level}`;
   $("score").textContent = `Score ${S.scores.reduce((a, b) => a + (b || 0), 0)}`;
   $("ask").textContent = ASK[item().kind];
-  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(S.best, S.wrong) : "–" }));
-  dial.disabled = phase !== "look"; dial.value = Math.round((phase === "shown" ? 1 : S.dial) * 1000);
+  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(u(), S.wrong) : "–" }));
   $("passBtn").hidden = phase === "shown";
   $("nextBtn").hidden = phase !== "shown" || S.over;
   const opts = $("opts");
@@ -323,24 +325,6 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
-// ---------- the focus ----------
-// The player turns it: the slider, the wheel, or dragging across the glass. Going back to blur costs nothing and gains nothing: what a right
-// answer is worth follows the sharpest the picture has been (`best`), so you can't look, blur and look again for free.
-const dial = $("focus");
-function setDial(v) {
-  if (!S || phase !== "look") return;
-  S.dial = Math.max(0, Math.min(1, v));
-  if (S.dial > S.best) { S.best = S.dial; $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(S.best, S.wrong) })); }
-  dial.value = Math.round(S.dial * 1000);
-}
-dial.addEventListener("input", () => setDial(dial.value / 1000));
-dial.addEventListener("change", () => save());
-$("lensBox").addEventListener("wheel", e => { e.preventDefault(); setDial(S.dial - Math.sign(e.deltaY) * 0.04); save(); }, { passive: false });
-let drag = null;
-$("lensBox").addEventListener("pointerdown", e => { drag = { x: e.clientX, d: S?.dial ?? 0 }; $("lensBox").setPointerCapture(e.pointerId); });
-$("lensBox").addEventListener("pointermove", e => { if (drag) setDial(drag.d + (e.clientX - drag.x) / ($("lensBox").clientWidth * 0.8)); });
-for (const ev of ["pointerup", "pointercancel"]) $("lensBox").addEventListener(ev, () => { if (drag) { drag = null; save(); } });
-
 // ---------- wiring ----------
 document.querySelector(".sg-mark").innerHTML = APPS.find(a => a.id === "spyglass").logo;
 bindSwitcher($("appsBtn"), "spyglass");
@@ -363,4 +347,4 @@ else begin();
 if (S && S.over) showDone();
 
 // for tests and debugging
-window.__spyglass = { get state() { return S; }, get phase() { return phase; }, guess, pass, next, newRun, setFocus: v => setDial(v) };
+window.__spyglass = { get state() { return S; }, get phase() { return phase; }, guess, pass, next, newRun, setElapsed: x => { if (S) S.elapsed = x; } };
