@@ -154,10 +154,10 @@ export async function pull() {
 // ---------- starting a game over (Settings) ----------
 /** A game's keys, for starting it over: its own prefix, and the other names a game keeps (Slate's glyph:, Blend's
  *  blend2:, Gambit's puzzle rush's rush:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
-const RESET_PREFIXES = { maths: ["maths:", "odds:"], nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
+const RESET_PREFIXES = { nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], gambit: ["gambit:", "rush:"], 
   // Stow's page holds two tiles: Loose cargo's saves are two of stow:'s keys (and its figure, loose:stars), so each tile resets its own
   stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"],
-  jass: ["trumps:jass:"], belote: ["trumps:belote:"], coinche: ["trumps:coinche:"], schafkopf: ["trumps:schafkopf:", "trumps:course", "trumps:rush"] };   // the four tiles of trumps.html
+  jass: ["trumps:jass:"], belote: ["trumps:belote:"], schafkopf: ["trumps:schafkopf:", "trumps:course", "trumps:rush"] };   // the four tiles of trumps.html
 /**
  * Starts a game over: every key under its prefixes goes, here and, with a solo code, on the code, so your other devices
  * drop them too (a removal syncs like any change, the newer winning: their older copies can't come back). Keys only
@@ -247,9 +247,9 @@ export function bestOf(app) {
 // code took (Bulls, kept as a count), stars collected (the level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
-  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", loose: "stars", deck: "count", parley: "count", wine: "lessons", firmament: "lessons", arthistory: "lessons", trade: "lessons", constitutions: "lessons", statecraft: "lessons", music: "lessons", maths: "lessons",
-  river: "best", gambit: "best", yacht: "daily", boast: "streak", bigtwo: "streak", hearts: "streak", carrack: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", morris: "streak", silo: "streak", carrom: "streak", crown: "streak", go: "streak", tarot: "streak", jass: "streak", belote: "streak", schafkopf: "streak", quest: "streak", bones: "streak", solitaire: "wins",
-  contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", slitherlink: "time", bridges: "time", masyu: "time", nurikabe: "time", lanterns: "time", moor: "time", asterism: "time", bulls: "guesses", assay: "daily", yield: "daily", nexus: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily", codeword: "time", crossword: "time", acrostic: "time", calcudoku: "time", kakuro: "time", manifest: "daily", shunt: "daily", ingot: "daily", speedmaths: "daily", speedfuels: "daily", pipes: "daily" };
+  order: "daily", chart: "daily", columbiad: "daily", stow: "stars", loose: "stars", deck: "count", 
+  river: "best", gambit: "best", yacht: "daily", boast: "streak", bigtwo: "streak", hearts: "streak", carrack: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", gammon: "streak", flank: "streak", morris: "streak", carrom: "streak", crown: "streak", go: "streak", tarot: "streak", jass: "streak", belote: "streak", schafkopf: "streak", quest: "streak", bones: "streak", solitaire: "wins",
+  contract: "streak", sudoku: "time", mines: "time", nonogram: "time", slitherlink: "time", bridges: "time", nurikabe: "time", lanterns: "time", moor: "time", asterism: "time", bulls: "guesses", assay: "daily", yield: "daily", ladder: "time", lode: "time", lots: "daily", crossword: "time", calcudoku: "time", kakuro: "time", manifest: "daily", shunt: "daily", ingot: "daily", speedmaths: "daily", pipes: "daily" };
 const keyOf = app => (app === "glyph" ? "slate" : TRUMPS_TILES[app] ? `trumps:${app}` : app);   // Slate keeps its things under slate:; Jass, Belote and Schafkopf each theirs on the one trumps page
 /** A game won or lost, in a game that counts streaks: the current run, and the longest. */
 export function noteStreak(app, won) {
@@ -264,7 +264,6 @@ export function noteDayTime(app, secs, day = today()) { if (json(`${app}:today`,
 export function noteDayCount(app, day = today()) { const r = json(`${app}:count`, null); keep(`${app}:count`, { key: day, v: r?.key === day ? r.v + 1 : 1 }); }
 /** Stars collected, in all. */
 export function noteStars(app, n) { if (json(`${app}:stars`, null) !== n) keep(`${app}:stars`, n); }   // only a change goes up
-const calibreStars = () => Object.values(json("calibre:progress", {}) || {}).reduce((n, p) => n + (p?.stars || 0), 0);
 // a daily game's best and today's: Quote, Chart and Punt keep them as comparable results; Origin keeps each day's total
 // by the day (YYYYMMDD), Order each day's by the day and the mode (YYYYMMDD/dates: it has a daily for each), its tile
 // today's best of them; Order's best leaves its History runs out
@@ -299,7 +298,7 @@ export function markOf(app) {
   if (kind === "time" || kind === "count" || kind === "guesses") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
   if (kind === "lessons") { const r = json(`${k}:lessons`, null); return r?.done ? { kind, v: `${r.done}/${r.of}` } : null; }     // a course: lessons done of all
   if (kind === "wins") { const v = json(`${k}:wins`, null); return v ? { kind, v } : null; }
-  if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
+  if (kind === "stars") { const v = json(`${k}:stars`, null); return v ? { kind, v } : null; }
   if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }
   const v = bestOf(app);
   return v == null ? null : { kind, v };
@@ -347,7 +346,7 @@ export async function watchBests(cb) {
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
 export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html",
-  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", blend: "blend.html", nexus: "nexus.html", survey: "survey.html", manifest: "manifest.html", refinery: "refinery.html", sudoku: "sudoku.html", mines: "mines.html", nonogram: "nonogram.html", hitori: "hitori.html", bulls: "bulls.html", assay: "assay.html", yield: "yield.html", isomer: "isomer.html", ladder: "ladder.html", lode: "lode.html", lots: "lots.html", codeword: "codeword.html", crossword: "crossword.html", acrostic: "acrostic.html", calcudoku: "calcudoku.html", kakuro: "kakuro.html", bridges: "bridges.html", speedmaths: "speedmaths.html" };
+  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", survey: "survey.html", manifest: "manifest.html", sudoku: "sudoku.html", mines: "mines.html", nonogram: "nonogram.html", bulls: "bulls.html", assay: "assay.html", yield: "yield.html", ladder: "ladder.html", lode: "lode.html", lots: "lots.html", crossword: "crossword.html", calcudoku: "calcudoku.html", kakuro: "kakuro.html", bridges: "bridges.html", speedmaths: "speedmaths.html" };
 /** The game this page is on the games screen: its file's name, but trumps.html is Jass, Belote or Schafkopf (the address's
  *  ?game=, else the one played last). "" at home (index): no game open. */
 const pageGame = () => (page() === "index" ? "" : page() === "trumps" ? tileOf(gameInAddress(location.search) || json("trumps:opts", null)?.game) || "jass" : page());
@@ -530,7 +529,7 @@ let mirrorTimer = null, watched = null;           // watched: inside a frame, th
 /** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
  *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
  *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
-const PREFIXES = { maths: ["maths:", "odds:"], nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"], jass: ["trumps:"], belote: ["trumps:"], coinche: ["trumps:"], schafkopf: ["trumps:"] };
+const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], jass: ["trumps:"], belote: ["trumps:"], schafkopf: ["trumps:"] };
 const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;

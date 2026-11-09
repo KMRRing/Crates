@@ -84,11 +84,11 @@ check(R.endTitle("time") === "Time" && R.endTitle("strikes") === "Three misses" 
 const src = f => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 const ON_PAGE = ["rush.js", "river-rush-ui.js", "hong.js", "tribute.js"];
 check(ON_PAGE.every(f => /from "\.\/rush-core\.js"/.test(src(f)) && /rushMenu\(/.test(src(f))), `the rushes that hold the page use the shared rules and menu: ${ON_PAGE.join(", ")}`);
-check(/modeChoice\(/.test(src("rush-sheet.js")) && /Play today's/.test(src("rush-sheet.js")) && /from "\.\/rush-core\.js"/.test(src("rush-sheet.js")), "the sheet (Schafkopf, Gammon, Banquet, Bones) shows the same clock choice, and Today's as a button");
+check(/modeChoice\(/.test(src("rush-sheet.js")) && /Play today's/.test(src("rush-sheet.js")) && /from "\.\/rush-core\.js"/.test(src("rush-sheet.js")), "the sheet (Schafkopf, Gammon, Bones) shows the same clock choice, and Today's as a button");
 const RUSHES = [...ON_PAGE, "river-rush.js", "rush-sheet.js", "hong-rush.js", "tribute-rush.js"];
 const OWN_CLOCKS = RUSHES.filter(f => /\bconst MODES\s*=|\bRUSH_MS\b|\b(?:5|five) \* 60 \* 1000\b/.test(src(f)));
 check(!OWN_CLOCKS.length, `no rush keeps clocks of its own${OWN_CLOCKS.length ? `: ${OWN_CLOCKS.join(", ")}` : ""}`);
-const GAMES = ["gambit.js", "river.js", "hong.js", "tribute.js", "trumps.js", "gammon.js", "banquet.js", "bones.js", "contract.js"];
+const GAMES = ["gambit.js", "river.js", "hong.js", "tribute.js", "trumps.js", "gammon.js", "bones.js", "contract.js"];
 const UNNAMED = GAMES.filter(f => !/action\("Puzzle rush"/.test(src(f)));
 check(!UNNAMED.length, `every game's menu calls it Puzzle rush${UNNAMED.length ? `, but not ${UNNAMED.join(", ")}` : ""}`);
 const NO_BESTS = GAMES.filter(f => !/bestsLine\(/.test(src(f)));

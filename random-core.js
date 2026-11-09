@@ -43,7 +43,6 @@ export const ROUNDS = {
   bulls: "a code broken or its rows run out, a duel settled, or a lock opened",
   assay: "a word, found or its guesses gone",
   yield: "a puzzle to Supergiant, or over (every word, the clock, or the words shown)",
-  isomer: "a puzzle solved",
   ladder: "a ladder climbed",
   lode: "a board finished",
   kakuro: "a grid solved",
@@ -85,56 +84,19 @@ export const ROUNDS = {
   bones: "a hand",
   solitaire: "a deal won",
   factor: "a game",
-  // Once in the Appendix or the annex (see LEFT_OUT's note)
-  blend: "a desk's tanks closed",
-  refinery: "a refinery run won",
-  guilloche: "a plate carved",
-  baccarat: "a coup",
-  blackjack: "a hand",
-  roulette: "a spin",
-  sicbo: "a roll",
-  craps: "a roll that decides the pass line",
-  holdem: "a hand",
-  banquet: "a match",
-  polder: "a polder played out",
-  avalanche: "a game over",
-  masyu: "a puzzle solved",
-  coinche: "a hand",
-  acrostic: "a puzzle solved",
-  hitori: "a puzzle solved",
-  nexus: "a puzzle finished",
-  codeword: "a grid solved",
-  harbour: "a week played",
-  heliograph: "a game over",
-  netting: "a game over",
-  reckoning: "a result shown",
-  silo: "a game",
-  calibre: "a brief finished",
-  parley: "a lesson session done",
 };
 
 /** The games random mode leaves out, and why. Party's own games (`party: true` in apps.js: they open Party) are out
  *  without a word here; every other game on the games screen is in ROUNDS or here (tests/random.mjs checks). */
 export const LEFT_OUT = {
-  // Korbi, 9 Nov 2026: "Update random selection menu so it has all items except for the ones without rounds". This
-  // overrides the Appendix and annex rulings of 3 and 8 Nov for Random only: a game that calls roundOver is dealt,
-  // wherever its tile sits. These have no round of their own:
-  speedfuels: "no round: a desk of fuel prices to read, with nothing to settle",
-  music: "no round: listening, with nothing to settle",
-  arthistory: "a course: lessons, with no round of its own",
-  statecraft: "a course: lessons, with no round of its own",
-  trade: "a course: lessons, with no round of its own",
-  constitutions: "a course: lessons, with no round of its own",
-  wine: "a course: lessons, with no round of its own",
-  firmament: "a course: lessons, with no round of its own",
-  maths: "a course: lessons, with no round of its own",
+  // Korbi, 9 Nov 2026: "Update random selection menu so it has all items except for the ones without rounds". These
+  // have no round of their own:
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   deck: "the review of what the other knowledge games banked, not a round of its own",
   shoe: "a deck of cards on a table with no rules or rounds, for people in one room",
   party: "a room for people round a table, each on their own phone",
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
-  timegrapher: "an instrument, not a game",
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
 };

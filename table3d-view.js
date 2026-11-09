@@ -3,7 +3,7 @@
 // the player makes it, "3d" or "flat".
 // The choice is the device's own (a `suite:` key stays off the other devices: a phone that can do 3D says nothing of a laptop
 // that can't), and a partner's watching frame never reads or writes it: it draws the flat table. A game asks once,
-//   const view = tableView("holdem");           // or tableView("tribute", ["cloth", "Cloth"]) for a flat view named otherwise
+//   const view = tableView("tribute");           // or tableView("tribute", ["cloth", "Cloth"]) for a flat view named otherwise
 // (a third argument names the 3D choice, for a game whose menu says Flat or Table: tableView("contract", ["flat", "Flat"], "Table"))
 // reads `view.get()` ("table" or "3d") whenever it draws, and puts `view.choice(redraw)` in its menu's settings part.
 import { choice } from "./menu.js";

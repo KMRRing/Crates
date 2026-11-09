@@ -1,11 +1,11 @@
 // Trumps: the trick-taking games of a Swiss, a French and a Bavarian table, four players, against the computer or with
-// friends each on their own phone: Jass (the Schieber), Belote, Coinche and Schafkopf. The games are trumps-games.js's,
+// friends each on their own phone: Jass (the Schieber), Belote and Schafkopf. The games are trumps-games.js's,
 // the running seats.js's, the computer trumps-bot.js's. This page sets the table out the game's way round (Jass and
 // Belote pass to the right, Schafkopf to the left), deals your hand along the foot, the trick in the middle, and the
 // bidding under your hand: a tap on a card you may play plays it. The cards are as large as the screen allows, your
 // hand the trick's size (fitTable); Full screen (the menu) gives them the header's row too.
 import { rules } from "./trumps-rules.js";
-import { GAMES, teamOf, COINCHE_VALUES, laufende, sortHand } from "./trumps-games.js";
+import { GAMES, teamOf, laufende, sortHand } from "./trumps-games.js";
 import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
 import { weighCards, bidOptions, signalFirst } from "./trumps-think.js";
 import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
@@ -38,32 +38,26 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 // the computer players, by the game's country
-const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "Didier"], coinche: ["Gérard", "Martine", "Didier"], schafkopf: ["Sepp", "Resi", "Xaver"] };
+const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "Didier"], schafkopf: ["Sepp", "Resi", "Xaver"] };
 
-let opts = { game: "jass", level: "medium", full: false, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
+let opts = { game: "jass", level: "medium", full: false, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. Each game by its classic rules and length (Jass: Swiss
-// cards, every card single, 1000, Weis and Stöck; Belote 1000; Coinche 2000; Schafkopf 8 deals, Bavarian cards), no full
+// cards, every card single, 1000, Weis and Stöck; Belote 1000; Schafkopf 8 deals, Bavarian cards), no full
 // screen, whatever an older save chose (a game in hand keeps its own rules, in its state). The computer's strength is the
 // hidden ramp, one for each game, its first step the old saved choice; the coach is on or off.
 const OLD_LEVEL = opts.level;
 // 7 Nov 2026 (Korbi): Schafkopf's cards are the Bavarian pack, drawn (trumps-deck.js), by default; the German pack is only Schafkopf's.
-Object.assign(opts, { full: false, look: "pictures", jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 } });
+Object.assign(opts, { full: false, look: "pictures", jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, schafkopf: { deals: 8 } });
 let lesson = null, lessonNext = null;                                // a lesson's game names its own level, once
 const saveOpts = () => write(OPTS, opts);
 
-// ---------- Jass, Belote, Coinche and Schafkopf: four tiles, one page ----------
+// ---------- Jass, Belote and Schafkopf: four tiles, one page ----------
 // The address says which (?game=), else it's the game of the run in progress, else the one last chosen. One run is kept
 // at a time (trumps:game): a tile for another game puts it away under its tile (trumps:game:<tile>) and takes that
 // tile's own back, so opening Jass never throws away a Schafkopf hand. At a table or in a partner's frame the run isn't ours.
 const readRun = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 {
-  // until 4 November 2026 Coinche was Belote's, its run put away under Belote's tile
-  const oldCoinche = readRun(`${RUN}:belote`);
-  if (!IN_FRAME && oldCoinche?.state?.game === "coinche") {
-    if (!readRun(`${RUN}:coinche`)) write(`${RUN}:coinche`, oldCoinche);
-    try { localStorage.removeItem(`${RUN}:belote`); } catch { /* private mode */ }
-  }
   const here = readRun(RUN), asked = gameInAddress(location.search);
   const inRoom = /[?&](table|room)=/.test(location.search);
   const game = asked || (GAMES[here?.state?.game] ? here.state.game : opts.game);
@@ -177,7 +171,7 @@ function nextHand() {
   page.runner.kick();
 }
 const nextLabel = s => (GAMES[s.game].done(s) ? "The result" : "Next hand");
-const randomRounds = { jass: seatRounds("jass", ["scored"]), belote: seatRounds("belote", ["scored"]), coinche: seatRounds("coinche", ["scored"]), schafkopf: seatRounds("schafkopf", ["scored"]) };   // random mode's round: a hand, by the tile
+const randomRounds = { jass: seatRounds("jass", ["scored"]), belote: seatRounds("belote", ["scored"]), schafkopf: seatRounds("schafkopf", ["scored"]) };   // random mode's round: a hand, by the tile
 page = seatPage({
   // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
   rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
@@ -225,7 +219,7 @@ function draw() {
 // the names, your status or the coach's line) keeps its size, and the cards take what's left: upright the middle and
 // your hand share the table's height, sideways your hand has the side column. Sized for the play: the bidding's
 // buttons, taller than the play's line, take their room from the table, not from the cards.
-const DEALT = { jass: 9, belote: 8, coinche: 8, schafkopf: 8 };
+const DEALT = { jass: 9, belote: 8, schafkopf: 8 };
 const SHOW = 0.9, BACK_SHOW = 0.62, LIFT = 0.45;       // in a card's size: how much of each card a hand shows; a lifted card's rise
 let cardPx = 0;
 function fitTable() {
@@ -300,7 +294,7 @@ function drawInfo(s) {
   if (c) {
     if (s.game === "jass") contract = c.mode === "trump" ? `${suitMark(s, c.suit).mark} ${esc(suitMark(s, c.suit).name)}` : c.mode === "obe" ? "Obenabe ▼" : "Undenufe ▲";
     else if (s.game === "schafkopf") contract = c.type === "sau" ? `Sauspiel ${suitMark(s, c.ace).mark}` : c.type === "wenz" ? "Wenz" : `Solo ${suitMark(s, c.trump).mark}`;
-    else contract = `${s.game === "coinche" ? `${c.value === 250 ? "Capot" : c.value} ` : ""}${suitMark(s, c.suit).mark}${c.coinche ? ` ${c.coinche === 2 ? "surcoinché" : "coinché"}` : ""}`;
+    else contract = suitMark(s, c.suit).mark;
     const who = s.game === "jass" ? c.chooser : s.game === "schafkopf" ? c.declarer : c.taker;
     contract += ` <small>${esc(isMe(who) ? "you" : nameOf(who))}${s.game === "jass" && c.mult > 1 ? ` · ×${c.mult}` : ""}</small>`;
   }
@@ -322,11 +316,10 @@ function bidWords(s, b) {
   if (!b) return "";
   if (s.game === "jass") return b.t === "push" ? "Schiebe" : b.mode === "obe" ? "Obenabe" : b.mode === "unde" ? "Undenufe" : suitMark(s, b.suit).name;
   if (s.game === "belote") return b.t === "pass" ? "Passe" : b.suit != null ? `À ${suitMark(s, b.suit).name}` : "Je prends";
-  if (s.game === "coinche") return b.t === "pass" ? "Passe" : b.t === "coinche" ? "Coinche !" : b.t === "surcoinche" ? "Surcoinche !" : `${b.value === 250 ? "Capot" : b.value} ${PACKS.french.suits[b.suit]}`;
   return b.t === "pass" ? "Weiter" : b.type === "sau" ? "I spui" : b.type === "wenz" ? "Wenz" : "Solo";
 }
 /** The part a seat plays this hand, once the contract is made. */
-const roleOf = (s, seat) => (!s.contract ? "" : s.game === "schafkopf" && seat === s.contract.declarer ? "plays" : s.game === "jass" && seat === s.contract.chooser ? "trump" : (s.game === "belote" || s.game === "coinche") && seat === s.contract.taker ? "took" : "");
+const roleOf = (s, seat) => (!s.contract ? "" : s.game === "schafkopf" && seat === s.contract.declarer ? "plays" : s.game === "jass" && seat === s.contract.chooser ? "trump" : s.game === "belote" && seat === s.contract.taker ? "took" : "");
 function drawSeat(box, s, seat) {
   const turn = rules.toMove(s) === seat, n = s.hands[seat].length;
   const last = [...s.bidlog].reverse().find(b => b.seat === seat);
@@ -379,7 +372,6 @@ function drawCentre(s) {
 function bidPrompt(s) {
   const who = isMe(s.turn) ? "you" : nameOf(s.turn);
   if (s.game === "jass") return `${s.pushed ? "Pushed: " : ""}${who} ${isMe(s.turn) ? "choose" : "chooses"} trumps`;
-  if (s.game === "coinche") return s.auction.value ? `${s.auction.value} ${PACKS.french.suits[s.auction.suit]} by ${isMe(s.auction.by) ? "you" : nameOf(s.auction.by)}${s.auction.coinche ? ", coinché" : ""}` : "Bidding";
   if (s.game === "schafkopf") return s.call ? `${isMe(s.call.seat) ? "You play" : `${nameOf(s.call.seat)} plays`} ${s.call.type === "sau" ? "a Sauspiel" : s.call.type === "wenz" ? "a Wenz" : "a Solo"}` : "Who plays?";
   return "";
 }
@@ -428,7 +420,7 @@ $("hand").addEventListener("click", async e => {
 });
 function followHint(s) {
   if (s.game === "schafkopf" && s.contract.type === "sau" && s.hands[V.seat].some(id => rankOf(id) === "A" && suitOf(id) === s.contract.ace)) return "The called ace: it must come when its suit is led, and can't be thrown away";
-  if (s.game === "belote" || s.game === "coinche") return "Follow suit; if you can't, trump (and beat a trump in), unless your partner holds the trick";
+  if (s.game === "belote") return "Follow suit; if you can't, trump (and beat a trump in), unless your partner holds the trick";
   if (s.game === "jass") return "Follow suit or trump; never under a trump already in, unless you've nothing else";
   return "Follow suit if you can";
 }
@@ -537,7 +529,6 @@ function showWhy() {
 }
 
 // ---------- bidding ----------
-let coincheValue = 0;
 function drawControls(s) {
   const box = $("controls"), seat = V.seat;
   if (seat == null) { box.innerHTML = ""; return; }
@@ -573,13 +564,6 @@ function drawControls(s) {
   } else if (s.game === "belote") {
     html = s.round === 1 ? `<div class="tr-bids two">${btn({ t: "pass" }, "Passe")}${btn({ t: "take" }, `Je prends ${suitMark(s, suitOf(s.turned)).mark}`, "primary")}</div>`
       : `<div class="tr-bids four">${bids.map(b => btn(b, b.t === "pass" ? "Passe" : suitMark(s, b.suit).mark)).join("")}</div>`;
-  } else if (s.game === "coinche") {
-    const values = [...new Set(bids.filter(b => b.t === "bid").map(b => b.value))];
-    if (!values.includes(coincheValue)) coincheValue = values[0] ?? 0;
-    const special = bids.filter(b => b.t === "coinche" || b.t === "surcoinche");
-    html = `      ${values.length ? `<div class="tr-coinche"><button class="btn tr-step" type="button" data-act="less" ${values.indexOf(coincheValue) > 0 ? "" : "disabled"}>−</button><b class="tr-value">${coincheValue === 250 ? "Capot" : coincheValue}</b><button class="btn tr-step" type="button" data-act="more" ${values.indexOf(coincheValue) < values.length - 1 ? "" : "disabled"}>+</button></div>
-      <div class="tr-bids four">${[0, 1, 2, 3].map(su => btn({ t: "bid", value: coincheValue, suit: su }, suitMark(s, su).mark)).join("")}</div>` : ""}
-      <div class="tr-bids ${special.length ? "two" : "one"}">${btn({ t: "pass" }, "Passe")}${special.map(b => btn(b, b.t === "coinche" ? "Coinche !" : "Surcoinche !", "primary")).join("")}</div>`;
   } else {
     const sau = bids.filter(b => b.type === "sau"), solo = bids.filter(b => b.type === "solo"), wenz = bids.find(b => b.type === "wenz");
     const ask = s.call ? `Over ${s.call.type === "sau" ? "a Sauspiel" : s.call.type === "wenz" ? "a Wenz" : "a Solo"}?` : "Play, or pass (weiter)?";
@@ -601,12 +585,6 @@ $("controls").addEventListener("click", async e => {
   if (b.dataset.act === "result") { showEnd(V); return; }
   if (b.dataset.act === "hint") { showHint(); return; }
   if (b.dataset.act === "why") { showWhy(); return; }
-  if (b.dataset.act === "less" || b.dataset.act === "more") {
-    const values = [...new Set(GAMES.coinche.bids(V.state, V.seat).filter(x => x.t === "bid").map(x => x.value))];
-    coincheValue = values[Math.max(0, Math.min(values.length - 1, values.indexOf(coincheValue) + (b.dataset.act === "more" ? 1 : -1)))];
-    drawControls(V.state);
-    return;
-  }
   if (b.dataset.bid) {
     const m = JSON.parse(b.dataset.bid);
     noteMove(V.state, m);
@@ -658,8 +636,6 @@ const RULES = {
     <h3>The cards</h3><p>Trumps: jack (20), nine (14), ace (11), ten (10), king (4), queen (3), 8, 7. Other suits: ace (11), ten (10), king (4), queen (3), jack (2), 9, 8, 7. The last trick adds 10 (dix de der): 162. King and queen of trumps in one hand (belote, rebelote): 20.</p>
     <h3>Playing</h3><p>Follow suit. If you can't, trump, over any trump already in, unless your partner holds the trick (then play anything). When trumps are led, beat the best trump in if you can.</p>
     <h3>Scoring</h3><p>The takers must make more than the others; if they do, each side scores its points, else the others score 162. All eight tricks (capot): 250. The first side to the target wins.</p>`,
-  coinche: `<p>Coinche: Belote with an auction. Eight cards each. In turn, bid a contract (80 to 160 in tens, or capot, all the tricks) with its trump suit, over the last bid, or pass; an opponent may coinche (double) a bid, and the bidder's side may then surcoinche (redouble). Three passes after a bid end the auction; four passes with no bid, a new deal.</p>
-    <p>The play is Belote's. The bidders must make their contract in points (belote counted). Made: they score the contract (doubled or redoubled) and, if not coinched, their points rounded to ten, the others theirs. Down: the others score 160 and the contract (doubled or redoubled). Belote, 20, to whoever holds it. The first side to the target wins.</p>`,
   schafkopf: `<p>Schafkopf, Bavaria's: four players, 32 German-suited cards (acorns, leaves, hearts, bells; Unter, Ober, King, Sau, the ace), eight each. Play passes to the left. Each player in turn says whether they'd play, and what; a Solo beats a Wenz, a Wenz a Sauspiel; if all pass, it's thrown in.</p>
     <h3>The games</h3><p>Sauspiel: hearts and all Obers and Unters are trumps; you call an ace (Sau) you don't hold, of a suit you do, and its holder is your secret partner. Wenz: only the four Unters are trumps, you alone against three. Solo: the Obers, Unters and your suit are trumps, you alone. Among trumps the Obers come first, then the Unters (each acorns, leaves, hearts, bells), then the suit's ace, ten, king, 9, 8, 7.</p>
     <h3>Playing</h3><p>Follow the suit led (trumps are one suit: an Ober or Unter is a trump, whatever its suit); if you can't, play anything. The called Sau must be played when its suit is first led, can't be thrown away before the last trick, and its holder can't lead another card of that suit (unless holding four of it).</p>

@@ -1,4 +1,4 @@
-// Trumps' 3D table (Menu, View: 3D): Jass, Belote, Coinche and Schafkopf on the card games' shared tipped cloth (table3d.js),
+// Trumps' 3D table (Menu, View: 3D): Jass, Belote and Schafkopf on the card games' shared tipped cloth (table3d.js),
 // as Guandan, Hearts and Big Two have it. The four seats stand round it as plates with a fan of backs and the cards left, what
 // they last said at the seat; each seat's card in the trick lies on the cloth in a lane in front of it, flown there from its
 // plate, and the trick is swept to the plate of whoever takes it. Your cards and the buttons stay the page's own.

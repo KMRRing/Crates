@@ -3,7 +3,7 @@
 /** The games whose narrator may speak: where people say aloud what they play (Korbi, 4 November 2026: "switch off and
  *  remove everywhere except for the Chinese games"). Every other game's narrator only writes its line. Hong and
  *  Tribute have no narrator of their own; they're here so one is silent only by being left out. */
-export const SPOKEN_TABLES = ["bigtwo", "landlord", "boast", "banquet", "hong", "tribute"];
+export const SPOKEN_TABLES = ["bigtwo", "landlord", "boast", "hong", "tribute"];
 
 /**
  * The table's narrator: each new line (branch.say, written by narrate() in table.js) is shown by the page and spoken

@@ -8,7 +8,7 @@ const root = new URL("..", import.meta.url).pathname;
 
 // whole files that are subject matter: knowledge banks and word lists, the Wine course, the clue and definition data,
 // the language courses (they teach "I drink tea"), a bill-splitting sum, the kinds of a thing
-const SUBJECT = /(-bank|-data|-words|-pool|-labels|-regions|-service|-subjects|-layout|-themes)\.js$|^(clues-data|slate-defs|kb-things|kb-index|parley-courses|parley-es|wine-bank|chart-geo|pics-list)\.js$/;
+const SUBJECT = /(-bank|-data|-words|-pool|-labels|-regions|-service|-subjects|-layout|-themes)\.js$|^(clues-data|slate-defs|kb-index|wine-bank|chart-geo|pics-list)\.js$/;
 // lines that are not a drink being taken: a topic's name, a lesson's saved id (renaming it would reset a player's progress)
 const LINE_OK = [/food (and|&amp;|&) drink/i, /\bid: "drink"/, /\bkind: "drink"|\bdrink: "food"/];
 

@@ -1,7 +1,7 @@
 // Trumps' games, each its deal, its bidding, its cards' order and worth, what may be played, who takes a trick, and
 // its scoring: Jass (the Schieber, as played in Switzerland: trumps chosen or pushed to the partner, Obenabe and
-// Undenufe, Weis and Stöck), Belote (the classic: the turned card taken or another suit named), Coinche (Belote with
-// an auction) and Schafkopf (Bavaria's: Sauspiel with a called ace, Wenz, Solo). trumps-rules.js runs a hand the same
+// Undenufe, Weis and Stöck), Belote (the classic: the turned card taken or another suit named)
+// and Schafkopf (Bavaria's: Sauspiel with a called ace, Wenz, Solo). trumps-rules.js runs a hand the same
 // way for all of them. Seats 0–3 play in turn (seat + 1 next); the page sets them out the game's way round the table.
 import { RANKS, cid, suitOf, rankOf, deckFrom } from "./trumps-cards.js";
 
@@ -149,12 +149,12 @@ const jass = {
   },
 };
 
-// ======================================================================= Belote and Coinche
+// ======================================================================= Belote
 const B_PLAIN = order(["7", "8", "9", "J", "Q", "K", "T", "A"]);
 const B_TRUMP = order(["7", "8", "Q", "K", "T", "A", "9", "J"]);
 const B_POINTS = { trump: { J: 20, 9: 14, A: 11, T: 10, K: 4, Q: 3 }, plain: { A: 11, T: 10, K: 4, Q: 3, J: 2 } };
 const bPower = (T, id, led) => (suitOf(id) === T ? 100 + B_TRUMP(rankOf(id)) : suitOf(id) === led ? B_PLAIN(rankOf(id)) : -1);
-/** Belote's play, the same for the classic and Coinche: follow suit; else trump, unless your partner holds the trick; and when trumps are in, beat the best trump if you can. */
+/** Belote's play, follow suit; else trump, unless your partner holds the trick; and when trumps are in, beat the best trump if you can. */
 function beloteLegal(s, seat) {
   const hand = s.hands[seat], T = s.contract.suit;
   if (!s.trick.length) return hand;
@@ -243,64 +243,6 @@ const belote = {
     delta = delta.map((v, t) => v + bel[t]);
     s.scores = s.scores.map((v, t) => v + delta[t]);
     return { pts, bel, delta, made, capot, tricks };
-  },
-};
-
-/** Coinche's bids: 80 to 160 in tens, then 250 (capot); each in a suit; coinche doubles, surcoinche redoubles. */
-export const COINCHE_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 250];
-const coinche = {
-  ...beloteBase, id: "coinche", name: "Coinche", sub: "Belote with bidding",
-  defaults: { target: 2000 },
-  deal(s, rng) {
-    const cards = shuffle(deckFrom("7"), rng);
-    s.hands = [0, 1, 2, 3].map(i => cards.slice(i * 8, i * 8 + 8));
-    s.dealt = s.hands.map(h => h.slice());
-    s.step = "bid";
-    s.turn = next(s.dealer);
-    s.auction = { value: 0, passes: 0, coinche: 0 };
-  },
-  bids(s, seat) {
-    const a = s.auction, out = [{ t: "pass" }];
-    if (a.coinche === 1 && teamOf(seat) === teamOf(a.by)) return [...out, { t: "surcoinche" }];
-    if (a.coinche) return out;
-    for (const v of COINCHE_VALUES) if (v > a.value) for (let suit = 0; suit < 4; suit++) out.push({ t: "bid", value: v, suit });
-    if (a.value && teamOf(seat) !== teamOf(a.by)) out.push({ t: "coinche" });
-    return out;
-  },
-  bid(s, seat, m) {
-    const a = s.auction;
-    if (m.t === "bid") { Object.assign(a, { value: m.value, suit: m.suit, by: seat, passes: 0 }); s.turn = next(seat); return { say: null }; }
-    if (m.t === "coinche") { a.coinche = 1; a.passes = 0; s.turn = next(seat); return { say: `{s${seat}}: coinche!` }; }
-    if (m.t === "surcoinche") { a.coinche = 2; return this.start(s, `{s${seat}}: surcoinche!`); }
-    a.passes++;
-    // after a coinche, the bidder's side has one turn round to surcoinche; else three passes after a bid end it
-    if (a.coinche && a.passes >= 3) return this.start(s, null);
-    if (!a.value && a.passes >= 4) return { redeal: true, say: "Four passes: a new deal." };
-    if (a.value && a.passes >= 3 && !a.coinche) return this.start(s, null);
-    s.turn = next(seat);
-    return { say: null };
-  },
-  start(s, say) {
-    const a = s.auction;
-    s.contract = { suit: a.suit, taker: a.by, value: a.value, coinche: a.coinche };
-    s.step = "play";
-    s.leader = s.turn = next(s.dealer);
-    return { say };
-  },
-  scoreHand(s) {
-    const c = s.contract, tricks = [0, 0], pts = [0, 0];
-    for (const t of s.tricks) { tricks[teamOf(t.winner)]++; pts[teamOf(t.winner)] += t.pts; }
-    const bel = [0, 0], bs = this.beloteSeat(s);
-    if (bs >= 0) bel[teamOf(bs)] = 20;
-    const att = teamOf(c.taker), def = 1 - att, mult = [1, 2, 4][c.coinche || 0];
-    const made = c.value === 250 ? tricks[att] === 8 : pts[att] + bel[att] >= c.value;
-    const round = n => Math.round(n / 10) * 10;
-    const delta = [0, 0];
-    if (made) { delta[att] = c.value * mult + (c.coinche ? 0 : round(pts[att])); delta[def] = c.coinche ? 0 : round(pts[def]); }
-    else delta[def] = 160 + c.value * mult;
-    delta[0] += bel[0]; delta[1] += bel[1];
-    s.scores = s.scores.map((v, t) => v + delta[t]);
-    return { pts, bel, delta, made, mult, tricks };
   },
 };
 
@@ -431,7 +373,7 @@ const schafkopf = {
   },
 };
 
-export const GAMES = { jass, belote, coinche, schafkopf };
+export const GAMES = { jass, belote, schafkopf };
 
 /**
  * A hand sorted as a player holds it: by suit, the trumps together on the right, each suit rising to the right, by the
@@ -447,7 +389,7 @@ export function sortHand(s, hand) {
       const t = { ...s, contract: c, trick: [] };
       hi = 0;
       for (const o of hand) if (o !== id && g.winner(t, [{ seat: 0, card: id }, { seat: 1, card: o }]) === 0) hi++;
-      if ((s.game === "schafkopf" && sTrump(c, id)) || (s.game === "jass" && c.mode === "trump" && su === c.suit) || ((s.game === "belote" || s.game === "coinche") && su === c.suit)) su = 9;
+      if ((s.game === "schafkopf" && sTrump(c, id)) || (s.game === "jass" && c.mode === "trump" && su === c.suit) || (s.game === "belote" && su === c.suit)) su = 9;
     } else hi = RANKS.indexOf(rankOf(id));
     return su * 100 + hi;
   };

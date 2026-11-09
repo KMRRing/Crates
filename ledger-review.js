@@ -52,14 +52,12 @@ function gameOf(app, keys, meta, marks, played, now) {
   }
   const stars = get("stars");
   if (typeof stars === "number") out.stars = stars;
-  else if (app.id === "calibre") out.stars = null;
   const lessons = get("lessons");
   if (lessons?.of) out.lessons = { done: lessons.done || 0, of: lessons.of };
   else if (get("course")?.done && typeof get("course").done === "object") out.lessons = { done: Object.keys(get("course").done).length, of: null };
   const prog = get("progress");
   if (prog && typeof prog === "object") {
     out.levels = Object.keys(prog).length;
-    if (app.id === "calibre") out.stars = Object.values(prog).reduce((n, p) => n + (p?.stars || 0), 0);
   }
   const st = get("streak");
   if (st?.best) out.streak = st.best;

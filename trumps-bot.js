@@ -93,23 +93,6 @@ function beloteBid(s, seat) {
   for (const o of GAMES.belote.bids(s, seat)) if (o.t === "take") { const v = beloteStrength(hand, o.suit); if (v > bestV) { bestV = v; best = o; } }
   return best;
 }
-/** Coinche: what the hand looks worth in each suit, with the partner's help guessed; the bid that much, or a pass. */
-function coincheBid(s, seat) {
-  const hand = s.hands[seat], a = s.auction, opts = GAMES.coinche.bids(s, seat);
-  if (opts.some(o => o.t === "surcoinche")) return { t: "pass" };
-  let suit = 0, worth = 0;
-  for (let su = 0; su < 4; su++) { const w = 30 + beloteStrength(hand, su) * 1.45; if (w > worth) { worth = w; suit = su; } }
-  // partner's bid in a suit: support it
-  if (a.value && teamOf(a.by) === teamOf(seat) && a.by !== seat) { suit = a.suit; worth = Math.max(worth, a.value + beloteStrength(hand, a.suit) * 0.6); }
-  const value = Math.floor(worth / 10) * 10;
-  if (value >= 80 && value > a.value) {
-    const v = Math.min(160, value);
-    if (opts.some(o => o.t === "bid" && o.value === v && o.suit === suit)) return { t: "bid", value: v, suit };
-  }
-  // an opponents' bid this hand holds two of their best trumps against: coinche
-  if (opts.some(o => o.t === "coinche") && a.value >= 110 && has(hand, a.suit, "J") + has(hand, a.suit, "9") + count(hand, id => suitOf(id) === a.suit) >= 4) return { t: "coinche" };
-  return { t: "pass" };
-}
 /** Schafkopf: a Solo with a long run of trumps, a Wenz with Unters and aces, a Sauspiel with trumps and an ace to call. */
 function schafkopfBid(s, seat) {
   const hand = s.hands[seat], opts = GAMES.schafkopf.bids(s, seat);
@@ -130,7 +113,7 @@ function schafkopfBid(s, seat) {
   }
   return { t: "pass" };
 }
-const BID = { jass: jassBid, belote: beloteBid, coinche: coincheBid, schafkopf: schafkopfBid };
+const BID = { jass: jassBid, belote: beloteBid, schafkopf: schafkopfBid };
 
 // ---------------------------------------------------------------- card play
 /** The sides as a player can know them: Schafkopf's partner only once the called ace is seen, or by its holder. */
@@ -206,7 +189,7 @@ function playout(g, s, hands, seat, first, side, rng) {
   if (s.game === "jass") { if (tricks[mine] === 9) v += 100; }
   else if (s.game === "schafkopf") { const decl = side(c.declarer); const made = pts[decl] >= 61; v += (decl === mine ? 1 : -1) * (made ? 40 : -40); }
   else {
-    const att = side(c.taker), made = s.game === "coinche" ? pts[att] >= c.value : pts[att] > pts[1 - att];
+    const att = side(c.taker), made = pts[att] > pts[1 - att];
     v += (att === mine ? 1 : -1) * (made ? 60 : -60);
   }
   return v;

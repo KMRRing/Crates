@@ -13,13 +13,13 @@ const rowOf = (s, label) => new RegExp(`\\b(?:choice|toggle|ticks|mirror)\\(\\s*
 
 // game: [rows that are gone]; every one of them has the ramp wired
 const RAMPED = {
-  hitori: ["Size", "Level"], moor: ["Size", "Level"], lanterns: ["Size", "Level"], masyu: ["Size", "Level"],
+  moor: ["Size", "Level"], lanterns: ["Size", "Level"], 
   sudoku: ["Size", "Level", "Its pace", "Clear pencil marks as you write"], calcudoku: ["Size", "Level", "Its pace", "Clear pencil marks as you write"],
   kakuro: ["Size", "Level", "Its pace", "Show the ways a run can be", "Clear pencil marks as you write"],
-  codeword: ["Size", "Level"], delta: ["Level"], slate: ["Level"], survey: ["Size", "Readings"], bridges: ["Size", "Level", "Twist"],
+  delta: ["Level"], slate: ["Level"], survey: ["Size", "Readings"], bridges: ["Size", "Level", "Twist"],
   asterism: ["Size", "Level", "Stars a row"], ladder: ["Level", "Letters", "Themes", "Rules", "Its level"], bulls: ["Codemaker", "Computer", "Help", "Pieces"],
-  isomer: ["Level", "Answers"], acrostic: ["Level", "Twist"], lode: ["Level", "Board", "Clues"], lots: ["Level"], shunt: ["Difficulty", "Coach lines (levels 1 to 8)"],
-  holdem: ["Computer players", "A game is", "House commission", "Seats at the table", "Odds line"], rack: ["Computer players"], banquet: ["The computer", "Lives each", "The narrator's voice"],
+  lode: ["Level", "Board", "Clues"], lots: ["Level"], shunt: ["Difficulty", "Coach lines (levels 1 to 8)"],
+  rack: ["Computer players"], 
   quest: ["Roles", "The computer", "The computer players talk"], speedmaths: ["Sprint range"],
   nurikabe: ["Size", "Level"], slitherlink: ["Size", "Level", "Clues"], yield: ["Puzzle", "Level", "Clock", "Race clock"],
 };
@@ -31,18 +31,17 @@ for (const [g, gone] of Object.entries(RAMPED)) {
   check(/ramp\.(won|lost)\(/.test(s), `${g}: the ramp moves when a game ends`);
 }
 // rows that went with no ramp behind them
-const PLAIN = { baccarat: ["Table", "Side bets", "Squeeze my cards"], blackjack: ["Quick dealing"], sicbo: ["Quick rolls"], roulette: ["Quick spins"], craps: ["Quick rolls"],
-  nexus: ["Candidates"], punt: ["Difficulty", "Name it"], avalanche: ["Slope", "Danger shading"], guilloche: ["Show the target faint on the plate"],
-  timegrapher: ["Each position", "Settling"], cue: ["The kind over the word"], refinery: ["Flowing arrows"], rush: ["Coordinates on the board"],
-  slipway: ["The part's ghost", "Show what a tool would take"], landfall: ["Help"], reckoning: ["Haptics"], drift: ["Quay"], stow: ["Cargo"] };
+const PLAIN = { 
+  punt: ["Difficulty", "Name it"], 
+  cue: ["The kind over the word"], rush: ["Coordinates on the board"],
+  slipway: ["The part's ghost", "Show what a tool would take"], landfall: ["Help"], drift: ["Quay"], stow: ["Cargo"] };
 for (const [g, gone] of Object.entries(PLAIN)) {
   const left = gone.filter(l => rowOf(src(g), l));
   check(!left.length, `${g}: none of the cut rows is built${left.length ? ` (still: ${left.join(", ")})` : ""}`);
 }
-for (const g of ["blackjack", "holdem"]) check(!/choice\(\s*["']Coach["']/.test(src(g)), `${g}: the coach is one on/off toggle`);
 // (forger: its Rounds option is shown, 7 Nov 2026, Korbi: "changing the number of rounds wasn't easy"; it has nothing else to hide)
 // a lobby option that went is hidden, not deleted: its default still reaches start()
-for (const g of ["sketch", "gauge", "echo", "decoy", "pewter", "gallery", "undercover", "whoami", "whispers", "coup", "fuse"])
+for (const g of ["sketch", "gauge", "echo", "decoy", "pewter", "gallery", "undercover", "whoami", "whispers", "coup"])
   check(/hidden: true/.test(src(`party-${g}`)), `${g}: some lobby option is hidden`);
 
 // ramp-steps.js: rungs run easiest first, and the old choice finds its nearest rung

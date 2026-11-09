@@ -9,8 +9,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const root = new URL("..", import.meta.url).pathname;
 
 // games with a computer whose strength is the ramp (shoe, topple, cartel have none)
-const RAMPED = `hong bones bigtwo boast trumps tribute landlord gambit river crown go flank silo morris gammon factor carrom carrack
-  hearts meld pegs tarot contract yacht`.split(/\s+/);
+const RAMPED = `hong bones bigtwo boast trumps tribute landlord gambit river crown go flank morris gammon factor carrom carrack hearts meld pegs tarot contract yacht`.split(/\s+/);
 const ALL = [...RAMPED, "cartel", "solitaire", "topple", "shoe"];
 // rows that were in these menus and are gone (a label as the menu showed it, as the first argument of choice/toggle/ticks)
 const GONE = [

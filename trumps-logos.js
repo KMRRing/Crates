@@ -1,7 +1,7 @@
 // The logos of Jass, Belote and Schafkopf on the games screen, in the three houses' drawings (apps.js takes them in).
 // Each is two cards fanned, one carrying its country's suit marks: the Swiss rose and the shield with the white cross
 // (Jass), the spade and the heart under a crown, the king and queen of trumps (Belote), the acorn and the leaf of the
-// Bavarian pack (Schafkopf), the club and the diamond (Coinche, Belote's auction). No gradient ids and no clip paths: a logo is drawn in several places at once.
+// Bavarian pack (Schafkopf), . No gradient ids and no clip paths: a logo is drawn in several places at once.
 const INK = "#1C2A34";
 const SHADOW = `<ellipse cx="50" cy="93" rx="36" ry="3" fill="${INK}" opacity=".22"/>`;
 const card = (rot, x, body) => `<g transform="rotate(${rot} 50 80)"><rect x="${x}" y="20" width="38" height="56" rx="5" fill="#FBF4E4" stroke="${INK}" style="stroke-width: calc(2.8 * var(--wire, 1))"/>${body}</g>`;
@@ -23,7 +23,6 @@ const DIAMOND = `<path d="M50 28L62 47L50 66L38 47Z" fill="#C2312A" stroke="#6E1
 export const JASS_CODEX = codex(card(-16, 30, rose(49, 48)), card(12, 32, SHIELD));
 export const BELOTE_CODEX = codex(card(-16, 30, SPADE), card(12, 32, HEART));
 export const SCHAFKOPF_CODEX = codex(card(-16, 30, ACORN), card(12, 32, LEAF));
-export const COINCHE_CODEX = codex(card(-16, 30, CLUB), card(12, 32, DIAMOND));
 
 // Office's: a line drawing on a 24 square, `.a` the accent line
 const office = (a, b) => `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="9" height="14" rx="1.5" transform="rotate(-12 7.5 12)"/><rect x="11" y="4" width="9.5" height="14.5" rx="1.5" transform="rotate(10 15.7 11.2)"/>${a}${b}</svg>`;
@@ -37,4 +36,4 @@ const k = {
   diamond: `<path class="a" d="M15.8 7.6L18 11.8L15.8 16L13.6 11.8Z"/>`,
   leaf: `<path class="a" d="M15.8 7.6C13 9.8 12.8 13 15.8 16.4 18.8 13 18.6 9.8 15.8 7.6Z"/><path d="M15.8 9.4V15.2"/>`,
 };
-export const TRUMPS_OFFICE = { jass: office(k.rose, k.shield), belote: office(k.spade, k.heart), schafkopf: office(k.acorn, k.leaf), coinche: office(k.club, k.diamond) };
+export const TRUMPS_OFFICE = { jass: office(k.rose, k.shield), belote: office(k.spade, k.heart), schafkopf: office(k.acorn, k.leaf) };

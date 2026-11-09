@@ -16,7 +16,7 @@ const reach = (f, seen = new Set()) => {
   return seen;
 };
 const apps = [...rd("apps.js").matchAll(/\{ id: "([^"]+)", sec: "[^"]+", name: "[^"]+", href: "\.\/([^"?#]+)"/g)].map(m => ({ id: m[1], page: m[2] }));
-check(apps.length > 100, `found the games' pages (${apps.length})`);
+check(apps.length > 50, `found the games' pages (${apps.length})`);
 const silent = [];
 for (const a of apps) {
   const scripts = [...rd(a.page).matchAll(/src="([^"]+\.js)"/g)].map(m => m[1].replace("./", "")).filter(s => !/^(theme|pwa)\.js$/.test(s));

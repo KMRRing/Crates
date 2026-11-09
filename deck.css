@@ -71,10 +71,7 @@ html[data-mode="night"] { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806
 .dk-toast.show { opacity: 1; }
 
 /* the loudspeaker beside a word in another language (Parley's cards): says it again */
-.dk-speak { display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; margin-left: .35rem; vertical-align: middle;
   padding: 0; border: 1.5px solid var(--brass); border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
-.dk-speak svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.dk-speak .solid { fill: currentColor; }
 
 /* a Chart place plotted on its region's map */
 .dk-plot { display: block; }

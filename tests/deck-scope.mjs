@@ -24,17 +24,17 @@ check(whole(null) && whole({}) && !whole({ games: ["punt"] }) && !whole({ subjec
 
 // ---------- a card in or out ----------
 const none = scopeOf(null);
-check(covers(none, card("punt", "norway"), of) && covers(none, card("parley")), "at first every card is covered");
+check(covers(none, card("punt", "norway"), of) && covers(none, card("lode")), "at first every card is covered");
 check(!covers({ games: ["punt"] }, card("punt", "norway"), of) && covers({ games: ["punt"] }, card("quote", "norway"), of), "a game out takes its cards out and no others");
 check(!covers({ subjects: ["Countries"] }, card("chart", "norway"), of) && !covers({ subjects: ["Countries"] }, card("punt", "norway", "chile"), of), "a topic out takes out the cards about only that topic, however many things in it");
 check(covers({ subjects: ["Painters"] }, card("punt", "mona", "leo"), of), "a card about two topics stays while one of them is in");
 check(!covers({ subjects: ["Painters", "Paintings"] }, card("punt", "mona", "leo"), of), "…and goes when both are out");
-check(covers({ subjects: ["Countries"] }, card("parley"), of) && covers({ subjects: ["Countries"] }, card("rush", "unknown-thing"), of), "a card about nothing the base knows follows its game alone");
+check(covers({ subjects: ["Countries"] }, card("lode"), of) && covers({ subjects: ["Countries"] }, card("rush", "unknown-thing"), of), "a card about nothing the base knows follows its game alone");
 check(covers({ subjects: ["Countries"] }, card("punt", "norway"), null), "no index to ask (none loaded yet): a card is judged by its game alone");
 check(!covers({ games: ["punt"], subjects: ["Law"] }, card("punt", "norway"), of) && !covers({ games: ["quote"], subjects: ["Countries"] }, card("punt", "norway"), of) && covers({ games: ["quote"], subjects: ["Law"] }, card("punt", "norway"), of),
   "games and topics both narrow: a card must pass both");
-const deck = [card("punt", "norway"), card("quote", "brent"), card("chart", "chile"), card("parley"), card("punt", "mona", "leo"), card("rush")];
-check(same(inScope(deck, { games: ["punt"], subjects: ["Countries"] }, of).map(c => c.id), ["quote:brent", "parley:x", "rush:x"]), "a scope of games and topics keeps the cards that pass, in their order");
+const deck = [card("punt", "norway"), card("quote", "brent"), card("chart", "chile"), card("lode"), card("punt", "mona", "leo"), card("rush")];
+check(same(inScope(deck, { games: ["punt"], subjects: ["Countries"] }, of).map(c => c.id), ["quote:brent", "lode:x", "rush:x"]), "a scope of games and topics keeps the cards that pass, in their order");
 check(inScope(deck, none, of).length === deck.length, "the whole deck is every card");
 
 // ---------- the topics on offer ----------
@@ -82,7 +82,7 @@ check(same(asked("#review&topic=Law"), { review: true, topic: "Law" }) && same(a
 check(asked("#review&topic=" + encodeURIComponent("Art & Design")).topic === "Art & Design" && asked("#topic=%E0%A4%A").topic === null && asked("#topic=").topic === null, "a label with an ampersand survives; a broken escape or an empty one names no topic");
 check(topicAddress("Art & Design") === "#review&topic=Art%20%26%20Design" && asked(topicAddress("Art & Design")).topic === "Art & Design", "the Ledger's link is the address Deck reads");
 {
-  const stack = [card("punt", "norway"), card("chart", "mona", "leo"), card("parley"), card("quote", "exile")];
+  const stack = [card("punt", "norway"), card("chart", "mona", "leo"), card("lode"), card("quote", "exile")];
   check(same(aboutTopic(stack, "Painters", of).map(c => c.id), ["chart:mona+leo"]) && aboutTopic(stack, "Nothing", of).length === 0, "a topic's cards: any of a card's things in it; a card about nothing in the base is in none");
   check(same(aboutTopic(stack, "Law", of), [stack[3]]), "and it is judged by the topic alone, whatever games the device left out");
 }
@@ -95,7 +95,7 @@ check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Random on this screen"/.
 check(/KEY = "suite:deck"/.test(row), "Deck's scope is kept under a suite: key");
 check(/import\("\.\/kb-index\.js"\)/.test(row) && !/^import[^\n]*kb-index/m.test(row), "the knowledge base's index is fetched only when it's needed, not carried by every page");
 check(/revised\(session\.items, session\.at, answered/.test(deckJs) && /addEventListener\("close", reviseSession/.test(deckJs) && /return sheet;/.test(row), "Deck's page revises the stack under review when the sheet of games and topics closes");
-check(/inScope\(pile\.due\(\)/.test(deckJs) && /arrange\(\(topic \? aboutTopic\(pile\.due\(\), topic, labelOf\(kbIndex\)\) : dueNow\(\)\)/.test(deckJs) && /asked\(location\.hash\)/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
+check(/inScope\(pile\.due\(\)/.test(deckJs) && /\(topic \? aboutTopic\(pile\.due\(\), topic, labelOf\(kbIndex\)\) : dueNow\(\)\)\.slice\(0, MAX_REVIEW\)/.test(deckJs) && /asked\(location\.hash\)/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
 check(/session\.topic \|\|/.test(deckJs) && !/suite:deck/.test(deckJs), "a topic's review is one-off: the sheet's changes leave its cards alone, and the scope kept on the device isn't touched");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

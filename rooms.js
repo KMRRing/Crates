@@ -17,16 +17,16 @@ export const GAMES = {
   quote: { name: "Quote", page: "./quote.html" },
   origin: { name: "Origin", page: "./origin.html" },
   order: { name: "Order", page: "./order.html" },
-  nexus: { name: "Nexus", page: "./nexus.html" },
-  calibre: { name: "Calibre", page: "./calibre.html" },
+  
+  
   manifest: { name: "Manifest", page: "./manifest.html" },
   chart: { name: "Chart", page: "./chart.html" },
   survey: { name: "Survey", page: "./survey.html" },
-  blend: { name: "Blend", page: "./blend.html" },
-  refinery: { name: "Refinery", page: "./refinery.html" },
+  
+  
   rush: { name: "Puzzle rush", page: "./rush.html" },     // Gambit's, on a page of its own (no tile: Gambit's menu opens it)
   deck: { name: "Deck", page: "./deck.html" },
-  parley: { name: "Parley", page: "./parley.html" },
+  
   stow: { name: "Stow", page: "./stow.html" },
   hong: { name: "Mahjong", page: "./hong.html" },
   tribute: { name: "Guandan", page: "./tribute.html" },
@@ -42,11 +42,11 @@ export const GAMES = {
   rack: { name: "Rack", page: "./rack.html" },
   pegs: { name: "Cribbage", page: "./pegs.html" },
   landlord: { name: "Dou Dizhu", page: "./landlord.html" },
-  holdem: { name: "Texas Hold'em", page: "./holdem.html" },
+  
   factor: { name: "Hanse", page: "./factor.html" },
-  banquet: { name: "Banquet", page: "./banquet.html" },
+  
   gammon: { name: "Backgammon", page: "./gammon.html" },
-  silo: { name: "Four in a row", page: "./silo.html" },
+  
   carrom: { name: "Carrom", page: "./carrom.html" },
   crown: { name: "Draughts", page: "./crown.html" },
   jass: { name: "Jass", page: "./trumps.html" },
@@ -57,9 +57,9 @@ export const GAMES = {
   sudoku: { name: "Nonet", page: "./sudoku.html" },
   mines: { name: "Mines", page: "./mines.html" },
   nonogram: { name: "Nonogram", page: "./nonogram.html" },
-  hitori: { name: "Cull", page: "./hitori.html" },
+  
   slitherlink: { name: "Portolan", page: "./slitherlink.html" },
-  masyu: { name: "Pearl", page: "./masyu.html" },
+  
   nurikabe: { name: "Dujiang", page: "./nurikabe.html" },
   asterism: { name: "Asterism", page: "./asterism.html" },
   lanterns: { name: "Lanterns", page: "./lanterns.html" },
@@ -69,14 +69,13 @@ export const GAMES = {
   assay: { name: "Assay", page: "./assay.html" },
   yield: { name: "Constellation", page: "./yield.html" },
   speedmaths: { name: "Speed maths", page: "./speedmaths.html" },
-  isomer: { name: "Isomer", page: "./isomer.html" },
+  
   ladder: { name: "Ladder", page: "./ladder.html" },
   lode: { name: "Lode", page: "./lode.html" },
   lots: { name: "Lots", page: "./lots.html" },
-  codeword: { name: "Codeword", page: "./codeword.html" },
-  "codeword-split": { name: "Codeword", page: "./codeword.html" },   // its split key's table, on a branch of its own
+  
   crossword: { name: "Crossword", page: "./crossword.html" },
-  acrostic: { name: "Acrostic", page: "./acrostic.html" },
+  
   calcudoku: { name: "Calcudoku", page: "./calcudoku.html" },
   kakuro: { name: "Tally", page: "./kakuro.html" },
 };

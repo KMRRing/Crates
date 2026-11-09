@@ -19,7 +19,7 @@ const APPS = [...src.matchAll(/^ {2}\{ id: "(\w+)"([^\n]*)$/gm)].map(([, id, res
 }));
 const SECTIONS = [...src.match(/export const SECTIONS = \[([^\n]*)\];/)[1].matchAll(/\["(\w+)", "([^"]+)"\]/g)].map(m => [m[1], m[2]]);
 const tiles = APPS.filter(a => a.sec);
-check(APPS.length >= 100 && tiles.length >= 90 && SECTIONS.length >= 7, `apps.js read: ${APPS.length} entries, ${tiles.length} tiles, ${SECTIONS.length} sections`);
+check(APPS.length >= 60 && tiles.length >= 55 && SECTIONS.length >= 6, `apps.js read: ${APPS.length} entries, ${tiles.length} tiles, ${SECTIONS.length} sections`);
 
 // ---------- every game says how many can play it, and says it truthfully ----------
 const noPlayers = APPS.filter(a => !a.players).map(a => a.id);
@@ -93,22 +93,19 @@ const found = Object.fromEntries(tiles.map(a => [a.id, searchable(a, SECTIONS)])
 const hits = want => tiles.filter(a => shows(a, found[a.id], want)).map(a => a.id);
 check(hits({}).length === tiles.length && hits({ query: "  " }).length === tiles.length, "an empty search is every game");
 check(fold("Hold'em") === "holdem" && fold("Guilloché") === "guilloche" && fold("Who am I?") === "who am i" && fold(null) === "", "folded: no accents, no punctuation, no apostrophe, lower case");
-check(same(hits({ query: "courier" }), ["reckoning"]) && same(hits({ query: "reckoning" }), ["reckoning"]), "Courier is found by its name and by its id (its page, saves and keys are still reckoning)");
 check(same(hits({ query: "lexicon" }), ["lexicon"]) && same(hits({ query: "glyph" }), ["glyph"]) && same(hits({ query: "almanac" }), ["lexicon"]), "an old name is found by the id (Almanac's lexicon, Slate's glyph)");
-check(same(hits({ query: "hold'em" }), ["holdem"]) && same(hits({ query: "holdem" }), ["holdem"]) && hits({ query: "hold" }).includes("holdem"), "Hold'em, whichever way it's typed");
-check(hits({ query: "word" }).includes("crossword") && hits({ query: "word" }).includes("codeword") && hits({ query: "word" }).includes("assay"), "a word inside a name (Crossword, Codeword) and a word game (Assay)");
+check(hits({ query: "word" }).includes("crossword") && hits({ query: "word" }).includes("assay"), "a word inside a name (Crossword) and a word game (Assay)");
 check(same(hits({ query: "mahjong" }), ["hong"]) && same(hits({ query: "chess" }).sort(), ["gambit", "river"]) && hits({ query: "chess school" }).join() === "gambit" && hits({ query: "xiangqi" }).join() === "river", "genre words find the game");
-check(hits({ query: "puzzle rush" }).length >= 8 && hits({ query: "puzzle rush" }).includes("gambit") && hits({ query: "killer" }).join() === "sudoku" && hits({ query: "jigsaw" }).join() === "sudoku" && hits({ query: "block blast" }).join() === "loose" && hits({ query: "picross" }).includes("nonogram") && hits({ query: "loom" }).includes("nonogram") && hits({ query: "weaving" }).includes("nonogram"),
+check(hits({ query: "puzzle rush" }).length >= 6 && hits({ query: "puzzle rush" }).includes("gambit") && hits({ query: "killer" }).join() === "sudoku" && hits({ query: "jigsaw" }).join() === "sudoku" && hits({ query: "block blast" }).join() === "loose" && hits({ query: "picross" }).includes("nonogram") && hits({ query: "loom" }).includes("nonogram") && hits({ query: "weaving" }).includes("nonogram"),
   "the modes without a tile are found: puzzle rush (on the games that have it), Nonet's killer and jigsaw, Loose cargo, Loom (a mode of Nonogram)");
 check(hits({ query: "party" }).length >= 14 && hits({ query: "party" }).includes("undercover") && hits({ query: "knowledge" }).length === tiles.filter(a => a.sec === "knowledge").length, "a section's name finds its games");
 check(same(hits({ query: "sudoku crates" }), []) && same(hits({ query: "pipe dream" }), ["pipes"]), "every word typed has to match (and each is the start of a word)");
 check(!hits({ query: "ta" }).includes("delta") && hits({ query: "tar" }).includes("tarot"), "two letters match only the start of a word, not the middle of a name");
-check(same(hits({ query: "casino" }).sort(), ["baccarat", "blackjack", "craps", "holdem", "roulette", "sicbo"]), "casino finds the casino games, all in the Appendix");
-check(same(hits({ query: "silo" }), ["silo"]) && hits({ query: "connect four" }).join() === "silo" && hits({ query: "draughts" }).join() === "crown", "the games not built yet are found by what they are");
+check(hits({ query: "draughts" }).join() === "crown", "a game is found by what it is");
 // 3 November 2026: the games with a well-known name wear it (docs/README), and whoever knows the old name, or another name for the game, still finds it
-const olds = { gambit: "chess", river: "xiangqi", tribute: "guandan", hong: "mahjong", gammon: "backgammon", go: "go", crown: "draughts", flank: "reversi", silo: "four in a row", pegs: "cribbage", meld: "gin rummy", landlord: "dou dizhu", contract: "contract bridge", bones: "dominoes", boast: "liar's dice" };
+const olds = { gambit: "chess", river: "xiangqi", tribute: "guandan", hong: "mahjong", gammon: "backgammon", go: "go", crown: "draughts", flank: "reversi", pegs: "cribbage", meld: "gin rummy", landlord: "dou dizhu", contract: "contract bridge", bones: "dominoes", boast: "liar's dice" };
 check(Object.entries(olds).every(([id, name]) => by[id].name.toLowerCase() === name && hits({ query: id }).includes(id) && hits({ query: name }).includes(id)), "a game renamed for its common name is found by that name and by its old one (its id)");
-check(hits({ query: "chinese chess" }).join() === "river" && hits({ query: "checkers" }).join() === "crown" && hits({ query: "fight the landlord" }).join() === "landlord" && hits({ query: "connect four" }).join() === "silo", "and by the other names it goes by");
+check(hits({ query: "chinese chess" }).join() === "river" && hits({ query: "checkers" }).join() === "crown" && hits({ query: "fight the landlord" }).join() === "landlord", "and by the other names it goes by");
 check(Object.keys(AKA).every(id => by[id]) && tiles.every(a => !AKA[a.id] || AKA[a.id] === AKA[a.id].toLowerCase()), "every alias is for a game with a tile, in lower case");
 
 // ---------- the filter and the search together ----------

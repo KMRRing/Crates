@@ -66,8 +66,7 @@ check(!picks.length, `a header select's Today's option is disabled${picks.length
 // every game that has a daily and a menu gives it the shared part
 const menuSrc = fs.readFileSync(root + "menu.js", "utf8");
 check(/export function todayPart\(/.test(menuSrc) && /today-core\.js/.test(menuSrc), "menu.js exports todayPart");
-const GAMES = `acrostic assay asterism bridges bulls calcudoku chart codeword columbiad crossword delta hitori ingot isomer kakuro ladder lanterns lode lots masyu mines moor nexus nonogram
-  nurikabe order origin punt quote rush-menu slate slitherlink solitaire solo speedmaths-ui spot stow sudoku survey yacht yield`.split(/\s+/);
+const GAMES = `assay asterism bridges bulls calcudoku chart columbiad crossword delta ingot kakuro ladder lanterns lode lots mines moor nonogram nurikabe order origin punt quote rush-menu slate slitherlink solitaire solo speedmaths-ui spot stow sudoku survey yacht yield`.split(/\s+/);
 const lacking = GAMES.filter(g => !PENDING.has(g) && !/\btodayPart\(/.test(fs.readFileSync(`${root}${g}.js`, "utf8")));
 check(!lacking.length, `the games with a daily use todayPart${lacking.length ? `, but not ${lacking.join(", ")}` : ""}`);
 

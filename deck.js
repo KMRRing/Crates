@@ -25,9 +25,7 @@ import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import { markedIn } from "./topics-on.js";
 import { scopeNow, labelOf, openScope } from "./deck-row.js";
 import { inScope, sayScope, revised, asked, aboutTopic } from "./deck-scope.js";
-import { speak } from "./voice.js";
 import { check } from "./typing.js";
-import { COURSES } from "./parley-courses.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -117,24 +115,10 @@ const gapText = ms => {
 };
 
 // ---------- the review ----------
-/**
- * Language words come in a block per language (Chinese together, French together), where that language's first word
- * would have come; within a block they're shuffled, not in chapter order: a chapter is Parley's to drill.
- */
-function arrange(items) {
-  const out = [], blocks = new Map();
-  for (const it of items) {
-    const lang = it.game === "parley" ? COURSES.find(c => c.id === it.payload?.course)?.lang ?? it.payload?.course : null;
-    if (!lang) { out.push(it); continue; }
-    if (!blocks.has(lang)) { blocks.set(lang, []); out.push({ block: lang }); }
-    blocks.get(lang).push(it);
-  }
-  return out.flatMap(x => (x.block ? shuffle(Math.random, blocks.get(x.block)) : [x]));
-}
 /** `topic`: a one-off review of that subject (by label) from every game, whatever the device's scope; nothing is kept. */
 function startReview(topic = null) {
   if (typeof topic !== "string") topic = null;          // a click hands over its event
-  const items = arrange((topic ? aboutTopic(pile.due(), topic, labelOf(kbIndex)) : dueNow()).slice(0, MAX_REVIEW));
+  const items = (topic ? aboutTopic(pile.due(), topic, labelOf(kbIndex)) : dueNow()).slice(0, MAX_REVIEW);
   if (!items.length) { overview(); if (topic) toast(`Nothing due in ${topic} yet.`); return; }
   session = { items, at: 0, right: 0, wrong: 0, topic };
   $("overview").hidden = true;
@@ -169,7 +153,7 @@ function ask() {
   if (!(it.game === "quote" && field && box.contains(field.wrap))) box.replaceChildren();
   const r = rng(seedOf(it.id) ^ Date.now());
   // a name-it card is typed, from whichever game it came (Punt's name-it questions, Isomer's finals, Crossword's entries)
-  if (["punt", "isomer", "crossword"].includes(it.game) && it.payload?.name) named(it.payload);
+  if (["punt", "crossword"].includes(it.game) && it.payload?.name) named(it.payload);
   else if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
     $("ask").textContent = p.ask || "";
@@ -239,15 +223,6 @@ function ask() {
     };
     if (!box.contains(wrap)) box.appendChild(wrap);
     input.focus();                                   // at once, not later: a phone only raises its keyboard inside the tap or key that got here
-  } else if (it.game === "parley") {
-    const p = it.payload, course = COURSES.find(c => c.id === p.course);
-    $("ask").textContent = `Parley · ${course?.name || p.course}`;
-    $("prompt").textContent = `${p.w}${p.py ? ` (${p.py})` : ""}`;
-    if (course) { $("prompt").append(" ", speakButton(p.w, course.lang)); speak(p.w, course.lang); }   // said as it appears, again on a tap
-    const pool = pile.all("parley").filter(x => x.payload?.course === p.course && x.key !== it.key).map(x => x.payload.en);
-    const opts = shuffle(r, [p.en, ...shuffle(r, [...new Set(pool)]).slice(0, 3)]);
-    while (opts.length < 2) opts.push("—");
-    options(opts, [opts.indexOf(p.en)], 1, `${p.w}: ${p.en}. ${p.ex?.l2 || ""} — ${p.ex?.en || ""}`);
   } else if (it.game === "rush") {
     const p = it.payload;
     const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";
@@ -570,15 +545,6 @@ function openMenu() {
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "deck");
-// a loudspeaker beside a word in another language: says it again
-const SPEAKER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="solid" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
-function speakButton(text, lang) {
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "dk-speak"; b.innerHTML = SPEAKER;
-  b.setAttribute("aria-label", "Hear it again");
-  b.addEventListener("click", () => speak(text, lang));
-  return b;
-}
 document.querySelector(".dk-mark").innerHTML = APPS.find(a => a.id === "deck").logo;
 codexTabs("deck");
 $("menuBtn").addEventListener("click", openMenu);

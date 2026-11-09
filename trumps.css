@@ -94,9 +94,6 @@ html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 .tr-bid .tr-icon { width: 1.4em; height: 1.4em; }
 .tr-bid small { font-size: .68rem; font-weight: 600; opacity: .85; text-transform: none; letter-spacing: 0; }
 .tr-bid .tr-fs { font-size: 1.3em; }
-.tr-coinche { display: grid; grid-template-columns: 3rem 1fr 3rem; gap: .4rem; align-items: center; }
-.tr-step { min-height: 2.6rem; padding: 0; font-size: 1.3rem; }
-.tr-value { text-align: center; font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .tr-go { width: 100%; min-height: 3rem; }
 
 .tr-rules p { line-height: 1.45; }

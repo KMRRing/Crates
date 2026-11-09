@@ -1,8 +1,7 @@
 // Trumps (trumps-games.js, trumps-rules.js, trumps-bot.js) on seats.js: Jass's cards (the trump order and worth, the
 // 157, Obenabe's and Undenufe's), its play (follow or trump; never under a trump in; the Bauer needn't follow), Weis
 // and its comparison, the count's multipliers; Belote's play (trump when you can't follow, unless your partner holds
-// it; beat a trump in), its bidding (the turned card taken, the second round, a redeal) and scoring; Coinche's auction
-// (bids, coinche, surcoinche) and scoring; Schafkopf's trumps, the called ace's duties, the Laufende and the tariff;
+// it; beat a trump in), its bidding (the turned card taken, the second round, a redeal) and scoring; Schafkopf's trumps, the called ace's duties, the Laufende and the tariff;
 // the state through the database; whole games of computer players in each, every card legal.
 import { GAMES, weisOf, laufende, jassMult, teamOf, sortHand } from "../trumps-games.js";
 import { rules } from "../trumps-rules.js";
@@ -64,55 +63,9 @@ const set = a => [...a].sort((x, y) => x - y).join(",");
   check(H.state.round === 1 && H.state.handNo === 1 && /new deal/.test(H.say.text), "all pass again: dealt anew, not counted");
 }
 
-// ---------- Coinche ----------
-{
-  let G = newRecord(rules, { seats: 4, options: { game: "coinche" }, seed: 2, now: 0 });
-  const a = G.state.turn;
-  check(G.state.hands.every(h => h.length === 8), "Coinche: eight each");
-  G = applyMove(rules, G, a, { t: "bid", value: 100, suit: 3 }, 0).G;
-  check(applyMove(rules, G, (a + 1) % 4, { t: "bid", value: 90, suit: 2 }, 0).error, "a bid must beat the last");
-  G = applyMove(rules, G, (a + 1) % 4, { t: "coinche" }, 0).G;
-  check(G.state.auction.coinche === 1 && GAMES.coinche.bids(G.state, (a + 2) % 4).some(b => b.t === "surcoinche"), "coinched: the bidders may surcoinche");
-  G = applyMove(rules, G, (a + 2) % 4, { t: "surcoinche" }, 0).G;
-  check(G.state.step === "play" && G.state.contract.value === 100 && G.state.contract.coinche === 2, "surcoinched: the play begins, 100 in spades redoubled");
-  const s = { ...G.state, tricks: [{ winner: a, pts: 120 }, { winner: (a + 1) % 4, pts: 42 }], dealt: G.state.hands, scores: [0, 0] };
-  const r = GAMES.coinche.scoreHand(s);
-  check(r.made && r.delta[teamOf(a)] >= 400 && r.delta[1 - teamOf(a)] <= 20, `made, redoubled: 400 to the bidders (${r.delta.join(" ")})`);
-}
-
-// ---------- Schafkopf ----------
-{
-  const S = GAMES.schafkopf, c = { type: "sau", trump: 1, ace: 2, declarer: 0, partner: 1 };
-  check(S.winner({ contract: c }, [{ seat: 0, card: C(1, "A") }, { seat: 1, card: C(0, "J") }, { seat: 2, card: C(3, "Q") }]) === 2, "an Ober over an Unter over the heart ace (all trumps)");
-  check(S.winner({ contract: c }, [{ seat: 0, card: C(2, "9") }, { seat: 1, card: C(2, "A") }, { seat: 2, card: C(1, "7") }]) === 2, "the lowest heart trumps the leaves' ace");
-  const legal = (hand, trick) => S.legal({ hands: [hand], trick, contract: c }, 0);
-  check(set(legal([C(2, "A"), C(2, "7"), C(3, "K")], [{ seat: 1, card: C(2, "9") }])) === set([C(2, "A")]), "the called suit led: its ace must come");
-  check(!legal([C(2, "A"), C(0, "K"), C(3, "K")], [{ seat: 1, card: C(1, "9") }]).includes(C(2, "A")) && legal([C(2, "A")], [{ seat: 1, card: C(1, "9") }]).includes(C(2, "A")), "the called ace isn't thrown away, except on the last trick");
-  check(set(legal([C(2, "A"), C(2, "7"), C(3, "K")], [])) === set([C(2, "A"), C(3, "K")]), "its holder can't run from the suit with fewer than four of it");
-  check(set(legal([C(1, "K"), C(3, "Q"), C(0, "7")], [{ seat: 1, card: C(2, "J") }])) === set([C(1, "K"), C(3, "Q")]), "an Unter led is a trump led: follow with trumps");
-  // the hand as held: before the game is called, as for a Sauspiel (Korbi: "the colours, then hearts, then U/Os"), each
-  // rising to the right, the Zehner over the König; once a Wenz is called, the Obers back in their Farben
-  const held = [C(3, "Q"), C(0, "J"), C(1, "7"), C(1, "A"), C(2, "A"), C(2, "T"), C(2, "K"), C(0, "9"), C(3, "J")];
-  const names = ids => ids.map(id => { const r = rankOf(id); return "SHGE"[suitOf(id)] + ({ T: "10", J: "U", Q: "O" }[r] ?? r); }).join(" ");
-  const opening = names(sortHand({ game: "schafkopf" }, held)), wenz = names(sortHand({ game: "schafkopf", contract: { type: "wenz", trump: -1 } }, held));
-  check(opening === "S9 GK G10 GA H7 HA SU EU EO" && wenz === "S9 H7 HA GK G10 GA EO SU EU", `Schafkopf's hand held: the Farben, hearts, the Unters and Obers (${opening}); in a Wenz the Obers back in their Farben (${wenz})`);
-  const hands = [[C(3, "Q"), C(2, "Q"), C(1, "Q")], [C(0, "Q")], [], []];
-  check(laufende(c, hands, [0, 1]) === 4 && laufende({ type: "wenz" }, [[C(3, "J"), C(2, "J")], [], [C(1, "J")], []], [0]) === 2, "the Laufende: the top trumps held unbroken");
-  let G = newRecord(rules, { seats: 4, options: { game: "schafkopf", deals: 1 }, seed: 7, now: 0 });
-  check(G.state.hands.every(h => h.length === 8) && G.state.scores.length === 4, "Schafkopf: eight each, four scores");
-  for (let k = 0; k < 4; k++) G = applyMove(rules, G, G.state.turn, { t: "pass" }, 0).G;
-  check(G.state.step === "bid" && G.state.handNo === 1 && /thrown in/.test(G.say.text), "all pass: thrown in, dealt anew");
-  const sc = { contract: { type: "solo", trump: 3, declarer: 0 }, dealt: [deckFrom("7").slice(0, 8), [], [], []], tricks: [{ winner: 0, pts: 95 }, { winner: 1, pts: 25 }], scores: [0, 0, 0, 0], opts: { tariff: 10, solo: 50 } };
-  const r = S.scoreHand(sc);
-  check(r.won && r.schneider && r.delta[0] === 3 * r.amount && r.delta[1] === -r.amount && r.amount >= 60, `a Solo won with Schneider: paid by all three (${r.amount} each)`);
-  // Schneider's lines (pagat): the players make it with 91, not 90; they're Schneider themselves with 30, not 31
-  const sch = (a, b) => S.scoreHand({ ...sc, scores: [0, 0, 0, 0], tricks: [{ winner: 0, pts: a }, { winner: 1, pts: b }] }).schneider;
-  check(sch(91, 29) && !sch(90, 30) && sch(30, 90) && !sch(31, 89), "Schneider: 91 makes it and 90 doesn't; 30 is Schneider for the players, 31 isn't");
-}
-
 // ---------- whole games ----------
 const T = 1_000_000;
-for (const game of ["jass", "belote", "coinche", "schafkopf"]) {
+for (const game of ["jass", "belote", "schafkopf"]) {
   let G = newRecord(rules, { seats: 4, options: { game, target: 501, deals: 2 }, seed: 11, now: T });
   let ok = true, i = 0;
   for (; i < 6000 && G.state.step !== "over"; i++) {

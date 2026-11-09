@@ -26,7 +26,6 @@ import cue from "./party-cue.js";
 import echo from "./party-echo.js";
 import decoy from "./party-decoy.js";
 import gauge from "./party-gauge.js";
-import fuse from "./party-fuse.js";
 import sketch from "./party-sketch.js";
 import whispers from "./party-whispers.js";
 import forger from "./party-forger.js";
@@ -37,7 +36,7 @@ import pewter from "./party-pewter.js";
 import beacon from "./party-beacon.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, cue, echo, decoy, gauge, fuse, sketch, whispers, forger, gallery, hilo, coup, pewter, beacon];
+export const GAMES = [undercover, whoami, cue, echo, decoy, gauge, sketch, whispers, forger, gallery, hilo, coup, pewter, beacon];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */
@@ -191,17 +190,14 @@ export const ELSEWHERE = [
   { id: "meld", name: "Gin rummy", kind: "table", page: "meld.html", max: 2, blurb: "Gin rummy for two: meld sets and runs, knock with 10 or less in deadwood, or go gin." },
   { id: "rack", name: "Rack", kind: "table", page: "rack.html", max: 4, blurb: "A word game on a board: lay tiles on premium squares, make words that cross, score the most." },
   { id: "landlord", name: "Dou Dizhu", kind: "table", page: "landlord.html", max: 3, blurb: "斗地主: the landlord against the two peasants." },
-  { id: "holdem", name: "Texas Hold'em", kind: "table", page: "holdem.html", max: 6, blurb: "德州撲克: Macau's rules, no limit, a commission to the house; up to six at the felt." },
   { id: "factor", name: "Hanse", kind: "table", page: "factor.html", max: 4, blurb: "Settle an island and trade for what it lacks: roads, posts and factories, first to ten points." },
-  { id: "banquet", name: "Banquet", kind: "table", page: "banquet.html", max: 2, blurb: "划拳 and 十五二十, the hand games of a banquet table." },
   { id: "gammon", name: "Backgammon", kind: "table", page: "gammon.html", max: 2, blurb: "Backgammon: a match, with the doubling cube." },
   { id: "flank", name: "Reversi", kind: "table", page: "flank.html", max: 2, blurb: "Reversi: close a line of discs and they all turn." },
   { id: "carrom", name: "Carrom", kind: "table", page: "carrom.html", max: 2, blurb: "Carrom: flick the striker, pocket your colour and cover the queen." },
-  { id: "silo", name: "Four in a row", kind: "table", page: "silo.html", max: 2, blurb: "Four in a row: drop discs into seven columns, first to line up four." },
   { id: "crown", name: "Draughts", kind: "table", page: "crown.html", max: 2, blurb: "Draughts: step and jump on the dark squares, a jump is compulsory, a man that reaches the far row is crowned." },
   { id: "morris", name: "Nine Men's Morris", kind: "table", page: "morris.html", max: 2, blurb: "Nine Men's Morris: place nine pieces, slide them, close a mill of three to take one of theirs." },
   { id: "tarot", name: "Tarot", kind: "table", page: "tarot.html", max: 5, blurb: "French tarot for three, four or five: bid, take the dog, call a king for a partner, win the points." },
-  { id: "trumps", name: "Jass, Belote, Schafkopf", tiles: ["jass", "belote", "schafkopf"], kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote (and Coinche) or Schafkopf, whichever the host last played, at a table of four; the host's menu changes it." },
+  { id: "trumps", name: "Jass, Belote, Schafkopf", tiles: ["jass", "belote", "schafkopf"], kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote or Schafkopf, whichever the host last played, at a table of four; the host's menu changes it." },
   { id: "quest", name: "Company", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the Vitalians before three cargoes are lost." },
   { id: "bones", name: "Dominoes", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
   { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Secret roles and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
@@ -221,23 +217,18 @@ export const ELSEWHERE = [
   { id: "rush", name: "Puzzle rush", kind: "duo", duo: "rush", page: "rush.html", max: 6, race: true, blurb: "Gambit's puzzle battle: the same chess puzzles for everyone, against the clock." },
   { id: "origin", name: "Origin", kind: "duo", duo: "origin", page: "origin.html", max: 6, blurb: "Five hidden countries from their clues, as one team: anyone guesses." },
   { id: "order", name: "Order", kind: "duo", duo: "order", page: "order.html", max: 6, blurb: "One line for the whole table: dates, quantities or a story, anyone placing the next card." },
-  { id: "nexus", name: "Nexus", kind: "duo", duo: "nexus", page: "nexus.html", max: 6, race: true, blurb: "The same five rings of candidates for everyone: find what the Codex links to the thing in the middle." },
   { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same block of rock for everyone: chip away the waste, the fastest clear wins." },
   { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, blurb: "The same stack at the same moment: against each other, or one team pooling what each saw." },
   { id: "sudoku", name: "Nonet", kind: "duo", duo: "sudoku", page: "sudoku.html", max: 6, race: true, blurb: "The same grid for everyone, the fastest solve wins; or Together, one grid and a share of the givens each." },
   { id: "mines", name: "Mines", kind: "duo", duo: "mines", page: "mines.html", max: 6, race: true, blurb: "Mine-clearing on a field that needs no guess: race it, or play it as one team, each reading part of its numbers." },
   { id: "nonogram", name: "Nonogram", kind: "duo", duo: "nonogram", page: "nonogram.html", max: 6, race: true, blurb: "A picture in a grid, a clue on every line: race to draw the same one, or split the clues and draw it together." },
-  { id: "hitori", name: "Cull", kind: "duo", duo: "hitori", page: "hitori.html", max: 6, race: true, blurb: "The same grid of numbers for everyone: shade the repeats, the fastest solve wins." },
   { id: "bulls", name: "Conjunction", kind: "duo", duo: "bulls", page: "bulls.html", max: 6, blurb: "A code-breaking game round the table: one board with your keys on the others' screens, a race on one code, or codes set for each other." },
   { id: "assay", name: "Assay", kind: "duo", duo: "assay", page: "assay.html", max: 6, race: true, blurb: "The same hidden word for everyone, each on their own phone: the fewest guesses win, then the quicker." },
   { id: "yield", name: "Constellation", kind: "duo", duo: "yield", page: "yield.html", max: 6, race: true, blurb: "The same sky of seven stars for everyone: trace words along its sight-lines against the clock, the most points wins." },
-  { id: "isomer", name: "Isomer", kind: "duo", duo: "isomer:race", page: "isomer.html", max: 6, race: true, blurb: "Jumbled words, their circled letters the final answer: the same jumbles for everyone, the quickest wins." },
   { id: "ladder", name: "Ladder", kind: "duo", duo: "ladder", page: "ladder.html", max: 6, blurb: "Carroll's word ladders: the same three for everyone, lowest score wins, or one ladder for the team, each holding some of its letters." },
   { id: "lode", name: "Lode", kind: "duo", duo: "lode", page: "lode.html", max: 6, blurb: "One board of hidden theme words: race to find them, or split its letters and find them as a team." },
   { id: "lots", name: "Crates Classic", kind: "duo", duo: "lotsrace", page: "lots.html", max: 6, race: true, blurb: "Sixteen words into four lots of four, the same board for everyone: the most points wins, then the quicker." },
-  { id: "codeword", name: "Codeword", kind: "duo", duo: "codeword", page: "codeword.html", max: 6, race: true, blurb: "The same codeword for everyone at the table: the fastest to crack it wins." },
   { id: "crossword", name: "Crossword", kind: "duo", duo: "crossword", page: "crossword.html", max: 6, blurb: "One grid for the table, its clues split between you: nobody can finish it alone." },
-  { id: "acrostic", name: "Acrostic", kind: "duo", duo: "acrostic", page: "acrostic.html", max: 6, race: true, blurb: "The same hidden text for everyone: crack the clues, fill the squares, the fastest solve wins." },
   { id: "calcudoku", name: "Calcudoku", kind: "duo", duo: "calcudoku", page: "calcudoku.html", max: 6, race: true, blurb: "The same cages for everyone, the fastest solve wins; or Together, one grid and a share of the clues each." },
   { id: "kakuro", name: "Tally", kind: "duo", duo: "kakuro", page: "kakuro.html", max: 6, race: true, blurb: "The same grid of sums for everyone, the fastest solve wins; or Together, one grid and a share of the clues each." },
   { id: "bridges", name: "Bridges", kind: "duo", duo: "bridges", page: "bridges.html", max: 6, race: true, blurb: "The same puzzle for everyone, any twist the ladder has: join the islands, the fastest solve wins." },

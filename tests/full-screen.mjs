@@ -14,18 +14,18 @@ const root = new URL("..", import.meta.url).pathname;
 const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: a card with a name, no game and no menu
 
 // TITLED: knowledge, puzzles, classics, courses, tools and word games, and Party (its Sketch drops the title in party.js)
-const TITLED = new Set(`crates lots punt quote census dispatch origin order crossing spyglass chart ledger nexus isomer lode acrostic crossword nonogram
+const TITLED = new Set(`crates lots punt quote census dispatch origin order crossing spyglass chart ledger lode crossword nonogram
   slate delta spot speedmaths pipes survey stow shunt slipway
-  sudoku calcudoku kakuro hitori masyu nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls codeword assay yield
-  calibre parley arthistory wine firmament trade constitutions statecraft music maths speedfuels blend refinery rack cartel deck rush
+  sudoku calcudoku kakuro nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls assay yield
+  rack cartel deck rush
   party quest cue tribute
-  contract trumps landlord bigtwo hearts meld pegs boast yacht solitaire holdem blackjack baccarat tarot`.split(/\s+/).map(n => n + ".html"));
+  contract trumps landlord bigtwo hearts meld pegs boast yacht solitaire tarot`.split(/\s+/).filter(Boolean).map(n => n + ".html"));
 // (tribute: Guandan became titled on 7 Nov 2026, Korbi: it should state its name and logo, which go back to the games)
-// (the card and dice games became titled on 7 Nov 2026, Korbi: "implement it across the board"; Craps, Sic Bo, Roulette and Shoe stay full)
-// FULL alone: board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
-const FULL = new Set(`shoe carrack hong bones banquet   craps roulette sicbo factor gambit flank morris crown go river silo gammon carrom
-  avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle topple harbour ingot
-  almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));
+// (the card and dice games became titled on 7 Nov 2026, Korbi: "implement it across the board"; Shoe stays full)
+// FULL alone: board games, idle and ambient games, pictures (Manifest, Almanac)
+const FULL = new Set(`shoe carrack hong bones factor gambit flank morris crown go river gammon carrom
+  columbiad drift landfall orrery settle topple ingot
+  almanac manifest `.split(/\s+/).filter(Boolean).map(n => n + ".html"));
 
 const pages = fs.readdirSync(root).filter(f => f.endsWith(".html")).sort();
 const withHeader = [], notFull = [], broken = [], unlisted = [], wrong = [], noTitle = [], stale = [];
@@ -65,5 +65,5 @@ check(/classList\.contains\("titled"\)\) return drop\(\)/.test(menu) && /"Back t
 // Korbi, 7 Nov 2026: on a titled page the name is Back to the games as well as the logo (both are #appsBtn, so the name must take taps)
 const titledRule = css.split("\n").filter(l => /#app\.full\.titled > \.top[^{]*\.mark-btn/.test(l)).join(" ");
 check(titledRule && !/pointer-events:\s*none/.test(titledRule), "a titled page's name takes taps (Back to the games), like its logo");
-check(withHeader.length >= 90, `the pages with a header (${withHeader.length})`);
+check(withHeader.length >= 60, `the pages with a header (${withHeader.length})`);
 process.exit(bad ? 1 : 0);
