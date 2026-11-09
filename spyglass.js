@@ -77,8 +77,8 @@ function outlineSource(name) {
   x.fill("evenodd"); x.stroke();
   return { img: c, w: 640, h: 427 };
 }
-/** The picture as the look has it: greyscale, or ink (black or white by brightness, so only the shapes are left). A picture the browser won't let
- *  us read (a painting from another site without permission) stays as it is. */
+/** A flag or an outline as the look has it: greyscale, or ink (black or white by brightness, so only the shapes are left). Paintings keep their
+ *  colour (Korbi, 9 Nov 2026): in ink a painting is a smudge. */
 function looked(src) {
   const look = read(LOOK, "colour");
   if (!src || look === "colour") return src;
@@ -99,17 +99,17 @@ async function sourceFor(it) {
   if (it.kind === "outline") return looked(outlineSource(it.name));
   const urls = await pictureUrls(it.pic, 960);
   if (!urls) return null;
-  for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return looked({ img, w: img.naturalWidth, h: img.naturalHeight }); } catch { /* try the original */ } }
+  for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return { img, w: img.naturalWidth, h: img.naturalHeight }; } catch { /* try the original */ } }
   return null;
 }
 
 /** Starts the open picture: fetches it, builds the answers, and lets the clock run once there is something to see. */
 async function begin() {
   const me = ++token;
-  phase = "loading"; source = null;
+  phase = "loading"; source = null; unveil = 0;
   $("caption").hidden = true; $("passBtn").hidden = false; $("nextBtn").hidden = true;
   render();
-  if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; source = await sourceFor(item()); if (me === token) { showCaption(); render(); } return; }
+  if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; source = await sourceFor(item()); if (me === token) { showCaption(); render(); } return; }
   const done = busy("", { delay: 350 });
   try { source = await sourceFor(item()); } finally { done(); }
   if (me !== token) return;
@@ -127,14 +127,24 @@ let size = [1, 1];
 function resize() {
   const dpr = Math.min(2, devicePixelRatio || 1), inner = [box.clientWidth, box.clientHeight];
   if (inner[0] < 2 || inner[1] < 2) return;
+  brass = getComputedStyle(box).getPropertyValue("--brass").trim() || brass;
   canvas.width = Math.round(inner[0] * dpr); canvas.height = Math.round(inner[1] * dpr); size = [canvas.width, canvas.height];
 }
 /** The picture through the lens now: the crop for the zoom, drawn at the blur's resolution and stretched to the glass. */
 function draw() {
-  if (!S || S.over) return;
+  if (!S) return;                                   // also once the run is over: the last picture's reveal plays out, and a resize clears the canvas (Korbi, 9 Nov 2026: the last screen was sometimes empty)
   const ctx = canvas.getContext("2d"), [cw, ch] = size;
   ctx.fillStyle = "#141A1F"; ctx.fillRect(0, 0, cw, ch);
   if (!source || phase === "loading") return;
+  // a round window while you look, like a spyglass's; the answer opens it out to the whole rectangle (Korbi, 9 Nov 2026)
+  const t = 1 - (1 - unveil) ** 3, r0 = Math.min(cw, ch) * 0.47, R = r0 + (Math.hypot(cw, ch) / 2 - r0) * t;
+  ctx.save(); ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2); ctx.clip();
+  paint(ctx, cw, ch);
+  ctx.restore();
+  if (unveil < 1) { ctx.lineWidth = Math.max(3, Math.min(cw, ch) * 0.018); ctx.strokeStyle = brass; ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(cw / 2, ch / 2, R, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+}
+/** The picture through the glass: the part of it in view for the moment's zoom and blur. */
+function paint(ctx, cw, ch) {
   const { res, zoom } = focus(u()), a = cw / ch, W0 = Math.max(source.w, source.h * a), H0 = W0 / a, it = item();
   const W = W0 * zoom, H = H0 * zoom;
   const cx = Math.max(W / 2 - (W0 - source.w) / 2, Math.min(source.w - W / 2 + (W0 - source.w) / 2, zoom < 1 ? it.cx * source.w : source.w / 2));
@@ -153,16 +163,18 @@ function draw() {
   lc.drawImage(source.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx / cw * lw, dy / ch * lh, dw / cw * lw, dh / ch * lh);
   ctx.drawImage(low, 0, 0, lw, lh, 0, 0, cw, ch);
 }
-let last = 0, savedAt = 0;
+let last = 0, savedAt = 0, unveil = 0;              // unveil: how far the answer has opened the round window (0 round, 1 the whole rectangle)
+let brass = "#C99B45";
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - last) / 1000); last = now;
-  if (!S || S.over) return;
-  if (phase === "look" && !isPaused() && document.visibilityState === "visible") {
+  if (!S) return;
+  if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
     S.elapsed += dt;
     if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
     $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(u(), S.wrong) }));
   } else if (phase === "shown" && reveal.at < 1) reveal.at = Math.min(1, reveal.at + dt / 0.8);
+  if (phase === "shown") unveil = Math.min(1, unveil + dt / 0.6);
   draw();
 }
 
@@ -263,7 +275,7 @@ function openMenu() {
     app: "spyglass", done: got != null, result: got != null ? `${got} of ${ROUNDS * FULL}` : "",
     play: () => { $("menuDlg").close(); newRun(true); }, playing: !!S?.daily && S.day === today() && !S.over, busy: !!S && !S.over && S.index > 0,
   });
-  part(body, "content").append(choice("Pictures", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
+  part(body, "content").append(choice("Flags and outlines", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
     line("Black and white takes the colour out; Ink leaves only light and dark, so a flag is told by its shapes. From the next picture."));
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
