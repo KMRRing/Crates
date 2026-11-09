@@ -46,6 +46,7 @@ export function choiceMark(bank, q) {
 }
 /** A Quote estimate: its audience, its category, and the entity it is about. */
 export function estimateMark(q) {
+  if (ITEM_MARK[q.id]) return ITEM_MARK[q.id];
   const ent = q.about ? ENTITY[q.about] ?? "s" : "u", cat = QUOTE_CAT[q.cat];
   const m = worst(AUDIENCE_MARK[q.audience] ?? "s", cat, ent);
   // a theme entity's estimate is theme however specialist its audience, unless its category is trade or markets

@@ -158,6 +158,7 @@ export const TOPICS = Object.entries(CATS);
 const every = w => Object.fromEntries(TOPICS.map(([id]) => [id, w]));
 export const TOPIC_PRESETS = {
   balanced: { label: "Balanced", topics: every(1) },
+  trader: { label: "Trader", topics: { ...every(1), trade: 2, markets: 2, refining: 2 } },
   culture: { label: "Culture night", topics: { ...every(1), art: 2, wine: 2, people: 2, cities: 2 } },
 };
 /** The preset a mix is (its id), or "custom". */

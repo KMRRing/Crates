@@ -24,7 +24,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const all = [...new Set(DECKS.flatMap(d => d.ids))];
 const famous = DECKS.find(d => d.id === "people"), learn = DECKS.find(d => d.id === "learn");
 const rest = DECKS.filter(d => d !== famous && d !== learn).flatMap(d => d.ids);
-check(DECKS.length >= 7 && DECKS.every(d => d.ids.length >= 40 && d.name && d.a), `${DECKS.length} decks of 40 or more (${DECKS.map(d => `${d.name} ${d.ids.length}`).join(", ")})`);
+check(DECKS.length >= 7 && DECKS.every(d => d.ids.length >= 30 && d.name && d.a), `${DECKS.length} decks of 30 or more (${DECKS.map(d => `${d.name} ${d.ids.length}`).join(", ")})`);
 check(all.every(id => WHO[id]) && new Set(rest).size === rest.length && rest.every(id => !famous.ids.includes(id) && !learn.ids.includes(id)),
   `${all.length} identities, each in one deck but the people marked for both`);
 

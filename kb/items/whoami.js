@@ -14,6 +14,14 @@ export const DECKS = [
   },
   { id: "countries", name: "Countries", a: "a country", sets: ["country"] },
   { id: "cities", name: "Cities", a: "a city", sets: ["city"] },
+  {
+    id: "food", name: "Food and drink", a: "something to eat or drink",
+    ids: ["sushi","pizza","kimchi","croissant","paella","curry","chocolate","hamburger","fries","baguette","tacos","churros","pretzel","fish-and-chips","fondue","kebab","caviar","bagels","tofu","ice-cream","maple-syrup","champagne","tequila","sake","guinness","espresso","scotch-whisky","vodka","rum","beer","earl-grey","mojito","matcha","latte"],
+  },
+  {
+    id: "brands", name: "Brands", a: "a company or a brand",
+    ids: ["tesla","coca-cola","rolex","toyota","samsung","starbucks","nestle","lindt","adidas","puma","heineken","red-bull","shell","volkswagen","lego","ikea","apple","google","nike","mcdonald-s","disney","ferrari","bmw","nintendo","airbus","boeing","microsoft","porsche","zara","aramco","walmart"],
+  },
   { id: "commodities", name: "Commodities", a: "a commodity", sets: ["commodity"] },
   { id: "paintings", name: "Paintings", a: "a painting", sets: ["painting"] },
 ];

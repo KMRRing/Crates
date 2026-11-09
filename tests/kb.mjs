@@ -14,7 +14,7 @@ const { ESTIMATES } = await import("../kb/items/estimates.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const E = new Map(ENTITIES.map(e => [e.id, e]));
-const CHOICE = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "sayings"];
+const CHOICE = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "lit", "sayings", "law"];
 
 // the banks as the personal build writes them (everything kb/ holds): the checks of what kb/ knows read these, since the
 // published banks hold only the universal part (docs/the-knowledge-base.md, "Who the games ask about")
@@ -116,7 +116,7 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
   const strays = Object.keys(AUDIENCE).filter(id => !E.has(id) || ![2, 3].includes(AUDIENCE[id]));
   check(!strays.length, `the review of the questions the build writes names entities that exist${strays.length ? `: ${strays.slice(0, 5)}` : ""}`);
 }
-const floor = { entities: 3596, clue: 1154, pins: 539, features: 172, estimates: 349 };
+const floor = { entities: 4202, clue: 1154, pins: 539, features: 172, estimates: 435 };
 const now = { entities: ENTITIES.length, clue: LINKS.filter(l => l.rel === "clue").length, pins: PINS.length, features: FEATURES.length, estimates: ESTIMATES.length };
 check(Object.entries(floor).every(([k, v]) => now[k] >= v), `nothing lost since the cut to the public version: ${Object.entries(now).map(([k, v]) => `${v} ${k}`).join(", ")}`);
 console.log(bad ? `${bad} problems` : "all checks pass");

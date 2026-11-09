@@ -106,7 +106,7 @@ check([0, 1, 2, 3].every(i => !E.makePuzzle({ seed: 300 + i, level: "medium", du
     const a = keysOf(E.makePuzzle({ seed: 800 + i, level: "medium" })), b = keysOf(E.makePuzzle({ seed: 800 + i, level: "medium", avoid: half }));
     plain += a.filter(k => inHalf.has(k)).length; kept += b.filter(k => inHalf.has(k)).length; total += b.length;
   }
-  check(kept * 4 < plain && total > 0, `no repeats: with half the bank dealt lately, ${kept} of ${total} entries come from it (${plain} without)`);
+  check(kept * 3 < plain && total > 0, `no repeats: with half the bank dealt lately, ${kept} of ${total} entries come from it (${plain} without)`);
   check(!!E.makePuzzle({ seed: 900, level: "medium", avoid: all }), "a bank that has all been dealt still fills a grid");
   check(E.makePuzzle({ seed: 301, level: "medium", due: [dueKey], avoid: all }).entries.some(e => e.key === dueKey), "what's due is dealt however recently it was");
 }

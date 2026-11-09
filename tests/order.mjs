@@ -98,7 +98,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
 {
   const cat = id => BY_ID.get(id).cat, cards = run => [run.line[0].id, ...run.deck];
   const balanced = TOPIC_PRESETS.balanced.topics, none = Object.fromEntries(TOPICS.map(([id]) => [id, 0]));
-  check(topicsIn("dates").map(([id]) => id).join() === "wine,art,people" && topicsIn("quantities").length === TOPICS.length && !topicsIn("stories").length,
+  check(topicsIn("dates").map(([id]) => id).join() === "trade,wine,art,people,markets" && topicsIn("quantities").length === TOPICS.length && !topicsIn("stories").length,
     "each mode's topics: the categories its cards are in (none for the stories)");
   check([11, 12, 13].every(seed => same(dealRun("dates", seed), dealRun("dates", seed, balanced)) && same(dealRun("quantities", seed), dealRun("quantities", seed, balanced))),
     "every topic in deals a run as it always was, so today's run is the same whatever anyone's mix");
