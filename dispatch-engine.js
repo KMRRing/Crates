@@ -22,13 +22,14 @@ function shuffle(list, rand) { const a = list.slice(); for (let i = a.length - 1
 /**
  * The day's meetings, in the order of their years. A pivot meeting is picked; the rest are drawn near it (the same region,
  * then the nearest years) the harder the level, and spread out over the bank at the easiest. No two share a place or a
- * person (the bank has no repeated person already).
+ * person (the bank has no repeated person already). Easy leaves out the little-known (fame 3).
  */
 export function dealDay(level, rand = Math.random) {
   const { n } = LEVELS[level] || LEVELS.medium, near = level === "hard" ? 1 : level === "medium" ? .5 : 0;
-  const pivot = pick(MEETINGS, rand), chosen = [pivot], places = new Set([pivot.place]);
+  const bank = level === "easy" ? MEETINGS.filter(x => x.fame < 3) : MEETINGS;      // the first days are of names you have heard
+  const pivot = pick(bank, rand), chosen = [pivot], places = new Set([pivot.place]);
   const rank = x => (x.region === pivot.region ? 0 : 1) * near * 60 + Math.abs(x.year - pivot.year) * near + rand() * (near ? 40 : 1000);
-  for (const x of MEETINGS.filter(x => x !== pivot).sort((a, b) => rank(a) - rank(b))) {
+  for (const x of bank.filter(x => x !== pivot).sort((a, b) => rank(a) - rank(b))) {
     if (chosen.length >= n) break;
     if (places.has(x.place)) continue;
     chosen.push(x); places.add(x.place);

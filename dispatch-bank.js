@@ -6,8 +6,12 @@
 // Rules for an entry (tests/dispatch.mjs): the act is true and datable to that year; the place is where it was done, or where
 // the person is most closely tied to it; `what` is under about fifty-five characters so it fits a slot in the notes; no two
 // entries share a person. Korbi, 9 November 2026: mostly famous people, a few less so, so the names have to be learned.
-// regions: baltic germany italy iberia lowlands britain france asia levant americas
-const m = (who, place, year, region, what, why) => ({ id: who.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, "-").replace(/^-|-$/g, ""), who, place, year, region, what, why });
+// regions: baltic germany italy iberia lowlands britain france asia levant americas africa
+// fame: 1 a name most people know, 3 one few do, 2 the rest. Easy deals no 3s, so the first days are of names you have heard.
+const FAMOUS = new Set("marco-polo christopher-columbus vasco-da-gama ferdinand-magellan martin-luther johannes-gutenberg galileo-galilei johannes-kepler nicolaus-copernicus leonardo-da-vinci niccolo-machiavelli henry-viii elizabeth-i francis-drake mehmed-ii zheng-he charles-v philip-ii henry-the-navigator lorenzo-de-medici francisco-pizarro moctezuma-ii kublai-khan mansa-musa".split(" "));
+const OBSCURE = new Set("francesco-datini eric-of-pomerania aldus-manutius martin-waldseemuller afonso-de-albuquerque bartholomaus-welser jurgen-wullenwever thomas-gresham cornelis-de-houtman willem-barentsz will-adams willem-janszoon john-napier thomas-roe jan-pieterszoon-coen waldemar-iv-atterdag margaret-i albert-of-riga nasir-al-din-al-tusi rabban-bar-sauma johann-wittenborg bertram-wulflam hildebrand-veckinchusen georg-gisze ulugh-beg zara-yaqob oba-ewuare benedetto-cotrugli sonni-ali askia-muhammad the-zamorin-of-calicut afonso-i-of-kongo mahmud-shah-of-malacca piri-reis enrique-of-malacca koxinga nur-jahan nzinga-of-ndongo autshumato albert-iv-of-bavaria andrea-doria leonardo-loredan".split(" "));
+const idOf = who => who.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
+const m = (who, place, year, region, what, why) => { const id = idOf(who); return { id, who, place, year, region, what, why, fame: FAMOUS.has(id) ? 1 : OBSCURE.has(id) ? 3 : 2 }; };
 
 export const MEETINGS = [
   m("Fibonacci", "Pisa", 1202, "italy", "teaches merchants the Hindu-Arabic numerals", "His Liber Abaci made decimal arithmetic usable for trade accounts and exchange."),
@@ -48,6 +52,7 @@ export const MEETINGS = [
   m("Bartholomäus Welser", "Augsburg", 1528, "germany", "wins Venezuela as security for the Emperor's debts", "The Welser's colony failed, but it shows how far banking houses reached."),
   m("Francisco Pizarro", "Cajamarca", 1532, "americas", "has seized the Inca ruler Atahualpa", "The Inca ransom of gold and silver began Spain's plunder of the Andes."),
   m("Jürgen Wullenwever", "Lübeck", 1533, "baltic", "tries to break Dutch trade in the Baltic", "His Count's Feud failed and cost Lübeck much of its Baltic lead."),
+  m("Georg Gisze", "London", 1532, "britain", "sits for Holbein, a Hanseatic merchant at the Steelyard", "The Steelyard was the Hansa's London depot; the portrait shows his ledgers, letters and scales."),
   m("Hans Holbein the Younger", "London", 1533, "britain", "paints The Ambassadors", "The double portrait shows the instruments and books of a learned court."),
   m("Henry VIII", "London", 1534, "britain", "declares himself head of the English church", "The Act of Supremacy took England out of the papal church."),
   m("Jacques Cartier", "Gaspé", 1534, "americas", "plants a cross claiming the land for France", "His voyages opened the St Lawrence to French fur traders."),
@@ -80,6 +85,45 @@ export const MEETINGS = [
   m("Jan van Riebeeck", "Table Bay", 1652, "asia", "founds a VOC supply station at the Cape", "The post to feed passing ships grew into Cape Town and a colony."),
   m("Christiaan Huygens", "The Hague", 1656, "lowlands", "builds the first pendulum clock", "The pendulum made clocks accurate enough for science, though not yet for finding longitude at sea."),
   m("Antonie van Leeuwenhoek", "Delft", 1676, "lowlands", "sees tiny living creatures through a single lens", "The cloth merchant turned microscopist described bacteria for the first time."),
+  // The wider world (Korbi, 9 Nov 2026: a second cast, to make the Hansa and Europe one limb of the picture). Africa, the Indian
+  // Ocean and Asia, interpreters and go-betweens as well as rulers; the Hansa's own merchants and mayors by name.
+  m("Albert of Riga", "Riga", 1201, "baltic", "founds Riga as a base for the Baltic crusade", "Riga became a Hanseatic city and the gateway to Livonia's trade."),
+  m("Sundiata Keita", "Kirina", 1235, "africa", "defeats Sumanguru and founds the Mali Empire", "Mali's gold made it one of the richest states of its age; griots, its oral historians, kept the story."),
+  m("Nasir al-Din al-Tusi", "Maragha", 1259, "levant", "founds the Maragha observatory for the Mongol Ilkhan", "His Tusi couple, a device for planetary motion, later turns up in Copernicus's models."),
+  m("Kublai Khan", "Shangdu", 1260, "asia", "is proclaimed Great Khan", "He completed the conquest of China and made paper money the realm's currency."),
+  m("Rabban Bar Sauma", "Paris", 1287, "france", "carries the Mongol Ilkhan's plea for a crusader alliance", "The Chinese-born Nestorian monk met Philip IV, Edward I and the pope."),
+  m("Mansa Musa", "Cairo", 1324, "africa", "spends so much gold that its price falls", "His pilgrimage showed Mali's wealth to the Mediterranean world."),
+  m("Johann Wittenborg", "Helsingborg", 1362, "baltic", "loses a dozen Hanseatic ships off the town", "Lübeck's mayor and fleet commander was beheaded in 1363 for the defeat."),
+  m("Bertram Wulflam", "Stralsund", 1370, "baltic", "helps seal the peace with Denmark", "The Treaty of Stralsund gave the Hansa trading rights in Denmark and pawned parts of Scania to it for 15 years."),
+  m("Hildebrand Veckinchusen", "Bruges", 1409, "lowlands", "runs his Hanse trade by letter from Bruges", "About 600 letters and twelve account books survive in Tallinn, on UNESCO's Memory of the World list."),
+  m("Ulugh Beg", "Samarkand", 1437, "asia", "completes a catalogue of over a thousand stars", "The Timurid ruler's observatory produced the most accurate star tables of its time."),
+  m("Zara Yaqob", "Axum", 1436, "africa", "is crowned emperor of Ethiopia", "He reformed the church and tightened the emperor's hold on the Christian highlands."),
+  m("Oba Ewuare", "Benin City", 1440, "africa", "begins making Benin a walled, ordered capital", "Benin's brass casters and ivory carvers later impressed the Portuguese."),
+  m("Sejong the Great", "Hanyang", 1443, "asia", "has the Korean alphabet, hangul, devised", "Hangul was designed so ordinary people could learn to read quickly."),
+  m("Benedetto Cotrugli", "Naples", 1458, "italy", "writes a handbook for the perfect merchant", "It is the earliest known account of double-entry bookkeeping, a generation before Pacioli."),
+  m("Sonni Ali", "Timbuktu", 1468, "africa", "takes the city for the Songhai", "Songhai grew into the largest empire in the history of West Africa."),
+  m("Askia Muhammad", "Gao", 1493, "africa", "seizes the throne of Songhai", "He reorganised the state and made the pilgrimage to Mecca in 1496-97."),
+  m("The Zamorin of Calicut", "Calicut", 1498, "asia", "receives da Gama and is unimpressed by his gifts", "Calicut was the pepper port where Arab, Gujarati and Chinese merchants traded."),
+  m("Albert IV of Bavaria", "Munich", 1506, "germany", "decrees that Bavaria passes undivided to one heir", "It ended the Wittelsbach habit of splitting the duchy among sons."),
+  m("Afonso I of Kongo", "Mbanza Kongo", 1526, "africa", "begs Portugal's king to stop the slave raiding", "He ran a literate Christian court; the slave trade was eating away his kingdom."),
+  m("Leonardo Loredan", "Venice", 1509, "italy", "holds Venice together after Agnadello", "The doge kept the republic's nerve after a crushing defeat by the League of Cambrai."),
+  m("Mahmud Shah of Malacca", "Malacca", 1511, "asia", "loses the spice port to Portugal", "Malacca had been the great entrepôt of Southeast Asia; its fall shifted the trade to other ports."),
+  m("Piri Reis", "Gelibolu", 1513, "levant", "draws a world map using Columbus's charts", "Only part survives; he later wrote a sailing manual of the Mediterranean."),
+  m("Malintzin", "Tabasco", 1519, "americas", "is given to Cortés and becomes his interpreter", "Fluent in Maya and Nahuatl, she was central to Cortés's dealings with the Aztec court."),
+  m("Enrique of Malacca", "Cebu", 1521, "asia", "interprets for Magellan in the Philippines", "A Malay captive bought in 1511; some historians say he was the first to circle the globe, which is disputed."),
+  m("Lapu-Lapu", "Mactan", 1521, "asia", "defeats Magellan, who is killed in the fight", "The chief of Mactan resisted Spanish demands to submit."),
+  m("Andrea Doria", "Genoa", 1528, "italy", "takes Genoa into the Habsburg camp", "The admiral reformed the city's government and tied its bankers to Charles V."),
+  m("Babur", "Panipat", 1526, "asia", "defeats the sultan of Delhi with guns", "He founded the Mughal empire and wrote the Baburnama, a memoir."),
+  m("Akbar", "Agra", 1564, "asia", "abolishes the tax on non-Muslims", "He built the Mughal state on a land-revenue system and on religious tolerance."),
+  m("Tokugawa Ieyasu", "Fushimi", 1603, "asia", "is appointed shogun", "His family ruled Japan for 265 years."),
+  m("Nur Jahan", "Agra", 1611, "asia", "marries the emperor Jahangir", "She had coins struck in her name and ran much of the court's business."),
+  m("Nzinga of Ndongo", "Luanda", 1622, "africa", "negotiates with the Portuguese governor as an equal", "She later fought Portugal in alliance with the Dutch and built a state in Matamba."),
+  m("Autshumato", "Table Bay", 1652, "africa", "interprets for the Dutch at the Cape", "The Khoikhoi leader had kept a letter post for passing English ships and was later held on Robben Island."),
+  m("Kangxi Emperor", "Beijing", 1661, "asia", "becomes emperor at seven", "His long reign consolidated the Qing and took in Jesuit astronomers."),
+  m("Koxinga", "Fort Zeelandia", 1662, "asia", "forces the Dutch out of Taiwan", "The Ming loyalist's regime on Taiwan outlasted him by two decades."),
+  m("Shivaji", "Raigad", 1674, "asia", "is crowned head of the Maratha state", "He built a state out of hill forts and a navy against the Mughals."),
+  m("Robert the Bruce", "Arbroath", 1320, "britain", "stands behind the Declaration of Arbroath to the pope", "It argued for Scotland's independence and is often cited as an early statement of popular sovereignty."),
+  m("Klaus Störtebeker", "Hamburg", 1401, "baltic", "is beheaded after the Hansa crushes his pirates", "The Victual Brothers had raided Baltic shipping; his fate is Hanse legend."),
 ];
 
 export const REGIONS = [...new Set(MEETINGS.map(x => x.region))];

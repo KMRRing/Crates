@@ -5,13 +5,15 @@ let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log("FAIL", what); } else console.log("ok  ", what); };
 
 // ---- the bank
-check(MEETINGS.length >= 60, `the bank holds ${MEETINGS.length} meetings`);
+check(MEETINGS.length >= 100, `the bank holds ${MEETINGS.length} meetings`);
 check(new Set(MEETINGS.map(x => x.id)).size === MEETINGS.length, "ids are unique, so no person appears twice");
 check(MEETINGS.every(x => x.who && x.place && x.what && x.why && x.region && Number.isInteger(x.year)), "every meeting is complete");
 check(MEETINGS.every(x => x.year >= 1200 && x.year <= 1700), "every year is inside the age of the Hansa to the late age of exploration");
 check(MEETINGS.every(x => x.what.length <= 56 && x.why.length <= 140), "the clauses and reasons are short enough for a phone");
 check(MEETINGS.every(x => /^[a-z]/.test(x.what) && !/[.!]$/.test(x.what)), "a clause follows the name: lower case, no full stop");
 check(MEETINGS.every(x => !x.what.includes(x.who.split(" ")[0]) || x.who.split(" ")[0].length < 4), "a clause doesn't repeat the name it follows");
+check(MEETINGS.every(x => [1, 2, 3].includes(x.fame)) && MEETINGS.filter(x => x.fame === 1).length >= 20 && MEETINGS.filter(x => x.fame === 3).length >= 20, "every meeting has a fame, with at least twenty of the best known and twenty of the least");
+check(["africa", "asia", "americas"].every(r => MEETINGS.filter(x => x.region === r).length >= 5), "the wider world has five meetings or more in each region");
 check(REGIONS.length >= 8, "regions are tagged for confusion at the hard level");
 
 // ---- dealing
@@ -19,6 +21,7 @@ for (const level of LEVEL_IDS) {
   const days = Array.from({ length: 80 }, (_, i) => dealDay(level, rng(i + 1)));
   check(days.every(d => d.length === LEVELS[level].n), `${level}: a day has ${LEVELS[level].n} meetings`);
   check(days.every(d => new Set(d.map(id => meetingOf(id).place)).size === d.length && new Set(d).size === d.length), `${level}: no two meetings of a day share a place or a person`);
+  if (level === "easy") check(days.every(d => d.every(id => meetingOf(id).fame < 3)), "easy: no little-known names");
   check(days.every(d => d.every((id, i) => !i || meetingOf(d[i - 1]).year <= meetingOf(id).year)), `${level}: a day runs in the order of its years`);
 }
 const sameRegion = level => { let n = 0, t = 0; for (let i = 0; i < 80; i++) { const d = dealDay(level, rng(i + 1)).map(meetingOf), top = Math.max(...REGIONS.map(r => d.filter(x => x.region === r).length)); n += top; t += d.length; } return n / t; };
