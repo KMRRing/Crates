@@ -76,3 +76,9 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
   .sw-tools { grid-row: 6; }
   .sw-bar { grid-row: 7; }
 }
+
+.sw-hint { margin: 0 0 .4rem; padding: .4rem .5rem; border: 1px solid var(--sw-hint); border-radius: 4px; background: color-mix(in srgb, var(--sw-hint) 14%, transparent); font-size: .86rem; line-height: 1.3; display: grid; gap: .35rem; }
+.sw-hint p { margin: 0; }
+.sw-hint .btn { justify-self: start; min-height: 2rem; padding: 0 .7rem; font-size: .8rem; }
+.sw-sq.hint { outline: 3px solid var(--sw-hint); outline-offset: -3px; }
+.sw-bar .btn { min-width: 0; }

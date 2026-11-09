@@ -52,8 +52,8 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
   const corners = n ? [0, n].flatMap(x => [0, n].flatMap(y => [0, n].map(z => [x, y, z]))) : cubes.flatMap(c => [0, 1].flatMap(a => [0, 1].flatMap(b => [0, 1].map(d => [c.x + a, c.y + b, c.z + d]))));
   for (const c of corners) { const p = at(...c); pts.push(p); lo[0] = Math.min(lo[0], p[0]); hi[0] = Math.max(hi[0], p[0]); lo[1] = Math.min(lo[1], p[1]); hi[1] = Math.max(hi[1], p[1]); }
   if (!pts.length) return [];
-  const s = Math.min((W - 2 * margin) / Math.max(hi[0] - lo[0], 0.001), (H - 2 * margin) / Math.max(hi[1] - lo[1], 0.001));
-  const ox = W / 2 - s * (lo[0] + hi[0]) / 2, oy = H / 2 + s * (lo[1] + hi[1]) / 2;
+  const s = Math.min((W - 2 * margin) / Math.max(hi[0] - lo[0], 0.001), (H - 2 * margin) / Math.max(hi[1] - lo[1], 0.001)) * (pose_.zoom || 1);
+  const ox = W / 2 - s * (lo[0] + hi[0]) / 2 + (pose_.px || 0), oy = H / 2 + s * (lo[1] + hi[1]) / 2 + (pose_.py || 0);
   const sx = p => ox + s * p[0], sy = p => oy - s * p[1];
   const poly = (list, fill, stroke, alpha = 1) => {
     g.beginPath();
@@ -73,10 +73,17 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
       g.beginPath(); g.moveTo(sx(p), sy(p)); g.lineTo(sx(q), sy(q)); g.stroke();
     }
   }
-  const hits = [];
+  const hits = [], here = new Set(cubes.map(c => `${c.x},${c.y},${c.z}`)), faded = [];
   const order = cubes.map(c => ({ c, d: at(c.x + 0.5, c.y + 0.5, c.z + 0.5)[2] })).sort((a, b) => b.d - a.d);
+  // a number is written on every face of its cube that you can see; a cube with no such face (inside, or round the back) shows it
+  // faintly through the others, drawn last
+  const write = (c, x, y, size, alpha) => {
+    g.globalAlpha = alpha; g.font = `700 ${Math.max(9, Math.round(size))}px system-ui, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,.85)"; g.strokeText(String(c.label), x, y);
+    g.fillStyle = "#1C2A34"; g.fillText(String(c.label), x, y); g.globalAlpha = 1;
+  };
   for (const { c } of order) {
-    let front = null;
+    let shown = false;
     for (const f of FACES) {
       const t = turn(P, ...f.n);
       if (t[2] >= -1e-6) continue;                  // facing away
@@ -85,15 +92,14 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
       const quad = f.q.map(o => at(c.x + o[0], c.y + o[1], c.z + o[2]));
       poly(quad, col, c.edge || edgeColor, c.alpha ?? 1);
       hits.push({ cube: c, axis: f.n.findIndex(v => v !== 0), poly: quad.map(p => [sx(p), sy(p)]) });
-      if (!front || t[2] < front.d) front = { d: t[2], quad };
+      if (c.label != null && !here.has(`${c.x + f.n[0]},${c.y + f.n[1]},${c.z + f.n[2]}`)) {
+        shown = true;
+        write(c, quad.reduce((a, p) => a + sx(p), 0) / 4, quad.reduce((a, p) => a + sy(p), 0) / 4, s * 0.5 * Math.max(0.6, Math.sqrt(-t[2])), 1);
+      }
     }
-    if (c.label != null && front) {                 // a number on the face turned most toward you
-      const mx = front.quad.reduce((a, p) => a + sx(p), 0) / 4, my = front.quad.reduce((a, p) => a + sy(p), 0) / 4;
-      g.font = `700 ${Math.max(10, Math.round(s * 0.5))}px system-ui, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
-      g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,.85)"; g.strokeText(String(c.label), mx, my);
-      g.fillStyle = "#1C2A34"; g.fillText(String(c.label), mx, my);
-    }
+    if (c.label != null && !shown) { const m = at(c.x + 0.5, c.y + 0.5, c.z + 0.5); faded.push([c, sx(m), sy(m)]); }
   }
+  for (const [c, x, y] of faded) write(c, x, y, s * 0.42, 0.42);
   return hits;
 }
 /** The face under a point (canvas pixels): the last of `hits` that holds it, or null. */

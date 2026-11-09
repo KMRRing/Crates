@@ -27,5 +27,22 @@ for (const lv of R.LEVELS) {
   check(R.reach(n, "chisel", 2, c).length === 1 && R.reach(n, "bore", 0, c).length === 3 && R.reach(n, "saw", 2, c).length === 9, "tools: chisel one, bore three, saw nine");
   check(R.reach(n, "saw", 2, c).every(k => R.xyz(n, k)[2] === 1) && R.reach(n, "bore", 0, c).every(k => R.xyz(n, k)[1] === 1 && R.xyz(n, k)[2] === 1), "tools: the saw keeps its height, the bore its row");
 }
+// hints: following them from a bare block reaches the answer; a wrong piece is named first
+for (const lv of R.LEVELS) {
+  const paint = new Uint8Array(lv.n ** 3).fill(0); let steps = 0, ok = true, texts = [];
+  for (; steps < 20; steps++) {
+    const h = R.hint(lv, paint);
+    if (!h) break;
+    if (!h.paint || !h.text) { ok = false; break; }
+    texts.push(h.text);
+    const colour = (steps % 9) + 1; for (const c of h.paint) paint[c] = colour;
+  }
+  check(ok && steps > 0 && R.judge(lv, paint).done, `${lv.id}: following the hints cuts the block in ${steps} steps`);
+  check(texts.every(t => /says|No number/.test(t)), `${lv.id}: every hint says which clue it uses`);
+  console.log("     " + texts.join("\n     "));
+  const wrong = new Uint8Array(lv.n ** 3); wrong[0] = 1; wrong[1] = 1; wrong[2] = 1;    // three cubes in a row that are no piece of the answer
+  const h = R.hint(lv, wrong);
+  check(h && /wrong/.test(h.text) && !h.paint, `${lv.id}: a wrong piece is named before anything else (${h?.text})`);
+}
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log("all ok");

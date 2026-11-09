@@ -2,7 +2,7 @@
 // a census of the kinds of piece. You paint pieces, a colour each, with a chisel (one cube), a saw (a whole layer) or a bore (a whole
 // line); the block is done when every clue holds. The rules are slipway-rules.js's, the drawing slipway-view.js's; this file keeps the
 // run and builds the page.
-import { LEVELS, KIND_NAMES, KIND_NOTES, judge, reach, at, xyz } from "./slipway-rules.js";
+import { LEVELS, KIND_NAMES, KIND_NOTES, judge, reach, hint as nextStep, at, xyz } from "./slipway-rules.js";
 import { drawCubes, faceAt, REST, PITCH } from "./slipway-view.js";
 import { setSound, sound } from "./slipway-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -30,6 +30,7 @@ let S = read(RUN, null);
 if (S && (S.v !== 4 || !LEVELS.some(l => l.id === S.level))) S = null;   // (the cut-list game's run is left behind)
 const save = () => write(RUN, S);
 let level = null;
+let hint = null;                                   // the step a hint pointed at: { cells, text, paint }, until the next paint
 let colour = 1, tool = "chisel", undo = [], view3d = true, layer = 0;
 const N = () => level.n;
 const paint = () => Uint8Array.from(S.paint, c => +c);
@@ -43,7 +44,7 @@ function newRun(id = LEVELS[0].id) {
 }
 function begin() {
   level = LEVELS.find(l => l.id === S.level);
-  undo = []; colour = 1; layer = 0; view3d = true;
+  undo = []; hint = null; colour = 1; layer = 0; view3d = true;
   buildPalette(); buildLayers(); buildRules();
   render();
 }
@@ -56,19 +57,36 @@ function put(axis, k) {
   // painting again over a cut that is already this colour takes it off
   const wipe = cells.every(c => now[c] === colour);
   for (const c of cells) now[c] = wipe ? 0 : colour;
-  keep(now);
+  keep(now); hint = null;
   sound(wipe ? "undo" : "tap");
   save(); render();
   if (judge(level, paint()).done) finish();
 }
 function undoLast() {
   if (S.done || !undo.length) return;
-  S.paint = undo.pop(); sound("undo"); save(); render();
+  S.paint = undo.pop(); hint = null; sound("undo"); save(); render();
 }
 async function clearAll() {
   if (S.done || !/[1-9]/.test(S.paint)) return;
   if (!(await sure("Wipe all the colours?"))) return;
-  undo.push(S.paint); S.paint = "0".repeat(N() ** 3); save(); render();
+  undo.push(S.paint); S.paint = "0".repeat(N() ** 3); hint = null; save(); render();
+}
+
+/** Points at the next step that can be worked out, and says why. */
+function showHint() {
+  if (!S || S.done) return;
+  const h = nextStep(level, paint());
+  if (!h) return;
+  hint = h; sound("tap"); render();
+}
+/** Paints the piece a hint pointed at, in the first colour that is not in use (or the chosen one when none is free). */
+function takeHint() {
+  if (!hint?.paint) return;
+  const now = paint(), used = new Set(now), pen = [...Array(pieces()).keys()].map(i => i + 1).find(c => !used.has(c)) || colour;
+  undo.push(S.paint);
+  for (const c of hint.paint) now[c] = pen;
+  colour = pen; keep(now); hint = null; sound("tap"); save(); render();
+  if (judge(level, paint()).done) finish();
 }
 
 // ---------- the end ----------
@@ -118,6 +136,7 @@ function cubesOf(marks = true) {
     const [x, y, z] = xyz(n, k), c = { x, y, z, color: now[k] ? COLOURS[now[k] - 1] : BARE };
     if (level.gauge[k] != null) c.label = level.gauge[k];
     if (bad.has(k)) c.edge = "rgba(168,56,43,1)";
+    if (marks && hint?.cells.includes(k)) { c.edge = "rgba(31,143,138,1)"; if (!now[k]) c.color = [150, 214, 208]; }
     out.push(c);
   }
   return out;
@@ -171,22 +190,44 @@ function render() {
   for (const b of $("grid").children) {
     const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer), v = now[k];
     b.style.background = rgb(v ? COLOURS[v - 1] : BARE);
-    b.className = `sw-sq${bad.has(k) ? " slip" : ""}`;
+    b.className = `sw-sq${bad.has(k) ? " slip" : ""}${hint?.cells.includes(k) ? " hint" : ""}`;
     b.firstChild.textContent = level.gauge[k] ?? "";
     b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${level.gauge[k] != null ? `, number ${level.gauge[k]}` : ""}${v ? `, piece ${v}` : ", bare"}`);
   }
   drawCensus(j);
+  drawHint();
   $("undoBtn").disabled = !undo.length || S.done;
-  $("clearBtn").disabled = S.done;
+  $("clearBtn").disabled = S.done; $("hintBtn").disabled = S.done;
   requestAnimationFrame(drawAll);
+}
+function drawHint() {
+  let box = $("rules").querySelector(".sw-hint");
+  if (!hint) { box?.remove(); return; }
+  if (!box) { box = el("div", "sw-hint"); $("rules").prepend(box); }
+  box.replaceChildren(el("p", "", hint.text));
+  if (hint.paint) { const b = el("button", "btn", "Paint it"); b.type = "button"; b.addEventListener("click", takeHint); box.append(b); }
+  $("rules").scrollTop = 0;
 }
 function drawClock() { $("clock").textContent = clock(Math.round(S.ms / 1000)); }
 
-// ---------- the block by hand: drag to turn, tap a cube to paint ----------
+// ---------- the block by hand: drag to turn, tap a cube to paint, pinch or scroll to zoom (two fingers also slide it) ----------
 let drag = null;
-const cube = $("cube");
-cube.addEventListener("pointerdown", e => { cube.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, moved: 0 }; });
+const cube = $("cube"), fingers = new Map();
+const ZOOM = [0.3, 3];
+const zoomBy = f => { pose.zoom = Math.max(ZOOM[0], Math.min(ZOOM[1], (pose.zoom || 1) * f)); if (pose.zoom <= 1) { pose.px *= 0.8; pose.py *= 0.8; } drawAll(); };
+pose.zoom = 1; pose.px = 0; pose.py = 0;
+cube.addEventListener("wheel", e => { e.preventDefault(); zoomBy(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+cube.addEventListener("pointerdown", e => { cube.setPointerCapture(e.pointerId); fingers.set(e.pointerId, [e.clientX, e.clientY]); drag = fingers.size > 1 ? null : { x: e.clientX, y: e.clientY, moved: 0 }; });
 cube.addEventListener("pointermove", e => {
+  if (fingers.has(e.pointerId) && fingers.size === 2) {
+    const [a, b] = [...fingers.values()], before = Math.hypot(a[0] - b[0], a[1] - b[1]), mid0 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    fingers.set(e.pointerId, [e.clientX, e.clientY]);
+    const [c, d] = [...fingers.values()], after = Math.hypot(c[0] - d[0], c[1] - d[1]);
+    pose.px += (c[0] + d[0]) / 2 - mid0[0]; pose.py += (c[1] + d[1]) / 2 - mid0[1];
+    if (before > 8) zoomBy(after / before); else drawAll();
+    return;
+  }
+  if (fingers.has(e.pointerId)) fingers.set(e.pointerId, [e.clientX, e.clientY]);
   if (!drag) return;
   drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
   pose.yaw += (e.clientX - drag.x) * 0.012;
@@ -195,12 +236,12 @@ cube.addEventListener("pointermove", e => {
   drawAll();
 });
 cube.addEventListener("pointerup", e => {
-  const d = drag; drag = null;
+  const d = drag; drag = null; fingers.delete(e.pointerId);
   if (!d || d.moved > 6 || !S || S.done) return;
   const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
   if (h) put(h.axis, at(N(), h.cube.x, h.cube.y, h.cube.z));
 });
-cube.addEventListener("pointercancel", () => { drag = null; });
+cube.addEventListener("pointercancel", e => { drag = null; fingers.delete(e.pointerId); });
 
 // ---------- time ----------
 let last = performance.now(), savedAt = 0;
@@ -236,6 +277,7 @@ for (const b of document.querySelectorAll(".sw-tool")) b.addEventListener("click
 $("viewBtn").addEventListener("click", () => { view3d = !view3d; render(); });
 $("undoBtn").addEventListener("click", undoLast);
 $("clearBtn").addEventListener("click", clearAll);
+$("hintBtn").addEventListener("click", showHint);
 new ResizeObserver(() => drawAll()).observe($("bench"));
 window.addEventListener("resize", () => drawAll());
 requestAnimationFrame(tick);
@@ -244,4 +286,4 @@ else if (S.done) { begin(); showDone(); }
 else begin();
 
 // for tests and debugging
-window.__slipway = { get state() { return S; }, get level() { return level; }, put, undoLast, newRun, get hits() { return hits; }, setTool: t => { tool = t; render(); }, setColour: c => { colour = c; render(); }, get view3d() { return view3d; } };
+window.__slipway = { get state() { return S; }, showHint, get hint() { return hint; }, get level() { return level; }, put, undoLast, newRun, get hits() { return hits; }, setTool: t => { tool = t; render(); }, setColour: c => { colour = c; render(); }, get view3d() { return view3d; } };
