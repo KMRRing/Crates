@@ -47,6 +47,7 @@ const SPOT_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50"
 
 // A price tag on its string holding a value inside its brackets (the market you make round the truth), a scale along
 // its foot, for Quote.
+const CENSUS_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="93" rx="34" ry="3" fill="#1C2A34" opacity=".22"/><rect x="18" y="12" width="64" height="76" rx="3" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3.2 * var(--wire, 1))" stroke-linejoin="round"/><path d="M30 30h10M30 48h10M30 66h10" stroke="#C8923A" stroke-width="3.2" stroke-linecap="round"/><path d="M48 30h22M48 48h16M48 66h20" stroke="#1C2A34" stroke-width="3" stroke-linecap="round"/></svg>`;
 const QUOTE_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 50C16 36 10 24 6 8" fill="none" stroke="#1C2A34" stroke-width="1.8" stroke-linecap="round"/><g transform="rotate(-16 54 52)"><path d="M32 31H84A6 6 0 0 1 90 37V67A6 6 0 0 1 84 73H32L13 52Z" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3.2 * var(--wire, 1))" stroke-linejoin="round"/><path d="M34 36H83.5A2 2 0 0 1 85.5 38V66A2 2 0 0 1 83.5 68H34L19.5 52Z" fill="none" stroke="#C8923A" stroke-width="1.4" stroke-linejoin="round"/><circle cx="27" cy="52" r="5" fill="#2B3D4A" stroke="#C8923A" stroke-width="2.2"/><path d="M51 40H45V60H51M73 40H79V60H73" fill="none" stroke="#34478F" stroke-width="4.6" stroke-linejoin="miter"/><circle cx="62" cy="50" r="5" fill="#34478F" stroke="#E2B865" stroke-width="1.2"/><path d="M42 67V64.5M46.75 67V64.5M51.5 67V64.5M56.25 67V64.5M61 67V64.5M65.75 67V64.5M70.5 67V64.5M75.25 67V64.5M80 67V64.5" stroke="#C8923A" stroke-width="1.2"/></g></svg>`;
 
 // A slatted crate, a hooped cask and a verdigris chest strapped in brass, piled on the quay, for Manifest.
@@ -365,6 +366,7 @@ const OFFICE_ICONS = {
   cartel: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/><rect class="f" x="7" y="7" width="2.6" height="2.6"/><rect class="f" x="10.7" y="10.7" width="2.6" height="2.6"/><rect class="f" x="14.4" y="14.4" width="2.6" height="2.6"/></svg>`,
   spot: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><rect class="f" x="10.6" y="10.6" width="2.8" height="2.8"/></svg>`,
   quote: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 19V5M3.8 8.2 7 5l3.2 3.2"/><path class="a" d="M17 5v14M13.8 15.8 17 19l3.2-3.2"/></svg>`,
+  census: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="3.5" width="15" height="17"/><path d="M8 8h2M8 12h2M8 16h2"/><path class="a" d="M12.5 8H16M12.5 12H15M12.5 16h3.5"/></svg>`,
   manifest: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.2 14.6V4.6H9.6V12.2"/><path class="a" d="M3.2 15L9.6 4.6"/><path d="M14.1 12C13.4 10.8 13.4 7.2 14.8 4.6H20.6C22 7.2 22 11.4 21.4 14.9"/><path class="a" d="M13.7 8.2H21.6M13.8 11H21.8"/><path d="M2 15.8Q12 9 22 15.8V21.5H2Z"/><path class="a" d="M2 15.8H22"/><rect class="f" x="10.4" y="15" width="3.2" height="4"/></svg>`,
   chart: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><rect class="f" x="10.5" y="8.5" width="3" height="3"/></svg>`,
   harbour: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5h17l-2.5 4h-12z"/><path d="M12 2.8v2.4M12 12.4v3.1"/><path d="M5.4 5.4h13.2q.8 3.5-.2 7H5.6q-1-3.5-.2-7z"/><path class="a" d="M5.6 8.9h12.8"/></svg>`,
@@ -421,6 +423,7 @@ export const APPS = [
   { id: "spot", sec: "minigames", name: "Spot", href: "./spot.html", logo: LOGO("spot", SPOT_LOGO), players: [1, 6] },
   { id: "speedmaths", sec: "minigames", name: "Speed maths", href: "./speedmaths.html", logo: LOGO("speedmaths", SPEEDMATHS_LOGO), players: [1, 6] },
   { id: "quote", sec: "knowledge", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO), players: [1, 6] },
+  { id: "census", sec: "knowledge", name: "Census", href: "./census.html", logo: LOGO("census", CENSUS_LOGO), players: [1, 1] },
   { id: "origin", sec: "knowledge", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO), players: [1, 6] },
   { id: "order", sec: "knowledge", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO), players: [1, 6] },
   { id: "calibre", sec: "appendix", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO), players: [1, 1] },

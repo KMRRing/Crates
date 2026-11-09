@@ -12,6 +12,7 @@ export const ROUNDS = {
   crates: "a board, solved or out of lives",
   punt: "a run, its last bet settled (an endless run, when you end it)",
   quote: "a set, its last quote settled",
+  census: "a set, named in full or out of time",
   origin: "a run of five countries, its last one decided",
   order: "a run, its last card placed or its lives gone",
   chart: "a set, its last pin in",

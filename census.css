@@ -1,0 +1,32 @@
+/* Census: the set's name and question, a line to type in, what has been found so far as little tags, Give up. */
+:root { --ce-in: var(--c1); --ce-good: #2F7D5B; --ce-miss: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --ce-good: #7FC2A8; --ce-miss: #E8806F; } }
+html[data-mode="night"] { --ce-good: #7FC2A8; --ce-miss: #E8806F; }
+
+.ce-mark { display: inline-block; }
+.ce-mark svg { width: 100%; height: 100%; display: block; }
+.census .ce-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .5rem; color: var(--ink-soft); font-size: .86rem; }
+.ce-clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ce-clock.low { color: var(--ce-miss); font-weight: 700; }
+.ce-title { margin: 0; font-size: 1.15rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
+.ce-q { margin: .25rem 0 .6rem; color: var(--ink-soft); font-size: .92rem; line-height: 1.35; }
+.ce-form { display: flex; gap: .5rem; }
+.ce-input { flex: 1 1 auto; min-width: 0; padding: .55rem .7rem; font: inherit; font-size: 1.05rem; color: var(--ink); background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 4px; }
+.ce-input:focus { outline: 2px solid var(--ce-in); outline-offset: 1px; }
+.ce-input:disabled { opacity: .5; }
+.ce-note { margin: .35rem 0 .2rem; min-height: 1.2em; font-size: .84rem; color: var(--ink-soft); }
+.ce-note.no { color: var(--ce-miss); }
+.ce-note.again { color: var(--ink-soft); }
+
+.ce-found { min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: .35rem; padding: .1rem 0 .2rem; }
+.ce-tag { padding: .25rem .5rem; border: 1px solid var(--tile-edge); border-radius: 3px; background: var(--sheet); font-size: .86rem; line-height: 1.2; }
+.ce-tag.new { border-color: var(--ce-good); box-shadow: 0 0 0 1px var(--ce-good); }
+.ce-tag.miss { border-style: dashed; border-color: var(--ce-miss); color: var(--ce-miss); background: transparent; }
+.ce-bar { flex: none; display: flex; gap: .6rem; margin-top: .5rem; }
+.ce-bar .btn { flex: 1 1 0; }
+.ce-bar .btn[hidden] { display: none; }
+.ce-facts { margin: .2rem 0 .6rem; line-height: 1.4; }
+.ce-facts small { color: var(--ink-soft); }
+.ce-best { margin: 0 0 .8rem; color: var(--ink-soft); font-size: .86rem; }
+.ce-missed { margin: 0 0 .8rem; line-height: 1.5; font-size: .88rem; }
+#doneTitle { letter-spacing: .15em; color: var(--ce-in); }
