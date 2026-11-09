@@ -48,7 +48,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   if (getComputedStyle(host).position === "static") host.style.position = "relative";
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
   let detail = detail0;
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, detail >= 1 ? 2 : 1));
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, detail >= 2 ? 3 : detail >= 1 ? 2 : 1));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setClearColor(0x000000, 0);
   renderer.shadowMap.enabled = detail >= 2;
@@ -107,12 +107,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const [x0, x1, z0, z1] = rect, cr = P.caseRect(cols, rows), round = P.isRound(plan);
     mesh(G.caseGeometry(rect, P.CASE_GAP, 0.05, round), M.caseM, { receive: false });
     mesh(G.plateGeometry(rect, 0.15, 0.12, round), [M.plate, M.plateEdge], { cast: false });
-    // six blued screws on the band, each with its slot
-    const sp = round ? Array.from({ length: 6 }, (_, k) => [Math.cos((k + 0.5) * Math.PI / 3) * ((x1 - x0) / 2 + 0.17), Math.sin((k + 0.5) * Math.PI / 3) * ((x1 - x0) / 2 + 0.17)])
-      : [[x0 + 1.4, z0 - 0.17], [x1 - 1.4, z0 - 0.17], [x0 + 1.4, z1 + 0.17], [x1 - 1.4, z1 + 0.17], [x0 - 0.17, 0], [x1 + 0.17, 0]];
-    const scr = inst(G.screwGeometry(0.07), M.steel, 6, { parent: statics, cast: false }), slo = inst(G.slotGeometry(0.07), M.slot, 6, { parent: statics, cast: false });
-    sp.forEach(([x, z], i) => { _q.setFromAxisAngle(_e, (i * 2.4) % Math.PI); _m.compose(_p.set(x, 0.205, z), _q, _s); scr.setMatrixAt(i, _m); slo.setMatrixAt(i, _m); });
-    scr.count = slo.count = 6;
+    // 9 Nov 2026, Korbi: "the screws on the case are ugly": the band carries none.
     // the field's polished line round the board
     const gx = cols / 2, gz = rows / 2;
     mesh(round ? G.frameGeometry(-(x1 - x0) / 2 + 0.2, (x1 - x0) / 2 - 0.2, 0, 0, 0.025, 0.014, true) : G.frameGeometry(-gx - 0.02, gx + 0.02, -gz - 0.02, gz + 0.02, 0.025, 0.014), M.bridgeEdge, { cast: false });
@@ -123,7 +118,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const pill = [], bridges = [];
     (plan.map || []).forEach((line, j) => [...line].forEach((ch, i) => { if (ch === "#") pill.push([i, j]); else if (ch === "1" || ch === "2") bridges.push({ i, j, d: +ch }); }));
     if (pill.length) {
-      const pm = inst(G.pillarGeometry(P.PILLAR_H, 0.17), M.steel, pill.length, { parent: statics });
+      const pm = inst(G.pillarGeometry(P.PILLAR_H, 0.17), M.parts, pill.length, { parent: statics });
       pill.forEach(([i, j], k) => pm.setMatrixAt(k, _m.makeTranslation(i + 0.5 - cols / 2, 0, j + 0.5 - rows / 2)));
       pm.count = pill.length;
     }
@@ -183,7 +178,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   }
   function paintEngraving() {
     if (!engrave || !skin) return;
-    const ink = skin.night ? "232,232,240" : "26,30,38", W = 1024, Hh = Math.round(W * (rect[3] - rect[2] - 0.3) / (rect[1] - rect[0] - 0.5));
+    const ink = skin.night ? "232,232,240" : "26,30,38", W = 2048, Hh = Math.round(W * (rect[3] - rect[2] - 0.3) / (rect[1] - rect[0] - 0.5));
     engrave.material.map?.dispose?.();
     const t = drawn(W, (c, s, hh) => {
       const sx = s / (rect[1] - rect[0] - 0.5), toX = x => (x - (rect[0] + 0.25)) * sx, toY = z => (z - (rect[2] + 0.15)) * sx;
@@ -207,7 +202,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       c.fillText(`${plan?.jewels || 0} JEWELS  ·  ADJUSTED TO 3 POSITIONS`, toX(0), toY(rows / 2 + 0.84));
       void hh;
     }, true, Hh);
-    t.flipY = false; engrave.material.map = t; engrave.material.needsUpdate = true;
+    t.flipY = false; t.anisotropy = 8; engrave.material.map = t; engrave.material.needsUpdate = true;
   }
 
   // ---------- the dynamic scene: wheels, arbors, jewels ----------
@@ -456,7 +451,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     renderer.render(scene, camera);
     // the detail steps down once if the frames are slow, and never back up
     ftimes.push(performance.now() - t0);
-    if (ftimes.length >= 20) { const mean = ftimes.reduce((a, b) => a + b, 0) / ftimes.length; ftimes = []; if (autoDetail && detail > 0 && mean > 28) lowerDetail(); }
+    if (ftimes.length >= 20) { const mean = ftimes.reduce((a, b) => a + b, 0) / ftimes.length; ftimes = []; if (autoDetail && detail > 0 && mean > 45) lowerDetail(); }
     if (moving()) raf = requestAnimationFrame(frameFn);
     else if (frame && !frame.solved && driveOn && motion) raf = requestAnimationFrame(frameFn);
   }
@@ -505,6 +500,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     d3.copy(ray.ray.direction).transformDirection(inv);
     return { o: [o3.x, o3.y, o3.z], d: [d3.x, d3.y, d3.z] };
   }
+  // 9 Nov 2026, Korbi: "the user should be able to tilt the camera by dragging anywhere." Only a laid piece is dragged by the game; a fixed piece, an empty square and the margin tilt.
+  const pin_ = c => !!frame?.pins?.some?.(p => p.c === c) || !!plan?.pins?.some?.(p => p.c === c);
   const pointers = new Map();
   let drag = null, pinch = null, mid = null, lastTap = { t: 0, x: 0, y: 0 };      // mid: a pan by the mouse's middle button
   const mine = e => host.contains(e.target) && !e.target.closest?.("button, a, input");       // anywhere on the board, so the second finger of a pinch need not land on the canvas itself
@@ -520,7 +517,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     view.wake();
     // a touch on a square is the game's (a tap, a long press, a drag of a laid piece); the plate's margin, or anywhere in Look, turns the case
     if (!lookOn && hh?.kind === "cell") onGesture?.({ type: "down", clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId, event: e });
-    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ok: lookOn || !hh || hh.kind === "off", on: false, base: [...tgt], az0: azT, el0: elT };
+    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ok: lookOn || !hh || hh.kind !== "cell" || !frame?.laid?.[hh.c] || !!pin_(hh.c), on: false, base: [...tgt], az0: azT, el0: elT };
   });
   host.addEventListener("pointermove", e => {
     if (mid && e.pointerId === mid.id) { panBy(e.clientX - mid.x, e.clientY - mid.y); mid.x = e.clientX; mid.y = e.clientY; return; }

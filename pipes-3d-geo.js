@@ -222,11 +222,16 @@ export function caseGeometry(rect, gap, flute = 0.05, round = false) {
 // ---------- small parts ----------
 /** A staff (an arbor): a steel cylinder of unit height standing on y = 0, scaled by the view to its length. */
 export function staffGeometry(r = 0.026) { const g = new THREE.CylinderGeometry(r, r, 1, 8); g.translate(0, 0.5, 0); return g; }
-/** A pillar: a steel post with a collar and a domed gold screw on its head, 0.7 tall. */
+/** A pillar: a slim polished post on a gold foot, a gold shoulder and a domed gold screw on its head, h tall. 9 Nov 2026, Korbi: "the arbors look bad" (the old pillars were fat dark
+ *  thimbles). Painted by vertex colours: use a material that takes them. */
 export function pillarGeometry(h = 0.7, r = 0.15) {
-  const post = new THREE.CylinderGeometry(r, r * 1.12, h, 18).translate(0, h / 2, 0), collar = new THREE.CylinderGeometry(r * 1.3, r * 1.35, 0.045, 20).translate(0, 0.0225, 0);
-  const head = new THREE.CylinderGeometry(r * 0.78, r * 0.78, 0.03, 16).translate(0, h + 0.015, 0);
-  return merge([post, collar, head].map(g => polish(g.toNonIndexed(), 2)));
+  const rr = r * 0.62, gold = 0xe3b84e, steel = 0xe4e7eb;
+  const part = (geo, hex) => tint(polish(geo.toNonIndexed(), 2), hex);
+  const post = part(new THREE.CylinderGeometry(rr, rr, h, 24).translate(0, h / 2, 0), steel);
+  const foot = part(new THREE.CylinderGeometry(rr * 1.55, rr * 1.75, 0.05, 28).translate(0, 0.025, 0), gold);
+  const shoulder = part(new THREE.CylinderGeometry(rr * 1.18, rr * 1.18, 0.04, 24).translate(0, h - 0.02, 0), gold);
+  const dome = new THREE.SphereGeometry(rr * 1.05, 20, 8, 0, TAU, 0, Math.PI / 2); dome.scale(1, 0.4, 1); dome.translate(0, h, 0);
+  return merge([post, foot, shoulder, part(dome, gold)]);
 }
 /** A screw's head: a low dome with a slot, 0.058 radius, standing on y = 0 (the slot is a dark bar added by the view). */
 export function screwGeometry(r = 0.058) { const h = new THREE.SphereGeometry(r, 12, 5, 0, TAU, 0, Math.PI / 2); h.scale(1, 0.34, 1); return polish(h.toNonIndexed(), 1); }

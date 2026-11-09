@@ -302,3 +302,21 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-layers-row .pi-wind { padding: 0 .45rem; }
 .pi-layers-row .pi-look { padding: 0 .55rem; margin-left: 0; }
 .pi-board:not(.show-chips) .pi-chips { display: none; }
+
+/* 9 Nov 2026, Korbi: "the interface at the bottom is cluttered". One quiet strip of text controls under the hand: no boxes round the chips or the buttons, no "Layers" label, one status line. */
+.pi-workings .pi-w, .pi-workings .pi-w-id { box-shadow: none; background: transparent; padding-inline: .15rem; }
+.pi-workings .pi-w:is(.slow, .fast, .wrong) { box-shadow: none; }
+.pi-layers-row > small:not(.pi-turns) { display: none; }
+.pi-layers-row .pi-turns { display: none; }
+.pi-layers-row .pi-layer { border: 0; background: transparent; width: auto; min-width: 1.7rem; height: 1.7rem; padding: 0 .35rem; color: var(--ink-soft); }
+.pi-layers-row .pi-layer.now { background: var(--pi-in); color: #fff; }
+.pi-layers-row .pi-layer:first-of-type { padding: 0 .45rem; }
+.pi-layers-row .pi-wind, .pi-layers-row .pi-look { border: 0; box-shadow: none; background: transparent; color: var(--ink); min-height: 1.7rem; padding: 0 .4rem; }
+.pi-layers-row .pi-wind { margin-left: auto; }
+.pi-layers-row .pi-wind + .pi-look { margin-left: 0; }
+.pi-layers-row .pi-look { margin-left: auto; }
+.pi-bar { gap: .2rem; margin-top: .3rem; }
+.pi-status { font-size: .82rem; font-weight: 600; color: var(--ink-soft); }
+.pi-controls.puzzle { display: flex; justify-content: space-between; gap: 0; border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+.pi-controls.puzzle .pi-go.quiet { flex: 1 1 0; min-height: 2.5rem; box-shadow: none; font-size: .78rem; }
+.pi-controls.puzzle .pi-go:not(.quiet) { flex: 2 1 0; min-height: 2.5rem; }
