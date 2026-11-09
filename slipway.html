@@ -25,14 +25,15 @@
   </header>
 
   <div class="sw-strip full-pull"><span id="where"></span><span id="clock" class="sw-clock"></span></div>
-  <section id="rules" class="sw-rules fit-scroll" aria-label="The cut list"></section>
-  <section id="bench" class="sw-bench fit-grow" aria-label="The timber">
-    <canvas id="cube" class="sw-cube" aria-label="The timber; drag to turn it, tap a face to cut"></canvas>
+  <section id="rules" class="sw-rules fit-scroll" aria-label="The clues"></section>
+  <section id="bench" class="sw-bench fit-grow" aria-label="The block">
+    <canvas id="cube" class="sw-cube" aria-label="The block; drag to turn it, tap a cube to paint it"></canvas>
     <div id="layerView" class="sw-lv" hidden>
       <div id="tabs" class="sw-tabs" role="tablist" aria-label="Layer, lowest first"></div>
       <div class="sw-gridbox fit-box"><div id="grid" class="sw-grid"></div></div>
     </div>
   </section>
+  <div id="palette" class="sw-palette" role="group" aria-label="Pieces"></div>
   <div class="sw-tools" role="group" aria-label="Tools">
     <button class="btn sw-tool on" type="button" data-tool="chisel" title="One cube">Chisel</button>
     <button class="btn sw-tool" type="button" data-tool="saw" title="A whole layer">Saw</button>
@@ -40,7 +41,7 @@
     <button class="btn" type="button" id="viewBtn">Layers</button>
   </div>
   <div class="sw-bar">
-    <button class="btn" type="button" id="hintBtn">Hint</button>
+    <button class="btn" type="button" id="clearBtn">Clear</button>
     <button class="btn" type="button" id="undoBtn">Undo</button>
   </div>
 </div>
@@ -52,7 +53,7 @@
 
 <dialog id="doneDlg" class="sheet" aria-labelledby="doneHead">
   <div class="pick-head"><h2 id="doneHead">Cut</h2><button class="btn" type="button" id="doneClose">Close</button></div>
-  <canvas id="doneView" class="sw-doneview" aria-label="The piece you cut"></canvas>
+  <canvas id="doneView" class="sw-doneview" aria-label="The block, cut"></canvas>
   <div id="doneBody"></div>
 </dialog>
 

@@ -9,10 +9,8 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 .slipway .sw-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .4rem; color: var(--ink-soft); font-size: .86rem; }
 .sw-clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* the cut list: numbered steps, then what the words mean */
+/* the clues: what to do, the census of kinds with what is cut so far, then what the kinds mean */
 .sw-rules { max-height: 14rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); padding: .45rem .6rem; }
-.sw-steps { margin: 0; padding-left: 1.3rem; display: grid; gap: .2rem; font-size: .88rem; line-height: 1.3; }
-.sw-steps li::marker { color: var(--sw-in); font-weight: 700; }
 .sw-notes { margin: .4rem 0 0; padding: .35rem 0 0; border-top: 1px solid var(--tile-edge); display: grid; gap: .1rem; font-size: .74rem; line-height: 1.3; color: var(--ink-soft); }
 .sw-notes p { margin: 0; }
 
@@ -57,4 +55,24 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
   .sw-rules { grid-column: 2; grid-row: 3; max-height: none; }
   .sw-tools { grid-column: 2; grid-row: 5; }
   .sw-bar { grid-column: 2; grid-row: 6; }
+}
+
+.sw-lead { margin: 0 0 .35rem; font-size: .88rem; line-height: 1.3; }
+.sw-census { margin: 0 0 .1rem; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .3rem .5rem; font-size: .88rem; font-weight: 600; }
+.sw-census li { border: 1px solid var(--tile-edge); border-radius: 3px; padding: .1rem .4rem; display: flex; gap: .4rem; align-items: baseline; }
+.sw-census small { font-weight: 400; color: var(--ink-soft); font-size: .72rem; }
+.sw-census li.ok { border-color: var(--sw-in); background: color-mix(in srgb, var(--sw-in) 16%, transparent); }
+.sw-census li.over { border-color: var(--sw-bad); }
+.sw-palette { flex: none; display: flex; gap: .3rem; margin-top: .45rem; }
+.sw-pen { flex: 1 1 0; min-width: 0; height: 2rem; border: 2px solid var(--tile-edge); border-radius: 3px; background: var(--pen); color: #fff; font-size: .78rem; font-weight: 700; text-shadow: 0 0 3px rgba(0, 0, 0, .7); padding: 0; cursor: pointer; }
+.sw-pen.on { outline: 3px solid var(--ink); outline-offset: 1px; }
+.sw-pen.split { border-color: var(--sw-bad); border-style: dashed; }
+.sw-sq { color: #1C2A34; font-size: .95rem; font-weight: 700; }
+.sw-sq span { text-shadow: 0 0 3px rgba(255, 255, 255, .9); }
+.sw-tools { grid-template-columns: repeat(4, 1fr); }
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.slipway { grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto; }
+  .sw-palette { grid-column: 2; grid-row: 4; }
+  .sw-tools { grid-row: 6; }
+  .sw-bar { grid-row: 7; }
 }

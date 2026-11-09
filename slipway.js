@@ -1,164 +1,139 @@
-// Slipway: a timber block to be cut down to a piece you are not shown. The cut list says, in a few rules, what to take away; you work
-// out what is left, then cut it out with a chisel (one cube), a saw (a whole layer) or a bore (a whole line). A cut that would take
-// part of the finished piece is refused and counts as a slip. The stars go for no hint asked, no slips and cuts near par. The rules
-// are slipway-rules.js's, the drawing slipway-view.js's; this file keeps the run and builds the page.
-import { LEVEL_IDS, dealCut, starsFor, reach, parOps, at, xyz } from "./slipway-rules.js";
+// Slipway: a block of cubes to be cut into pieces, worked out from numbers on it (a cube's number is how many cubes its piece has) and
+// a census of the kinds of piece. You paint pieces, a colour each, with a chisel (one cube), a saw (a whole layer) or a bore (a whole
+// line); the block is done when every clue holds. The rules are slipway-rules.js's, the drawing slipway-view.js's; this file keeps the
+// run and builds the page.
+import { LEVELS, KIND_NAMES, KIND_NOTES, judge, reach, at, xyz } from "./slipway-rules.js";
 import { drawCubes, faceAt, REST, PITCH } from "./slipway-view.js";
 import { setSound, sound } from "./slipway-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, todayPart, isPaused } from "./menu.js";
-import { ramp } from "./ramp.js";
+import { part, action, line, toggle, isPaused } from "./menu.js";
 import { sure } from "./sure.js";
-import { busy } from "./loading.js";
-import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
+import { IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "slipway:cut", BEST = "slipway:best", TIMES = "slipway:times", DAILY = "slipway:daily", SOUND = "slipway:sound";
+const RUN = "slipway:run", BEST = "slipway:best", SOUND = "slipway:sound";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 setSound(read(SOUND, true));
 
-// ---------- the run ----------
-// S: { v, seed, level, daily, day, cur (a string of 0 and 1 over the cells: what is still there), cuts, slips, hints, ms, done, stars }
-let S = read(RUN, null);
-if (S && S.v !== 3) S = null;                      // (the fitting game's run, and the carving's before it, are left behind)
-const save = () => write(RUN, S);
-const startLevel = () => ramp("slipway", LEVEL_IDS, { start: "easy" });
-let deal = null;                                   // the cut list and the piece of this run: { n, steps, text, notes, target, par, chequer }
-let tool = "chisel";
-let undo = [];
-let hint = null;                                   // the cells a hint pointed at, until the next cut
-let slipped = new Set();                           // the cells a refused cut would have taken, shown red for a moment
-let view3d = true;                                 // the block, or its layers
-let layer = 0;
-const N = () => deal.n;
-const cur = () => Uint8Array.from(S.cur, c => +c);
-const keep = a => { S.cur = Array.from(a).join(""); };
+// one colour a piece; the first is for the first piece painted
+const COLOURS = [[201, 84, 66], [226, 164, 48], [104, 160, 88], [66, 140, 178], [146, 98, 168], [206, 120, 150], [92, 170, 160], [160, 126, 86], [150, 150, 150]];
+const BARE = [228, 218, 198];
+const rgb = c => `rgb(${c.join(",")})`;
 
-let dealing = false;
-async function newRun(daily = false, replay = null) {
-  if (dealing) return;
-  dealing = true;
-  const done = busy("Choosing the timber", { delay: 0 });
-  try {
-    const level = replay?.level || (daily ? "medium" : startLevel()), seed = replay?.seed ?? (daily ? today() * 7517 + 31 : Math.floor(Math.random() * 2 ** 31));
-    await new Promise(r => setTimeout(r, 30));
-    let s = seed, got = dealCut(s, level);
-    while (!got) got = dealCut(++s, level);        // (a seed that gave nothing: the next)
-    S = { v: 3, seed: s, level, daily: !!daily, day: daily ? today() : null, cur: "1".repeat(got.n ** 3), cuts: 0, slips: 0, hints: 0, ms: 0, done: false, stars: 0 };
-    save(); begin();
-  } finally { done(); dealing = false; }
+// ---------- the run ----------
+// S: { v, level, paint (a digit per cube: 0 bare, else the piece's colour), ms, done }; bests by level id are { ms }
+let S = read(RUN, null);
+if (S && (S.v !== 4 || !LEVELS.some(l => l.id === S.level))) S = null;   // (the cut-list game's run is left behind)
+const save = () => write(RUN, S);
+let level = null;
+let colour = 1, tool = "chisel", undo = [], view3d = true, layer = 0;
+const N = () => level.n;
+const paint = () => Uint8Array.from(S.paint, c => +c);
+const keep = a => { S.paint = Array.from(a).join(""); };
+const pieces = () => Object.values(level.census).reduce((a, b) => a + b, 0);
+
+function newRun(id = LEVELS[0].id) {
+  const lv = LEVELS.find(l => l.id === id);
+  S = { v: 4, level: id, paint: "0".repeat(lv.n ** 3), ms: 0, done: false };
+  save(); begin();
 }
 function begin() {
-  deal = dealCut(S.seed, S.level);
-  undo = []; hint = null; slipped = new Set(); layer = 0; view3d = true;
-  buildRules(); buildLayers();
+  level = LEVELS.find(l => l.id === S.level);
+  undo = []; colour = 1; layer = 0; view3d = true;
+  buildPalette(); buildLayers(); buildRules();
   render();
 }
-const left = () => { const c = cur(), t = deal.target; let n = 0; for (let k = 0; k < c.length; k++) if (c[k] && !t[k]) n++; return n; };
 
-// ---------- cutting ----------
-/** Cuts with a tool at cube k along an axis (the way a bore runs, or the way a saw's layer is stacked). */
-function cut(which, axis, k) {
+// ---------- painting ----------
+function put(axis, k) {
   if (!S || S.done) return;
-  const now = cur(), cells = reach(N(), which, axis, k).filter(j => now[j]);
-  if (!cells.length) return;
-  const spoil = cells.filter(j => deal.target[j]);
-  if (spoil.length) {                               // not that: it would cut into the piece
-    S.slips++;
-    slipped = new Set(spoil);
-    sound("refuse"); toast(spoil.length === 1 && cells.length === 1 ? "That cube is part of the piece" : "That cut would take part of the piece");
-    save(); render();
-    setTimeout(() => { slipped = new Set(); render(); }, 700);
-    return;
-  }
-  undo.push(S.cur); if (undo.length > 80) undo.shift();
-  for (const j of cells) now[j] = 0;
-  keep(now); S.cuts++; hint = null;
-  sound("fit");
+  const now = paint(), cells = reach(N(), tool, axis, k);
+  undo.push(S.paint); if (undo.length > 120) undo.shift();
+  // painting again over a cut that is already this colour takes it off
+  const wipe = cells.every(c => now[c] === colour);
+  for (const c of cells) now[c] = wipe ? 0 : colour;
+  keep(now);
+  sound(wipe ? "undo" : "tap");
   save(); render();
-  if (!left()) finish();
+  if (judge(level, paint()).done) finish();
 }
 function undoLast() {
   if (S.done || !undo.length) return;
-  S.cur = undo.pop(); S.cuts = Math.max(0, S.cuts - 1); hint = null;
-  sound("undo");
-  save(); render();
+  S.paint = undo.pop(); sound("undo"); save(); render();
 }
-/** Points at the next cut of the par way down, from where the timber stands now; it costs a star. */
-function showHint() {
-  if (S.done) return;
-  const ops = parOps(N(), deal.target, cur());
-  if (!ops.length) return;
-  hint = { cells: new Set(ops[0].cells), tool: ops[0].tool };
-  S.hints++;
-  sound("tap");
-  toast(`Try the ${ops[0].tool} where it shows`);
-  save(); render();
+async function clearAll() {
+  if (S.done || !/[1-9]/.test(S.paint)) return;
+  if (!(await sure("Wipe all the colours?"))) return;
+  undo.push(S.paint); S.paint = "0".repeat(N() ** 3); save(); render();
 }
 
 // ---------- the end ----------
+const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 function finish() {
   S.done = true;
-  S.stars = starsFor({ hints: S.hints, slips: S.slips, cuts: S.cuts, par: deal.par });
-  const times = read(TIMES, {}), t = times[S.level];
-  if (!t || S.stars > t.stars || (S.stars === t.stars && S.ms < t.ms)) { times[S.level] = { stars: S.stars, ms: S.ms }; write(TIMES, times); }
-  write(BEST, LEVEL_IDS.reduce((a, l) => a + (times[l]?.stars || 0), 0));
-  if (S.daily) { const d = read(DAILY, {}); if (!(d[S.day] >= S.stars)) { d[S.day] = S.stars; write(DAILY, d); } }
-  else { startLevel(); if (S.stars === 3) ramp.won(true); else if (S.stars === 2) ramp.won(false); else ramp.lost(); }
+  const best = read(BEST, {}), b = best[level.id];
+  if (!b || S.ms < b.ms) { best[level.id] = { ms: S.ms }; write(BEST, best); }
   roundOver("slipway");
   sound("done");
   save(); render();
-  setTimeout(showDone, 700);
+  setTimeout(showDone, 600);
 }
-const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 function showDone() {
   if (!S?.done) return;
-  const times = read(TIMES, {}), body = $("doneBody");
-  $("doneHead").textContent = "★".repeat(S.stars) + "☆".repeat(3 - S.stars);
-  const facts = el("p", "sw-facts");
-  const notes = [S.hints ? `${S.hints} hint${S.hints > 1 ? "s" : ""}` : "no hint", S.slips ? `${S.slips} slip${S.slips > 1 ? "s" : ""}` : "no slips"];
-  facts.append(`Cut in ${S.cuts} (par ${deal.par}) and ${clock(Math.round(S.ms / 1000))}, with ${notes.join(" and ")}. `,
-    el("small", "", S.stars < 3 ? "Three stars: no hint, no slips and at most one cut over par." : "Three stars."));
-  const t = times[S.level];
-  body.replaceChildren(facts, el("p", "sw-best", `Best at ${S.level}: ${t ? "★".repeat(t.stars) + " " + clock(Math.round(t.ms / 1000)) : "–"}`),
-    action("Another timber", () => { $("doneDlg").close(); newRun(false); }, "primary"),
-    action("Again, same timber", () => { $("doneDlg").close(); newRun(S.daily, { seed: S.seed, level: S.level }); }, "link"));
+  const t = read(BEST, {})[level.id];
+  $("doneHead").textContent = `${level.name}, cut`;
+  $("doneBody").replaceChildren(el("p", "sw-facts", `Cut in ${clock(Math.round(S.ms / 1000))}.`), el("p", "sw-best", `Best: ${t ? clock(Math.round(t.ms / 1000)) : "–"}`),
+    action("Again", () => { $("doneDlg").close(); newRun(level.id); }, "primary"));
   if (!$("doneDlg").open) $("doneDlg").showModal();
   requestAnimationFrame(() => drawCubes($("doneView"), cubesOf(false), { ...REST }, { n: N(), frame: false, margin: 8 }));
 }
 
-// ---------- the cut list ----------
+// ---------- the clues ----------
 function buildRules() {
-  const box = $("rules"), ol = el("ol", "sw-steps"), notes = el("div", "sw-notes");
-  for (const t of deal.text) ol.append(el("li", "", t));
-  for (const t of deal.notes) notes.append(el("p", "", t));
-  box.replaceChildren(ol, notes);
+  const box = $("rules"), notes = el("div", "sw-notes");
+  box.replaceChildren(el("p", "sw-lead", `Cut the block into pieces. A number on a cube says how many cubes its piece has. No piece has more than ${level.maxSize}. Paint a piece one colour; a colour is one piece, so its cubes must touch.`),
+    el("ul", "sw-census"), notes);
+  for (const k of Object.keys(KIND_NAMES)) if (level.census[k]) notes.append(el("p", "", KIND_NOTES[k]));
   box.scrollTop = 0;
+}
+function drawCensus(j) {
+  const ul = $("rules").querySelector(".sw-census");
+  ul.replaceChildren(...Object.keys(KIND_NAMES).filter(k => level.census[k] || j.have[k]).map(k => {
+    const need = level.census[k] || 0, have = j.have[k] || 0, li = el("li", have === need ? "ok" : have > need ? "over" : "", `${need} ${KIND_NAMES[k][need === 1 ? 0 : 1]}`);
+    li.append(el("small", "", `${have} cut`));
+    return li;
+  }));
 }
 
 // ---------- drawing ----------
 const pose = { ...REST };
 let hits = [];
-const WOOD = [199, 152, 93];
 function cubesOf(marks = true) {
-  const n = N(), now = cur(), out = [];
+  const n = N(), now = paint(), out = [], bad = new Set(marks ? judge(level, now).wrong : []);
   for (let k = 0; k < now.length; k++) {
-    if (!now[k]) continue;
-    const [x, y, z] = xyz(n, k), dark = deal.chequer && (x + y + z) % 2 === 0;
-    const c = { x, y, z, color: dark ? WOOD.map(v => Math.round(v * 0.8)) : WOOD };
-    if (marks && hint?.cells.has(k)) { c.color = [31, 143, 138]; c.edge = "rgba(255,255,255,.9)"; }
-    if (marks && slipped.has(k)) { c.color = [190, 60, 48]; c.edge = "rgba(255,255,255,.9)"; }
+    const [x, y, z] = xyz(n, k), c = { x, y, z, color: now[k] ? COLOURS[now[k] - 1] : BARE };
+    if (level.gauge[k] != null) c.label = level.gauge[k];
+    if (bad.has(k)) c.edge = "rgba(168,56,43,1)";
     out.push(c);
   }
   return out;
 }
 function drawAll() {
-  if (!S || !deal || !view3d) return;
+  if (!S || !level || !view3d) return;
   hits = drawCubes($("cube"), cubesOf(), pose, { n: N(), frame: true, margin: 10, frameColor: "rgba(140,130,110,.7)" });
+}
+function buildPalette() {
+  const box = $("palette"); box.replaceChildren();
+  for (let c = 1; c <= pieces(); c++) {
+    const b = el("button", "sw-pen"); b.type = "button"; b.dataset.c = c; b.style.setProperty("--pen", rgb(COLOURS[c - 1]));
+    b.setAttribute("aria-label", `Piece ${c}`); b.append(el("span", "", "0"));
+    b.addEventListener("click", () => { colour = c; render(); });
+    box.append(b);
+  }
 }
 function buildLayers() {
   const n = N(), tabs = $("tabs"), grid = $("grid");
@@ -173,32 +148,41 @@ function buildLayers() {
   grid.replaceChildren();
   for (let y = n - 1; y >= 0; y--) for (let x = 0; x < n; x++) {   // the back row on top, the front at the bottom
     const b = el("button", "sw-sq"); b.type = "button"; b.dataset.x = x; b.dataset.y = y;
-    b.append(el("span", "", `${x + 1}·${y + 1}`));
-    b.addEventListener("click", () => cut(tool, 2, at(n, x, y, layer)));
+    b.append(el("span", "", ""));
+    b.addEventListener("click", () => put(2, at(n, x, y, layer)));
     grid.append(b);
   }
 }
 function render() {
-  if (!S || !deal) return;
-  const n = N(), now = cur();
-  $("where").textContent = `${S.level[0].toUpperCase()}${S.level.slice(1)} · ${n}×${n}×${n}${S.daily ? " · today's" : ""} · ${S.cuts} ${S.cuts === 1 ? "cut" : "cuts"}`;
+  if (!S || !level) return;
+  const n = N(), now = paint(), j = judge(level, now);
+  $("where").textContent = `${level.name} · ${n}×${n}×${n} · ${now.filter(Boolean).length} of ${n ** 3} cubes painted`;
   drawClock();
   $("cube").hidden = !view3d; $("layerView").hidden = view3d;
   $("viewBtn").textContent = view3d ? "Layers" : "Block";
   for (const b of document.querySelectorAll(".sw-tool")) b.classList.toggle("on", b.dataset.tool === tool);
-  [...$("tabs").children].forEach((b, z) => { b.classList.toggle("on", z === layer); b.setAttribute("aria-selected", z === layer); });
-  for (const b of $("grid").children) {
-    const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer), there = now[k];
-    b.className = `sw-sq${there ? "" : " gone"}${there && deal.chequer && (x + y + layer) % 2 === 0 ? " dark" : ""}${hint?.cells.has(k) ? " hint" : ""}${slipped.has(k) ? " slip" : ""}`;
-    b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${there ? "" : ", cut away"}`);
+  for (const b of $("palette").children) {
+    const c = +b.dataset.c, size = now.filter(v => v === c).length;
+    b.classList.toggle("on", c === colour); b.firstChild.textContent = size || "";
+    b.classList.toggle("split", j.split.includes(c) || j.big.includes(c));
   }
+  [...$("tabs").children].forEach((b, z) => { b.classList.toggle("on", z === layer); b.setAttribute("aria-selected", z === layer); });
+  const bad = new Set(j.wrong);
+  for (const b of $("grid").children) {
+    const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer), v = now[k];
+    b.style.background = rgb(v ? COLOURS[v - 1] : BARE);
+    b.className = `sw-sq${bad.has(k) ? " slip" : ""}`;
+    b.firstChild.textContent = level.gauge[k] ?? "";
+    b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${level.gauge[k] != null ? `, number ${level.gauge[k]}` : ""}${v ? `, piece ${v}` : ", bare"}`);
+  }
+  drawCensus(j);
   $("undoBtn").disabled = !undo.length || S.done;
-  $("hintBtn").disabled = S.done;
+  $("clearBtn").disabled = S.done;
   requestAnimationFrame(drawAll);
 }
-function drawClock() { $("clock").textContent = `${clock(Math.round(S.ms / 1000))}${S.slips ? ` · ${S.slips} ${S.slips === 1 ? "slip" : "slips"}` : ""}${S.hints ? ` · ${S.hints} ${S.hints === 1 ? "hint" : "hints"}` : ""}`; }
+function drawClock() { $("clock").textContent = clock(Math.round(S.ms / 1000)); }
 
-// ---------- the timber by hand: drag to turn, tap a face to cut ----------
+// ---------- the block by hand: drag to turn, tap a cube to paint ----------
 let drag = null;
 const cube = $("cube");
 cube.addEventListener("pointerdown", e => { cube.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, moved: 0 }; });
@@ -214,7 +198,7 @@ cube.addEventListener("pointerup", e => {
   const d = drag; drag = null;
   if (!d || d.moved > 6 || !S || S.done) return;
   const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
-  if (h) cut(tool, h.axis, at(N(), h.cube.x, h.cube.y, h.cube.z));
+  if (h) put(h.axis, at(N(), h.cube.x, h.cube.y, h.cube.z));
 });
 cube.addEventListener("pointercancel", () => { drag = null; });
 
@@ -229,26 +213,16 @@ function tick(now) {
   if (s !== savedAt) { savedAt = s; drawClock(); if (s % 5 === 0) save(); }
 }
 
-let toastTimer = 0;
-function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1800); }
-
 // ---------- the menu ----------
-const started = () => !!S && !S.done && S.cuts > 0;
+const started = () => !!S && !S.done && /[1-9]/.test(S.paint);
 function openMenu() {
   const body = $("menuBody");
-  startLevel();                                    // the shared level row follows this game's ramp
   body.replaceChildren();
-  part(body, "play").append(action("New timber", async () => { $("menuDlg").close(); if (started() && !(await sure("Choose a new timber? This one isn't finished."))) return; newRun(false); }, "primary"));
-  const got = read(DAILY, {})[today()];
-  todayPart(body, {
-    app: "slipway", done: got != null, result: got != null ? "★".repeat(got) : "",
-    play: () => { $("menuDlg").close(); openToday(); }, playing: !!S?.daily && S.day === today() && !S.done, busy: started(),
-  });
-  const set = part(body, "settings");
-  set.append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
-  const times = read(TIMES, {});
-  part(body, "about").append(line(`Best: ${LEVEL_IDS.map(l => `${l} ${times[l] ? "★".repeat(times[l].stars) + " " + clock(Math.round(times[l].ms / 1000)) : "–"}`).join(" · ")}`),
-    line("Work out from the cut list what is left, then cut it out. A chisel takes one cube, a saw a whole layer, a bore a whole line; a cut into the piece is refused."));
+  part(body, "play").append(action("Start over", async () => { $("menuDlg").close(); if (started() && !(await sure("Start this block again? It isn't finished."))) return; newRun(level.id); }, "primary"));
+  part(body, "settings").append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
+  const best = read(BEST, {});
+  part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l.name} ${best[l.id] ? clock(Math.round(best[l.id].ms / 1000)) : "–"}`).join(" · ")}`),
+    line("A chisel paints one cube, a saw a whole layer, a bore a whole line. Tap a painted cut again to take the colour off."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -261,19 +235,13 @@ $("doneClose").addEventListener("click", () => $("doneDlg").close());
 for (const b of document.querySelectorAll(".sw-tool")) b.addEventListener("click", () => { tool = b.dataset.tool; render(); });
 $("viewBtn").addEventListener("click", () => { view3d = !view3d; render(); });
 $("undoBtn").addEventListener("click", undoLast);
-$("hintBtn").addEventListener("click", async () => { if (S && !S.done && await sure("Point at the next cut? It costs a star.")) showHint(); });
+$("clearBtn").addEventListener("click", clearAll);
 new ResizeObserver(() => drawAll()).observe($("bench"));
 window.addEventListener("resize", () => drawAll());
 requestAnimationFrame(tick);
-async function openToday() {
-  if (started() && !(S.daily && S.day === today()) && !(await sure("Start today's timber? This one isn't finished."))) return;
-  if (S?.daily && S.day === today() && !S.done) return;
-  newRun(true);
-}
-if (arrivedForToday() && !(S?.daily && S.day === today())) setTimeout(() => newRun(true), 0);
-else if (!S) newRun(dailyDue("slipway"));
+if (!S) newRun();
 else if (S.done) { begin(); showDone(); }
 else begin();
 
 // for tests and debugging
-window.__slipway = { get state() { return S; }, get deal() { return deal; }, cut, undoLast, showHint, newRun, get hits() { return hits; }, setTool: t => { tool = t; render(); }, get view3d() { return view3d; } };
+window.__slipway = { get state() { return S; }, get level() { return level; }, put, undoLast, newRun, get hits() { return hits; }, setTool: t => { tool = t; render(); }, setColour: c => { colour = c; render(); }, get view3d() { return view3d; } };

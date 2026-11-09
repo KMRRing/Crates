@@ -76,6 +76,7 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
   const hits = [];
   const order = cubes.map(c => ({ c, d: at(c.x + 0.5, c.y + 0.5, c.z + 0.5)[2] })).sort((a, b) => b.d - a.d);
   for (const { c } of order) {
+    let front = null;
     for (const f of FACES) {
       const t = turn(P, ...f.n);
       if (t[2] >= -1e-6) continue;                  // facing away
@@ -84,6 +85,13 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
       const quad = f.q.map(o => at(c.x + o[0], c.y + o[1], c.z + o[2]));
       poly(quad, col, c.edge || edgeColor, c.alpha ?? 1);
       hits.push({ cube: c, axis: f.n.findIndex(v => v !== 0), poly: quad.map(p => [sx(p), sy(p)]) });
+      if (!front || t[2] < front.d) front = { d: t[2], quad };
+    }
+    if (c.label != null && front) {                 // a number on the face turned most toward you
+      const mx = front.quad.reduce((a, p) => a + sx(p), 0) / 4, my = front.quad.reduce((a, p) => a + sy(p), 0) / 4;
+      g.font = `700 ${Math.max(10, Math.round(s * 0.5))}px system-ui, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+      g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,.85)"; g.strokeText(String(c.label), mx, my);
+      g.fillStyle = "#1C2A34"; g.fillText(String(c.label), mx, my);
     }
   }
   return hits;
