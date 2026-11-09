@@ -114,6 +114,10 @@ function render() {
     const pic = el("figure", "dp-pic");
     pic.hidden = true;
     if (x.pic) scene.prepend(pic);
+    // the portrait as a small icon by the name, when the picture above is a work (a map, a book) rather than the face already
+    const face = el("figure", "dp-face");
+    face.hidden = true;
+    if (x.face && x.face !== x.pic) { scene.querySelector(".dp-who").before(face); showPicture(face, x.face, { width: 160, alt: x.who }); }
     stage.replaceChildren(bar, scene);
     if (x.pic) showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic });
     $("goBtn").textContent = S.idx + 1 < n ? "Next" : "To my notes";

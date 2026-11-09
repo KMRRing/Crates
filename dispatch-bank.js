@@ -78,6 +78,13 @@ const PERSON = {
   "gustav-vasa": "Gustav I of Sweden", "frederick-ii": "Frederick II, Holy Roman Emperor", "matteo-ricci": "Matteo Ricci", "francis-xavier": "Francis Xavier", "tokugawa-ieyasu": "Tokugawa Ieyasu", akbar: "Akbar",
   babur: "Babur", "nur-jahan": "Nur Jahan", shivaji: "Shivaji", "kangxi-emperor": "Kangxi Emperor", "nzinga-of-ndongo": "Nzinga of Ndongo and Matamba", malintzin: "La Malinche", "leonardo-loredan": "Leonardo Loredan",
   "andrea-doria": "Andrea Doria", "thomas-gresham": "Thomas Gresham", "gerardus-mercator-1541": "Gerardus Mercator",
+  // portraits for the meetings whose picture is the work (a map, a book): the face beside the name (`face` below). Korbi, 9 Nov 2026:
+  // "these people have been dead for centuries, these are historical depictions": a portrait of a long-dead person is a work in the
+  // public domain, as the paintings in Punt are. Titles unverified from the sandbox, as above: a wrong one costs the portrait only.
+  "johannes-gutenberg": "Johannes Gutenberg", "nicolaus-copernicus": "Nicolaus Copernicus", "andreas-vesalius": "Andreas Vesalius", "johannes-kepler": "Johannes Kepler",
+  "tycho-brahe": "Tycho Brahe", "gerardus-mercator": "Gerardus Mercator", "abraham-ortelius": "Abraham Ortelius", "william-harvey": "William Harvey", "luca-pacioli": "Luca Pacioli",
+  "hans-holbein-the-younger": "Hans Holbein the Younger", "thomas-roe": "Thomas Roe", "enrico-dandolo": "Enrico Dandolo", "francesco-datini": "Francesco Datini", "robert-the-bruce": "Robert the Bruce",
+  "margaret-i": "Margaret I of Denmark", "zheng-he": "Zheng He", "mansa-musa": "Mansa Musa", "piri-reis": "Piri Reis", "ulugh-beg": "Ulugh Beg", "sejong-the-great": "Sejong the Great",
 };
 // fame is the person's, so a later meeting of theirs has the same
 const seen = new Set();
@@ -85,7 +92,7 @@ const m = (who, place, year, region, what, why, alt) => {
   const pid = idOf(who), id = seen.has(pid) ? `${pid}-${year}` : pid;
   seen.add(pid);
   if (!NAT[pid]) throw new Error(`dispatch-bank: no nationality for ${who}`);
-  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, pic: PIC[id] ?? PERSON[id] ?? PERSON[pid] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2 };
+  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, pic: PIC[id] ?? PERSON[id] ?? PERSON[pid] ?? null, face: PERSON[id] ?? PERSON[pid] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2 };
 };
 
 export const MEETINGS = [

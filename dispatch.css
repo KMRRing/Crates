@@ -48,3 +48,7 @@ html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
 .dp-recap b { letter-spacing: .02em; }
 #doneTitle { letter-spacing: .15em; color: var(--dp-in); }
 .dp-note h3.dp-year-wrong { color: var(--dp-miss); }
+
+/* the person's portrait, small, beside the name: a square with a brass edge (no pills) */
+.dp-face { float: right; width: 3.6rem; height: 4.4rem; margin: .1rem 0 .4rem .8rem; border: 1px solid var(--brass); background: var(--sheet); overflow: hidden; }
+.dp-face .pic { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
