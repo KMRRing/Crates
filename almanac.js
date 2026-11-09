@@ -12,6 +12,7 @@ import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, line, action, markButton } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
+import { meetingHits, fillPerson } from "./almanac-meetings.js";
 import { defaultIs3D } from "./mode3d.js";
 import { parseHash, formatHash } from "./almanac-nav.js";
 import "./pwa.js";
@@ -99,10 +100,18 @@ function listResults() {
     box.append(row);
     return;
   }
-  const hits = search(text);
-  if (!hits.length) { box.append(el("p", "lx-lead", "Nothing by that name.")); return; }
+  const hits = search(text), people = meetingHits(text);
+  if (!hits.length && !people.length) { box.append(el("p", "lx-lead", "Nothing by that name.")); return; }
   const list = el("div", "lx-list");
   for (const e of hits) list.append(entityButton(e));
+  // the people of Dispatch, with their meetings: one item each, a fact's two wordings together
+  for (const p of people) {
+    const b = el("button", "lx-hit");
+    b.type = "button";
+    b.append(el("b", null, `${p.who} (${p.nat})`), el("small", null, `person · ${p.meetings.length === 1 ? "1 meeting" : `${p.meetings.length} meetings`}`));
+    b.addEventListener("click", () => openPerson(p.pid));
+    list.append(b);
+  }
   box.append(list);
 }
 
@@ -215,6 +224,17 @@ function open(id, push = true) {
   there.type = "button";
   there.addEventListener("click", () => goSky(id));
   head.append(there);
+  box.scrollTop = 0;
+}
+/** A person of Dispatch as an entry of their own. No step in the history: the back button leads to the results. */
+function openPerson(pid) {
+  showList(false);
+  const box = $("entry");
+  $("results").hidden = true; box.hidden = false;
+  const head = fillPerson(box, pid, el), back = el("button", "btn lx-sky-btn", "Back to results");
+  back.type = "button";
+  back.addEventListener("click", () => goList());
+  head.append(back);
   box.scrollTop = 0;
 }
 /** The list view on screen (the star chart off it); `push` adds a step to the browser's history. */

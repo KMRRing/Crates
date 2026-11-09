@@ -15,6 +15,7 @@ html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
 .dp-scene { padding: 1rem .9rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); }
 .dp-place { margin: 0; font-size: .86rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 .dp-who { margin: .35rem 0 .5rem; font-size: 1.45rem; line-height: 1.15; letter-spacing: .04em; color: var(--ink); }
+.dp-nat { margin: -.3rem 0 .55rem; font-size: .88rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .dp-said { margin: 0 0 .8rem; font-size: 1.1rem; line-height: 1.35; }
 .dp-why { margin: 0; font-size: .9rem; line-height: 1.4; color: var(--ink-soft); }
 

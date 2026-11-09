@@ -5,13 +5,56 @@
 //
 // Rules for an entry (tests/dispatch.mjs): the act is true and datable to that year; the place is where it was done, or where
 // the person is most closely tied to it; `what` is under about fifty-five characters so it fits a slot in the notes; no two
-// entries share a person. Korbi, 9 November 2026: mostly famous people, a few less so, so the names have to be learned.
+// entries of one person share a place (a day never holds two of a place), and a person's later meetings are listed after the first. Korbi, 9 November 2026: mostly famous people, a few less so, so the names have to be learned; a person with several significant details has several meetings, and some facts have a second wording (`alt`) for the notes. `pid` is the person, `id` the meeting.
 // regions: baltic germany italy iberia lowlands britain france asia levant americas africa
 // fame: 1 a name most people know, 3 one few do, 2 the rest. Easy deals no 3s, so the first days are of names you have heard.
 const FAMOUS = new Set("marco-polo christopher-columbus vasco-da-gama ferdinand-magellan martin-luther johannes-gutenberg galileo-galilei johannes-kepler nicolaus-copernicus leonardo-da-vinci niccolo-machiavelli henry-viii elizabeth-i francis-drake mehmed-ii zheng-he charles-v philip-ii henry-the-navigator lorenzo-de-medici francisco-pizarro moctezuma-ii kublai-khan mansa-musa".split(" "));
 const OBSCURE = new Set("francesco-datini eric-of-pomerania aldus-manutius martin-waldseemuller afonso-de-albuquerque bartholomaus-welser jurgen-wullenwever thomas-gresham cornelis-de-houtman willem-barentsz will-adams willem-janszoon john-napier thomas-roe jan-pieterszoon-coen waldemar-iv-atterdag margaret-i albert-of-riga nasir-al-din-al-tusi rabban-bar-sauma johann-wittenborg bertram-wulflam hildebrand-veckinchusen georg-gisze ulugh-beg zara-yaqob oba-ewuare benedetto-cotrugli sonni-ali askia-muhammad the-zamorin-of-calicut afonso-i-of-kongo mahmud-shah-of-malacca piri-reis enrique-of-malacca koxinga nur-jahan nzinga-of-ndongo autshumato albert-iv-of-bavaria andrea-doria leonardo-loredan".split(" "));
 const idOf = who => who.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
-const m = (who, place, year, region, what, why) => { const id = idOf(who); return { id, who, place, year, region, what, why, fame: FAMOUS.has(id) ? 1 : OBSCURE.has(id) ? 3 : 2 }; };
+// nationality as the person is known (Korbi, 9 Nov 2026: always shown with the name), by person id
+const NAT = {
+  fibonacci: "Pisan", "enrico-dandolo": "Venetian", "frederick-ii": "Holy Roman", "marco-polo": "Venetian", "ibn-battuta": "Moroccan", "waldemar-iv-atterdag": "Danish", "francesco-datini": "Tuscan", "margaret-i": "Danish",
+  "zheng-he": "Chinese", "eric-of-pomerania": "Pomeranian", "cosimo-de-medici": "Florentine", "henry-the-navigator": "Portuguese", "mehmed-ii": "Ottoman", "johannes-gutenberg": "German", "lorenzo-de-medici": "Florentine",
+  "leonardo-da-vinci": "Florentine", "christopher-columbus": "Genoese", "bartolomeu-dias": "Portuguese", "ivan-iii": "Muscovite", "luca-pacioli": "Tuscan", "vasco-da-gama": "Portuguese", "john-cabot": "Venetian",
+  "pedro-alvares-cabral": "Portuguese", "aldus-manutius": "Italian", "martin-waldseemuller": "German", "afonso-de-albuquerque": "Portuguese", "vasco-nunez-de-balboa": "Spanish", "niccolo-machiavelli": "Florentine",
+  erasmus: "Dutch", "jakob-fugger": "German", "ferdinand-magellan": "Portuguese", "moctezuma-ii": "Aztec", "martin-luther": "German", "juan-sebastian-elcano": "Basque", "gustav-vasa": "Swedish", "bartholomaus-welser": "German",
+  "francisco-pizarro": "Spanish", "jurgen-wullenwever": "German", "georg-gisze": "German", "hans-holbein-the-younger": "German", "henry-viii": "English", "jacques-cartier": "French", "nicolaus-copernicus": "Prussian",
+  "andreas-vesalius": "Flemish", "francis-xavier": "Navarrese", "charles-v": "Habsburg", "gerardus-mercator": "Flemish", "abraham-ortelius": "Flemish", "thomas-gresham": "English", "tycho-brahe": "Danish",
+  "francis-drake": "English", "william-of-orange": "Dutch", "philip-ii": "Spanish", "cornelis-de-houtman": "Dutch", "willem-barentsz": "Dutch", "elizabeth-i": "English", "will-adams": "English", "matteo-ricci": "Italian",
+  "willem-janszoon": "Dutch", "galileo-galilei": "Tuscan", "johannes-kepler": "German", "henry-hudson": "English", "hugo-grotius": "Dutch", "john-napier": "Scottish", "thomas-roe": "English", "jan-pieterszoon-coen": "Dutch",
+  "william-harvey": "English", "abel-tasman": "Dutch", "jan-van-riebeeck": "Dutch", "christiaan-huygens": "Dutch", "antonie-van-leeuwenhoek": "Dutch", "albert-of-riga": "German", "sundiata-keita": "Malian",
+  "nasir-al-din-al-tusi": "Persian", "kublai-khan": "Mongol", "rabban-bar-sauma": "Turkic", "mansa-musa": "Malian", "johann-wittenborg": "German", "bertram-wulflam": "German", "hildebrand-veckinchusen": "German",
+  "ulugh-beg": "Timurid", "zara-yaqob": "Ethiopian", "oba-ewuare": "Benin", "sejong-the-great": "Korean", "benedetto-cotrugli": "Ragusan", "sonni-ali": "Songhai", "askia-muhammad": "Songhai", "the-zamorin-of-calicut": "Keralan",
+  "albert-iv-of-bavaria": "Bavarian", "afonso-i-of-kongo": "Kongolese", "leonardo-loredan": "Venetian", "mahmud-shah-of-malacca": "Malay", "piri-reis": "Ottoman", malintzin: "Nahua", "enrique-of-malacca": "Malay",
+  "lapu-lapu": "Filipino", "andrea-doria": "Genoese", babur: "Timurid", akbar: "Mughal", "tokugawa-ieyasu": "Japanese", "nur-jahan": "Mughal", "nzinga-of-ndongo": "Mbundu", autshumato: "Khoikhoi",
+  "kangxi-emperor": "Qing", koxinga: "Chinese", shivaji: "Maratha", "robert-the-bruce": "Scottish", "klaus-stortebeker": "German",
+};
+// The second wording (Korbi, 9 Nov 2026): a fact read as `what` comes back in the notes and the lists as `alt`, the same information
+// from another side, so it has to be recognised and not just matched. Facts without one return as read. By meeting id; a later
+// meeting of a person already in the bank gets its `alt` as the last argument of m().
+const ALT = {
+  fibonacci: "brings Arabic numerals into European business", "marco-polo": "recounts the court of Kublai Khan from a prison cell", "zheng-he": "leaves for the Indian Ocean with a Ming armada",
+  "eric-of-pomerania": "taxes every ship passing Denmark's narrow strait", "henry-the-navigator": "pushes Portuguese ships beyond Africa's feared cape", "mehmed-ii": "ends the Byzantine empire by taking its capital",
+  "johannes-gutenberg": "completes the first major book printed with type", "leonardo-da-vinci": "writes to Milan's ruler, stressing war machines", "christopher-columbus": "gets the sovereigns' terms for a western route",
+  "bartolomeu-dias": "returns having found the way round Africa", "ivan-iii": "shuts the Hanseatic yard in Novgorod", "luca-pacioli": "prints the Venetian way of keeping accounts", "vasco-da-gama": "arrives at the pepper coast after rounding Africa",
+  "john-cabot": "reaches North America under English colours", "afonso-de-albuquerque": "has made Goa Portugal's base in India", "ferdinand-magellan": "leaves Spain to reach the Spice Islands westward",
+  "martin-luther": "stands his ground at the Diet of Worms", "juan-sebastian-elcano": "brings the surviving ship home round the world", "gustav-vasa": "wins the Swedish crown with Lübeck's fleet",
+  "nicolaus-copernicus": "publishes the Sun-centred model of the planets", "andreas-vesalius": "overturns Galen with a book of dissections", "gerardus-mercator": "publishes a chart where compass courses are straight",
+  "abraham-ortelius": "bundles uniform maps into the first atlas", "francis-drake": "brings home the Golden Hind loaded with Spanish silver", "william-of-orange": "declares the Dutch provinces free of Philip",
+  "philip-ii": "launches a great fleet at Elizabeth's England", "elizabeth-i": "grants a monopoly to English traders in Asia", "galileo-galilei": "demonstrates a spyglass to Venice's rulers", "johannes-kepler": "gives Mars an oval orbit, not a circle",
+  "hugo-grotius": "claims the ocean can belong to no nation", "john-napier": "invents a shortcut for long multiplication", "jan-pieterszoon-coen": "makes Batavia the Company's Asian capital", "william-harvey": "describes the heart as a pump",
+  "christiaan-huygens": "makes a clock regulated by a pendulum", "antonie-van-leeuwenhoek": "peers at microbes with a lens he made himself", "kublai-khan": "takes the title of Great Khan of the Mongols",
+  "mansa-musa": "floods Cairo with gold on his pilgrimage", "sejong-the-great": "has a simple script made for common readers", "sonni-ali": "makes Timbuktu a Songhai city", "tokugawa-ieyasu": "receives the shogunate from the emperor",
+  koxinga: "drives the Dutch from Formosa",
+};
+// fame is the person's, so a later meeting of theirs has the same
+const seen = new Set();
+const m = (who, place, year, region, what, why, alt) => {
+  const pid = idOf(who), id = seen.has(pid) ? `${pid}-${year}` : pid;
+  seen.add(pid);
+  if (!NAT[pid]) throw new Error(`dispatch-bank: no nationality for ${who}`);
+  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2 };
+};
 
 export const MEETINGS = [
   m("Fibonacci", "Pisa", 1202, "italy", "teaches merchants the Hindu-Arabic numerals", "His Liber Abaci made decimal arithmetic usable for trade accounts and exchange."),
@@ -124,7 +167,49 @@ export const MEETINGS = [
   m("Shivaji", "Raigad", 1674, "asia", "is crowned head of the Maratha state", "He built a state out of hill forts and a navy against the Mughals."),
   m("Robert the Bruce", "Arbroath", 1320, "britain", "stands behind the Declaration of Arbroath to the pope", "It argued for Scotland's independence and is often cited as an early statement of popular sovereignty."),
   m("Klaus Störtebeker", "Hamburg", 1401, "baltic", "is beheaded after the Hansa crushes his pirates", "The Victual Brothers had raided Baltic shipping; his fate is Hanse legend."),
+  // Further meetings of people already above (Korbi, 9 Nov 2026: individuals with several relevant details get several entries). The
+  // last argument is the second wording.
+  m("Christopher Columbus", "Barcelona", 1493, "iberia", "reports on the first voyage to Ferdinand and Isabella", "He brought gold, parrots and captives, and won a second fleet of seventeen ships.", "is received at court after returning from the Indies"),
+  m("Christopher Columbus", "Jamaica", 1504, "americas", "uses a predicted eclipse to get food from islanders", "Stranded with his crews, he timed the eclipse of 29 February from an almanac of astronomical tables.", "awes his hosts with a foretold darkening of the Moon"),
+  m("Martin Luther", "Wittenberg", 1517, "germany", "sends out ninety-five theses against indulgences", "Printed within weeks across Germany, the theses launched the Reformation.", "challenges the sale of pardons for sin"),
+  m("Martin Luther", "Wartburg", 1522, "germany", "translates the New Testament into German in hiding", "His New Testament, printed in September, shaped the written German language.", "puts the Gospels in German while sheltered in a castle"),
+  m("Galileo Galilei", "Padua", 1610, "italy", "sees four moons circling Jupiter", "Sidereus Nuncius showed a centre of motion other than the Earth.", "finds that not everything in the sky circles the Earth"),
+  m("Galileo Galilei", "Rome", 1633, "italy", "is made to abjure the Sun-centred system", "The Inquisition's sentence kept him under house arrest for the rest of his life.", "bows to the Inquisition over Copernicus's theory"),
+  m("Johannes Kepler", "Linz", 1619, "germany", "links a planet's year to its distance from the Sun", "Harmonices Mundi gave his third law of planetary motion.", "finds that distant planets move more slowly, by rule"),
+  m("Johannes Kepler", "Ulm", 1627, "germany", "publishes planetary tables more exact than any before", "The Rudolphine Tables used Tycho's data and predicted the 1631 transit of Mercury.", "prints the tables that let astronomers place the planets"),
+  m("Leonardo da Vinci", "Santa Maria delle Grazie", 1498, "italy", "finishes The Last Supper on a refectory wall", "His experiment with tempera on dry plaster began flaking within years.", "has covered a convent wall with the apostles at table"),
+  m("Leonardo da Vinci", "Florence", 1503, "italy", "begins the Mona Lisa, a silk merchant's wife", "He kept working on the portrait for years and took it with him to France.", "starts the portrait of Lisa del Giocondo"),
+  m("Nicolaus Copernicus", "Grudziądz", 1522, "baltic", "tells the Prussian diet that bad coin drives out good", "His coinage report anticipated what became known as Gresham's law.", "urges Royal Prussia to reform its currency"),
+  m("Nicolaus Copernicus", "Olsztyn", 1521, "baltic", "holds Olsztyn castle for the chapter against the Order", "As the chapter's administrator he defended Olsztyn in the war with the Teutonic Knights.", "keeps the Teutonic Order out of a Prussian fortress"),
+  m("Niccolò Machiavelli", "Florence", 1498, "italy", "takes office as secretary in the republic's chancery", "He served as diplomat and administrator until the Medici returned in 1512.", "starts a civil-service career at twenty-nine"),
+  m("Elizabeth I", "Deptford", 1581, "britain", "knights Francis Drake aboard the Golden Hind", "The queen honoured the voyage that had paid her a great share of Spanish silver.", "rewards a privateer with a knighthood"),
+  m("Elizabeth I", "Tilbury", 1588, "britain", "rallies her army as the Armada nears", "Her speech to the troops made her the figure of England's defence.", "speaks to her soldiers as the Spanish fleet approaches"),
+  m("Francis Drake", "Gravelines", 1588, "lowlands", "fights the Armada off the Flemish coast", "As vice-admiral he helped drive the Spanish fleet into the North Sea.", "serves as vice-admiral as England turns back the Armada"),
+  m("Philip II", "Tomar", 1581, "iberia", "is acclaimed king of Portugal", "Spain held Portugal and its overseas empire until 1640.", "joins two empires under one crown"),
+  m("Charles V", "Frankfurt", 1519, "germany", "is elected Holy Roman Emperor", "Fugger loans helped win the electors against Francis I of France.", "wins the imperial crown over the French king"),
+  m("Charles V", "Bologna", 1530, "italy", "is crowned emperor by the pope", "He was the last Holy Roman Emperor to be crowned by a pope.", "takes the crown from Clement VII's hands"),
+  m("Jakob Fugger", "Fuggerei", 1521, "germany", "founds almshouses for poor townspeople of Augsburg", "The Fuggerei still stands, with its rent of one Rhenish guilder a year.", "builds housing that charges a guilder a year"),
+  m("Erasmus", "Paris", 1511, "france", "publishes The Praise of Folly", "The satire, written for his friend Thomas More, mocked priests, kings and scholars.", "mocks kings, clergy and scholars in a book for More"),
+  m("Gerardus Mercator", "Leuven", 1541, "lowlands", "completes a globe marked with rhumb lines", "Lines of constant bearing on a sphere led him toward his 1569 projection.", "makes a terrestrial globe that sailors could steer by"),
+  m("Tycho Brahe", "Herrevad Abbey", 1572, "baltic", "observes a new star in Cassiopeia", "His measurements put it far beyond the Moon, so the heavens could change.", "finds that the sky beyond the Moon is not unchanging"),
+  m("Marco Polo", "Venice", 1271, "italy", "sets out with his father and uncle for the Mongol court", "The journey to Kublai Khan took years; they came home in 1295.", "leaves home at seventeen for Kublai Khan's China"),
+  m("Ibn Battuta", "Tangier", 1325, "africa", "leaves home for the pilgrimage to Mecca", "He did not see Morocco again for nearly twenty-five years.", "sets out at twenty-one on a journey of many years"),
+  m("Ibn Battuta", "Mali", 1352, "africa", "visits the court of Mansa Sulayman", "His account is the main eyewitness record of the Mali Empire at its height.", "describes the king of Mali's gold and court ceremony"),
+  m("Vasco da Gama", "Lisbon", 1497, "iberia", "sails with four ships for India", "The fleet left in July and rounded the Cape of Good Hope in November.", "leaves Portugal on the voyage that will reach Asia"),
+  m("Vasco da Gama", "Cochin", 1524, "asia", "returns to India as viceroy", "He died at Cochin within months of arriving.", "comes back to rule Portuguese India and dies there"),
+  m("Hugo Grotius", "Paris", 1625, "france", "publishes On the Law of War and Peace", "Written in exile, it became a foundation of international law.", "sets out rules for war and peace from exile"),
+  m("Jan Pieterszoon Coen", "Banda", 1621, "asia", "seizes the Banda Islands for the nutmeg monopoly", "Most of the islanders were killed, enslaved or driven out.", "crushes the islanders to control the world's nutmeg"),
+  m("Afonso de Albuquerque", "Malacca", 1511, "asia", "has captured Malacca, key to the spice trade", "Holding the strait let Portugal tax the passage between the Indian Ocean and China.", "takes the chokepoint of the spice route"),
+  m("Ferdinand Magellan", "Strait of Magellan", 1520, "americas", "finds the strait into the Pacific", "Passing it took five weeks, and one of his ships turned back for Spain.", "enters the Pacific through a channel later named for him"),
+  m("Henry VIII", "Guînes", 1520, "france", "meets Francis I at the Field of the Cloth of Gold", "Two kings spent a fortune on tents and jousts and signed no alliance.", "stages a show of splendour with the French king"),
+  m("Henry VIII", "Westminster", 1536, "britain", "begins closing the smaller monasteries", "The Dissolution moved vast Church lands to the Crown and, by sale, to the gentry.", "takes over the property of the religious houses"),
+  m("Henry the Navigator", "Ceuta", 1415, "africa", "fights in the capture of Ceuta", "The Moroccan port was Portugal's first overseas conquest.", "joins the conquest that began Portugal's empire abroad"),
+  m("Jacques Cartier", "Stadacona", 1535, "americas", "records the Iroquoian word kanata for the land", "The word meant a village; it grew to name a country.", "takes a village's name as the name of a whole country"),
+  m("Kublai Khan", "Dadu", 1271, "asia", "names his dynasty Yuan", "The name claimed the Chinese mandate; Dadu, now Beijing, became his capital.", "claims to rule China in the Chinese manner"),
+  m("Akbar", "Fatehpur Sikri", 1575, "asia", "opens a house of worship for debate between faiths", "Scholars of several religions argued before him, and he grew sceptical of orthodoxy.", "hears Muslims, Hindus, Jains and Zoroastrians dispute"),
 ];
 
 export const REGIONS = [...new Set(MEETINGS.map(x => x.region))];
 export const meetingOf = id => MEETINGS.find(x => x.id === id) || null;
+/** Every meeting of one person, in the order of their years. */
+export const meetingsOfPerson = pid => MEETINGS.filter(x => x.pid === pid).sort((a, b) => a.year - b.year);

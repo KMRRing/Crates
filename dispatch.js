@@ -51,7 +51,7 @@ function showDone() {
   const facts = el("p", "dp-facts");
   facts.append(`${S.pct}% of the day's details, ${S.fixed ? `${S.fixed} ${S.fixed === 1 ? "change" : "changes"} made.` : "no changes made."}`);
   const recap = el("ol", "dp-recap");
-  S.ids.map(meetingOf).forEach(x => { const li = el("li"); li.append(el("b", "", x.who), ` ${x.what} (${x.place}, ${x.year}). ${x.why}`); recap.append(li); });
+  S.ids.map(meetingOf).forEach(x => { const li = el("li"); li.append(el("b", "", `${x.who} (${x.nat})`), ` ${x.what}${x.alt ? `, or: ${x.alt}` : ""} (${x.place}, ${x.year}). ${x.why}`); recap.append(li); });
   $("doneBody").replaceChildren(facts, el("p", "dp-best", `Best at ${S.level}: ${best[S.level] ?? "–"}%`), recap, action("Another day", () => { $("doneDlg").close(); newRun(false); }, "primary"));
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
@@ -67,7 +67,7 @@ function render() {
     $("where").textContent = `${level} · meeting ${S.idx + 1} of ${n}`;
     const bar = el("div", "dp-time"), fill = el("i"); bar.append(fill); fill.id = "fill";
     const scene = el("article", "dp-scene");
-    scene.append(el("p", "dp-place", `${x.place} · ${x.year}`), el("h2", "dp-who", x.who), el("p", "dp-said", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`), el("p", "dp-why", x.why));
+    scene.append(el("p", "dp-place", `${x.place} · ${x.year}`), el("h2", "dp-who", x.who), el("p", "dp-nat", x.nat), el("p", "dp-said", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`), el("p", "dp-why", x.why));
     stage.replaceChildren(bar, scene);
     $("goBtn").textContent = S.idx + 1 < n ? "Next" : "To my notes";
     drawTime();
@@ -76,7 +76,7 @@ function render() {
     $("where").textContent = done ? `${level} · ${s.right} of ${s.total} right` : `${level} · your notes`;
     $("clock").textContent = "";
     const nodes = [];
-    if (!done) nodes.push(el("p", "dp-help", "Your notes were written in a hurry. Some details are wrong and some are blank: tap a detail to change it, then hand the notes in."));
+    if (!done) nodes.push(el("p", "dp-help", "Your notes were written in a hurry. Some details are wrong and some are blank: tap a detail to change it, then hand the notes in. A person can appear twice, and a fact may be worded another way from how you read it."));
     S.ids.forEach((id, i) => {
       const x = meetingOf(id), card = el("section", "dp-note");
       card.append(el("h3", "", `${i + 1} · ${x.year}`));
@@ -143,7 +143,7 @@ function openMenu() {
   });
   const best = read(BEST, {});
   part(body, "about").append(line(LEVEL_IDS.map(l => `${l[0].toUpperCase()}${l.slice(1)} ${LEVELS[l].n} meetings, ${LEVELS[l].read} s each${best[l] != null ? ` (best ${best[l]}%)` : ""}`).join("; ") + "."),
-    line("Read each meeting once: who it was, where, and what they said. Then your notes come back with some details wrong or blank. Put them right from memory."));
+    line("Read each meeting once: who it was and their nationality, where, and what they said. Then your notes come back with some details wrong or blank, and a fact may be worded another way. Some people turn up twice in a day. Put the notes right from memory."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 async function openToday() {
