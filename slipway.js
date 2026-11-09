@@ -30,11 +30,13 @@ const DRIFT = 0.09;                                  // how far a piece moves fr
 let S = read(RUN, null);
 if (S && (S.v !== 5 || !LEVELS.some(l => l.id === S.level))) S = null;   // (the painting run, and the cut-list game's before it, are left behind)
 const save = () => write(RUN, S);
+// Older games stored bests in other shapes (a bare number); anything but { id: { ms } } counts as none.
+const bests = () => { const b = read(BEST, {}); return b && typeof b === "object" && !Array.isArray(b) ? b : {}; };
 let level = null, hint = null;                       // hint: the step a hint pointed at, { cells, text, op }, until the next cut
 let tool = "chisel", undo = [], view3d = true, layer = 0;
 const N = () => level.n;
 const cuts = () => new Set(S.cuts);
-const firstUndone = () => (LEVELS.find(l => !read(BEST, {})[l.id]) || LEVELS[0]).id;
+const firstUndone = () => (LEVELS.find(l => !bests()[l.id]) || LEVELS[0]).id;
 
 function newRun(id = firstUndone()) {
   S = { v: 5, level: id, cuts: [], ms: 0, done: false };
@@ -84,7 +86,7 @@ function takeHint() {
 const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 function finish() {
   S.done = true;
-  const best = read(BEST, {}), b = best[level.id];
+  const best = bests(), b = best[level.id];
   if (!b || S.ms < b.ms) { best[level.id] = { ms: S.ms }; write(BEST, best); }
   roundOver("slipway");
   sound("done");
@@ -93,7 +95,7 @@ function finish() {
 }
 function showDone() {
   if (!S?.done) return;
-  const t = read(BEST, {})[level.id], next = LEVELS[LEVELS.findIndex(l => l.id === level.id) + 1];
+  const t = bests()[level.id], next = LEVELS[LEVELS.findIndex(l => l.id === level.id) + 1];
   $("doneHead").textContent = `${level.name}, cut`;
   $("doneBody").replaceChildren(el("p", "sw-facts", `Cut in ${clock(Math.round(S.ms / 1000))}.`), el("p", "sw-best", `Best: ${t ? clock(Math.round(t.ms / 1000)) : "–"}`),
     ...(next ? [action(`Next block: ${next.name}`, () => { $("doneDlg").close(); newRun(next.id); }, "primary")] : []),
@@ -243,7 +245,7 @@ function toast(text) { const t = $("toast"); t.textContent = text; t.classList.a
 // ---------- the menu ----------
 const started = () => !!S && !S.done && S.cuts.length > 0;
 function openMenu() {
-  const body = $("menuBody"), best = read(BEST, {});
+  const body = $("menuBody"), best = bests();
   body.replaceChildren();
   const play = part(body, "play");
   play.append(action("Start over", async () => { $("menuDlg").close(); if (started() && !(await sure("Start this block again? It isn't finished."))) return; newRun(level.id); }, "primary"));
