@@ -1,8 +1,9 @@
 // Slipway: a block of cubes to be cut into pieces, worked out from numbers on it (a cube's number is how many cubes its piece has) and
-// a census of the kinds of piece. You paint pieces, a colour each, with a chisel (one cube), a saw (a whole layer) or a bore (a whole
-// line); the block is done when every clue holds. The rules are slipway-rules.js's, the drawing slipway-view.js's; this file keeps the
-// run and builds the page.
-import { LEVELS, KIND_NAMES, KIND_NOTES, judge, reach, hint as nextStep, at, xyz } from "./slipway-rules.js";
+// a census of the kinds of piece. The block starts whole; a chisel breaks one joint, a saw a whole plane of them, a bore a rod's
+// worth, glue mends one. The pieces are the runs of cubes still joined, each its own colour, drifting apart a little as they come
+// free. It is done when every clue holds. The rules are slipway-rules.js's, the drawing slipway-view.js's; this file keeps the run
+// and builds the page.
+import { LEVELS, KIND_NAMES, KIND_NOTES, judge, pieces, useTool, hint as nextStep, at, xyz } from "./slipway-rules.js";
 import { drawCubes, faceAt, REST, PITCH } from "./slipway-view.js";
 import { setSound, sound } from "./slipway-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -19,74 +20,64 @@ const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JS
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 setSound(read(SOUND, true));
 
-// one colour a piece; the first is for the first piece painted
-const COLOURS = [[201, 84, 66], [226, 164, 48], [104, 160, 88], [66, 140, 178], [146, 98, 168], [206, 120, 150], [92, 170, 160], [160, 126, 86], [150, 150, 150]];
-const BARE = [228, 218, 198];
+// a colour a piece, by the order of its lowest cube; the wood of the uncut block is the first
+const COLOURS = [[214, 176, 118], [201, 84, 66], [104, 160, 88], [66, 140, 178], [146, 98, 168], [226, 164, 48], [206, 120, 150], [92, 170, 160], [160, 126, 86], [150, 150, 150]];
 const rgb = c => `rgb(${c.join(",")})`;
+const DRIFT = 0.09;                                  // how far a piece moves from the middle of the block when it is cut free (in cubes)
 
 // ---------- the run ----------
-// S: { v, level, paint (a digit per cube: 0 bare, else the piece's colour), ms, done }; bests by level id are { ms }
+// S: { v, level, cuts (the broken joints, "a-b"), ms, done }; bests by level id are { ms }
 let S = read(RUN, null);
-if (S && (S.v !== 4 || !LEVELS.some(l => l.id === S.level))) S = null;   // (the cut-list game's run is left behind)
+if (S && (S.v !== 5 || !LEVELS.some(l => l.id === S.level))) S = null;   // (the painting run, and the cut-list game's before it, are left behind)
 const save = () => write(RUN, S);
-let level = null;
-let hint = null;                                   // the step a hint pointed at: { cells, text, paint }, until the next paint
-let colour = 1, tool = "chisel", undo = [], view3d = true, layer = 0;
+let level = null, hint = null;                       // hint: the step a hint pointed at, { cells, text, op }, until the next cut
+let tool = "chisel", undo = [], view3d = true, layer = 0;
 const N = () => level.n;
-const paint = () => Uint8Array.from(S.paint, c => +c);
-const keep = a => { S.paint = Array.from(a).join(""); };
-const pieces = () => Object.values(level.census).reduce((a, b) => a + b, 0);
+const cuts = () => new Set(S.cuts);
+const firstUndone = () => (LEVELS.find(l => !read(BEST, {})[l.id]) || LEVELS[0]).id;
 
-function newRun(id = LEVELS[0].id) {
-  const lv = LEVELS.find(l => l.id === id);
-  S = { v: 4, level: id, paint: "0".repeat(lv.n ** 3), ms: 0, done: false };
+function newRun(id = firstUndone()) {
+  S = { v: 5, level: id, cuts: [], ms: 0, done: false };
   save(); begin();
 }
 function begin() {
   level = LEVELS.find(l => l.id === S.level);
-  undo = []; hint = null; colour = 1; layer = 0; view3d = true;
-  buildPalette(); buildLayers(); buildRules();
+  undo = []; hint = null; layer = 0; view3d = true;
+  buildLayers(); buildRules();
   render();
 }
 
-// ---------- painting ----------
-function put(axis, k) {
-  if (!S || S.done) return;
-  const now = paint(), cells = reach(N(), tool, axis, k);
-  undo.push(S.paint); if (undo.length > 120) undo.shift();
-  // painting again over a cut that is already this colour takes it off
-  const wipe = cells.every(c => now[c] === colour);
-  for (const c of cells) now[c] = wipe ? 0 : colour;
-  keep(now); hint = null;
-  sound(wipe ? "undo" : "tap");
+// ---------- cutting ----------
+function apply(op) {
+  const now = cuts();
+  for (const k of op.add) now.add(k);
+  for (const k of op.remove) now.delete(k);
+  undo.push(S.cuts); if (undo.length > 200) undo.shift();
+  S.cuts = [...now]; hint = null;
   save(); render();
-  if (judge(level, paint()).done) finish();
+  if (judge(level, now).done) finish();
+}
+function use(axis, dir, k) {
+  if (!S || S.done) return;
+  const op = useTool(N(), tool, axis, dir, k, cuts());
+  if (!op) { sound("refuse"); toast(tool === "glue" ? "Nothing cut there to mend" : "Nothing left to cut there"); return; }
+  sound(tool === "glue" ? "undo" : "fit");
+  apply(op);
 }
 function undoLast() {
   if (S.done || !undo.length) return;
-  S.paint = undo.pop(); hint = null; sound("undo"); save(); render();
+  S.cuts = undo.pop(); hint = null; sound("undo"); save(); render();
 }
-async function clearAll() {
-  if (S.done || !/[1-9]/.test(S.paint)) return;
-  if (!(await sure("Wipe all the colours?"))) return;
-  undo.push(S.paint); S.paint = "0".repeat(N() ** 3); hint = null; save(); render();
-}
-
 /** Points at the next step that can be worked out, and says why. */
 function showHint() {
   if (!S || S.done) return;
-  const h = nextStep(level, paint());
+  const h = nextStep(level, cuts());
   if (!h) return;
   hint = h; sound("tap"); render();
 }
-/** Paints the piece a hint pointed at, in the first colour that is not in use (or the chosen one when none is free). */
 function takeHint() {
-  if (!hint?.paint) return;
-  const now = paint(), used = new Set(now), pen = [...Array(pieces()).keys()].map(i => i + 1).find(c => !used.has(c)) || colour;
-  undo.push(S.paint);
-  for (const c of hint.paint) now[c] = pen;
-  colour = pen; keep(now); hint = null; sound("tap"); save(); render();
-  if (judge(level, paint()).done) finish();
+  if (!hint) return;
+  sound("fit"); apply(hint.op);
 }
 
 // ---------- the end ----------
@@ -98,14 +89,15 @@ function finish() {
   roundOver("slipway");
   sound("done");
   save(); render();
-  setTimeout(showDone, 600);
+  setTimeout(showDone, 700);
 }
 function showDone() {
   if (!S?.done) return;
-  const t = read(BEST, {})[level.id];
+  const t = read(BEST, {})[level.id], next = LEVELS[LEVELS.findIndex(l => l.id === level.id) + 1];
   $("doneHead").textContent = `${level.name}, cut`;
   $("doneBody").replaceChildren(el("p", "sw-facts", `Cut in ${clock(Math.round(S.ms / 1000))}.`), el("p", "sw-best", `Best: ${t ? clock(Math.round(t.ms / 1000)) : "–"}`),
-    action("Again", () => { $("doneDlg").close(); newRun(level.id); }, "primary"));
+    ...(next ? [action(`Next block: ${next.name}`, () => { $("doneDlg").close(); newRun(next.id); }, "primary")] : []),
+    action("Again", () => { $("doneDlg").close(); newRun(level.id); }, next ? "link" : "primary"));
   if (!$("doneDlg").open) $("doneDlg").showModal();
   requestAnimationFrame(() => drawCubes($("doneView"), cubesOf(false), { ...REST }, { n: N(), frame: false, margin: 8 }));
 }
@@ -113,7 +105,7 @@ function showDone() {
 // ---------- the clues ----------
 function buildRules() {
   const box = $("rules"), notes = el("div", "sw-notes");
-  box.replaceChildren(el("p", "sw-lead", `Cut the block into pieces. A number on a cube says how many cubes its piece has. No piece has more than ${level.maxSize}. Paint a piece one colour; a colour is one piece, so its cubes must touch.`),
+  box.replaceChildren(el("p", "sw-lead", `Cut the block into pieces. A number on a cube says how many cubes its piece has. No piece has more than ${level.maxSize}. Tap a face: a chisel breaks the first joint going in, a saw the whole plane, a bore the rod through that cube; glue mends a joint.`),
     el("ul", "sw-census"), notes);
   for (const k of Object.keys(KIND_NAMES)) if (level.census[k]) notes.append(el("p", "", KIND_NOTES[k]));
   box.scrollTop = 0;
@@ -126,33 +118,37 @@ function drawCensus(j) {
     return li;
   }));
 }
+function drawHint() {
+  let box = $("rules").querySelector(".sw-hint");
+  if (!hint) { box?.remove(); return; }
+  if (!box) { box = el("div", "sw-hint"); $("rules").prepend(box); }
+  box.replaceChildren(el("p", "", hint.text));
+  const b = el("button", "btn", hint.op.remove.length && !hint.op.add.length ? "Glue it" : "Cut it"); b.type = "button"; b.addEventListener("click", takeHint); box.append(b);
+  $("rules").scrollTop = 0;
+}
 
 // ---------- drawing ----------
-const pose = { ...REST };
+const pose = { ...REST, zoom: 1, px: 0, py: 0 };
 let hits = [];
+/** The cubes as drawn: a colour per piece, the pieces drifted a little apart once there is more than one. */
 function cubesOf(marks = true) {
-  const n = N(), now = paint(), out = [], bad = new Set(marks ? judge(level, now).wrong : []);
-  for (let k = 0; k < now.length; k++) {
-    const [x, y, z] = xyz(n, k), c = { x, y, z, color: now[k] ? COLOURS[now[k] - 1] : BARE };
-    if (level.gauge[k] != null) c.label = level.gauge[k];
-    if (bad.has(k)) c.edge = "rgba(168,56,43,1)";
-    if (marks && hint?.cells.includes(k)) { c.edge = "rgba(31,143,138,1)"; if (!now[k]) c.color = [150, 214, 208]; }
-    out.push(c);
-  }
+  const n = N(), ps = pieces(n, cuts()), j = judge(level, cuts()), bad = new Set(marks ? j.wrong : []), mid = (n - 1) / 2, out = [];
+  ps.forEach((p, i) => {
+    const xs = p.map(k => xyz(n, k)), cen = [0, 1, 2].map(a => xs.reduce((t, c) => t + c[a], 0) / p.length - mid);
+    const drift = ps.length > 1 ? DRIFT : 0;
+    for (const k of p) {
+      const [x, y, z] = xyz(n, k), c = { x, y, z, ox: cen[0] * drift, oy: cen[1] * drift, oz: cen[2] * drift, color: COLOURS[i % COLOURS.length] };
+      if (level.gauge[k] != null) c.label = level.gauge[k];
+      if (bad.has(k)) c.edge = "rgba(168,56,43,1)";
+      if (marks && hint?.cells.includes(k)) c.edge = "rgba(31,143,138,1)";
+      out.push(c);
+    }
+  });
   return out;
 }
 function drawAll() {
   if (!S || !level || !view3d) return;
-  hits = drawCubes($("cube"), cubesOf(), pose, { n: N(), frame: true, margin: 10, frameColor: "rgba(140,130,110,.7)" });
-}
-function buildPalette() {
-  const box = $("palette"); box.replaceChildren();
-  for (let c = 1; c <= pieces(); c++) {
-    const b = el("button", "sw-pen"); b.type = "button"; b.dataset.c = c; b.style.setProperty("--pen", rgb(COLOURS[c - 1]));
-    b.setAttribute("aria-label", `Piece ${c}`); b.append(el("span", "", "0"));
-    b.addEventListener("click", () => { colour = c; render(); });
-    box.append(b);
-  }
+  hits = drawCubes($("cube"), cubesOf(), pose, { n: N(), frame: S.cuts.length === 0, margin: 10, frameColor: "rgba(140,130,110,.7)" });
 }
 function buildLayers() {
   const n = N(), tabs = $("tabs"), grid = $("grid");
@@ -168,54 +164,41 @@ function buildLayers() {
   for (let y = n - 1; y >= 0; y--) for (let x = 0; x < n; x++) {   // the back row on top, the front at the bottom
     const b = el("button", "sw-sq"); b.type = "button"; b.dataset.x = x; b.dataset.y = y;
     b.append(el("span", "", ""));
-    b.addEventListener("click", () => put(2, at(n, x, y, layer)));
+    b.addEventListener("click", () => use(2, 1, at(n, x, y, layer)));   // from above, going down
     grid.append(b);
   }
 }
 function render() {
   if (!S || !level) return;
-  const n = N(), now = paint(), j = judge(level, now);
-  $("where").textContent = `${level.name} · ${n}×${n}×${n} · ${now.filter(Boolean).length} of ${n ** 3} cubes painted`;
+  const n = N(), now = cuts(), j = judge(level, now);
+  $("where").textContent = `${level.name} · ${n}×${n}×${n} · ${j.pieces.length} ${j.pieces.length === 1 ? "piece" : "pieces"}`;
   drawClock();
   $("cube").hidden = !view3d; $("layerView").hidden = view3d;
   $("viewBtn").textContent = view3d ? "Layers" : "Block";
   for (const b of document.querySelectorAll(".sw-tool")) b.classList.toggle("on", b.dataset.tool === tool);
-  for (const b of $("palette").children) {
-    const c = +b.dataset.c, size = now.filter(v => v === c).length;
-    b.classList.toggle("on", c === colour); b.firstChild.textContent = size || "";
-    b.classList.toggle("split", j.split.includes(c) || j.big.includes(c));
-  }
   [...$("tabs").children].forEach((b, z) => { b.classList.toggle("on", z === layer); b.setAttribute("aria-selected", z === layer); });
-  const bad = new Set(j.wrong);
+  const bad = new Set(j.wrong), pieceOf = new Map();
+  j.pieces.forEach((p, i) => p.forEach(k => pieceOf.set(k, i)));
   for (const b of $("grid").children) {
-    const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer), v = now[k];
-    b.style.background = rgb(v ? COLOURS[v - 1] : BARE);
+    const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer);
+    b.style.background = rgb(COLOURS[pieceOf.get(k) % COLOURS.length]);
     b.className = `sw-sq${bad.has(k) ? " slip" : ""}${hint?.cells.includes(k) ? " hint" : ""}`;
     b.firstChild.textContent = level.gauge[k] ?? "";
-    b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${level.gauge[k] != null ? `, number ${level.gauge[k]}` : ""}${v ? `, piece ${v}` : ", bare"}`);
+    b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${level.gauge[k] != null ? `, number ${level.gauge[k]}` : ""}, piece ${pieceOf.get(k) + 1}`);
   }
   drawCensus(j);
   drawHint();
   $("undoBtn").disabled = !undo.length || S.done;
-  $("clearBtn").disabled = S.done; $("hintBtn").disabled = S.done;
+  $("hintBtn").disabled = S.done;
   requestAnimationFrame(drawAll);
-}
-function drawHint() {
-  let box = $("rules").querySelector(".sw-hint");
-  if (!hint) { box?.remove(); return; }
-  if (!box) { box = el("div", "sw-hint"); $("rules").prepend(box); }
-  box.replaceChildren(el("p", "", hint.text));
-  if (hint.paint) { const b = el("button", "btn", "Paint it"); b.type = "button"; b.addEventListener("click", takeHint); box.append(b); }
-  $("rules").scrollTop = 0;
 }
 function drawClock() { $("clock").textContent = clock(Math.round(S.ms / 1000)); }
 
-// ---------- the block by hand: drag to turn, tap a cube to paint, pinch or scroll to zoom (two fingers also slide it) ----------
+// ---------- the block by hand: drag to turn, tap a face to use the tool, pinch or scroll to zoom (two fingers also slide it) ----------
 let drag = null;
 const cube = $("cube"), fingers = new Map();
 const ZOOM = [0.3, 3];
-const zoomBy = f => { pose.zoom = Math.max(ZOOM[0], Math.min(ZOOM[1], (pose.zoom || 1) * f)); if (pose.zoom <= 1) { pose.px *= 0.8; pose.py *= 0.8; } drawAll(); };
-pose.zoom = 1; pose.px = 0; pose.py = 0;
+const zoomBy = f => { pose.zoom = Math.max(ZOOM[0], Math.min(ZOOM[1], pose.zoom * f)); if (pose.zoom <= 1) { pose.px *= 0.8; pose.py *= 0.8; } drawAll(); };
 cube.addEventListener("wheel", e => { e.preventDefault(); zoomBy(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 cube.addEventListener("pointerdown", e => { cube.setPointerCapture(e.pointerId); fingers.set(e.pointerId, [e.clientX, e.clientY]); drag = fingers.size > 1 ? null : { x: e.clientX, y: e.clientY, moved: 0 }; });
 cube.addEventListener("pointermove", e => {
@@ -239,7 +222,7 @@ cube.addEventListener("pointerup", e => {
   const d = drag; drag = null; fingers.delete(e.pointerId);
   if (!d || d.moved > 6 || !S || S.done) return;
   const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
-  if (h) put(h.axis, at(N(), h.cube.x, h.cube.y, h.cube.z));
+  if (h) use(h.axis, h.dir, at(N(), h.cube.x, h.cube.y, h.cube.z));
 });
 cube.addEventListener("pointercancel", e => { drag = null; fingers.delete(e.pointerId); });
 
@@ -254,16 +237,23 @@ function tick(now) {
   if (s !== savedAt) { savedAt = s; drawClock(); if (s % 5 === 0) save(); }
 }
 
+let toastTimer = 0;
+function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1600); }
+
 // ---------- the menu ----------
-const started = () => !!S && !S.done && /[1-9]/.test(S.paint);
+const started = () => !!S && !S.done && S.cuts.length > 0;
 function openMenu() {
-  const body = $("menuBody");
+  const body = $("menuBody"), best = read(BEST, {});
   body.replaceChildren();
-  part(body, "play").append(action("Start over", async () => { $("menuDlg").close(); if (started() && !(await sure("Start this block again? It isn't finished."))) return; newRun(level.id); }, "primary"));
+  const play = part(body, "play");
+  play.append(action("Start over", async () => { $("menuDlg").close(); if (started() && !(await sure("Start this block again? It isn't finished."))) return; newRun(level.id); }, "primary"));
+  for (const l of LEVELS) play.append(action(`${LEVELS.indexOf(l) + 1}. ${l.name}${best[l.id] ? `  ✓ ${clock(Math.round(best[l.id].ms / 1000))}` : ""}`, async () => {
+    $("menuDlg").close();
+    if (l.id !== level.id && started() && !(await sure("Leave this block? It isn't finished."))) return;
+    if (l.id !== level.id || S.done) newRun(l.id);
+  }, "link"));
   part(body, "settings").append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
-  const best = read(BEST, {});
-  part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l.name} ${best[l.id] ? clock(Math.round(best[l.id].ms / 1000)) : "–"}`).join(" · ")}`),
-    line("A chisel paints one cube, a saw a whole layer, a bore a whole line. Tap a painted cut again to take the colour off."));
+  part(body, "about").append(line("A chisel breaks the first whole joint going in from the face you tap, a saw the whole plane of joints, a bore the joints round the rod through that cube, glue mends the first broken joint. In Layers, a tap works from above, going down."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -276,7 +266,6 @@ $("doneClose").addEventListener("click", () => $("doneDlg").close());
 for (const b of document.querySelectorAll(".sw-tool")) b.addEventListener("click", () => { tool = b.dataset.tool; render(); });
 $("viewBtn").addEventListener("click", () => { view3d = !view3d; render(); });
 $("undoBtn").addEventListener("click", undoLast);
-$("clearBtn").addEventListener("click", clearAll);
 $("hintBtn").addEventListener("click", showHint);
 new ResizeObserver(() => drawAll()).observe($("bench"));
 window.addEventListener("resize", () => drawAll());
@@ -286,4 +275,4 @@ else if (S.done) { begin(); showDone(); }
 else begin();
 
 // for tests and debugging
-window.__slipway = { get state() { return S; }, showHint, get hint() { return hint; }, get level() { return level; }, put, undoLast, newRun, get hits() { return hits; }, setTool: t => { tool = t; render(); }, setColour: c => { colour = c; render(); }, get view3d() { return view3d; } };
+window.__slipway = { get state() { return S; }, get level() { return level; }, use, apply, undoLast, newRun, showHint, get hint() { return hint; }, get hits() { return hits; }, setTool: t => { tool = t; render(); }, get view3d() { return view3d; } };

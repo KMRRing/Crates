@@ -74,7 +74,7 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
     }
   }
   const hits = [], here = new Set(cubes.map(c => `${c.x},${c.y},${c.z}`)), faded = [];
-  const order = cubes.map(c => ({ c, d: at(c.x + 0.5, c.y + 0.5, c.z + 0.5)[2] })).sort((a, b) => b.d - a.d);
+  const order = cubes.map(c => ({ c, d: at(c.x + 0.5 + (c.ox || 0), c.y + 0.5 + (c.oy || 0), c.z + 0.5 + (c.oz || 0))[2] })).sort((a, b) => b.d - a.d);
   // a number is written on every face of its cube that you can see; a cube with no such face (inside, or round the back) shows it
   // faintly through the others, drawn last
   const write = (c, x, y, size, alpha) => {
@@ -89,15 +89,15 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
       if (t[2] >= -1e-6) continue;                  // facing away
       const lit = Math.max(0, t[0] * LIGHT[0] + t[1] * LIGHT[1] + -t[2] * LIGHT[2]), k = 0.52 + 0.48 * lit;
       const col = `rgb(${c.color.map(v => Math.round(Math.min(255, v * k))).join(",")})`;
-      const quad = f.q.map(o => at(c.x + o[0], c.y + o[1], c.z + o[2]));
+      const quad = f.q.map(o => at(c.x + o[0] + (c.ox || 0), c.y + o[1] + (c.oy || 0), c.z + o[2] + (c.oz || 0)));
       poly(quad, col, c.edge || edgeColor, c.alpha ?? 1);
-      hits.push({ cube: c, axis: f.n.findIndex(v => v !== 0), poly: quad.map(p => [sx(p), sy(p)]) });
+      hits.push({ cube: c, axis: f.n.findIndex(v => v !== 0), dir: f.n.find(v => v !== 0), poly: quad.map(p => [sx(p), sy(p)]) });
       if (c.label != null && !here.has(`${c.x + f.n[0]},${c.y + f.n[1]},${c.z + f.n[2]}`)) {
         shown = true;
         write(c, quad.reduce((a, p) => a + sx(p), 0) / 4, quad.reduce((a, p) => a + sy(p), 0) / 4, s * 0.5 * Math.max(0.6, Math.sqrt(-t[2])), 1);
       }
     }
-    if (c.label != null && !shown) { const m = at(c.x + 0.5, c.y + 0.5, c.z + 0.5); faded.push([c, sx(m), sy(m)]); }
+    if (c.label != null && !shown) { const m = at(c.x + 0.5 + (c.ox || 0), c.y + 0.5 + (c.oy || 0), c.z + 0.5 + (c.oz || 0)); faded.push([c, sx(m), sy(m)]); }
   }
   for (const [c, x, y] of faded) write(c, x, y, s * 0.42, 0.42);
   return hits;
