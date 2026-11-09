@@ -10,7 +10,7 @@
    is a square-ish container and the lens the largest circle that fits it, so it is round at any shape of screen. */
 .sg-stage { display: flex; flex-direction: column; gap: .6rem; min-height: 0; }
 .sg-bay { flex: 1 1 0; min-height: 0; container-type: size; display: grid; place-items: center; }
-.sg-lens { --d: min(100cqw, 100cqh); width: var(--d); height: var(--d); box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .02); 
+.sg-lens { position: relative; --d: min(100cqw, 100cqh); width: var(--d); height: var(--d); box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .02); 
   background: conic-gradient(from 210deg, #F4DC9A, #C99B45, #7A5522, #D9B160, #8A6128, #E8CB82, #F4DC9A);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 .3rem .8rem rgba(0, 0, 0, .4); }
 .sg-wood { width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .05);
@@ -24,7 +24,10 @@
 .sg-seat::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 50%;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .7), inset 0 .2rem 1.2rem rgba(0, 0, 0, .55); }
 .sg-seat canvas { display: block; width: 100%; height: 100%; }
-.sg-caption { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: .45rem 14% .9rem; text-align: center; font-size: .8rem; line-height: 1.3; background: rgba(16, 24, 31, .78); color: #F3ECDC; z-index: 1; }
+/* A brass plate screwed on in front of the glass, over the rim (Korbi, 10 Nov 2026: "a large metal plate in front of the spyglass"). */
+.sg-caption { position: absolute; left: 50%; bottom: 5%; transform: translateX(-50%); width: 76%; box-sizing: border-box; margin: 0; padding: .55rem 1.1rem; text-align: center; font-size: .85rem; font-weight: 600; line-height: 1.3; color: #2A1A08; z-index: 2;
+  background: linear-gradient(170deg, #F4DC9A, #C99B45 45%, #8A6128 100%); border: 1px solid rgba(0, 0, 0, .65); border-radius: 3px;
+  box-shadow: inset 0 0 0 2px rgba(255, 235, 170, .35), 0 .25rem .7rem rgba(0, 0, 0, .55); text-shadow: 0 1px 0 rgba(255, 240, 190, .5); }
 .sg-caption[hidden] { display: none; }
 .sg-opts { flex: none; height: 10.6rem; margin-top: .6rem; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; align-content: start; }
 .sg-opt { text-align: left; padding: .4rem .6rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .86rem; min-height: 2.3rem; line-height: 1.2; }
