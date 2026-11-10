@@ -643,12 +643,16 @@ function build(seed, size, want, tw = null) {
     sync();
     // bounds and unknown islands: numbers loosened one at a time (an island's "n" to "n+" or "≤n", or to "?") for as long as
     // reasoning at the level still finishes the board, so each bound left is one the puzzle needs. The land count is given.
+    // The larger islands are hidden first, and a one-cell island only when no larger one can be: a hidden 1 is the easiest to hide,
+    // so 7 in 10 had been 1s, and a "?" that is always 1 asks nothing new (Korbi, 10 Nov 2026: "'?' is 1 every time so far").
     if (tw && (tw.ranges || tw.unknown)) {
       let loose = 0, hidden = 0;
       const order = shuffle(Array.from(P.clues), rng);
+      if (tw.unknown) order.sort((a, b) => P.clue[b] - P.clue[a]);       // (a stable sort: islands of one size stay in their random order)
+      const hide = x => { const n = P.clue[x]; P.clue[x] = 0; P.bound[x] = 3; seat(P); if (solveAs(P, want).ok) return true; P.clue[x] = n; P.bound[x] = 0; seat(P); return false; };
       for (const x of order) {
         const n = P.clue[x], options = [];
-        if (tw.unknown) options.push([0, 3]);
+        if (tw.unknown && n >= 2) options.push([0, 3]);
         if (tw.ranges) options.push([n - (rng() < 0.4 ? 1 : 0), 1], [n + (rng() < 0.4 ? 1 : 0), 2]);     // "n+" or "(n-1)+", "≤n" or "≤(n+1)"
         for (const [v, b] of shuffle(options, rng)) {
           if (b !== 3 && v < 2) continue;                                   // (a bound of one cell is no bound)
@@ -657,8 +661,9 @@ function build(seed, size, want, tw = null) {
           P.clue[x] = n; P.bound[x] = 0; seat(P);
         }
       }
-      const few = N <= 6 ? 1 : 2;
-      if ((tw.ranges && loose < few) || (tw.unknown && hidden < few)) continue;
+      if (tw.unknown && !hidden) for (const x of order) if (P.bound[x] === 0 && P.clue[x] === 1 && hide(x)) { hidden++; break; }
+      const few = N <= 6 || tw.unknown ? 1 : 2;                         // (with "?" too, one bound is enough: the two share the numbers)
+      if ((tw.ranges && loose < few) || (tw.unknown && hidden < 1)) continue;
     }
     P.grid = gridOf(P);
     const got = gradeOf(P, want);
