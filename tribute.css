@@ -236,6 +236,16 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
   #app.tribute .tb-actions { flex-wrap: wrap; }                    /* beside the table: room to grow upward */
   #app.tribute .tb-bar { grid-column: 2; grid-row: 3 / span 2; align-content: end; }
 }
+/* a tablet on its side: the plate across the top, the table the screen's width, your cards along its near edge and your move beside
+   them, as every card game has it (cardroom.css; Korbi, 10 Nov 2026, the UI audit: the column beside the table stood empty) */
+@media (orientation: landscape) and (min-width: 700px) and (min-height: 650px) {
+  #app.tribute { --beside-cols: minmax(0, 1fr) 19rem; --beside-gap: 1.4rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  #app.tribute .tb-strip { grid-column: 1 / -1; grid-row: 2; flex-direction: row; margin-top: 0; }
+  #app.tribute .tb-table { grid-column: 1 / -1; grid-row: 3; margin-top: .5rem; }
+  #app.tribute .tb-hand { grid-column: 1; grid-row: 4; }
+  #app.tribute .tb-counter { grid-column: 2; grid-row: 4; align-self: start; }
+  #app.tribute .tb-bar { grid-column: 2; grid-row: 4; align-self: end; }
+}
 
 /* A phone on its side is a card table: the cloth takes the whole height on the left, the partner across at its far
    edge, the others either side, and your cards fanned along its near edge as if you sat at it (tribute.js lays them

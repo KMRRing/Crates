@@ -27,7 +27,6 @@
 .b23 .b2-said { margin: 0; font-size: .74rem; color: var(--tk-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b23 .b2-next { background: color-mix(in srgb, var(--tk-text) 30%, transparent); }
 .b23 .b2-next i { background: var(--tk-gilt); }
-.b23-sc { margin-right: .25rem; font-style: normal; }
 .b23-pay { font-style: normal; font-weight: 800; }
 .b23-pay.up { color: var(--tk-go); }
 .b23-pay.down { color: #F0A596; }

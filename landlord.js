@@ -91,7 +91,7 @@ function draw() {
   const key = `${v.G.seq}:${s.deal}:${s.landlord}:${(s.hands[v.seat ?? 0] || []).length}`;
   if (key !== selFor) { selFor = key; sel = new Set(); }
   // the brass plate across the top (cardroom.js): the deal and stake, and every seat's score
-  $("strip").innerHTML = plateHtml({ title: stripLine(s), items: [0, 1, 2].map(i => ({ k: isMe(i) ? "You" : nameOf(i).slice(0, 6), v: `${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}`, on: s.step === "play" && s.turn === i })) });
+  $("strip").innerHTML = plateHtml({ title: stripLine(s), items: [0, 1, 2].map(i => ({ k: isMe(i) ? "You" : nameOf(i), v: `${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}`, on: s.step === "play" && s.turn === i })) });
   drawTable(v);
   drawCounter(v);
   drawHand(v);
@@ -105,7 +105,7 @@ const sameSel = cards => sel.size === cards.length && cards.every(c => sel.has(c
 /** The deal, and the stake as it stands: the bid (or 1, doubled by each rob), doubled by each bomb. */
 function stripLine(s) {
   const head = `Deal <b>${s.deal}</b> of ${s.opts.deals}`;
-  if (s.step === "bid" || s.step === "thrown") return `${head} · ${s.opts.bidding === "rob" ? "calling the landlord" : "bidding"}${s.opts.bidding === "rob" && s.robs ? ` · ×${2 ** s.robs}` : ""}`;
+  if (s.step === "bid" || s.step === "thrown") return `${head}${s.opts.bidding === "rob" && s.robs ? ` · ×${2 ** s.robs}` : ""}`;   // (the bids are at the seats)
   const r = s.step === "play" ? null : s.result, doubles = r ? r.doubles : s.doubles, stake = r ? r.stake : s.stake;
   const robs = s.opts.bidding === "rob" ? s.robs : 0, spring = r && (r.spring || r.anti) ? 1 : 0, bombs = doubles - robs - spring;
   const n = (k, one) => `${k} ${one}${k > 1 ? "s" : ""}`;
@@ -150,16 +150,15 @@ function drawTable(v) {
   const seatHtml = seat => {
     const place = placeOf(seat), turn = (s.step === "play" || s.step === "bid") && s.turn === seat, per = place === "at-me" ? 14 : 8;
     const lead = !res && s.step === "play" && s.trick.by === seat && s.trick.last;
-    const count = s.hands[seat].length, sc = s.scores[seat], role = s.landlord == null ? "" : seat === s.landlord ? "landlord" : "peasant";
+    const count = s.hands[seat].length, role = s.landlord == null ? "" : seat === s.landlord ? "landlord" : "peasant";
     const p = playOf(seat, per), d = res ? res.deltas[seat] : 0;
     const play = res ? `${p.rows || `<span class="ll-out">Out</span>`}<span class="ll-pay ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>`
       : p.word ? `<span class="ll-word${p.yes ? " yes" : ""}">${esc(p.word)}</span>` : p.rows ? p.rows : p.think ? `<span class="ll-thinking">${p.think}</span>` : "";
     const back = place === "at-me" ? "" : `<span class="ll-n${count <= 2 && !res ? " low" : ""}" title="Cards left">${backHtml()}<b>${count}</b></span>`;
     const chip = role ? `<span class="ll-role ${role}">${esc(w[role])}</span>` : "";
-    const score = `<span class="ll-sc" title="Points">${sc > 0 ? "+" : ""}${sc}</span>`;
-    // the others: name and side, then cards left and points; yours on one line
-    const who = place === "at-me" ? `<div class="ll-who"><b>You</b>${chip}${score}</div>`
-      : `<div class="ll-who"><b>${esc(nameOf(seat))}</b>${chip}</div><div class="ll-meta">${back}${score}</div>`;
+    // the others: name and side, then cards left; yours on one line (the points are the brass plate's)
+    const who = place === "at-me" ? `<div class="ll-who"><b>You</b>${chip}</div>`
+      : `<div class="ll-who"><b>${esc(nameOf(seat))}</b>${chip}</div><div class="ll-meta">${back}</div>`;
     return `<div class="ll-seat ${place}${turn ? " turn" : ""}${lead ? " lead" : ""}">${who}<div class="ll-play">${play}</div></div>`;
   };
   const kitty = s.landlord == null && !res ? `<span class="cd-line">${s.kitty.map(() => backHtml()).join("")}</span>` : `<span class="cd-line">${cards(s.kitty)}</span>`;
@@ -169,7 +168,8 @@ function drawTable(v) {
     mid = `<p class="ll-beat"><b>${res.won ? "The landlord wins" : "The peasants win"}</b> ×${res.unit}${sp}</p>${s.step === "shown" ? `<span class="ll-next"><i data-until="${s.until}" data-ms="${SHOW_MS}"></i></span>` : ""}`;
   } else if (s.step === "thrown") mid = `<p class="ll-beat">Nobody bid: the cards are dealt again</p><span class="ll-next"><i data-until="${s.until}" data-ms="${THROWN_MS}"></i></span>`;
   else if (s.step === "bid") {
-    const lead = s.opts.bidding === "points" ? (s.high ? `High bid: <b>${esc(nameOf(s.holder))}</b>, ${s.high}` : `<b>${esc(nameOf(s.first))}</b> had the face-up card`) : (s.holder != null ? `<b>${esc(nameOf(s.holder))}</b> would be landlord` : `<b>${esc(nameOf(s.first))}</b> had the face-up card`);
+    // (who bids first needs no line: their seat glows; Korbi, 10 Nov 2026, the UI audit)
+    const lead = s.opts.bidding === "points" ? (s.high ? `High bid: <b>${esc(nameOf(s.holder))}</b>, ${s.high}` : "") : (s.holder != null ? `<b>${esc(nameOf(s.holder))}</b> would be landlord` : "");
     mid = `<p class="ll-beat">${lead}</p>`;
   } else if (s.trick.last) mid = `<p class="ll-beat">To beat: <b>${esc(isMe(s.trick.by) ? "your" : `${nameOf(s.trick.by)}'s`)}</b> ${esc(typeName(s.trick.last))}</p>`;
   else mid = `<p class="ll-beat">${isMe(s.turn) ? "Your lead" : `<b>${esc(nameOf(s.turn))}</b> leads`}</p>`;
@@ -180,7 +180,7 @@ function drawTable(v) {
       const p = playOf(seat, 8), role = s.landlord == null ? "" : seat === s.landlord ? "landlord" : "peasant";
       return plateOf({
         name: isMe(seat) ? "You" : nameOf(seat), seat, mine: isMe(seat), turn: (s.step === "play" || s.step === "bid") && s.turn === seat, count: s.hands[seat].length,
-        role, roleWord: role ? w[role] : "", score: s.scores[seat], word: p.word || "", think: p.think || "", lead: !res && s.step === "play" && s.trick.by === seat && !!s.trick.last,
+        role, roleWord: role ? w[role] : "", word: p.word || "", think: p.think || "", lead: !res && s.step === "play" && s.trick.by === seat && !!s.trick.last,
         pay: res ? res.deltas[seat] : 0, out: !!res && !p.rows, over: !!res,
       });
     });
@@ -237,8 +237,7 @@ function statusLine(v) {
   if (v.seat == null) return esc(`${nameOf(s.turn)} to ${s.step === "bid" ? "bid" : "play"}`);
   if (!isMe(s.turn)) { const w = v.seats[s.turn]; return esc(w?.bot && !w.away ? `${w.name} is ${s.step === "bid" ? "bidding" : "thinking"}…` : `${w?.name || "Someone"} to ${s.step === "bid" ? "bid" : "play"}`); }
   if (s.step === "bid") {
-    if (s.opts.bidding === "points") return s.high ? `Bid more than <b>${s.high}</b> to be landlord, or pass` : "Your bid: <b>1, 2 or 3</b> to be landlord, or pass";
-    if (s.phase === "call") return "Call to be landlord, or pass";
+    if (s.opts.bidding === "points" || s.phase === "call") return "";   // (the buttons say it, in English under the table talk)
     if (s.phase === "final") return `You called: rob <b>${esc(nameOf(s.holder))}</b> back (×2), or let them have it`;
     return `Rob the landlord from <b>${esc(nameOf(s.holder))}</b> (×2), or not`;
   }
@@ -254,13 +253,16 @@ function drawBar() {
   const s = v.state, mine = v.seat != null && s.turn === v.seat;
   if (s.step === "bid" || s.step === "thrown") {
     const on = mine && s.step === "bid", w = words(s);
+    // a bid in the table talk with its English under it, so the buttons need no line explaining them (Korbi, 10 Nov 2026)
+    const say = k => (w === W.en ? esc(w[k]) : `${esc(w[k])}<small>${esc(W.en[k])}</small>`);
+    const pts = n => (w === W.en ? esc(w.pts(n)) : `${esc(w.pts(n))}<small>${n}</small>`);
     if (s.opts.bidding === "points") {
-      bar.innerHTML = `<button type="button" class="btn ll-go" data-act="bid" data-n="0" ${on ? "" : "disabled"}>${esc(w.nobid)}</button>` +
-        [1, 2, 3].map(n => `<button type="button" class="btn ${n === 3 ? "primary " : ""}ll-go" data-act="bid" data-n="${n}" ${on && n > s.high ? "" : "disabled"}>${esc(w.pts(n))}</button>`).join("");
+      bar.innerHTML = `<button type="button" class="btn ll-go" data-act="bid" data-n="0" ${on ? "" : "disabled"}>${say("nobid")}</button>` +
+        [1, 2, 3].map(n => `<button type="button" class="btn ${n === 3 ? "primary " : ""}ll-go" data-act="bid" data-n="${n}" ${on && n > s.high ? "" : "disabled"}>${pts(n)}</button>`).join("");
     } else {
       const call = s.phase === "call";
-      bar.innerHTML = `<button type="button" class="btn ll-go" data-act="bid" data-yes="0" ${on ? "" : "disabled"}>${esc(call ? w.nobid : w.norob)}</button>
-        <button type="button" class="btn primary ll-go" data-act="bid" data-yes="1" ${on ? "" : "disabled"}>${esc(call ? w.call : w.rob)}</button>`;
+      bar.innerHTML = `<button type="button" class="btn ll-go" data-act="bid" data-yes="0" ${on ? "" : "disabled"}>${say(call ? "nobid" : "norob")}</button>
+        <button type="button" class="btn primary ll-go" data-act="bid" data-yes="1" ${on ? "" : "disabled"}>${say(call ? "call" : "rob")}</button>`;
     }
     return;
   }

@@ -39,7 +39,6 @@ html[data-theme="office"][data-mode="night"] { --b2-in: #479EF5; }
 .b2-n { display: inline-flex; align-items: center; gap: .2rem; font-variant-numeric: tabular-nums; }
 .b2-n .cd.back { font-size: .3rem; }
 .b2-seat.last .b2-n b { color: #A8382B; }
-.b2-sc { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .b2-play { min-height: calc(var(--cd-line) * 3.5); display: flex; align-items: center; gap: .3rem; max-width: 100%; }
 .b2-pass { font-size: .78rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
 .b2-thinking { font-size: .76rem; color: var(--ink-soft); }

@@ -6,11 +6,11 @@ import { createCloth, createMotion, rectOf, fill, slotOf } from "./table3d.js";
 import { slide, mayMove } from "./cardslide.js";
 
 /**
- * One seat's plate (pure): `count` the cards it holds, `score` its game score, `taken` the points it has taken this hand,
+ * One seat's plate (pure): `count` the cards it holds, `score` its game score (said, not shown), `taken` the points it has taken this hand,
  * `word` what it says (Passed, or the points a trick brought), `win` the seat that took the last trick or the hand.
  */
 export function plateOf({ name, seat, mine = false, turn = false, count = 0, score = 0, taken = 0, word = "", think = false, win = false, over = false }) {
-  const meta = `<i class="hr3-sc">${score}</i>${taken ? `<i class="hr3-taken">♥ ${taken}</i>` : ""}`;
+  const meta = taken ? `<i class="hr3-taken">♥ ${taken}</i>` : "";      // this hand's points; the match's score is the plate's (Korbi, 10 Nov 2026: the score stood twice, at the seat and on the brass plate; the plate keeps it)
   return {
     seat, name, meta, tally: mine ? "" : `<b class="tk-count${count === 1 && !over ? " low" : ""}" title="Cards left">${count}</b>`,
     fan: mine || over ? 0 : Math.min(count, 5), crown: win, act: word, pass: false,

@@ -39,7 +39,6 @@ html[data-theme="office"][data-mode="night"] { --ll-in: #479EF5; }
 .ll-n { display: inline-flex; align-items: center; gap: .2rem; font-variant-numeric: tabular-nums; }
 .ll-n .cd.back { font-size: .3rem; }
 .ll-n.low b { color: #A8382B; }
-.ll-sc { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ll-play { min-height: calc(var(--cd-line) * 3.5); display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; max-width: 100%; }
 .ll-seat.at-right .ll-play { justify-content: flex-end; }
 /* a long play (a straight of ten, an airplane) closes up, in rows, rather than run off the table */
@@ -83,6 +82,7 @@ html[data-mode="night"] .ll-pay.up { color: #7FC2A8; }
 .ll-watch { margin: auto; color: var(--ink-soft); }
 .ll-bar { display: flex; gap: .45rem; align-items: center; }
 .ll-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ll-go small { display: block; margin-top: .05rem; font-size: .62rem; font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .72; }
 .ll-play-btn { flex: 1.6 1 0; }
 .ll-clear { flex: none; }
 

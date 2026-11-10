@@ -13,23 +13,24 @@
 .ll3-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.6); }
 .ll3-lane .ll-rows { justify-items: center; }
 .ll3-lane .cd-line.many > .cd + .cd { margin-left: -1.55em; }
-.ll3-sc { margin-right: .25rem; font-style: normal; }
 .ll3-role { margin-right: .25rem; padding: 0 .25rem; border-radius: .2rem; font-style: normal; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
 .ll3-role.peasant { background: none; box-shadow: inset 0 0 0 1px var(--tk-soft); color: var(--tk-soft); }
 .ll3-pay { font-style: normal; font-weight: 800; }
 .ll3-pay.up { color: var(--tk-go); }
 .ll3-pay.down { color: #F0A596; }
 .tk-count.low { color: #A8382B; }
-/* Korbi, 7 Nov 2026: a name is one line (a long one is cut short), or the seat at the top grows into the banner above */
-.ll3 .tk-plate:is(.at-l, .at-r) { width: 6.4rem; }
-.ll3 .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .85rem; letter-spacing: calc(.04em * var(--track)); }
-/* the two seats stand low enough that their avatars clear the banner; the middle moves down under them */
-.ll3 .tk-plate:is(.at-l, .at-r) { top: 47%; }
-.ll3 .tk-centre { top: 50%; }
-/* a short field (the buttons and cards take the rest): the cloth stands taller in it, nearer the banner */
-@container (max-height: 420px) { .ll3 .tk-mat { height: 122%; } }
-/* Korbi, 7 Nov 2026: the two opponents stand further out to the sides, and you lower, so the middle has room */
-.ll3 .tk-plate.at-l { left: 3.7rem; }
-.ll3 .tk-plate.at-r { left: calc(100% - 3.7rem); }
+/* The two others sit at the cloth's far corners, each a row: the medallion, then the name over the cards left (Korbi, 10 Nov 2026,
+   the UI audit: as columns they stood too tall for a short cloth, their medallions under the banner, and a name was cut short).
+   No one sits across, so a row has the room; a name is whole and one line. The plate's edge, not its middle, keeps to the rim. */
+.ll3 .tk-plate:is(.at-l, .at-r) { width: max-content; max-width: 50%; display: grid; grid-template-columns: auto auto; grid-template-areas: "med info" "med tally";
+  column-gap: .45rem; row-gap: .12rem; align-items: center; justify-items: start; text-align: left; padding: .5rem .4rem 1.3rem; margin: -.5rem 0 -1.3rem; top: 34%; }
+.ll3 .tk-plate:is(.at-l, .at-r) .tk-med { grid-area: med; }
+.ll3 .tk-plate:is(.at-l, .at-r) .tk-info { grid-area: info; text-align: left; min-height: 0; }
+.ll3 .tk-plate:is(.at-l, .at-r) .tk-tally { grid-area: tally; flex-direction: row; align-items: center; gap: .3rem; }
+.ll3 .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .8rem; letter-spacing: calc(.02em * var(--track)); }
+.ll3 .tk-plate.at-l { left: .3rem; translate: 50% 0; transform-origin: 0 100%; }
+.ll3 .tk-plate.at-r { left: calc(100% - .3rem); translate: -50% 0; transform-origin: 100% 100%; }
+.ll3 .tk-centre { top: 44%; }
+/* Korbi, 7 Nov 2026: you lower, so the middle has room */
 .ll3 .tk-plate.at-b { top: 106%; }
-.ll3 .tk-plate:is(.at-l, .at-r) .tk-act { bottom: 1.1rem; }   /* (the bid stays inside the seat, which clips at its foot) */
+.ll3 .tk-plate:is(.at-l, .at-r) .tk-act { bottom: .2rem; }   /* (the bid stays inside the seat, which clips at its foot) */

@@ -53,10 +53,23 @@ export function stackedLayout(cols, rem, room, { big = false, reachRem = 7.2 } =
   cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
   return { W, H, at, tight, height: H + reach + 0.3 * rem };
 }
-/** Held sideways, in a row: each card showing its corner, a little more room between ranks than within one. */
-export function fannedLayout(cols, rem, room, { big = 1 } = {}) {
+/** Held sideways, in a row: each card showing its corner, a little more room between ranks than within one. A hand too long for
+ *  one row to show every corner (`most`, the most it will hold this deal: Tarot's eighteen and the dog on a phone) lies in two,
+ *  the second over the first's lower half, for the whole deal, so the hand's room doesn't change as it empties (Korbi, 10 Nov 2026,
+ *  the UI audit: a trump's number was lost under its neighbour). */
+export function fannedLayout(cols, rem, room, { big = 1, most = 0 } = {}) {
   const W = 2.25 * big * rem, H = 3.2 * big * rem;
   const n = cols.reduce((s, c) => s + c.length, 0), breaks = Math.max(0, cols.length - 1), least = 1.05 * rem;
+  const longest = Math.max(n, most);
+  if (longest > 1 && (room - W - breaks * 0.22 * rem) / (longest - 1) < 1.35 * rem) {
+    const flat = cols.flat(), half = Math.ceil(n / 2), per = Math.ceil(longest / 2), drop = H * 0.46;
+    const pitch = Math.min(W * 0.66, per > 1 ? (room - W) / (per - 1) : 0), at = [];
+    [flat.slice(0, half), flat.slice(half)].forEach((row, r) => {
+      const x0 = Math.max(0, (room - W - (row.length - 1) * pitch) / 2);
+      row.forEach((id, i) => at.push({ id, x: x0 + i * pitch, y: r * drop, z: r * 100 + i + 1 }));
+    });
+    return { W, H, at, height: H + drop };
+  }
   let gap = 0.22 * rem, pitch = n > 1 ? (room - W - breaks * gap) / (n - 1) : 0;
   if (pitch < least && n > 1) { gap = breaks ? Math.max(0, (room - W - (n - 1) * least) / breaks) : 0; pitch = Math.max((room - W - breaks * gap) / (n - 1), 0.6 * rem); }
   pitch = Math.min(pitch, W * 0.66);
@@ -67,6 +80,8 @@ export function fannedLayout(cols, rem, room, { big = 1 } = {}) {
 }
 const sideways = () => matchMedia("(orientation: landscape) and (min-width: 700px)").matches;
 const low = () => matchMedia("(max-height: 520px)").matches;
+/** A tablet held sideways: the card room sits at the table, your cards along its near edge (cardroom.css), not in a column beside it. */
+export const tall = () => matchMedia("(orientation: landscape) and (min-width: 700px) and (min-height: 650px)").matches;
 
 /**
  * Draws a hand into `box` (class cr-hand).
@@ -78,14 +93,17 @@ const low = () => matchMedia("(max-height: 520px)").matches;
  * @param big      the fan's card size, in steps of Guandan's (default by the count of cards: 1.4 to 1.8)
  * @param html     id, { cls, data } -> a card's markup, for a game with a pack of its own (instead of face and label)
  * @param reachRem how far below a card the deepest stack may reach; a game whose stacks are shallow (four suits) takes less
+ * @param most     the most cards the fan will hold this deal (two rows if one can't show them all; fannedLayout)
  * @returns the layout, with `.fan`
  */
-export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2, html = null, big = null }) {
-  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, room = box.parentElement?.clientWidth || box.clientWidth || 360;
+export function drawHandBox(box, { cols, face, label = () => "", classes = () => "", fan = null, reachRem = 7.2, html = null, big = null, most = 0 }) {
+  // the hand's own width: the whole row on a phone, its column beside your move on a tablet held sideways (cardroom.css)
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, room = box.clientWidth || box.parentElement?.clientWidth || 360;
   const row = fan ?? (sideways() && low());
   // a fan's card is as large as its count leaves room for: few cards big, a full hand of thirteen to seventeen still well over Guandan's size
+  // (a tablet held sideways has the table's whole width for it, cardroom.css: a third larger)
   const count = cols.reduce((a, c) => a + c.length, 0), roomy = count <= 8 ? 1.8 : count <= 14 ? 1.55 : 1.4;
-  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1.15 : big ?? roomy }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
+  const lay = row ? fannedLayout(cols, rem, room, { big: low() ? 1.15 : (big ?? roomy) * (tall() ? 1.3 : 1), most }) : stackedLayout(cols, rem, room, { big: sideways() && !low(), reachRem });
   const rows = Math.max(...cols.map(c => c.length), 1);
   const t = (x) => (x + lay.W / 2 - room / 2) / (room / 2), drop = (row ? 0.9 : 0.55) * rem, tilt = row ? 6 : 4;
   box.classList.add("cr-hand");

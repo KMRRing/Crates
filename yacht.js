@@ -81,7 +81,7 @@ function drawStatus(v) {
   if (!v?.G) { box.innerHTML = ""; return; }
   const s = v.state, over = s.step === "over";
   const left = over ? 0 : s.left, pips = "●".repeat(3 - left) + "○".repeat(left);
-  box.innerHTML = plateHtml({ title: "Yacht", items: [
+  box.innerHTML = plateHtml({ items: [
     { k: "Round", v: over ? ROUNDS : roundOf(s, s.turn) + 1 },
     { k: over ? "Done" : isMe(s.turn) ? "You" : esc(nameOf(s.turn)), v: over ? "—" : `<span class="ya-pips" aria-label="${left} rolls left">${pips}</span>`, on: !over && isMe(s.turn) },
   ] });

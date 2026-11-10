@@ -13,7 +13,6 @@
 .tr3c.tr-playing .tk-centre { top: 72%; bottom: 12%; }
 .tr3c.tr-playing .tr3-mid .cd-line { --cd-line: .7rem; }
 .tr3c .tk-plate .tk-act { max-width: 7rem; }
-.tr3-sc { margin-right: .25rem; font-style: normal; font-weight: 800; }
 .tr3-role { padding: 0 .25rem; border-radius: .2rem; font-style: normal; font-size: .68rem; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
 #app.tarot .tr3c .tk-plate .tk-name, .tr3c .tk-plate .tk-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; font-size: .84rem; }
 .tr3c .tk-plate:is(.at-l, .at-r) { width: 6.6rem; }

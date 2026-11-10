@@ -61,7 +61,6 @@ html.tr-colours[data-mode="night"] .cd.ts3 { color: #7FC2A8; }
 .tr-meta { display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .76rem; }
 .tr-n { display: inline-flex; align-items: center; gap: .2rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tr-n .cd.back { font-size: .3rem; }
-.tr-sc { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .tr-slot { display: flex; align-items: center; justify-content: center; font-size: var(--cd-line); min-width: 0; }
 .tr-slot .cd.old { opacity: .45; }
 .tr-slot .cd.old.won { opacity: .75; box-shadow: 0 0 0 2px var(--tr-in); }

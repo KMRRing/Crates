@@ -98,7 +98,7 @@ function draw() {
   if (key !== selFor) { selFor = key; sel = null; }
   // the brass plate across the top (cardroom.js): the hand, each side's score, the game's target
   $("strip").innerHTML = plateHtml({ title: `<small>Hand</small><b>${s.hand}</b>`, tail: `to ${s.opts.to}`,
-    items: [me, 1 - me].map(k => ({ k: who(k).slice(0, 6), v: s.scores[k], on: s.step === "draw" && s.turn === k })) });
+    items: [me, 1 - me].map(k => ({ k: who(k), v: s.scores[k], on: s.step === "draw" && s.turn === k })) });
   drawTable(v);
   drawHand(v);
   // no status line: the buttons say what to do (Throw 5♠, Knock · 3); the coach's bubble holds a hand's result
@@ -116,9 +116,10 @@ function drawTable(v) {
   // the other hand: backs, or every card once the hand is over
   const backs = shown ? "" : `<span class="ml-backs">${s.hands[foe].map(() => backHtml()).join("")}</span>`;
   const grabs = s.grabs[foe].slice(-6);
-  const took = shown ? "" : `<p class="ml-grabs">${grabs.length ? `Picked up from the pile <span class="cd-line">${cards(grabs)}</span>` : "Nothing picked up from the pile"}</p>`;
+  // what they took from the pile, worth remembering; nothing taken says nothing (Korbi, 10 Nov 2026, the UI audit)
+  const took = shown || !grabs.length ? "" : `<p class="ml-grabs">Picked up from the pile <span class="cd-line">${cards(grabs)}</span></p>`;
   const reveal = shown && s.result ? `<div class="ml-reveal">${revealHtml(s, foe)}</div>` : "";
-  const foeBlock = `<div class="ml-foe${turn ? " turn" : ""}"><p class="ml-who"><b>${esc(nameOf(foe))}</b><span class="ml-sc">${s.scores[foe]}</span><span class="ml-n">${s.hands[foe].length} cards</span></p>${backs}${took}${reveal}</div>`;
+  const foeBlock = `<div class="ml-foe${turn ? " turn" : ""}"><p class="ml-who"><b>${esc(nameOf(foe))}</b><span class="ml-n">${s.hands[foe].length} cards</span></p>${backs}${took}${reveal}</div>`;
   let mid;
   if (shown && s.result) {
     const left = Math.max(0, (s.until ?? 0) - Date.now());
@@ -227,7 +228,7 @@ function drawBar(v) {
   if (!myTurn(v)) { bar.innerHTML = ""; return; }
   const top = short(s.discard[s.discard.length - 1]);
   if (s.step === "offer") { bar.innerHTML = b("pass", "Pass") + b("take", `Take the ${top}`, { primary: true }); return; }
-  if (s.step === "draw") { bar.innerHTML = b("stock", "Draw from the stock", { primary: true }) + b("pile", `Take the ${top}`, { off: !!s.mustStock }); return; }
+  if (s.step === "draw") { bar.innerHTML = b("stock", "Draw<small>from the stock</small>", { primary: true }) + b("pile", `Take the ${top}`, { off: !!s.mustStock }); return; }
   // the discard: Throw, and Knock (Gin, or Big gin with all eleven cards melded)
   const out = throwing(v), d = sel != null ? out.get(sel) : undefined;
   const big = deadCount(s.hands[v.seat]) === 0;

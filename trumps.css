@@ -93,6 +93,8 @@ html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 .tr-bid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; min-height: 2.8rem; padding: .25rem .3rem; line-height: 1.15; font-size: .92rem; }
 .tr-bid .tr-icon { width: 1.4em; height: 1.4em; }
 .tr-bid small { font-size: .68rem; font-weight: 600; opacity: .85; text-transform: none; letter-spacing: 0; }
+/* a short phone: the Sau a Sauspiel calls is its suit's mark already; its words go, and the table keeps its room (Korbi, 10 Nov 2026) */
+@media (max-height: 700px) and (orientation: portrait) { .tr-bids.three .tr-bid small { display: none; } }
 .tr-bid .tr-fs { font-size: 1.3em; }
 .tr-go { width: 100%; min-height: 3rem; }
 

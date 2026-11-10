@@ -26,8 +26,6 @@ html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
 /* the line across the top: the deal and its vulnerability, the contract, the tricks, the match */
 .bd-info { display: flex; align-items: center; gap: .5rem; min-height: 2.2rem; padding: .2rem .1rem; border-bottom: 1px solid var(--rule); font-size: .86rem; }
 .bd-deal { display: grid; line-height: 1.1; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); font-size: .72rem; color: var(--ink-soft); white-space: nowrap; }
-.bd-deal small { font-size: .66rem; font-weight: 700; letter-spacing: 0; text-transform: none; font-stretch: normal; }
-.bd-deal small.vul { color: var(--bd-vul); }
 .bd-contract { display: inline-flex; align-items: baseline; gap: .25rem; padding: .15rem .45rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer; white-space: nowrap; }
 .bd-contract small { font-size: .72rem; color: var(--ink-soft); }
 .bd-contract.idle { border-color: transparent; background: none; cursor: default; font-size: .82rem; color: var(--ink-soft); }
@@ -52,6 +50,9 @@ html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
 .bd-name.partner b { color: var(--bd-in); }
 .bd-tag { padding: 0 .45em; border-radius: 3px; background: var(--brass); color: var(--sheet); font-size: .74em; font-weight: 800; line-height: 1.35; }
 .bd-tag.on { background: var(--bd-in); }
+.bd-tag.vul { background: var(--cd-red, #B3302A); color: #FFF; }
+.bd-name .tk-med { width: 1.9rem; height: 1.9rem; font-size: .9rem; align-self: center; }
+.bd-name.vul .tk-med { border-color: var(--cd-red, #B3302A); box-shadow: 0 0 0 2px var(--cd-red, #B3302A), 0 .18rem .4rem rgba(0, 0, 0, .34); }
 .bd-backs { display: flex; font-size: .34em; }
 .bd-backs > .cd + .cd { margin-left: -2em; }
 .bd-think { font-size: .74em; color: var(--ink-soft); }
@@ -184,6 +185,8 @@ html[data-theme="office"] :is(.bd-seat, .bd-result, .bd-contract) { border-radiu
   #app.contract .bd-aside { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   #app.contract .bd-aside .bd-auction { max-height: none; }
 }
+/* a tablet on its side has the auction on the table (cardroom.css), as upright */
+@media (orientation: landscape) and (min-width: 700px) and (min-height: 650px) { #app.contract .bd-aside { display: none; } }
 
 /* Korbi, 7 Nov 2026: the card room's proportions (Guandan's) */
 #app.contract { --cr-in: var(--bd-in); }

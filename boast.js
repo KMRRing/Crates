@@ -294,7 +294,7 @@ function drawControls(v) {
   }).join("");
   const w = can ? words({ n: ui.n, f: ui.f, z: ui.z }) : null;
   const zhaiOk = mine && ui.f !== 1 && leastAfter(prev, ui.f, !ui.z, s.seats, s.opts) != null;
-  box.innerHTML = `<p class="bo-status">${esc(mine ? (prev ? "Raise, or open the last bid" : `Open the bidding: at least ${opening(s.seats)}`) : statusLine(v))}</p>
+  box.innerHTML = `<p class="bo-status">${esc(mine ? (prev ? "" : `Open the bidding: at least ${opening(s.seats)}`) : statusLine(v))}</p>
     <div class="bo-row bo-setter">
       <button type="button" class="btn bo-step" data-act="less" aria-label="One die fewer" ${can && ui.n > least ? "" : "disabled"}>−</button>
       <span class="bo-n" aria-live="polite">${mine ? ui.n : "–"}</span>

@@ -99,7 +99,7 @@ function draw() {
   const key = `${v.G.seq}:${s.deal}:${s.step}:${(s.hands[me] || []).length}`;
   if (key !== selFor) { selFor = key; sel = []; }
   // the brass plate across the top (cardroom.js): the deal, the game's target, whose crib it is
-  $("strip").innerHTML = plateHtml({ title: `<small>Deal</small><b>${s.deal}</b>`, items: [me, 1 - me].map(k => ({ k: who(k).slice(0, 6), v: s.scores[k] })), tail: `to ${s.opts.to}<br>${esc(whose(s.dealer))} crib` });
+  $("strip").innerHTML = plateHtml({ title: `<small>Deal</small><b>${s.deal}</b>`, items: [me, 1 - me].map(k => ({ k: who(k), v: s.scores[k] })), tail: `to ${s.opts.to}` });   // (whose crib it is: the crib's own label and the dealer's seat)
   drawTable(v);
   drawHand(v);
   drawBar(v);
@@ -187,7 +187,7 @@ function drawBar(v) {
   if (s.step === "show") { bar.innerHTML = b("next", s.won != null ? "See the result" : s.show?.stage === 2 ? "Next deal" : "Next count"); return; }
   if (s.step === "over") { bar.innerHTML = page.host ? b("again", "New game") : ""; return; }
   if (!myTurn(v)) { bar.innerHTML = ""; return; }
-  if (s.step === "discard") { bar.innerHTML = b("crib", sel.length === 2 ? `To the crib: ${sel.map(short).join(" ")}` : "To the crib", { off: sel.length !== 2 }); return; }
+  if (s.step === "discard") { bar.innerHTML = b("crib", sel.length === 2 ? `To the crib: ${sel.map(short).join(" ")}` : `To the crib · ${sel.length} of 2`, { off: sel.length !== 2 }); return; }   // (the count, as Hearts' pass has it)
   bar.innerHTML = b("play", sel.length ? `Play ${short(sel[0])}` : "Play", { off: !sel.length });
 }
 

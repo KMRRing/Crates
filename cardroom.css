@@ -35,3 +35,32 @@
 .cr-bubble-x { position: absolute; top: .2rem; right: .25rem; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: none; color: var(--ink); font-size: 1.2rem; line-height: 1; opacity: .7; cursor: pointer; }
 .cr-bubble-x:hover { opacity: 1; }
 @media (orientation: landscape) and (min-width: 700px) { .cr-bubble { bottom: 3.7rem; } }
+
+/* ---------- a tablet on its side ----------
+   Korbi, 10 Nov 2026 (the card & dice audit): held sideways, the hand and the buttons were squeezed into a column beside the
+   table with an empty band above them. A card table is sat at: the plate across the top, the table the screen's width, your
+   cards along its near edge and your move beside them, under the right thumb. Every card game with a #table and a #side
+   (#app.cr-room) takes this from here; a phone on its side (too short for it) keeps each game's own console. */
+@media (orientation: landscape) and (min-width: 700px) and (min-height: 650px) {
+  html #app.cr-room.cr-room { --beside-cols: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) min-content; }   /* (twice: above a game's state, as Jass's .ontable) */
+  html #app.cr-room > :not(.top) { grid-column: 1; }
+  html #app.cr-room > .full-pull { grid-row: 2; }
+  html #app.cr-room > #table { grid-row: 3; }
+  /* the console beside your cards, from its foot up: your move lowest, the line saying what's asked above it, then a counter or
+     the auction; the slack above them */
+  html #app.cr-room > #side { grid-row: 4; display: grid; grid-template-columns: minmax(0, 1fr) var(--cr-console, 21rem); grid-template-rows: minmax(0, 1fr) auto auto auto;
+    column-gap: 1.4rem; row-gap: .35rem; min-height: 0; margin-top: .4rem; }
+  html #app.cr-room > #side > * { grid-column: 2; grid-row: 1; min-width: 0; }
+  html #app.cr-room > #side > .cr-hand { grid-column: 1; grid-row: 1 / -1; align-self: end; }
+  html #app.cr-room > #side > :is(#counter, #aside) { grid-row: 2; }
+  html #app.cr-room > #side > #status { grid-row: 3; }
+  html #app.cr-room > #side > :is(.cr-bar, #bar, #controls) { grid-row: 4; }
+}
+/* the brass plate across a tablet's width, its words a size to read there */
+@media (orientation: landscape) and (min-width: 700px) and (min-height: 650px) {
+  .cr-plate { padding: .4rem 1rem; }
+  .cr-plate small { font-size: .68rem; }
+  .cr-side b { font-size: 1.3rem; }
+  .cr-title b { font-size: 1.4rem; }
+  .cr-tail { font-size: .78rem; }
+}

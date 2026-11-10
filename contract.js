@@ -199,27 +199,33 @@ function styleTable(s) {
 /** The line across the top: the deal and who's vulnerable, the contract, the tricks, the match's score. */
 function drawInfo(s) {
   const mine = sideOf(me()), vul = s.vul;
-  const vulWord = vul[0] && vul[1] ? "both vul" : vul[0] ? "N–S vul" : vul[1] ? "E–W vul" : "none vul";
+  const vulWord = vul[0] && vul[1] ? "both vulnerable" : vul[0] ? "N–S vulnerable" : vul[1] ? "E–W vulnerable" : "";   // (the seats show it; this says it to a screen reader)
   const contract = s.contract ? `<button class="bd-contract" type="button" data-act="auction">${contractHtml(s.contract)} <small>${esc(COMPASS[s.contract.declarer])}</small></button>`
     : `<span class="bd-contract idle">${s.step === "bid" ? "Bidding" : ""}</span>`;
   const tricks = s.contract && s.step !== "bid" ? `<span class="bd-tricks" title="tricks"><b>${s.won[mine]}</b>–<b>${s.won[1 - mine]}</b></span>` : "";
+  $("info").setAttribute("aria-label", vulWord || "Neither side vulnerable");
   if (on3()) {
-    // the brass plate across the top (cardroom.js): the contract (tap for the auction), the tricks, each side's score, who's vulnerable
+    // the brass plate across the top (cardroom.js): the contract (tap for the auction), the tricks, each side's score
     const c = s.contract;
     $("info").innerHTML = plateHtml({ lead: c ? `<button class="bd-contract" type="button" data-act="auction" aria-label="Contract ${esc(contractText(c))} by ${esc(SEATS[c.declarer])}. Tap for the auction.">${contractHtml(c)} <small>${esc(COMPASS[c.declarer])}</small></button>` : "",
       title: c ? "" : `<small>Deal</small><b>${s.no}/${DEALS}</b>`,
-      items: [...(tricks ? [{ k: "Tricks", v: `${s.won[mine]}–${s.won[1 - mine]}` }] : []), { k: "Us", v: s.scores[mine] }, { k: "Them", v: s.scores[1 - mine] }], tail: `${c ? `Deal ${s.no}/${DEALS}<br>` : ""}${vulWord}` });
+      items: [...(tricks ? [{ k: "Tricks", v: `${s.won[mine]}–${s.won[1 - mine]}` }] : []), { k: "Us", v: s.scores[mine] }, { k: "Them", v: s.scores[1 - mine] }], tail: c ? `Deal ${s.no}/${DEALS}` : "" });
     return;
   }
-  $("info").innerHTML = `<span class="bd-deal">Deal ${s.no}/${DEALS}<small class="${vul[mine] ? "vul" : ""}">${vulWord}</small></span>${contract}${tricks}<span class="bd-score">us <b>${s.scores[mine]}</b> · them <b>${s.scores[1 - mine]}</b></span>`;
+  $("info").innerHTML = `<span class="bd-deal">Deal ${s.no}/${DEALS}</span>${contract}${tricks}<span class="bd-score">us <b>${s.scores[mine]}</b> · them <b>${s.scores[1 - mine]}</b></span>`;
 }
 
 function drawSeat(box, s, seat) {
   const place = placeOf(seat), turn = rules.toMove(s) === seat || (s.step === "play" && s.turn === seat), n = s.hands[seat].length;
   const dummy = s.contract && seat === dummyOf(s) && s.dummyShown, declarer = s.contract && seat === s.contract.declarer;
   const partner = sideOf(seat) === sideOf(me());
-  const tags = [seat === s.dealer && s.step === "bid" ? `<span class="bd-tag" title="dealer">D</span>` : "", declarer && s.step !== "bid" ? `<span class="bd-tag on">declarer</span>` : "", dummy ? `<span class="bd-tag">dummy</span>` : ""].join("");
-  const head = `<span class="bd-name${partner ? " partner" : ""}"><b>${esc(nameOf(seat))}</b><small>${COMPASS[seat]}</small>${tags}</span>`;
+  // the seat as every card table has it: a medallion in the seat's colour, the name, the compass point; a vulnerable side's seats in
+  // red, as a bidding box marks them, not "none vul" in words (Korbi, 10 Nov 2026, the UI audit)
+  const vul = s.vul[sideOf(seat)];
+  const tags = [seat === s.dealer && s.step === "bid" ? `<span class="bd-tag" title="dealer">D</span>` : "", vul ? `<span class="bd-tag vul" title="vulnerable">vul</span>` : "",
+    declarer && s.step !== "bid" ? `<span class="bd-tag on">declarer</span>` : "", dummy ? `<span class="bd-tag">dummy</span>` : ""].join("");
+  const med = `<span class="tk-med" aria-hidden="true"><b>${esc([...nameOf(seat)][0] || "?")}</b></span>`;
+  const head = `<span class="bd-name tk-s${seat}${partner ? " partner" : ""}${vul ? " vul" : ""}">${med}<b>${esc(nameOf(seat))}</b>${nameOf(seat) === SEATS[seat] ? "" : `<small>${COMPASS[seat]}</small>`}${tags}</span>`;   // (no N beside North)
   let body = "";
   const reveal = s.step === "scored" || s.step === "over";
   if (reveal) body = `<span class="bd-rows">${suitRows(s.dealt[seat])}</span>`;

@@ -37,7 +37,7 @@ html[data-theme="office"][data-mode="night"] { --hr-in: #479EF5; }
 .hr-who b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .hr-n { display: inline-flex; align-items: center; gap: .2rem; font-variant-numeric: tabular-nums; }
 .hr-n .cd.back { font-size: .3rem; }
-.hr-sc, .hr-pts { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hr-pts { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .hr-pts { color: var(--hr-red); }
 .hr-pts:empty { display: none; }
 .hr-tag { font-size: .74rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }

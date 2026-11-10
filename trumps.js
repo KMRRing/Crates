@@ -13,7 +13,7 @@ import { waitMark } from "./loading.js";
 import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
 import { deckPics } from "./trumps-deck.js";
 import { cardHtml, backHtml } from "./cards.js";
-import { plateHtml, drawHandBox } from "./cardroom.js";
+import { plateHtml, drawHandBox, tall } from "./cardroom.js";
 import { createTrumps3d, plateOf as plate3 } from "./trumps-3d.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -225,7 +225,7 @@ let cardPx = 0;
 function fitTable() {
   const s = V?.state;
   if (!s || three) return;                                       // (the cloth's cards are sized by its own CSS)
-  const app = $("app"), centre = $("centre"), hand = $("hand"), side = $("side"), n = DEALT[s.game] || 8, beside = sideways();
+  const app = $("app"), centre = $("centre"), hand = $("hand"), side = $("side"), n = DEALT[s.game] || 8, beside = sideways() && !tall();   // (a tablet sideways: your hand under the table, as upright)
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const room = Math.min(...["seatTop", "seatLeft", "seatRight"].map(id => $(id).clientWidth * 0.92));
   // twice: the backs are capped by the cards' size, and the cards then have what the backs leave
@@ -298,17 +298,18 @@ function drawInfo(s) {
     const who = s.game === "jass" ? c.chooser : s.game === "schafkopf" ? c.declarer : c.taker;
     contract += ` <small>${esc(isMe(who) ? "you" : nameOf(who))}${s.game === "jass" && c.mult > 1 ? ` · ×${c.mult}` : ""}</small>`;
   }
-  // the brass plate across the top (cardroom.js): the game and its contract, each side's score, the target
-  let items, tail;
+  // the brass plate across the top (cardroom.js): the contract, each side's score, the target or the deal (the game's name is the
+  // page's title, not the plate's: Korbi, 10 Nov 2026)
+  let items, tail, title = "";
   if (g.teams === "fixed") {
     const mine = teamOf(me());
     items = [{ k: "Us", v: s.scores[mine] }, { k: "Them", v: s.scores[1 - mine] }];
     tail = `to ${s.opts.target}`;
   } else {
     items = [{ k: "You", v: `${s.scores[me()] > 0 ? "+" : ""}${s.scores[me()]}` }];
-    tail = `deal ${s.handNo} of ${s.opts.deals}`;
+    title = `<small>Deal</small><b>${s.handNo}/${s.opts.deals}</b>`;
   }
-  $("info").innerHTML = plateHtml({ lead: contract ? `<span class="tr-contract">${contract}</span>` : "", title: `<small>${esc(g.name)}</small>`, items, tail });
+  $("info").innerHTML = plateHtml({ lead: contract ? `<span class="tr-contract">${contract}</span>` : "", title, items, tail });
 }
 
 /** What a seat last said this hand, for its bubble. */
@@ -560,7 +561,7 @@ function drawControls(s) {
     html = `<div class="tr-bids six">${bids.filter(b => b.t === "trump").map(b => {
       const mult = s.opts.count === "swiss" ? ` <small>×${multOf(s, b)}</small>` : "";
       return btn(b, b.mode === "trump" ? `${suitMark(s, b.suit).mark}<span>${esc(suitMark(s, b.suit).name)}${mult}</span>` : `<span>${b.mode === "obe" ? "Obenabe ▼" : "Undenufe ▲"}${mult}</span>`);
-    }).join("")}</div>${bids.some(b => b.t === "push") ? `<div class="tr-bids one">${btn({ t: "push" }, "Schiebe: push to your partner")}</div>` : ""}`;
+    }).join("")}</div>${bids.some(b => b.t === "push") ? `<div class="tr-bids one">${btn({ t: "push" }, "Schiebe<small>push to your partner</small>")}</div>` : ""}`;
   } else if (s.game === "belote") {
     html = s.round === 1 ? `<div class="tr-bids two">${btn({ t: "pass" }, "Passe")}${btn({ t: "take" }, `Je prends ${suitMark(s, suitOf(s.turned)).mark}`, "primary")}</div>`
       : `<div class="tr-bids four">${bids.map(b => btn(b, b.t === "pass" ? "Passe" : suitMark(s, b.suit).mark)).join("")}</div>`;

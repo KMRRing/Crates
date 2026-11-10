@@ -6,7 +6,7 @@ import { createCloth, fill } from "./table3d.js";
 /** One seat's plate (pure): its score, the crib's mark when it is the dealer's, the cards it holds (not yours: they are the page's). */
 export function plateOf({ name, seat, mine = false, turn = false, count = 0, score = 0, dealer = false }) {
   return {
-    seat, name, meta: `<i class="pg3-sc">${score}</i>${dealer ? `<i class="pg3-crib">crib</i>` : ""}`,
+    seat, name, meta: dealer ? `<i class="pg3-crib">crib</i>` : "",      // the pegboard keeps the score (Korbi, 10 Nov 2026: the score stood twice, at the seat and on the brass plate; the plate keeps it)
     tally: mine ? "" : `<b class="tk-count" title="Cards left">${count}</b>`, fan: mine ? 0 : Math.min(count, 5), crown: false, act: "", pass: false,
     state: turn ? "on" : "", label: `${name}, ${score} points${dealer ? ", the crib's" : ""}${mine ? "" : `, ${count} cards`}`,
   };

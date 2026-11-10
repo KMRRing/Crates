@@ -18,7 +18,6 @@
 .pg3c .pg-showing { pointer-events: auto; }
 .pg3c .pg-title { color: var(--tk-gilt); }
 .pg3c .pg-last { display: none; }                                   /* what was just played is seen on the cloth and in the count */
-.pg3-sc { margin-right: .25rem; font-style: normal; font-weight: 800; }
 .pg3-crib { padding: 0 .25rem; border-radius: .2rem; font-style: normal; font-size: .68rem; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
 .pg3c .tk-plate:is(.at-l, .at-r) { top: 62%; }
 @container (max-height: 420px) { .pg3c .tk-mat { height: 122%; } }

@@ -4,15 +4,16 @@
 // At a hand's end the other's cards lie in the middle, melds set apart. Your cards and buttons stay the page's own.
 import { createCloth, createMotion, rectOf, fill } from "./table3d.js";
 
-/** The other player's plate (pure): `count` the cards it holds (none once shown), `score`, `turn`. */
+/** The other player's plate (pure): `count` the cards it holds (none once shown), `score` (said, not shown), `turn`. */
 export function plateOf({ name, seat, count = 0, score = 0, turn = false, over = false }) {
   return {
-    seat, name, meta: `<i class="ml3-sc">${score}</i>`, tally: over ? "" : `<b class="tk-count">${count}</b>`, fan: over ? 0 : Math.min(count, 5),
+    seat, name, meta: "", tally: over ? "" : `<b class="tk-count">${count}</b>`, fan: over ? 0 : Math.min(count, 5),
     state: turn ? "on thinking" : "", label: `${name}, ${score} points${over ? "" : `, ${count} cards`}`,
   };
 }
-/** Your plate: only your name and score (your cards are the page's own, below). */
-export const myPlate = ({ seat, score = 0, turn = false }) => ({ seat, name: "You", meta: `<i class="ml3-sc">${score}</i>`, tally: "", fan: 0, state: turn ? "on" : "", label: `You, ${score} points` });
+/** Your plate: only your name (your cards are the page's own, below; the score is the brass plate's). */
+// (no score at a seat (Korbi, 10 Nov 2026: the score stood twice, at the seat and on the brass plate; the plate keeps it))
+export const myPlate = ({ seat, score = 0, turn = false }) => ({ seat, name: "You", meta: "", tally: "", fan: 0, state: turn ? "on" : "", label: `You, ${score} points` });
 
 export function createMeld3d(host, { quiet = () => false } = {}) {
   let cloth = null, motion = null, threw = -1, key = "";

@@ -412,7 +412,7 @@ async function applyView() {
       const m = await load3d(import("./solitaire-3d.js"));
       if (my !== viewing || board.view) return;
       const v = m.createView($("table"), {
-        onCamera: (tilt, yaw) => { prefs.tilt = Math.round(tilt); prefs.yaw = Math.round(yaw); savePrefs(); showTilt(); },
+        onCamera: (tilt, yaw) => { prefs.tilt = Math.round(tilt); prefs.yaw = Math.round(yaw); savePrefs(); },
         onLost: () => { failed3d = true; applyView(); },
       });
       v.setCamera(tiltNow(), prefs.yaw || 0, false);
@@ -423,16 +423,7 @@ async function applyView() {
     board.setView(null);
     v.dispose();
   }
-  showTilt();
 }
-function showTilt() {
-  const b = $("tiltBtn"), v = board.view;
-  b.hidden = !v;
-  if (!v) return;
-  const { tilt } = v.camera();
-  b.textContent = tilt < 1 ? "Top" : "Tilt";
-}
-$("tiltBtn").addEventListener("click", () => { board.view?.preset(); showTilt(); });
 addEventListener("settings:flat", () => { if (!prefs.view) applyView(); });
 onPause(() => board.view?.hold(true), () => board.view?.hold(false));
 function say(text, kind = "") {
@@ -495,6 +486,9 @@ function openMenu() {
   todayPart(body, { done: won != null, result: won != null ? fmt(won) : "", play: () => newDeal("daily"), playing: S?.mode === "daily" && S.key === today() && S.id === prefs.variant });   // newDeal asks before it gives a game up
   if (!IN_FRAME) {
     settings.append(choice("Table", [["3d", "3D"], ["flat", "Flat"]], wants3D() ? "3d" : "flat", v => { prefs.view = v; failed3d = false; savePrefs(); applyView().then(openMenu); }));
+    // the camera: at the angle, or straight down (it was a faint button on the table; Korbi, 10 Nov 2026, the UI audit: the menu's)
+    const top = () => board.view.camera().tilt < 1;
+    if (board.view) settings.append(choice("Camera", [["angled", "Tilted"], ["top", "From above"]], top() ? "top" : "angled", v => { if (top() !== (v === "top")) board.view.preset(); }));
     if (!board.view && failed3d) settings.append(line("This browser can't draw 3D."));
     settings.append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; savePrefs(); sound.setOn(on); if (on) sound.flick(); }));
   }

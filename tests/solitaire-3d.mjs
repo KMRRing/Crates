@@ -58,7 +58,7 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
   check(/sound\.shuffle\(\)/.test(page) && /sound\.thunk\(\)/.test(page) && /sound\.snap\(\)/.test(page) && /sound\.flick\(/.test(page), "a deal shuffles, a foundation thunks, the stock snaps and a move flicks");
   check(/import \* as THREE from "\.\/vendor\/three\.js"/.test(view) && /from "\.\/vendor\/three-tex\.js"/.test(view), "the 3D table is drawn with the bundled three.js");
   check(!/\b(alert|confirm|prompt)\(/.test(view + board + page), "no browser pop-ups");
-  check(/\.so-board\.is3d > :not\(\.so-gl\)/.test(css) && /id="tiltBtn"/.test(html), "the flat cards stay under the canvas as the record of where things are, and the camera has a button");
+  check(/\.so-board\.is3d > :not\(\.so-gl\)/.test(css) && /choice\("Camera"/.test(page), "the flat cards stay under the canvas as the record of where things are, and the camera is the menu's choice");
   check(/view \? spotAt\(ev\.clientX, ev\.clientY\) : \{ spot: spotOf\(ev\.target\) \}/.test(board) && /view\.pick\(/.test(board) && /view\.toTable\(/.test(board), "the board asks the view which card is under a finger and where a pointer is, and keeps its own rules of touch");
   check(/ptrs\.size >= 2/.test(board) && /bare/.test(board), "two fingers, or one from bare baize, turn the camera; a finger on a card or a pile never does");
   check(!/webkit-filter|filter:/.test(css.slice(css.indexOf(".so-gl"), css.indexOf(".so-gl") + 400)), "no filters on the canvas");

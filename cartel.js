@@ -597,9 +597,9 @@ function renderControls() {
   if (g.step === "bid" || forced || !ui.panel) el("h3", "ct-tray-title", tray, g.step === "bid" ? (ui.panel === "ask" ? "Ask before you bid" : b ? "Your bid" : "Open the bidding") : forced ? "Your hand is full: Verhansung on someone" : "Your move");
   if (g.step === "act") {
     // no Pass: taking a die is always at least as good, and rerolling a face-up die covers the rest
-    const tiles = grid(tray, 4);
+    const tiles = grid(tray, "");                // (four across, or two by two in a tall column: cartel.css)
     tiles.classList.add("ct-actions");
-    for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Verhansung"]]) {
+    for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Verhan\u00ADsung"]]) {
       const t = button("ct-action", tiles, [icon(id), el("span", null, null, text)], () => {
         if (id === "take") play({ t: "act", action: { type: "take" } });
         else toggle(id);
@@ -714,17 +714,16 @@ function showChallenge() {
   if (c.type === "block") {
     const what = c.base.ability === "sanction" ? "fine" : "steal";
     $("challengeText").textContent = `${name(c.claimant)} ${verb(c.claimant, "block")} your ${what}, claiming ${ROLES[c.role]}.`;
-    $("challengeKnow").textContent = `${knowText} Challenge it: if it's a bluff, they ${stakeText("pay")} and the ${what} goes ahead; if it's true, you ${stakeText("pay", true)}.`;
+    $("challengeKnow").textContent = knowText;
     $("allowBtn").textContent = "Accept the block";
-    $("challengeBtn").textContent = "Challenge the block";
+    stakes($("challengeBtn"), "Challenge the block");
   } else {
     const x = ABILITIES[c.ability], blockers = c.target === ME ? x.blockers || [] : [];
     $("challengeText").textContent = `${name(c.claimant)} ${verb(c.claimant, "claim")} ${ROLES[x.role]} to ${purpose(c)}.`;
-    $("challengeKnow").textContent = `${knowText} Challenge it: if it's a bluff, they ${stakeText("pay")}; if it's true, you ${stakeText("pay", true)}.` +
-      (blockers.length ? ` Or block it by claiming ${blockers.map(r => ROLES[r]).join(" or ")}.` : "") +
-      (c.ability === "sanction" && c.target === ME ? " If it goes through, you lose a gold die." : "");
-    $("allowBtn").textContent = "Let it go";
-    $("challengeBtn").textContent = "Challenge";
+    $("challengeKnow").textContent = knowText;
+    // what each answer costs is on its button, not in a paragraph of rules (Korbi, 10 Nov 2026, the UI audit)
+    $("allowBtn").innerHTML = c.ability === "sanction" && c.target === ME ? "Let it go<small>you lose a gold die</small>" : "Let it go";
+    stakes($("challengeBtn"), "Challenge");
     if (blockers.length) {
       const mine = g.players[ME].dice.filter(d => d.kind === "gold").map(d => d.face);
       for (const role of blockers) {
@@ -754,7 +753,11 @@ function answerProof(keep) {
 /** What losing a challenge costs, in words: "pay 3 dice (a gold die if short)". */
 function stakeText(verbForm, challenger = false) {
   if (RULES.goldStakes) return `lose a gold die`;
-  return `${verbForm} ${challenger ? RULES.challengeStake : RULES.bluffStake} dice (a gold die if short)`;
+  return `${verbForm} ${challenger ? RULES.challengeStake : RULES.bluffStake} dice`;      // (a gold die if short: the rules say so)
+}
+/** A challenge button with its stakes under its name: what a bluff costs them, what the truth costs you. */
+function stakes(btn, word) {
+  btn.replaceChildren(word, Object.assign(document.createElement("small"), { textContent: `bluff: they ${stakeText("pay")} · true: you ${stakeText("pay", true)}` }));
 }
 
 function answer(decision) {

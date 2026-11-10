@@ -18,6 +18,7 @@
   background: radial-gradient(circle at 34% 28%, #F6DD9B, #C99A45 62%, #9B7126); box-shadow: 0 .08rem .15rem rgba(0, 0, 0, .4); }
 .bd3 .bd-tag { background: rgba(0, 0, 0, .35); color: var(--tk-gilt); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tk-gilt) 55%, transparent); }
 .bd3 .bd-tag.on { background: var(--tk-gilt); color: #3A2606; box-shadow: none; }
+.bd3 .bd-tag.vul { background: var(--cd-red, #B3302A); color: #FFF; box-shadow: none; }
 .bd3 .bd-count { right: auto; left: 50%; translate: -50% 0; bottom: -.1rem; color: var(--tk-soft); white-space: nowrap; }
 
 /* a trick's cards lie on the cloth with their own thickness and a soft contact shadow; the one taking it is ringed in gilt */

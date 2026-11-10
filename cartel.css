@@ -88,8 +88,9 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-marker.held { border-color: #2E7D4F; background: rgba(46, 125, 79, .35); }
 .ct-marker.broke { border-color: #E07060; background: rgba(178, 58, 44, .35); }
 .ct-tally { font-size: .78rem; opacity: .75; }
+/* (two lines in the narrow middle, not one cut short: Korbi, 10 Nov 2026, the UI audit) */
 .ct-ticker { font-size: .82rem; max-width: 100%; opacity: .92; background: none; border: 0; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.25; }
 .ct-verdict { font-weight: 800; font-size: .85rem; padding: .1rem .55rem; border-radius: 8px; }
 .ct-verdict.held { background: #2E7D4F; color: #fff; }
 .ct-verdict.broke { background: #B23A2C; color: #fff; }
@@ -116,6 +117,9 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-controls { display: grid; gap: .5rem; align-content: end;   /* the buttons at the foot of the screen (Korbi, 8 Nov 2026) */ flex: 0 0 15rem; grid-template-rows: minmax(0, 1fr);   /* one height all game, the tray filling it: no empty band under the buttons */ min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .ct-tray { min-height: 100%; box-sizing: border-box; align-content: end; display: grid; gap: .3rem; padding: .5rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .ct-tray:has(> .ct-actions:last-child) { grid-template-rows: auto minmax(0, 1fr); }   /* your move: four big buttons fill the tray */
+.ct-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ct-actions .ct-action { font-size: 1rem; gap: .35rem; hyphens: manual; overflow-wrap: anywhere; }                   /* (big buttons, big marks: Korbi, 10 Nov 2026, the UI audit) */
+.ct-actions .ct-icon { width: 2.1rem; height: 2.1rem; }
 .ct-tray-title { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
 .ct-tray-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 2.125rem; }
 .ct-tray-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
@@ -126,6 +130,10 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
   .ct-table { grid-column: 1; grid-row: 2; min-height: 0; }
   .ct-controls { grid-column: 2; grid-row: 2; margin-top: .4rem; display: flex; flex-direction: column; }
   .ct-controls > :first-child { margin-top: auto; }   /* low, where a thumb is; a long panel still scrolls from its top */
+  /* the column is tall: your move's four buttons two by two at its foot, not four stretched the column's height */
+  .ct-tray:has(> .ct-actions:last-child) { min-height: 0; grid-template-rows: auto auto; }
+  .ct-tray > .ct-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ct-tray > .ct-actions .ct-action { min-height: 5.5rem; }
 }
 .ct-free { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
 .ct-chip { display: inline-flex; align-items: center; gap: .3rem; min-height: 2rem; padding: 0 .65rem; border-radius: 4px; cursor: pointer;
@@ -166,6 +174,7 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-stepper .ct-note { padding-left: .3rem; }
 .ct-go { min-height: 2.75rem; padding: 0 .6rem; border-radius: 4px; cursor: pointer; border: 0; background: var(--plate); color: var(--plate-ink); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   font: inherit; font-size: .95rem; font-weight: 800; line-height: 1.15; }
+.ct-go small { display: block; margin-top: .1rem; font-size: .64rem; font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .8; }
 .ct-go-quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ct-plain-edge); }
 .ct-go small { display: block; font-size: .7rem; font-weight: 650; opacity: .85; margin-top: .1rem; }
 .ct-waiting { color: var(--ink-soft); text-align: center; margin: .4rem 0; }
@@ -210,6 +219,7 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3 .tk-mat { height: 112%; }   /* Korbi, 8 Nov 2026: "make the table much longer and bigger": less foreshortened, so the cloth is nearer a full rectangle */
 .ct3 .ct-seats, .ct3 .tk-plate { display: none; }
 .ct3 .tk-centre { --tk-side: .8rem; left: 33%; right: 33%; top: 36%; bottom: 22%; pointer-events: auto; }
+@media (max-height: 700px) and (orientation: portrait) { .ct3 .tk-centre { top: 30%; bottom: 33%; } }   /* (a short phone: clear of your dice) */
 .ct3 .ct-centre { width: 100%; }
 /* an opponent's zone: a cut in the cloth with a brass hairline; their cup, the dice they have shown lying beside it, their gold dice counted */
 .ct3-zone { position: absolute; translate: -50% -50%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .35rem .3rem;
@@ -235,6 +245,7 @@ dialog.ct-pop .ct-go { width: 100%; }
 /* your own dice, on your side of the cloth, drawn by the scene the same way (the captions under gold ones stay) */
 .ct3-mine { position: absolute; left: 50%; bottom: 3%; translate: -50% 0; width: 84%; padding: 0; z-index: 1; }
 .ct3-mine .ct-die { opacity: 0; }
+.ct3 .ct-mine .ct-plaque { display: none; }   /* (your dice are on the cloth and your move in the tray; the plaque fell off the table's edge, pale on the page) */
 .ct3-mine .ct-dice { min-height: 0; padding-bottom: .1rem; }
 .ct3-mine-gold { flex-basis: auto; width: 100%; margin-top: .25rem; font-size: .82rem; }
 .ct3-mine figure { gap: .5rem; }

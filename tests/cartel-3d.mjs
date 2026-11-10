@@ -15,7 +15,7 @@ const scene = read("cartel-3d.js");
 check(/createCloth/.test(scene) && /new THREE\.WebGLRenderer/.test(scene), "the 3D table is Guandan's cloth (the kit's createCloth) with a clear three.js canvas over it for the cups and dice (no WebGL throws, so the page falls back to flat)");
 check(/pointer-events: none/.test(css.slice(css.indexOf(".ct3-canvas"))) && /\.ct3-board \.ct-die[^}]*opacity: 0/.test(css) && /\.ct3-mine \.ct-die \{ opacity: 0/.test(css), "the scene's canvas takes no taps, and the page's own dice stay in the layout (invisible), so every tap is still the page's");
 check(/mine: \$\("mine"\)/.test(page), "the snapshot hands over your box, so your dice stand on your side of the cloth");
-check(/\.ct3 \.ct-stage/.test(css) && !/[^\d.]([3-9]|\d\d+)px/.test(css.slice(css.indexOf("the 3D table")).replace(/\d+px solid/g, "")), "the 3D rules are in rem, not px");
+check(/\.ct3 \.ct-stage/.test(css) && !/[^\d.]([3-9]|\d\d+)px/.test(css.slice(css.indexOf("the 3D table")).replace(/\d+px solid/g, "").replace(/\((max|min)-(height|width): \d+px\)/g, "")), "the 3D rules are in rem, not px (a query's px are a screen's)");
 // each of the six roles has its own engraved picture
 check(["seal", "coins", "cog", "quill", "scales", "chain"].every(n => new RegExp(`function ${n}\\(`).test(glyphs)) && /GLYPH = \{ 1: seal, 2: coins, 3: cog, 4: quill, 5: scales, 6: chain \}/.test(glyphs), "a seal, coin dies, a cog, a quill, scales and a chain for the six roles, by face");
 const { faceOf, tally, ZONES } = await import("../cartel-3d.js").catch(() => ({}));

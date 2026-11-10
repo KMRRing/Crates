@@ -10,9 +10,9 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
  * One seat's plate (pure): `role` landlord or peasant (`roleWord` in the table talk), `count` the cards it still holds, `word`
  * what it last said (a bid, a pass), `lead` that it holds the trick, `pay` the points won or lost once the deal is paid.
  */
-export function plateOf({ name, seat, mine = false, turn = false, count = 0, role = "", roleWord = "", score = 0, word = "", think = "", lead = false, pay = 0, out = false, over = false }) {
-  const sc = `<i class="ll3-sc">${score > 0 ? "+" : ""}${score}</i>`;
-  const meta = `${roleWord ? `<i class="ll3-role ${role}">${esc(roleWord)}</i>` : ""}${sc}${pay ? `<i class="ll3-pay ${pay > 0 ? "up" : "down"}">${pay > 0 ? "+" : "−"}${Math.abs(pay)}</i>` : ""}`;
+export function plateOf({ name, seat, mine = false, turn = false, count = 0, role = "", roleWord = "", word = "", think = "", lead = false, pay = 0, out = false, over = false }) {
+  // its side and this deal's payment, not the match's score (Korbi, 10 Nov 2026: the score stood twice, at the seat and on the brass plate; the plate keeps it)
+  const meta = `${roleWord ? `<i class="ll3-role ${role}">${esc(roleWord)}</i>` : ""}${pay ? `<i class="ll3-pay ${pay > 0 ? "up" : "down"}">${pay > 0 ? "+" : "−"}${Math.abs(pay)}</i>` : ""}`;
   return {
     seat, name, meta, tally: mine ? "" : `<b class="tk-count${count <= 2 && !over ? " low" : ""}" title="Cards left">${count}</b>`,
     fan: mine || over ? 0 : Math.min(count, 5), crown: role === "landlord", act: out ? "Out" : word,

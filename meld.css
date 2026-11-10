@@ -24,10 +24,10 @@ html[data-theme="office"][data-mode="night"] { --ml-in: #479EF5; }
 .ml-foe { display: grid; gap: .3rem; justify-items: center; align-content: start; padding: .3rem; border-radius: 6px; min-width: 0; }
 .ml-foe.turn { box-shadow: inset 0 0 0 1.5px var(--ml-in); }
 .ml-who { display: flex; align-items: center; gap: .45rem; margin: 0; font-size: .9rem; }
-.ml-sc { padding: 0 .35rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ml-n { color: var(--ink-soft); font-size: .78rem; }
 .ml-backs { display: flex; justify-content: center; font-size: clamp(.5rem, min(1.8cqh, 2.2cqw), .95rem); max-width: 100%; }
 .ml-backs .cd + .cd { margin-left: -1.4em; }
+.ml-go small { display: block; margin-top: .05rem; font-size: .62rem; font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .75; }
 .ml-grabs { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .35rem; font-size: .76rem; color: var(--ink-soft); text-align: center; }
 .ml-mid { flex: 1 1 auto; display: grid; justify-items: center; align-content: center; gap: .5rem; min-height: 0; text-align: center; }
 .ml-piles { display: flex; gap: clamp(.8rem, 6cqw, 2rem); align-items: flex-end; font-size: clamp(.9rem, min(6.5cqh, 7cqw), 2.4rem); }

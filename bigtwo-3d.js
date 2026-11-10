@@ -11,8 +11,9 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
  * One seat's plate (pure): `count` the cards it holds, `word` what it last said (a pass), `lead` that it holds the trick,
  * `pay` the points it lost once the deal is paid and `won` the points the winner took, `last` one card left.
  */
-export function plateOf({ name, seat, mine = false, turn = false, count = 0, score = 0, word = "", think = false, lead = false, pay = 0, won = 0, over = false }) {
-  const meta = `<i class="b23-sc">${score > 0 ? "+" : ""}${score}</i>${pay ? `<i class="b23-pay down">−${pay}</i>` : ""}${won ? `<i class="b23-pay up">+${won}</i>` : ""}`;
+export function plateOf({ name, seat, mine = false, turn = false, count = 0, word = "", think = false, lead = false, pay = 0, won = 0, over = false }) {
+  // a seat shows this deal's word on it, not the match's score (Korbi, 10 Nov 2026: the score stood twice, at the seat and on the brass plate; the plate keeps it)
+  const meta = `${pay ? `<i class="b23-pay down">−${pay}</i>` : ""}${won ? `<i class="b23-pay up">+${won}</i>` : ""}`;
   return {
     seat, name, meta, tally: mine ? "" : `<b class="tk-count${count === 1 && !over ? " low" : ""}" title="Cards left">${count}</b>`,
     fan: mine || over ? 0 : Math.min(count, 5), crown: won > 0, act: won > 0 ? "Out" : word, pass: !!word && !won,

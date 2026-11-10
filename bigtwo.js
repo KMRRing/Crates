@@ -164,7 +164,7 @@ function draw() {
   if (advice && advice.key !== decisionOf(v)) advice = null;
   // the brass plate across the top (cardroom.js): the deal, and every seat's score
   $("strip").innerHTML = plateHtml({ title: `<small>Deal</small><b>${s.deal} of ${s.opts.deals}</b>`,
-    items: Array.from({ length: s.seats }, (_, i) => ({ k: isMe(i) ? "You" : nameOf(i).slice(0, 6), v: `${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}`, on: s.step === "play" && s.turn === i })),
+    items: Array.from({ length: s.seats }, (_, i) => ({ k: isMe(i) ? "You" : nameOf(i), v: `${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}`, on: s.step === "play" && s.turn === i })),
     tail: s.opts.suits === "tw" ? "♣ lowest" : "" });
   drawTable(v);
   drawHand(v);
@@ -195,7 +195,7 @@ function drawTable(v) {
   const s = v.state, shown = s.step === "shown" || s.step === "over", res = shown ? s.result : null;
   const seatHtml = seat => {
     const place = placeOf(seat), a = actOf(s, seat), turn = s.step === "play" && s.turn === seat, lead = !shown && s.trick.by === seat && s.trick.last;
-    const count = s.hands[seat].length, sc = s.scores[seat];
+    const count = s.hands[seat].length;
     let play = "";
     if (res) {
       const left = res.hands[seat];
@@ -206,7 +206,7 @@ function drawTable(v) {
     else if (turn && !isMe(seat)) play = `<span class="b2-thinking">thinking</span>`;
     const back = place === "at-me" ? "" : `<span class="b2-n" title="Cards left">${backHtml("tiny")}<b>${count}</b></span>`;
     return `<div class="b2-seat ${place}${turn ? " turn" : ""}${lead ? " lead" : ""}${count === 1 && !res ? " last" : ""}">
-      <div class="b2-who"><b>${esc(nameOf(seat))}</b>${back}<span class="b2-sc">${sc > 0 ? "+" : ""}${sc}</span></div>
+      <div class="b2-who"><b>${esc(nameOf(seat))}</b>${back}</div>
       <div class="b2-play">${play}</div></div>`;
   };
   const centre = res ? `<div class="b2-centre"><p class="b2-said">${esc(v.said || "")}</p>${s.step === "shown" ? `<span class="b2-next"><i data-until="${s.until}"></i></span>` : ""}</div>`
@@ -217,7 +217,7 @@ function drawTable(v) {
     const me = v.seat ?? 0, passWord = PLAY_TALK.pass[s.opts.talk === "en" ? "en" : s.opts.talk];
     const acts = Array.from({ length: s.seats }, (_, i) => actOf(s, i));
     const plates = acts.map((a, seat) => plateOf({
-      name: isMe(seat) ? "You" : nameOf(seat), seat, mine: isMe(seat), turn: s.step === "play" && s.turn === seat, count: s.hands[seat].length, score: s.scores[seat],
+      name: isMe(seat) ? "You" : nameOf(seat), seat, mine: isMe(seat), turn: s.step === "play" && s.turn === seat, count: s.hands[seat].length,
       word: !res && a?.pass ? passWord : "", think: s.step === "play" && s.turn === seat && !isMe(seat), lead: !shown && s.trick.by === seat && !!s.trick.last,
       pay: res && res.winner !== seat ? res.paid[seat] : 0, won: res && res.winner === seat ? res.paid.reduce((x, y) => x + y, 0) : 0, over: !!res,
     }));

@@ -5,9 +5,9 @@ import { createCloth, rectOf, fill, slotOf } from "./table3d.js";
 import { slide, mayMove } from "./cardslide.js";
 
 /** One seat's plate (pure). `role` the chip (Taker, Partner), `word` what it bid, `think` that it is deciding. */
-export function plateOf({ name, seat, mine = false, turn = false, count = 0, score = "0", role = "", word = "", think = false }) {
+export function plateOf({ name, seat, mine = false, turn = false, count = 0, role = "", word = "", think = false }) {
   return {
-    seat, name, meta: `<i class="tr3-sc">${score}</i>${role ? `<i class="tr3-role">${role}</i>` : ""}`,
+    seat, name, meta: role ? `<i class="tr3-role">${role}</i>` : "",    // its part this deal; the score is the plate's (Korbi, 10 Nov 2026: the score stood twice, at the seat and on the brass plate; the plate keeps it)
     tally: mine ? "" : `<b class="tk-count" title="Cards left">${count}</b>`, fan: mine ? 0 : Math.min(count, 5), crown: false, act: word, pass: word === "Pass",
     state: [turn ? "on" : "", think ? "thinking" : ""].filter(Boolean).join(" "),
     label: `${name}${mine ? "" : `, ${count} cards left`}${role ? `, ${role}` : ""}${word ? `, ${word}` : ""}`,

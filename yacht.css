@@ -101,8 +101,8 @@ html[data-theme="office"][data-mode="night"] { --ya-in: #479EF5; --ya-die: #E1DF
   transition: opacity .2s, transform .2s; z-index: 5; }
 .ya-toast.on { opacity: 1; transform: translate(-50%, 0); }
 
-/* a short phone: the sheet's rows tighten, the dice keep their room */
-@media (max-height: 640px) and (orientation: portrait) {
+/* a short phone: the sheet's rows tighten, the dice keep their room (to 700px tall: at 664 the dice were specks; Korbi, 10 Nov 2026) */
+@media (max-height: 700px) and (orientation: portrait) {
   .ya-grid th, .ya-grid td { height: 1.3rem; font-size: .8rem; }
   .ya-grid thead th { height: 1.4rem; }
   .ya-grid tr.sub th, .ya-grid tr.sub td { height: 1.05rem; }
@@ -117,6 +117,15 @@ html[data-theme="office"][data-mode="night"] { --ya-in: #479EF5; --ya-die: #E1DF
   #app.yacht .ya-table { grid-column: 1; grid-row: 3; }
   #app.yacht .ya-side { grid-column: 2; grid-row: 3; padding-top: .35rem; }
   #app.yacht .ya-sheet { flex: 1 1 auto; overflow-y: auto; }
+}
+/* a tablet sideways: the column is tall, so the sheet's rows are a size to read across the room, and the buttons sit under them */
+@media (orientation: landscape) and (min-width: 700px) and (min-height: 650px) {
+  #app.yacht .ya-side { justify-content: flex-end; }
+  #app.yacht .ya-sheet { flex: 0 1 auto; }
+  .ya-grid th, .ya-grid td { height: 2.05rem; font-size: 1rem; }
+  .ya-grid thead th { height: 2.1rem; font-size: .8rem; }
+  .ya-grid tr.sub th, .ya-grid tr.sub td { height: 1.6rem; font-size: .86rem; }
+  .ya-grid tr.total th, .ya-grid tr.total td { height: 2.3rem; font-size: 1.2rem; }
 }
 @media (max-height: 520px) and (min-width: 700px) {
   .ya-grid th, .ya-grid td { height: 1rem; font-size: .72rem; }

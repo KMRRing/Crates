@@ -12,7 +12,6 @@
 .hr3-lane.s0 { grid-column: 1 / -1; grid-row: 3; }
 .hr3-top { grid-column: 1 / -1; grid-row: -2 / -1; display: grid; justify-items: center; align-content: center; gap: .15rem; text-align: center; min-width: 0; }
 .hr3 .hr-note { margin: 0; font-size: .74rem; color: var(--tk-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hr3-sc { margin-right: .25rem; font-style: normal; }
 .hr3-taken { font-style: normal; font-weight: 800; color: #F0A596; }
 .tk-count.low { color: #A8382B; }
 @container (max-height: 420px) { .hr3 .hr-note { display: none; } }

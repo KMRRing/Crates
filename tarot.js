@@ -171,14 +171,14 @@ const sign = n => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0");
 function stripLine(v) {
   const s = v.state;
   // the brass plate across the top (cardroom.js): the deal, the contract, and each seat's score
-  const phase = s.step === "thrown" ? "thrown in" : s.step === "bid" ? "bidding" : "";
+  const phase = s.step === "thrown" ? "thrown in" : "";          // (bidding needs no word: the bids are at the seats)
   const bits = [];
   if (s.taker != null && s.step !== "thrown" && s.step !== "bid") {
     bits.push(bidName(s.bid), `${esc(who(s.taker))} take${who(s.taker) === "You" ? "" : "s"}`);
     if (s.step === "play" && opts.counting) { const a = attPoints(s); bits.push(`${fmt(a.pts)} of ${a.need}`); }
   }
   return plateHtml({ title: `<small>Deal</small><b>${s.deal}/${s.opts.deals}</b>`,
-    items: s.scores.map((sc, i) => ({ k: who(i).slice(0, 6), v: `${sc > 0 ? "+" : ""}${sc}`, on: s.step === "play" && s.turn === i })), tail: [phase, ...bits].filter(Boolean).join(" · ") });
+    items: s.scores.map((sc, i) => ({ k: who(i), v: `${sc > 0 ? "+" : ""}${sc}`, on: s.step === "play" && s.turn === i })), tail: [phase, ...bits].filter(Boolean).join(" · ") });
 }
 
 function roleChip(v, seat) {
@@ -249,7 +249,7 @@ function panel(v, seat) {
   const s = v.state, turn = ["bid", "call", "discard", "announce", "play"].includes(s.step) && v.toMove === seat;
   const n = s.hands[seat].length;
   return `<div class="tr-panel${turn ? " turn" : ""}"><div class="tr-who"><b>${esc(who(seat))}</b>${roleChip(v, seat)}</div>
-    <div class="tr-meta"><span class="tr-n" title="Cards left">${backHtml()}<b>${n}</b></span><span class="tr-sc" title="Points">${sign(s.scores[seat])}</span></div></div>`;
+    <div class="tr-meta"><span class="tr-n" title="Cards left">${backHtml()}<b>${n}</b></span></div></div>`;
 }
 const view = tableView("tarot");                                   // Menu, View: the flat table or the 3D one (tarot-3d.js)
 let three = null;
@@ -262,7 +262,7 @@ function drawCloth(v) {
   const live = ["bid", "call", "discard", "announce", "play"].includes(s.step);
   const parts = Array.from({ length: n }, (_, seat) => slotParts(v, seat));
   const plates = parts.map((p, seat) => plate3({ name: who(seat), seat, mine: seat === me, turn: live && v.toMove === seat, count: s.hands[seat].length,
-    score: sign(s.scores[seat]), role: roleChip(v, seat).replace(/<[^>]+>/g, ""), word: p.word || "", think: !!p.think && seat !== me }));
+    role: roleChip(v, seat).replace(/<[^>]+>/g, ""), word: p.word || "", think: !!p.think && seat !== me }));
   three.draw({ me, n, plates, lanes: parts.map(p => p.card || ""), mid: midHtml(v, true) });
 }
 function drawTable(v) {
@@ -352,7 +352,8 @@ function drawHand(v) {
   const bySuit = new Map();
   for (const c of cards.filter(c => c > EXCUSE)) { const su = suitOf(c); if (!bySuit.has(su)) bySuit.set(su, []); bySuit.get(su).push(c); }
   cols.push(...bySuit.values());
-  drawHandBox(box, { cols: cols.filter(c => c.length), fan: true, html: (id, o) => tarotCard(id, o), label: String,
+  const z = SIZES[s.n];
+  drawHandBox(box, { cols: cols.filter(c => c.length), fan: true, most: z.hand + z.dog, html: (id, o) => tarotCard(id, o), label: String,
     classes: c => [sel.has(c) && "sel", fresh.has(c) && "fresh", shown.has(c) && "lit",
       (playable && !playable.has(c) || okPick && !okPick.has(c)) && "dim", hinted?.key === `${v.G.seq}:${s.ply}` && hinted.cards?.includes(c) && "hint"].filter(Boolean).join(" ") });
 }

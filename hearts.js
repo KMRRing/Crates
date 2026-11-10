@@ -79,10 +79,10 @@ function draw() {
   // the picked cards stay picked while the others play; a new hand, a pass done or a move of yours clears them
   const key = `${v.G.seq}:${s.deal}:${s.step === "pass" ? "p" : "q"}:${(s.hands[v.seat ?? 0] || []).length}`;
   if (key !== selFor) { selFor = key; sel = new Set(); }
-  // the brass plate across the top (cardroom.js): the hand and its pass, every seat's score, the target and the hearts
+  // the brass plate across the top (cardroom.js): the hand, every seat's score, the target and the hearts (the pass is the button's)
   $("strip").innerHTML = plateHtml({ title: `<small>Hand</small><b>${s.deal}</b>`,
-    items: [0, 1, 2, 3].map(i => ({ k: isMe(i) ? "You" : nameOf(i).slice(0, 6), v: s.scores[i], on: s.step === "play" && s.turn === i })),
-    tail: `${s.dir === "hold" ? "No pass" : `Pass ${DIR_WORD[s.dir]}`} · to ${s.opts.to}<br>♥ ${s.broken ? "broken" : "unbroken"}` });
+    items: [0, 1, 2, 3].map(i => ({ k: isMe(i) ? "You" : nameOf(i), v: s.scores[i], on: s.step === "play" && s.turn === i })),
+    tail: `to ${s.opts.to}<br>♥ ${s.broken ? "broken" : "unbroken"}` });
   drawTable(v);
   drawHand(v);
   drawBar();
@@ -102,7 +102,7 @@ function seatHtml(v, seat) {
   else if (turn && !isMe(seat)) tag = `<span class="hr-thinking">thinking</span>`;
   const back = place === "at-me" ? "" : `<span class="hr-n" title="Cards left">${backHtml("tiny")}<b>${s.hands[seat].length}</b></span>`;
   return `<div class="hr-seat ${place}${turn ? " turn" : ""}${trickWinnerNow(s) === seat ? " wins" : ""}">
-    <div class="hr-who"><b>${esc(who(seat))}</b>${back}<span class="hr-sc" title="Score">${s.scores[seat]}</span><span class="hr-pts" title="Points taken this hand" style="${taken ? "" : "visibility:hidden"}">+${taken}</span></div>
+    <div class="hr-who"><b>${esc(who(seat))}</b>${back}<span class="hr-pts" title="Points taken this hand" style="${taken ? "" : "visibility:hidden"}">+${taken}</span></div>
     ${place === "at-me" ? "" : `<div class="hr-play">${tag || "&nbsp;"}</div>`}</div>`;
 }
 
