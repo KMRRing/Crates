@@ -72,7 +72,7 @@ export const PERSONAL_SETS = ["legal-maxim", "legal-concept", "trade-place", "tr
 /** Set defaults, first match wins. [set, mark] */
 export const SET_DEFAULT = [
   // a set (Census's: the planets, the Tudor monarchs) is known where its members are taught; the school-wide ones are in SET_UNIVERSAL
-  ["set", "r"],
+  ["set", "r"], ["story", "r"],
   ["greek-god", "u"], ["egyptian-god", "r"], ["roman-god", "r"], ["norse-god", "r"], ["myth-hero", "r"], ["myth-creature", "r"], ["myth-place", "s"],
   ["chinese-thinker", "r"], ["chinese-province", "r"], ["china-place", "r"], ["china-person", "r"], ["china-thing", "r"], ["chinese-dish", "s"], ["chinese-tea", "s"], ["chinese-festival", "r"], ["chengyu", "s"],
   ["merchant-power", "r"], ["merchant-person", "r"], ["trade-history", "r"], ["architecture-style", "r"], ["architecture-term", "s"], ["art-movement", "r"],

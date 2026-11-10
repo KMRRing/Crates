@@ -709,5 +709,11 @@ export const ENTITY = {
   "set-great-lakes": "r", "set-oceans": "u", "set-continents": "u", "set-seven-summits": "r", "set-planets": "u", "set-noble-gases": "r",
   "set-alkali": "r", "set-halogens": "r", "set-first-20": "u", "set-pgms": "r", "set-rainbow": "u", "set-greek-letters": "r",
   "set-nato": "r", "set-wonders": "u", "set-henry-wives": "r", "set-tudors": "r", "set-olympians": "r", "set-muses": "r",
-  "set-tragedies": "r", "set-first-growths": "r", "set-bordeaux-grapes": "r", "set-base-metals": "r"
+  "set-tragedies": "r", "set-first-growths": "r", "set-bordeaux-grapes": "r", "set-base-metals": "r", "story-labours": "r", "story-odyssey": "r",
+  "story-troy": "r", "story-ragnarok": "r", "story-perseus": "r", "story-argonauts": "r", "story-kings-of-rome": "r", "story-east-india-company": "r",
+  "story-voc": "r", "story-hanse": "r", "story-peerage": "r", "story-german-ranks": "r", "story-obe-grades": "r", "story-salvator-mundi": "r",
+  "story-gurlitt": "r", "story-kings-of-bavaria": "r", "story-ludwig-ii": "r", "story-brewing": "r", "story-road-to-union": "r", "story-the-forty-five": "r",
+  "story-tudors": "r", "story-henry-viii-wives": "r", "story-whisky-making": "r", "story-dynasties": "r", "story-zodiac": "r", "story-road-to-1949": "r",
+  "story-reform-era": "r", "story-streif": "r", "story-ski-history": "r", "story-avalanche-rescue": "r", "story-power-path": "r", "story-horology-history": "r",
+  "story-lake-shore": "r", "story-documentary-credit": "r", "story-cif-cargo": "r", "story-arbitration": "r", "story-trade-law": "r"
 };

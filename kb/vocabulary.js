@@ -60,6 +60,7 @@ export const FIELDS = {
   crates: play("number", "Crates' board position"), d: play("number", "Difficulty"), stage: play("text", "Stage"), wrong: play("texts", "Wrong options"),
   fromWrong: play("texts", "Wrong sources"), notWith: play("texts", "Not with"), iconic: play("flag", "Iconic"), pinCat: play("text", "Chart category"),
   marks: play("texts", "Names on the map"), anonymous: play("flag", "Anonymous"),
+  unit: play("text", "Order's word for a step"), ask: play("text", "Order's question"),
 };
 /** The fields of a record (`card`, `archCard`) and of a step (`meetings`, `steps`). */
 export const RECORD = {
@@ -68,7 +69,7 @@ export const RECORD = {
 };
 export const STEP = {
   id: meta("ref", "Who"), text: f("text", "What"), what: f("text", "What"), alt: f("text", "Also put"), why: f("text", "Why it mattered"),
-  year: f("year", "Year"), circa: f("flag", "Around"), place: f("text", "Place"), thing: f("ref", "The thing"), pic: meta("text", "Picture"),
+  year: f("year", "Year"), to: f("year", "Until"), circa: f("flag", "Around"), place: f("text", "Place"), thing: f("ref", "The thing"), pic: meta("text", "Picture"),
 };
 
 /** The facts a link may carry (`facts` on a link). A quantity's unit is in the same facts as `unit` unless given here. */
@@ -117,6 +118,7 @@ export const RELS = {
   depicts: r("Depicts", "Depicted in", "art"), set: r("Set to music", "Set by", "art"), named: r("Gives its name to", "Named after", "art"),
   // words and works
   "written-by": r("Written by", "Works", "work"), "in-work": r("From the work", "Lines", "work"), about: r("The epic of", "Sung of in", "work"),
+  "story-of": r("The story of", "Its story", "work"),
   // people and families
   "child-of": r("Child of", "Children", "people"), "parent-of": r("Parent of", "Parent", "people"), "mother-of": r("Mother of", "Mother", "people"),
   married: r("Married", "Married", "people"), "twin-of": r("Twin of", "Twin of", "people"), "regent-for": r("Ruled for", "Regent", "people"),

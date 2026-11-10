@@ -3,7 +3,7 @@
 // right); three lives a run. Dates deal every dated question from Quote's bank, a painting's year among them;
 // Quantities deal one family at a time, the same unit and the same kind of thing, so the comparison means something;
 // History (the stories) deals one story's events (Heracles' labours, Odysseus's voyage home, Ragnarök…), where what's ordered is the
-// story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number. The
+// story itself, a card's place in it (kb/'s story things, built into order-bank.js), and the line shows 1st, 2nd… instead of a number. The
 // cards and the rules are order-engine.js's.
 // A run of dates or quantities deals from your mix of topics (Quote's categories, each out, in or more), as Quote,
 // Punt and Crates do; today's run is the same for everyone, whatever the mix.

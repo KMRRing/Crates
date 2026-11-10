@@ -14,7 +14,7 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "lit", "sayings", "law"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
-  pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
+  pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", order: "order-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
 /** What the build writes (tools/audit-lib.mjs, docs/the-knowledge-base.md "Who the games ask about"): `public`, the default, holds
  *  every item but the living, each marked for removal carrying `mk` (s specialist, p personal); the games decide at run time which
@@ -98,8 +98,12 @@ export async function build({ level = "public" } = {}) {
   const pictures = [...new Set([...[...ENTITIES, ...PLACES, ...ALL, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic),
     ...Object.values(who.WHO).map(w => w.p)].filter(Boolean))].sort();
   return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES, RETIRED }, choice, pictures, index: await subjects(ENTITIES, LINKS),
-    whoami: who, decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
+    whoami: who, decoy: decoy(ENTITIES, QUOTES, decoyFacts), order: stories(ENTITIES) };
 }
+/** Order's stories: kb/'s story things (each a story's steps in order), as Order reads them; its saved bests are kept under
+ *  the story's own id, without "story-". */
+const stories = entities => entities.filter(e => e.sets.includes("story"))
+  .map(e => ({ id: e.id.replace(/^story-/, ""), name: e.name, unit: e.unit, ask: e.ask, note: e.note, steps: e.steps.map(s => s.text) }));
 
 // Questions the knowledge base writes itself. A painting with its painter, museum, movement, year and picture gets Punt's
 // who, where and movement questions and Quote's year, unless it already has hand-written ones; a museum with a position
@@ -727,6 +731,7 @@ export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
 export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
   files[OUTPUTS.pics] = `${head(OUTPUTS.pics)}export const PICTURES = ${lines(out.pictures)};\n`;
   files[OUTPUTS.decoy] = `${head(OUTPUTS.decoy)}export const SAYINGS = ${lines(out.decoy.sayings)};\nexport const NUMBERS = ${lines(out.decoy.numbers)};\nexport const FACTS = ${lines(out.decoy.facts)};\n`;
+  files[OUTPUTS.order] = `${head(OUTPUTS.order)}export const SEQUENCES = ${lines(out.order)};\n`;
   files[OUTPUTS.whoami] = `${head(OUTPUTS.whoami)}export const DECKS = ${lines(out.whoami.DECKS)};\nexport const WHO = {\n${Object.entries(out.whoami.WHO).map(([id, w]) => `${JSON.stringify(id)}: ${JSON.stringify(w)}`).join(",\n")}\n};\n`;
   for (const b of CHOICE_BANKS) files[OUTPUTS[b]] = `${head(OUTPUTS[b])}export const STAGES = ${JSON.stringify(out.choice[b].STAGES)};\nexport const MATHS = ${lines(out.choice[b].MATHS)};\n`;
   return files;

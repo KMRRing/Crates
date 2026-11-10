@@ -38,9 +38,9 @@ const files = offlineFiles(), listed = new Set(files);
 check(!missing.length, missing.length ? `every file a page loads is there: missing ${missing.map(m => `${m.file} (named in ${m.from})`).join(", ")}` : `every file the ${reached.size} files the pages reach name is there`);
 const left = [...reached.keys()].filter(f => !listed.has(f));
 check(!left.length, left.length ? `everything a page reaches is kept offline: not ${left.join(", ")}` : `everything the pages reach is kept offline (${files.length} files)`);
-const kb = ["kb/entities.js", "kb/links.js", "kb/items/sequences.js"].filter(f => !listed.has(f));
+const kb = ["kb/entities.js", "kb/links.js", "kb/vocabulary.js", "kb/graph.js", "order-bank.js"].filter(f => !listed.has(f));
 check(!kb.length && ["origin.js", "almanac.js", "order.js"].every(f => reached.has(f)),
-  "Origin, Almanac and Order open offline: the knowledge base they import (kb/entities.js, kb/links.js, kb/items/sequences.js) is kept");
+  "Origin, Almanac and Order open offline: the knowledge base they import (kb/entities.js, kb/links.js, kb/vocabulary.js, kb/graph.js, order-bank.js) is kept");
 const banks = fs.readdirSync(ROOT).filter(f => f.endsWith("-bank.js") || f === "bank.js"), puzzles = fs.readdirSync(ROOT + "puzzles").map(f => `puzzles/${f}`);
 check([...banks, ...puzzles].every(f => listed.has(f)), `every knowledge bank (${banks.length}) and every puzzle band (${puzzles.length}) is kept, whichever a game asks for`);
 check(!files.some(f => /^(tests|tools)\//.test(f) || f === "sw.js") && !files.some(f => f.startsWith("kb/") && !reached.has(f)),

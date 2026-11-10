@@ -6,7 +6,7 @@
 import { QUOTES } from "./quote-bank.js";
 import { TOPICS } from "./quote-engine.js";
 import { drawWeighted } from "./topics.js";
-import { SEQUENCES } from "./kb/items/sequences.js";
+import { SEQUENCES } from "./order-bank.js";
 import { DIMENSIONS, dimensionOf, sizeOf } from "./kb/units.js";
 
 export const LIVES = 3, DATES_PER_RUN = 16, MOST = 6;     // MOST: the most at one table (a party's)

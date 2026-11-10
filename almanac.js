@@ -169,16 +169,27 @@ function fillEntry(box, id, nav = {}) {
     for (const [name, value, long] of rows) { const row = el("p", long ? "lx-fact long" : "lx-fact"); row.append(el("span", null, name), el("b", null, value)); sec.append(row); }
     box.append(sec);
   }
-  // its steps: Dispatch's acts of a person (`meetings`), a story's events (`steps`); a fact worded two ways is one step, both wordings in it
-  for (const x of G.stepsOf(e)) {
+  // its steps: Dispatch's acts of a person (`meetings`: a fact worded two ways is one step, both wordings in it, each a section of
+  // its own), a story's events (`steps`: a numbered list, each with its year where kb/ has one, and the thing it names one tap away)
+  const steps = G.stepsOf(e), whenOf = x => [x.year != null ? `${yearWords(x.year, x.circa)}${x.to ? `–${yearWords(x.to)}` : ""}` : "", x.place || ""].filter(Boolean).join(" · ");
+  const told = x => `${x.text[0].toUpperCase()}${x.text.slice(1)}${/[.!?]$/.test(x.text) ? "" : "."}`;
+  for (const x of steps.filter(x => x.why || x.alt || x.pic)) {
     const sec = el("section", "lx-sec");
-    const when = [x.year != null ? yearWords(x.year, x.circa) : "", x.place || ""].filter(Boolean).join(" · ");
-    if (when) sec.append(el("h3", null, when));
+    if (whenOf(x)) sec.append(el("h3", null, whenOf(x)));
     if (x.pic) { const pic = el("div", "lx-pic"); sec.append(pic); showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic }); }
-    sec.append(el("p", "lx-note", `${x.text[0].toUpperCase()}${x.text.slice(1)}${/[.!?]$/.test(x.text) ? "" : "."}`));
+    sec.append(el("p", "lx-note", told(x)));
     if (x.alt) sec.append(el("p", "lx-note", `Also put: ${x.alt}.`));
     if (x.why) sec.append(el("p", "lx-note", x.why));
-    if (x.thing) sec.append(entityButton(ENT.get(x.thing), "", nav));
+    box.append(sec);
+  }
+  const plain = steps.filter(x => !(x.why || x.alt || x.pic));
+  if (plain.length) {
+    const sec = el("section", "lx-sec");
+    sec.append(el("h3", null, `Steps (${plain.length})`));
+    plain.forEach((x, i) => {
+      if (x.thing) { sec.append(entityButton(ENT.get(x.thing), `${i + 1}${whenOf(x) ? ` · ${whenOf(x)}` : ""}`, nav)); return; }
+      const row = el("p", "lx-fact long"); row.append(el("span", null, whenOf(x) || String(i + 1)), el("b", null, told(x))); sec.append(row);
+    });
     box.append(sec);
   }
   const topics = topicsOf(id);
