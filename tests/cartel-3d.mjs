@@ -24,5 +24,10 @@ if (faceOf) {
   check(JSON.stringify(faceOf(el("gold 4, Banker"))) === '{"kind":"gold","value":4}' && faceOf(el("plain 6")).value === 6 && faceOf(el("hidden plain die")) === null, "a die's kind and number come from its label; a hidden die has none");
   check(tally([el("hidden gold die"), el("plain 3"), el("hidden plain die")]).hidden === 2, "the cup's count is the hidden dice");
 }
+if (ZONES) {
+  const { EDGE } = await import("../cartel-3d.js");
+  const off = Object.values(ZONES).flat().filter(([x, , w]) => x - w / 2 < EDGE - 1e-9 || x + w / 2 > 100 - EDGE + 1e-9);
+  check(!off.length, `every opponent's zone stays inside the table's rail (${EDGE}% from its sides)${off.length ? `: ${JSON.stringify(off)}` : ""}`);
+}
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log("all ok");

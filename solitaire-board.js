@@ -13,6 +13,7 @@ import { VARIANTS, RANKS, tableOf, TAB, FND, WST, STK, CEL, place, kindOf, index
 const FSLOT = [3, 2, 1, 0];                        // the foundations left to right: ♠ ♥ ♣ ♦, so the colours alternate
 const ASPECT = 1.4;                                // a card is 3.5em by 2.5em
 const TAB_REF = 3.9;                               // card heights the tableau is made for: a column longer than that fans in
+const MID_ROWS = 2.6;                              // card heights of tableau centred on the 3D table with the top row (a deal's columns, and some)
 const DRAG = 7;                                    // px (a tablet's rem grows it) a finger moves before a press is a drag
 const SLOP = 14;                                   // a drag that lets go over no place, within this of where it began, was a tap
 const SUITS = ["♦", "♣", "♥", "♠"];
@@ -30,7 +31,7 @@ const AT = /translate\(([-\d.]+)px, ([-\d.]+)px\)/;
  */
 export function createBoard(root, opts = {}) {
   let variant = null, V = null, T = null, G = null, extra = {};
-  let cw = 0, ch = 0, gap = 0, x0 = 0, yTab = 0, W = 0, H = 0, fanDown = 0, fanUp = 0;
+  let cw = 0, ch = 0, gap = 0, x0 = 0, y0 = 0, yTab = 0, W = 0, H = 0, fanDown = 0, fanUp = 0;
   const els = new Map(), slots = [], drops = [];
   let where = new Map(), cardY = new Map(), colEnd = [];
   let pressing = null, dragging = null;
@@ -83,7 +84,10 @@ export function createBoard(root, opts = {}) {
     ch = Math.round(cw * ASPECT);
     gap = Math.max(1, Math.floor((W - n * cw) / (n - 1)));
     x0 = Math.floor((W - (n * cw + (n - 1) * gap)) / 2);
-    yTab = Math.round(ch * 1.16);
+    // on the 3D table the cards lie in its middle (the top row and a deal's columns centred in the box), not along its far edge with
+    // the near half bare (Korbi, 10 Nov 2026); a column that grows still has the room down to the near edge, and fans in past it
+    y0 = view ? Math.max(0, Math.floor((H - ch * (1.16 + MID_ROWS)) / 2)) : 0;
+    yTab = y0 + Math.round(ch * 1.16);
     fanDown = Math.max(3, Math.round(ch * 0.13));
     fanUp = Math.round(ch * 0.3);
     root.style.fontSize = `${cw / 2.5}px`;
@@ -95,12 +99,12 @@ export function createBoard(root, opts = {}) {
     const k = kindOf(p), i = indexOf(p);
     if (k === TAB) return { x: colX(i), y: yTab };
     if (V.game === "klondike") {
-      if (k === STK) return { x: colX(0), y: 0 };
-      if (k === WST) return { x: colX(1), y: 0 };
-      return { x: colX(3 + FSLOT.indexOf(i)), y: 0 };
+      if (k === STK) return { x: colX(0), y: y0 };
+      if (k === WST) return { x: colX(1), y: y0 };
+      return { x: colX(3 + FSLOT.indexOf(i)), y: y0 };
     }
-    if (V.game === "freecell") return k === CEL ? { x: colX(i), y: 0 } : { x: colX(4 + FSLOT.indexOf(i)), y: 0 };
-    return k === STK ? { x: colX(V.cols - 1), y: 0 } : { x: colX(i), y: 0 };
+    if (V.game === "freecell") return k === CEL ? { x: colX(i), y: y0 } : { x: colX(4 + FSLOT.indexOf(i)), y: y0 };
+    return k === STK ? { x: colX(V.cols - 1), y: y0 } : { x: colX(i), y: y0 };
   }
   /** A column's offsets between cards, drawn in when the column is longer than the room under the top row. */
   function fan(i) {
@@ -155,7 +159,7 @@ export function createBoard(root, opts = {}) {
     }
     if (V.game === "spider") {
       stock(slotXY(place(STK)));
-      g.runs.forEach((run, k) => run.forEach((uid, j) => at(uid, colX(k), 0, 40 - j, true, run.length - 1 - j)));
+      g.runs.forEach((run, k) => run.forEach((uid, j) => at(uid, colX(k), y0, 40 - j, true, run.length - 1 - j)));
     }
     return out;
   }

@@ -31,6 +31,8 @@
 .ll3 .tk-plate.at-l { left: .3rem; translate: 50% 0; transform-origin: 0 100%; }
 .ll3 .tk-plate.at-r { left: calc(100% - .3rem); translate: -50% 0; transform-origin: 100% 100%; }
 .ll3 .tk-centre { top: 44%; }
-/* Korbi, 7 Nov 2026: you lower, so the middle has room */
-.ll3 .tk-plate.at-b { top: 106%; }
+/* Korbi, 7 Nov 2026: you lower, so the middle has room; 10 Nov 2026: your cards on the table lay over your medallion and name, so you sit
+   on the near rim and your cards lie further in */
+.ll3 .tk-plate.at-b { top: 110%; }
+.ll3 .tk-centre { bottom: 21%; }
 .ll3 .tk-plate:is(.at-l, .at-r) .tk-act { bottom: .2rem; }   /* (the bid stays inside the seat, which clips at its foot) */

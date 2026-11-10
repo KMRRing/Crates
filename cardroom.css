@@ -22,7 +22,9 @@
 .cr-side { display: grid; justify-items: center; gap: .08rem; min-width: 2rem; padding: .12rem .35rem; border-radius: 4px; }
 .cr-side b { font-size: 1.05rem; font-weight: 800; line-height: 1; }
 .cr-side.on { background: color-mix(in srgb, var(--sheet) 55%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent); }
-.cr-tail { align-self: center; font-size: .64rem; font-weight: 700; color: var(--ink-soft); white-space: nowrap; text-align: right; line-height: 1.3; }
+/* a word after the scores: two lines at most, inside the plate (Korbi, 10 Nov 2026: Tarot's contract ran off its edge) */
+.cr-tail { align-self: center; flex: 0 1 auto; min-width: 0; max-width: 7.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  font-size: .64rem; font-weight: 700; color: var(--ink-soft); text-align: right; line-height: 1.3; }
 
 /* ---------- the coach's bubble ---------- */
 .cr-bar { position: relative; }

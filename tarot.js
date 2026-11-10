@@ -174,7 +174,7 @@ function stripLine(v) {
   const phase = s.step === "thrown" ? "thrown in" : "";          // (bidding needs no word: the bids are at the seats)
   const bits = [];
   if (s.taker != null && s.step !== "thrown" && s.step !== "bid") {
-    bits.push(bidName(s.bid), `${esc(who(s.taker))} take${who(s.taker) === "You" ? "" : "s"}`);
+    bits.push(BIDS[s.bid].name);   // the contract alone, in its shorter name ("Garde contre le chien · You take" ran off the plate; the taker's seat says Taker)
     if (s.step === "play" && opts.counting) { const a = attPoints(s); bits.push(`${fmt(a.pts)} of ${a.need}`); }
   }
   return plateHtml({ title: `<small>Deal</small><b>${s.deal}/${s.opts.deals}</b>`,
@@ -292,6 +292,10 @@ function midHtml(v, cloth = false) {
     return `<p class="tr-note"><b>${esc(who(s.taker))}</b> takes with ${esc(bidName(s.bid))} and is calling a king.</p>`;
   }
   if (s.step === "discard" || s.step === "announce") {
+    // on the cloth the dog simply lies there, face up or face down, with no words over the table (Korbi, 10 Nov 2026: the line about
+    // whose points it is ran across the table and over the seats; the contract is on the brass plate)
+    if (cloth) return `<span class="cd-line tr-line tr3-dog${s.dogSeen ? "" : " down"}" aria-label="The dog${s.dogSeen ? "" : ", face down"}">${s.dog.map(c => (s.dogSeen ? tarotCard(c) : backHtml())).join("")}</span>`
+      + (s.call != null ? `<span class="tr3-called" aria-label="The called king">${tarotCard(s.call)}</span>` : "");
     const what = s.dogSeen ? `<p class="tr-note">The dog</p>${cardsRow(s.dog)}` : `<p class="tr-note">${esc(bidName(s.bid))}: the dog stays face down, ${s.bid === 3 ? "its points the taker's" : "its points the defence's"}.</p>`;
     const called = s.call != null ? `<p class="tr-note">${s.alone ? "Called" : "Called, partner unknown"}: ${cardsRow([s.call])}</p>` : "";
     return what + called;
@@ -386,7 +390,7 @@ const coachBubble = bubble($("coach"));
 
 function drawBar(v) {
   const bar = $("bar"), s = v.state, w = viewer(v);
-  const b = (act, text, { primary = false, off = false, cls = "" } = {}) => `<button type="button" class="btn${primary ? " primary" : ""} tr-go ${cls}" data-act="${act}"${off ? " disabled" : ""}>${text}</button>`;
+  const b = (act, text, { primary = false, off = false, cls = "", label = "" } = {}) => `<button type="button" class="btn${primary ? " primary" : ""} tr-go ${cls}" data-act="${act}"${label ? ` aria-label="${label}"` : ""}${off ? " disabled" : ""}>${text}</button>`;
   if (s.step === "shown") { bar.innerHTML = b("next", "Next deal", { primary: true }); return; }
   if (s.step === "over") { bar.innerHTML = page.host ? b("again", "New game", { primary: true }) : ""; return; }
   if (s.step === "thrown") { bar.innerHTML = b("next", "Deal again", { primary: true }); return; }
@@ -403,7 +407,7 @@ function drawBar(v) {
     bar.innerHTML = b("discard", `Discard ${sel.size} of ${k}`, { primary: true, off: !okd }) + hintBtn;
     return;
   }
-  if (s.step === "announce") { bar.innerHTML = b("announce0", "Play", { primary: true }) + b("announce1", "Announce a slam") + hintBtn; return; }
+  if (s.step === "announce") { bar.innerHTML = b("announce0", "Play", { primary: true }) + b("announce1", "Slam", { label: "Announce a slam" }) + hintBtn; return; }   // (one word: "Announce a slam" was cut short on a phone)
   const lv = poigneeLevels(s, w);
   const handBtns = lv.map(l => b(`hand${l.level}`, `Show ${l.size} (${POIGNEE_BONUS[l.level]})`, { cls: handful?.level === l.level ? "on quiet" : "quiet" })).join("");
   const one = sel.size ? [...sel][0] : null;

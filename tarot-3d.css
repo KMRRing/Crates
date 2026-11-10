@@ -9,6 +9,13 @@
 .tr3-mid { display: grid; justify-items: center; gap: .3rem; text-align: center; max-width: 100%; pointer-events: auto; font-size: .8rem; }
 .tr3-mid .tr-note, .tr3-mid .tr-result { margin: 0; font-size: .8rem; color: var(--tk-text); }
 .tr3-mid .tr-line { --cd-line: .9rem; }
+/* the dog in the middle: its cards close together, face down or face up; a called king beside it */
+.tr3-mid:has(> .tr3-dog) { grid-auto-flow: column; align-items: center; gap: .8rem; }
+.tr3-mid .tr3-dog { --cd-line: 1rem; }
+.tr3-mid .tr3-dog > .cd + .cd { margin-left: -1.7em; }
+.tr3-mid .tr3-dog.down > .cd + .cd { margin-left: -2.2em; }
+.tr3-mid :is(.tr3-dog, .tr3-called) .cd { box-shadow: var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
+.tr3-called { font-size: 1rem; }
 /* in the play the lanes have the middle; what is said is a line low on the cloth */
 .tr3c.tr-playing .tk-centre { top: 72%; bottom: 12%; }
 .tr3c.tr-playing .tr3-mid .cd-line { --cd-line: .7rem; }

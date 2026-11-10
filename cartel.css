@@ -220,9 +220,10 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3 .tk-mat { height: calc(112% - 2.4rem); }   /* Korbi, 8 Nov 2026: "make the table much longer and bigger": less foreshortened, so the cloth is nearer a full rectangle;
    10 Nov 2026: "table cut off at the top": as long as the stage allows less the room its foot stands on (1.7rem), whatever the stage's height */
 .ct3 { margin-left: 0; margin-right: 0; }   /* (the cloth keeps the page's margins, in line with the tray under it) */
+.ct3 .tk-mat { left: .15rem; right: .15rem; }   /* Korbi, 10 Nov 2026: "make the table wider": the stage's width, less the pivot's room */
 .ct3 .ct-seats, .ct3 .tk-plate { display: none; }
 .ct3 .tk-centre { --tk-side: .8rem; left: 33%; right: 33%; top: 36%; bottom: 22%; pointer-events: auto; }
-@media (max-height: 700px) and (orientation: portrait) { .ct3 .tk-centre { top: 30%; bottom: 33%; } }   /* (a short phone: clear of your dice) */
+@media (max-height: 700px) and (orientation: portrait) { .ct3 .tk-centre { top: 38%; bottom: 27%; } }   /* (a short phone: clear of your dice, and below the cup of whoever sits across) */
 .ct3 .ct-centre { width: 100%; }
 /* an opponent's zone: a cut in the cloth with a brass hairline; their cup, the dice they have shown lying beside it, their gold dice counted */
 .ct3-zone { position: absolute; translate: -50% -50%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .35rem .3rem;

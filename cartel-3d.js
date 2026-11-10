@@ -17,13 +17,15 @@ import { DIE } from "./yacht-3d-geo.js";
 
 /** Where each opponent's zone is (centre x, centre y, width, height, in per cent of the mat), by how many opponents there are,
  *  in the order play goes round from you: the next seat on your left first. The middle of the cloth stays clear for the bid,
- *  and the bottom is your own. */
+ *  and the bottom is your own. Every zone keeps EDGE per cent clear of the mat's sides, inside the rail and its brass line
+ *  (Korbi, 10 Nov 2026: the side zones ran over the rim of the table). */
+export const EDGE = 5;
 export const ZONES = {
   1: [[50, 30, 66, 30]],
-  2: [[21, 46, 36, 42], [79, 46, 36, 42]],
-  3: [[16, 53, 30, 46], [50, 21, 38, 32], [84, 53, 30, 46]],
-  4: [[17, 66, 32, 30], [34, 27, 31, 27], [66, 27, 31, 27], [83, 66, 32, 30]],
-  5: [[17, 70, 32, 26], [17, 42, 32, 24], [50, 24, 36, 24], [83, 42, 32, 24], [83, 70, 32, 26]],
+  2: [[23, 46, 34, 42], [77, 46, 34, 42]],
+  3: [[20, 53, 29, 46], [50, 21, 38, 32], [80, 53, 29, 46]],
+  4: [[21, 66, 31, 30], [35, 27, 30, 27], [65, 27, 30, 27], [79, 66, 31, 30]],
+  5: [[21, 70, 31, 26], [21, 42, 31, 24], [50, 24, 36, 24], [79, 42, 31, 24], [79, 70, 31, 26]],
 };
 
 /** What a seat's dice come to, read from the page's dice (their labels say hidden or shown, and the kind): dice shown, the
