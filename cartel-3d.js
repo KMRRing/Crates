@@ -15,17 +15,16 @@ import { createCloth, slotOf } from "./table3d.js";
 import { roundedBox, pipGeometry, showing } from "./dice-geo.js";
 import { DIE } from "./yacht-3d-geo.js";
 
-/** Where each opponent's zone is (centre x, centre y, width, height, in per cent of the mat), by how many opponents there are,
- *  in the order play goes round from you: the next seat on your left first. The middle of the cloth stays clear for the bid,
- *  and the bottom is your own. Every zone keeps EDGE per cent clear of the mat's sides, inside the rail and its brass line
- *  (Korbi, 10 Nov 2026: the side zones ran over the rim of the table). */
-export const EDGE = 5;
-export const ZONES = {
-  1: [[50, 30, 66, 30]],
-  2: [[23, 46, 34, 42], [77, 46, 34, 42]],
-  3: [[20, 53, 29, 46], [50, 21, 38, 32], [80, 53, 29, 46]],
-  4: [[21, 66, 31, 30], [35, 27, 30, 27], [65, 27, 30, 27], [79, 66, 31, 30]],
-  5: [[21, 70, 31, 26], [21, 42, 31, 24], [50, 24, 36, 24], [79, 42, 31, 24], [79, 70, 31, 26]],
+/** Where each opponent sits on the cloth, by how many opponents there are: a grid area (z1 the next seat on your left, then on round
+ *  the table). The cloth is a grid (cartel.css, .ct3-lay), so every zone, the bid in the middle and your dice at the foot have a cell of
+ *  their own and nothing overlaps whatever its content (Korbi, 10 Nov 2026: zones placed by per cent ran into each other, the rim and
+ *  the bid). LAYOUTS[k] is the grid's areas for k opponents, rows from the far edge to your own. */
+export const LAYOUTS = {
+  1: ['"z1"', '"mid"', '"mine"'],
+  2: ['"z1 mid z2"', '"mine mine mine"'],
+  3: ['"z2 z2 z2"', '"z1 mid z3"', '"mine mine mine"'],
+  4: ['"z2 z2 z3 z3"', '"z1 mid mid z4"', '"mine mine mine mine"'],
+  5: ['"z2 z3 z4"', '"z1 mid z5"', '"mine mine mine"'],
 };
 
 /** What a seat's dice come to, read from the page's dice (their labels say hidden or shown, and the kind): dice shown, the
@@ -124,7 +123,7 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
   };
 
   // ---------- the cloth (DOM) and what stands on it ----------
-  let cloth = null, seats = 0, home = null, mineZone = null;
+  let cloth = null, seats = 0, home = null, lay = null, mid = null, mineZone = null;
   const zones = new Map();
   let dice = [], cups = [];                                                  // what to draw: the page's elements, read each draw for where they lie
 
@@ -207,23 +206,29 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
       host.append(canvas);
       seats = n;
       zones.clear();
+      const k = Math.max(1, Math.min(5, n - 1));
+      lay = document.createElement("div");
+      lay.className = `ct3-lay k${k}`;
+      lay.style.gridTemplateAreas = LAYOUTS[k].join(" ");
+      mid = document.createElement("div");
+      mid.className = "ct3-mid";
       mineZone = document.createElement("div");
       mineZone.className = "ct-mine ct3-mine";
-      cloth.mat.append(mineZone);
+      lay.append(mid, mineZone);
+      cloth.mat.append(lay);
       home ||= { parent: centre.parentNode, next: centre.nextSibling };
       width = height = 0;
     }
     cloth.mat.style.setProperty("--seat-die", model.die || "1rem");
-    if (centre.parentNode !== cloth.centre) cloth.centre.append(centre);
-    const rooms = ZONES[Math.max(1, Math.min(5, n - 1))];
+    if (centre.parentNode !== mid) mid.append(centre);
     dice = []; cups = [];
     for (const el of model.seats) {
-      const i = Number(el.dataset.seat), slot = slotOf(i, me, n), [x, y, w, h] = rooms[Math.max(0, slot - 1)] || rooms[0];
+      const i = Number(el.dataset.seat), slot = slotOf(i, me, n);
       let z = zones.get(i);
-      if (!z) { z = document.createElement("div"); cloth.mat.append(z); zones.set(i, z); }
+      if (!z) { z = document.createElement("div"); lay.append(z); zones.set(i, z); }
       const has = c => el.classList.contains(c);
       z.className = `ct3-zone${has("turn") ? " on" : ""}${has("out") ? " out" : ""}${has("targetable") ? " tobeat" : ""}${has("picked") ? " picked" : ""}`;
-      z.style.cssText = `left:${x}%;top:${y}%;width:${w}%;height:${h}%`;
+      z.style.gridArea = z.dataset.area = `z${Math.max(1, slot)}`;
       z.onclick = has("targetable") ? () => el.click() : null;
       const name = el.querySelector(".ct-plaque b")?.textContent || `Seat ${i + 1}`, who = name.replace(/ · out$/, "");
       const t = tally([...(el.querySelector(".ct-dice")?.children || [])]);
@@ -247,7 +252,9 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
     const row = model.mine?.querySelector(":scope > .ct-dice"), figs = row ? [...row.children] : [];
     if (row) {
       const k = Math.max(1, Number(model.scale) || 1), gap = (figs.length > 7 ? 4 : 7) * k;
-      const room = cloth.mat.offsetWidth * 0.8, die = Math.max(18 * k, Math.min(40 * k, Math.floor((room - (figs.length - 1) * gap) / Math.max(1, figs.length))));
+      // as large as the width allows, but no more than a tenth of the cloth's depth (a short phone's table has three rows to fit above them)
+      const room = cloth.mat.offsetWidth * 0.8, tall = cloth.mat.offsetHeight * 0.1;
+      const die = Math.max(18 * k, Math.min(40 * k, tall || Infinity, Math.floor((room - (figs.length - 1) * gap) / Math.max(1, figs.length))));
       mineZone.style.setProperty("--mine-gap", `${gap}px`);
       mineZone.style.setProperty("--mine-die", `${die}px`);
       for (const svg of row.querySelectorAll("svg")) svg.style.width = svg.style.height = "var(--mine-die)";
@@ -270,7 +277,7 @@ export function createCartel3d(host, { onLost = () => {} } = {}) {
       dead = true;
       cancelAnimationFrame(frameId);
       ro.disconnect();
-      if (cloth && home && cloth.centre.firstElementChild) home.parent.insertBefore(cloth.centre.firstElementChild, home.next);   // the middle goes back to the page
+      if (cloth && home && mid?.firstElementChild) home.parent.insertBefore(mid.firstElementChild, home.next);   // the middle goes back to the page
       for (const o of own) o.dispose?.();
       renderer.dispose();
       renderer.forceContextLoss?.();

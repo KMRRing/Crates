@@ -222,11 +222,18 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3 { margin-left: 0; margin-right: 0; }   /* (the cloth keeps the page's margins, in line with the tray under it) */
 .ct3 .tk-mat { left: .15rem; right: .15rem; }   /* Korbi, 10 Nov 2026: "make the table wider": the stage's width, less the pivot's room */
 .ct3 .ct-seats, .ct3 .tk-plate { display: none; }
-.ct3 .tk-centre { --tk-side: .8rem; left: 33%; right: 33%; top: 36%; bottom: 22%; pointer-events: auto; }
-@media (max-height: 700px) and (orientation: portrait) { .ct3 .tk-centre { top: 38%; bottom: 27%; } }   /* (a short phone: clear of your dice, and below the cup of whoever sits across) */
-.ct3 .ct-centre { width: 100%; }
+/* the cloth is a grid inside the rail (cartel-3d.js, LAYOUTS): each opponent's zone, the bid in the middle and your dice at the foot a
+   cell each, so nothing overlaps whatever it holds (Korbi, 10 Nov 2026: "things overlapping again") */
+.ct3-lay { position: absolute; inset: calc(var(--tk-rail, .62rem) + .45rem); z-index: 2; display: grid; gap: .4rem; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); }
+.ct3-lay.k1 { grid-template-columns: minmax(0, 1fr); }
+.ct3-lay.k2 { grid-template-rows: minmax(0, 1fr) auto; }
+.ct3-lay.k4 { grid-template-columns: minmax(0, 1fr) minmax(0, .65fr) minmax(0, .65fr) minmax(0, 1fr); }
+.ct3-lay.k3 > [data-area="z2"], .ct3-lay.k1 > [data-area="z1"] { justify-self: center; width: min(100%, 15rem); }   /* (the one across: a seat's width, not the table's) */
+.ct3-mid { grid-area: mid; display: grid; place-items: center; min-width: 0; min-height: 0; pointer-events: auto; }
+.ct3 .ct-centre { width: 100%; max-height: 100%; }
+.ct3 .ct-marker { flex-wrap: wrap; justify-content: center; gap: .15rem .4rem; padding: .2rem .5rem; }
 /* an opponent's zone: a cut in the cloth with a brass hairline; their cup, the dice they have shown lying beside it, their gold dice counted */
-.ct3-zone { position: absolute; translate: -50% -50%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .35rem .3rem;
+.ct3-zone { position: relative; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .35rem .3rem;
   border-radius: .45rem; border: 1px solid color-mix(in srgb, var(--brass) 55%, transparent); background: rgba(10, 6, 4, .26); box-shadow: inset 0 .1rem .5rem rgba(0, 0, 0, .35); color: #F5F0E2; transition: box-shadow .25s, border-color .25s; }
 .ct3-zone.on { border-color: var(--brass); box-shadow: inset 0 .1rem .5rem rgba(0, 0, 0, .35), 0 0 .9rem rgba(233, 196, 106, .45); }
 .ct3-zone.out { opacity: .4; }
@@ -247,7 +254,7 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3-board { display: flex; flex-wrap: wrap; justify-content: center; gap: .2rem; max-width: 100%; }
 .ct3-board .ct-die { width: calc(var(--seat-die, 1rem) * 1.55); height: calc(var(--seat-die, 1rem) * 1.55); opacity: 0; }   /* the scene draws these dice; the taps stay the page's */
 /* your own dice, on your side of the cloth, drawn by the scene the same way (the captions under gold ones stay) */
-.ct3-mine { position: absolute; left: 50%; bottom: 3%; translate: -50% 0; width: 84%; padding: 0; z-index: 1; }
+.ct3-mine { grid-area: mine; min-width: 0; padding: 0; }
 .ct3-mine .ct-die { opacity: 0; }
 .ct3 .ct-mine .ct-plaque { display: none; }   /* (your dice are on the cloth and your move in the tray; the plaque fell off the table's edge, pale on the page) */
 .ct3-mine .ct-dice { min-height: 0; padding-bottom: .1rem; }
@@ -256,3 +263,21 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
 .ct3 .ct-die.picked { outline: 0; }
 .ct3 .ct-ticker, .ct3 .ct-tally { text-shadow: 0 .06rem .12rem rgba(0, 0, 0, .6); }
+/* a short table (a phone of 664 or less): each zone two lines, the medallion and name over the gold dice, the cup and what is shown,
+   so the far seat, the two beside the bid and your dice all fit their cells */
+@container (max-height: 440px) {
+  .ct3-lay { gap: .3rem; inset: calc(var(--tk-rail, .62rem) + .3rem); }
+  .ct3-lay:is(.k2, .k3, .k5) { grid-template-columns: repeat(3, minmax(0, 1fr)); }   /* (a seat's name whole beside the bid, which wraps) */
+  .ct3-zone { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "med name" "gold play"; align-items: center; justify-items: start; gap: .15rem .3rem; padding: .25rem .35rem; }
+  .ct3-zone .ct3-head { display: contents; }
+  .ct3-zone .ct3-head > :first-child { grid-area: med; justify-self: center; }
+  .ct3-zone .ct3-head .tk-med { width: 1.45rem; height: 1.45rem; font-size: .72rem; }
+  .ct3-zone .ct3-name { grid-area: name; font-size: .66rem; letter-spacing: .02em; }
+  .ct3-zone .ct3-gold { grid-area: gold; flex: none; gap: .15rem; font-size: .78rem; }
+  .ct3-zone .ct3-gold i { width: .8rem; height: .8rem; }
+  .ct3-zone .ct3-play { grid-area: play; justify-content: flex-start; gap: .2rem; }
+  .ct3-zone .ct3-cup { width: 2rem; height: 2rem; }
+  .ct3-mine-gold { margin-top: 0; font-size: .74rem; }
+  .ct3 .ct-marker { font-size: 1rem; }
+  .ct3 .ct-ticker { font-size: .72rem; line-height: 1.2; }
+}

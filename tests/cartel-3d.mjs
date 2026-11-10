@@ -18,16 +18,20 @@ check(/mine: \$\("mine"\)/.test(page), "the snapshot hands over your box, so you
 check(/\.ct3 \.ct-stage/.test(css) && !/[^\d.]([3-9]|\d\d+)px/.test(css.slice(css.indexOf("the 3D table")).replace(/\d+px solid/g, "").replace(/\((max|min)-(height|width): \d+px\)/g, "")), "the 3D rules are in rem, not px (a query's px are a screen's)");
 // each of the six roles has its own engraved picture
 check(["seal", "coins", "cog", "quill", "scales", "chain"].every(n => new RegExp(`function ${n}\\(`).test(glyphs)) && /GLYPH = \{ 1: seal, 2: coins, 3: cog, 4: quill, 5: scales, 6: chain \}/.test(glyphs), "a seal, coin dies, a cog, a quill, scales and a chain for the six roles, by face");
-const { faceOf, tally, ZONES } = await import("../cartel-3d.js").catch(() => ({}));
+const { faceOf, tally, LAYOUTS } = await import("../cartel-3d.js").catch(() => ({}));
 if (faceOf) {
   const el = l => ({ getAttribute: () => l });
   check(JSON.stringify(faceOf(el("gold 4, Banker"))) === '{"kind":"gold","value":4}' && faceOf(el("plain 6")).value === 6 && faceOf(el("hidden plain die")) === null, "a die's kind and number come from its label; a hidden die has none");
   check(tally([el("hidden gold die"), el("plain 3"), el("hidden plain die")]).hidden === 2, "the cup's count is the hidden dice");
 }
-if (ZONES) {
-  const { EDGE } = await import("../cartel-3d.js");
-  const off = Object.values(ZONES).flat().filter(([x, , w]) => x - w / 2 < EDGE - 1e-9 || x + w / 2 > 100 - EDGE + 1e-9);
-  check(!off.length, `every opponent's zone stays inside the table's rail (${EDGE}% from its sides)${off.length ? `: ${JSON.stringify(off)}` : ""}`);
+if (LAYOUTS) {
+  // each opponent, the middle and your dice have a cell of the cloth's grid: every area named once, each a rectangle, rows of one width
+  for (const [k, rows] of Object.entries(LAYOUTS)) {
+    const grid = rows.map(r => r.replace(/"/g, "").trim().split(/\s+/)), w = grid[0].length, want = ["mid", "mine", ...Array.from({ length: +k }, (_, i) => `z${i + 1}`)];
+    const box = name => { const at = []; grid.forEach((r, y) => r.forEach((c, x) => c === name && at.push([x, y]))); const xs = at.map(a => a[0]), ys = at.map(a => a[1]);
+      return at.length && at.length === (Math.max(...xs) - Math.min(...xs) + 1) * (Math.max(...ys) - Math.min(...ys) + 1); };
+    check(grid.every(r => r.length === w) && want.every(box) && grid.flat().every(c => c === "." || want.includes(c)), `${k} opponent${k > 1 ? "s" : ""}: a cell each, the middle and yours, nothing overlapping`);
+  }
 }
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log("all ok");
