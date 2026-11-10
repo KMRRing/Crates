@@ -535,30 +535,41 @@ if (!IN_FRAME && keepingPictures() && navigator.onLine) setTimeout(() => keepPic
 // Settings), Deck (its pile is every game's misses) and Ledger and Almanac (records of the others, not games of their own)
 const KEEP_ON_RESET = new Set(["crates", "deck", "ledger", "lexicon"]);
 /** Settings' "Start a game over", folded away: a game's name, a confirmation, and every level, save and setting of it
- *  goes, here and on your other devices. The game open in this page starts again at once. */
+ *  goes, here and on your other devices. The game open in this page starts again at once. The games stand as the games screen
+ *  shows them: by its sections, in its order within each (Korbi, 10 November 2026). */
 function startOver() {
-  const box = document.createElement("details"), grid = document.createElement("div"), note = document.createElement("p");
+  const box = document.createElement("details"), note = document.createElement("p");
   box.className = "menu-stages settings-reset";
   box.innerHTML = "<summary>Start a game over</summary>";
-  grid.className = "menu-grid";
   note.className = "menu-line";
   note.textContent = "Its levels, stars, saves and settings go, on this device and every other with your solo code. Crates resets its learning in its own Settings.";
   const here = (location.pathname.split("/").pop() || "index.html");
-  for (const a of APPS.filter(x => !KEEP_ON_RESET.has(x.id) && !x.party && !x.within && !x.soon)) {   // a game's mode goes with the game
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = a.name;
-    b.addEventListener("click", async () => {
-      if (!(await sure(`Start ${a.name} over? Every level, star, save and setting of it goes, here and on your other devices. This can't be undone.`, { yes: "Start over" }))) return;
-      for (const x of grid.children) x.disabled = true;
-      await resetGame(a.id);
-      if (a.href.split("?")[0].endsWith(here)) { location.reload(); return; }        // the game on screen: it starts again now
-      note.textContent = `${a.name} starts over.`;
-      for (const x of grid.children) x.disabled = false;
-      dispatchEvent(new Event("suite:pulled"));                          // the games screen redraws its tiles
-    });
-    grid.appendChild(b);
+  const games = APPS.filter(x => !KEEP_ON_RESET.has(x.id) && !x.party && !x.within && !x.soon);   // a game's mode goes with the game
+  const buttons = () => box.querySelectorAll(".menu-grid button");
+  for (const [sec, title] of SECTIONS) {
+    const list = games.filter(a => a.sec === sec);
+    if (!list.length) continue;
+    const head = document.createElement("p"), grid = document.createElement("div");
+    head.className = "menu-h reset-sec";
+    head.textContent = title;
+    grid.className = "menu-grid";
+    for (const a of list) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = a.name;
+      b.addEventListener("click", async () => {
+        if (!(await sure(`Start ${a.name} over? Every level, star, save and setting of it goes, here and on your other devices. This can't be undone.`, { yes: "Start over" }))) return;
+        for (const x of buttons()) x.disabled = true;
+        await resetGame(a.id);
+        if (a.href.split("?")[0].endsWith(here)) { location.reload(); return; }        // the game on screen: it starts again now
+        note.textContent = `${a.name} starts over.`;
+        for (const x of buttons()) x.disabled = false;
+        dispatchEvent(new Event("suite:pulled"));                          // the games screen redraws its tiles
+      });
+      grid.appendChild(b);
+    }
+    box.append(head, grid);
   }
-  box.append(grid, note);
+  box.append(note);
   return box;
 }
 

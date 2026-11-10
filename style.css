@@ -908,6 +908,7 @@ img.pic { background: url("loader-small.svg") center / 2.2rem no-repeat; }
 /* Settings' "Start a game over": the games three across, and quiet while one is being cleared */
 .settings-reset .menu-grid { grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); }
 .settings-reset .menu-grid button:disabled { opacity: .45; cursor: default; }
+.settings-reset .reset-sec { margin: .8rem 0 0; }
 
 /* the header: a game's name never gives way. The title holds at least its icon and its word, and your partner's pill
    takes only what's left (shortened, or gone on a narrow phone), instead of pushing the name under the buttons */
