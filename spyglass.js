@@ -81,6 +81,68 @@ async function flagSource(it) {
   x.drawImage(img, 0, 0, c.width, c.height);
   return { img: c, w: c.width, h: c.height };
 }
+/**
+ * A flag flying at the masthead of a ship at sea (Korbi, 10 Nov 2026: "zoom it out to an image containing the flag, a mast of a
+ * ship at sea"). While you look, the glass is on the flag (`view`); the answer draws back to the whole ship. Drawn here, the
+ * sky, the sea and the ship varying a little by flag, so no two look alike; the flag waves only a little, so it reads as itself.
+ */
+function atSea(flag, id) {
+  const N = 1600, c = document.createElement("canvas"); c.width = c.height = N;
+  const x = c.getContext("2d");
+  let h = 2166136261; for (const ch of id) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const pick = n => { h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; return h % n; };
+  const SKIES = [["#6E93B0", "#E9D8B4", "#F4E2B8"], ["#4A5F86", "#E8B98A", "#F6C98E"], ["#86A9C4", "#F0E4C8", "#FFF3D6"]];
+  const [top, low, sun] = SKIES[pick(SKIES.length)], horizon = N * 0.6;      // (the caption plate covers the glass's lowest fifth: the ship sits above it)
+  // the sky, the sun low on it and a few clouds
+  let g = x.createLinearGradient(0, 0, 0, horizon); g.addColorStop(0, top); g.addColorStop(1, low); x.fillStyle = g; x.fillRect(0, 0, N, horizon);
+  const sx = N * (0.62 + pick(30) / 100);
+  g = x.createRadialGradient(sx, horizon - 40, 10, sx, horizon - 40, N * 0.35); g.addColorStop(0, sun); g.addColorStop(1, "rgba(255,240,210,0)"); x.fillStyle = g; x.fillRect(0, 0, N, horizon);
+  x.fillStyle = "rgba(255,255,255,0.35)";
+  for (let i = 0; i < 6; i++) { const cx = pick(N), cy = N * (0.08 + pick(40) / 100 * 0.5); for (let j = 0; j < 4; j++) { x.beginPath(); x.ellipse(cx + j * 70 - 100, cy + (j % 2) * 18, 120, 34, 0, 0, 6.283); x.fill(); } }
+  // a far coast
+  x.fillStyle = "rgba(70,80,82,0.45)"; x.beginPath(); x.moveTo(0, horizon);
+  for (let X = 0; X <= N * 0.45; X += 40) x.lineTo(X, horizon - 30 - 26 * Math.sin(X / 90) - 18 * Math.sin(X / 37));
+  x.lineTo(N * 0.5, horizon); x.fill();
+  // the sea, darker towards you, with its swell
+  g = x.createLinearGradient(0, horizon, 0, N); g.addColorStop(0, "#6F8FA0"); g.addColorStop(1, "#1E3646"); x.fillStyle = g; x.fillRect(0, horizon, N, N - horizon);
+  for (let y = horizon + 8, k = 0; y < N; k++, y += 6 + k * 1.1) {
+    const amp = 2 + k * 0.45, len = 60 + k * 9;
+    x.strokeStyle = `rgba(230,240,240,${0.1 + Math.min(0.2, k * 0.006)})`; x.lineWidth = 1 + k * 0.06; x.beginPath();
+    for (let X = -(pick(len)); X < N; X += len * 1.7) { x.moveTo(X, y); x.quadraticCurveTo(X + len / 2, y - amp, X + len, y); }
+    x.stroke();
+  }
+  // the ship, side on, bow to the right
+  const wl = N * 0.76, bow = N * 0.8, stern = N * 0.22, deck = wl - N * 0.085, mast = N * 0.43, fx = mast + 9, fy = N * 0.15, fw = N * 0.3, fh = fw * flag.h / flag.w;
+  x.fillStyle = "rgba(10,20,26,0.35)"; x.beginPath(); x.ellipse((bow + stern) / 2, wl + 18, (bow - stern) / 2, 22, 0, 0, 6.283); x.fill();
+  x.fillStyle = "#3A2618"; x.beginPath(); x.moveTo(stern - 10, deck - 30); x.lineTo(bow + 40, deck - 6);
+  x.quadraticCurveTo(bow + 10, wl - 10, bow - 60, wl); x.lineTo(stern + 40, wl); x.quadraticCurveTo(stern, wl - 20, stern - 10, deck - 30); x.fill();
+  x.strokeStyle = "#C9A04A"; x.lineWidth = 7; x.beginPath(); x.moveTo(stern, deck - 6); x.lineTo(bow + 10, deck + 12); x.stroke();
+  x.fillStyle = "#1A1210"; x.strokeStyle = "#B08A3E"; x.lineWidth = 2;
+  for (let i = 0; i < 7; i++) { const px = stern + 120 + i * (bow - stern - 260) / 6, py = deck + 22 + (px - stern) / (bow - stern) * 16; x.fillRect(px, py, 26, 20); x.strokeRect(px, py, 26, 20); }
+  // the masts, the yards with their sails furled, the rigging
+  const spar = (X, y0, y1, w) => { g = x.createLinearGradient(X - w, 0, X + w, 0); g.addColorStop(0, "#4A2F1B"); g.addColorStop(0.5, "#7A5532"); g.addColorStop(1, "#3A2414"); x.fillStyle = g; x.fillRect(X - w / 2, y1, w, y0 - y1); };
+  const yard = (X, y, half) => { x.fillStyle = "#4A2F1B"; x.fillRect(X - half, y - 5, 2 * half, 10); x.fillStyle = "#E8DCC0"; x.beginPath(); x.ellipse(X, y + 12, half * 0.92, 13, 0, 0, 6.283); x.fill(); x.strokeStyle = "rgba(60,45,30,0.4)"; x.lineWidth = 2; x.stroke(); };
+  const mizzen = stern + (mast - stern) * 0.35;
+  spar(mast, deck, fy - 50, 18); spar(mizzen, deck, N * 0.34, 13);
+  yard(mast, N * 0.42, N * 0.16); yard(mast, N * 0.55, N * 0.19); yard(mizzen, N * 0.47, N * 0.1);
+  x.save(); x.translate(bow + 30, deck - 10); x.rotate(-0.32); x.fillStyle = "#4A2F1B"; x.fillRect(0, -5, N * 0.13, 10); x.restore();     // the bowsprit
+  x.strokeStyle = "rgba(30,24,20,0.75)"; x.lineWidth = 2.5; x.beginPath();
+  const tip = [bow + 30 + N * 0.13 * Math.cos(0.32), deck - 10 - N * 0.13 * Math.sin(0.32)];
+  for (const [ax, ay, bx, by] of [[mast, fy - 40, ...tip], [mast, N * 0.4, ...tip], [mast, fy - 40, mizzen, N * 0.35], [mizzen, N * 0.35, stern - 10, deck - 30]]) { x.moveTo(ax, ay); x.lineTo(bx, by); }
+  for (let i = 0; i < 4; i++) { x.moveTo(mast, N * 0.4); x.lineTo(mast - 60 - i * 22, deck - 2); x.moveTo(mast, N * 0.4); x.lineTo(mast + 60 + i * 22, deck + 2); }
+  x.stroke();
+  x.fillStyle = "#C9A04A"; x.beginPath(); x.arc(mast, fy - 54, 13, 0, 6.283); x.fill();
+  // the flag at the masthead, the halyard to its hoist; a little wave towards its fly, and the light on its folds
+  const amp = fh * 0.025, slices = 120;
+  x.strokeStyle = "rgba(30,24,20,0.8)"; x.lineWidth = 2; x.beginPath(); x.moveTo(mast + 6, fy - 46); x.lineTo(fx, fy); x.moveTo(fx, fy + fh); x.lineTo(mast + 6, fy + fh + 40); x.stroke();
+  for (let i = 0; i < slices; i++) {
+    const t = i / slices, dy = amp * Math.sin(t * 9) * t, sw = fw / slices;
+    x.drawImage(flag.img, flag.w * t, 0, flag.w / slices + 1, flag.h, fx + fw * t, fy + dy, sw + 1, fh);
+    const light = Math.cos(t * 9) * t * 0.14;
+    x.fillStyle = light > 0 ? `rgba(255,255,255,${light})` : `rgba(0,0,0,${-light})`; x.fillRect(fx + fw * t, fy + dy, sw + 1, fh);
+  }
+  return { img: c, w: N, h: N, view: { x: fx - 6, y: fy - amp, w: fw + 12, h: fh + 2 * amp } };
+}
 function outlineSource(name) {
   const c = document.createElement("canvas"); c.width = 640; c.height = 427;
   const x = c.getContext("2d"), country = COUNTRIES.find(k => k.name === name);
@@ -125,7 +187,13 @@ function looked(src, lines) {
   } catch { return src; }
 }
 async function sourceFor(it) {
-  if (it.kind === "flag") return looked(await flagSource(it));
+  if (it.kind === "flag") {
+    const flag = await flagSource(it);
+    if (!flag) return null;
+    const look = looked(flag), scene = atSea(look, it.id);
+    if (look.full) scene.full = atSea(look.full, it.id);                 // the colour one the answer fades to: the same ship, the flag in colour
+    return scene;
+  }
   if (it.kind === "outline") return looked(outlineSource(it.name), true);
   const urls = await pictureUrls(it.pic, 960);
   if (!urls) return null;
@@ -170,10 +238,10 @@ function draw() {
   ctx.fillStyle = "#141A1F"; ctx.fillRect(0, 0, cw, ch);
   if (!source || phase === "loading") return;
   // the answer draws back until the whole picture sits inside the round glass
-  const t = 1 - (1 - unveil) ** 3, out = 1 + (Math.hypot(source.w, source.h) / Math.max(source.w, source.h) - 1) * t;
-  paint(ctx, cw, ch, source, out);
+  const t = 1 - (1 - unveil) ** 3;
+  paint(ctx, cw, ch, source, t);
   // in black and white or ink the answer brings the colour back: the same view of the colour picture, faded in over the grey
-  if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full, out); ctx.globalAlpha = 1; }
+  if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full, t); ctx.globalAlpha = 1; }
 }
 // The glass is round and a picture is not: its edges are stretched out to the rim, as a lens bends what is at its edge
 // (Korbi, 10 Nov 2026: "the centre of the image undistorted, a sort of fisheye effect around the edges"). Measured by how
@@ -201,14 +269,21 @@ function stretched(pic) {
   x.drawImage(pic.img, mx - hw, my - hh, 2 * hw, 2 * hh); x.restore();
   return (pic.ext = { img: c, M, k });
 }
-/** The picture through the glass: the part of it in view for the moment's zoom and blur, its stretched surround round it. */
-function paint(ctx, cw, ch, pic = source, out = 1) {
-  const { res, zoom: z0 } = focus(u()), zoom = z0 * out, a = cw / ch, W0 = Math.max(pic.w, pic.h * a), H0 = W0 / a, it = item();
-  const W = W0 * zoom, H = H0 * zoom;
+/** The picture through the glass: the part of it in view for the moment's zoom and blur, its stretched surround round it.
+ *  t: how far the answer has drawn back (0 to 1), until the whole picture sits in the glass; a flag's ship draws back from its flag. */
+function paint(ctx, cw, ch, pic = source, t = 0) {
+  const v = pic.view || { x: 0, y: 0, w: pic.w, h: pic.h };       // what you look at: the picture, or the flag on its ship
+  const out = pic.view ? 1 : 1 + (Math.hypot(v.w, v.h) / Math.max(v.w, v.h) - 1) * t;
+  const { res, zoom: z0 } = focus(u()), zoom = z0 * out, a = cw / ch, W0 = Math.max(v.w, v.h * a), H0 = W0 / a, it = item();
+  let W = W0 * zoom, H = H0 * zoom;
   // a window wider than the picture (the answer drawing back) is centred on it: clamped, its two limits cross and it would slide off to one side
   const mid = (win, whole, margin, want) => win >= whole + 2 * margin ? whole / 2 : Math.max(win / 2 - margin, Math.min(whole - win / 2 + margin, want));
-  const cx = mid(W, pic.w, (W0 - pic.w) / 2, zoom < 1 ? it.cx * pic.w : pic.w / 2);
-  const cy = mid(H, pic.h, (H0 - pic.h) / 2, zoom < 1 ? it.cy * pic.h : pic.h / 2);
+  let cx = v.x + mid(W, v.w, (W0 - v.w) / 2, zoom < 1 ? it.cx * v.w : v.w / 2);
+  let cy = v.y + mid(H, v.h, (H0 - v.h) / 2, zoom < 1 ? it.cy * v.h : v.h / 2);
+  if (pic.view && t > 0) {                        // from the flag out to the ship and the sea: the window grows evenly and slides to the middle
+    W *= Math.pow(Math.max(pic.w, pic.h * a) / W, t); H = W / a;
+    cx += (pic.w / 2 - cx) * t; cy += (pic.h / 2 - cy) * t;
+  }
   const sx = cx - W / 2, sy = cy - H / 2, ext = stretched(pic);
   // into a target tw by th: the surround fills the window; the picture's own middle goes over it, as sharp as it comes
   const layers = (t, tw, th) => {
