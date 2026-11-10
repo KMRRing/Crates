@@ -157,7 +157,7 @@ for (const ch of CHAPTERS) {
 const q = s => JSON.stringify(s);
 let text = `// Gears 2: the levels of Books II to V (4 November 2026). Made by pipes-gear-pick.mjs from pipes-gear-make.js, never by hand; checked by
 // tests/pipes-gear-levels.mjs, which solves every level again and wants the listed answers (at most six) and no others. A level's id is
-// its identity (stars are kept by it). Book I (the old forty) is read from pipes-train-levels.js through pipes-gear-legacy.js.
+// its identity (stars are kept by it). Book I (the old levels) is read from pipes-train-levels.js through pipes-gear-legacy.js.
 // A level is the data described in docs/pipes-contract.md: map (. ground, # pillar, 1 2 a bridge), trains (barrel, sink with its goal),
 // pins (pinned pieces, some with a goal: a station), clicks, hand (kind:count) and sols (every answer: square -> kind@rot).
 

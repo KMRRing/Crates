@@ -1,5 +1,5 @@
-// Gears: Book I, the forty old levels, read through the new rules unchanged (4 November 2026). The old engine (pipes-train.js) and its
-// level file stay as the source of Book I: each level keeps its id, name and listed answers, so stars and unfinished runs survive.
+// Gears: Book I, the old levels, read through the new rules unchanged (4 November 2026). The old engine (pipes-train.js) and its level
+// file stay as the source of Book I: each level keeps its id, name and listed answers, so stars and unfinished runs survive.
 // An old piece is a new one turned: the old table is in OLD_KIND. Also here: the eight symmetries of a plate (transformLevel), for the
 // daily and Random levels that are drawn from a pool of solved plates.
 import * as Old from "./pipes-train.js";
@@ -41,7 +41,10 @@ export function legacySpec(spec) {
     trains: [{ id: "A", barrel: { c: O.source.c, side: SIDE[O.source.d], m: 5, l: 1, n: 9 }, sink: { c: O.terminal.c, side: SIDE[O.terminal.d], m: 5, l: 1, n: 9, goal: { type: "dial", dir: O.spin ? "ccw" : "cw" } } }],
   };
 }
-export const LEGACY = OLD_LEVELS.map(legacySpec);
+// 11 Nov 2026, Korbi, replaying Book I (21 Clack "not great", 26 Stud "trash, way too easy", 28 Regulator "bad"): "just delete the levels
+// I didn't like". The old level file keeps them, for the old engine's own tests.
+export const CUT = new Set(["we1", "wf1", "wf3"]);
+export const LEGACY = OLD_LEVELS.filter(l => !CUT.has(l.id)).map(legacySpec);
 export const LEGACY_CHAPTERS = OLD_CHAPTERS.map(c => ({ ...c, book: "I" }));
 /** An old unfinished run ({ square: oldKind }) as laid data. */
 export const legacyLaid = saved => Object.fromEntries(Object.entries(saved || {}).filter(([, p]) => OLD_KIND[p]).map(([c, p]) => [c, newPiece(p)]));

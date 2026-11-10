@@ -1,5 +1,5 @@
 // Gears: reads what `pipes:train` and `pipes:trainstars` hold, whatever build wrote them (a key from an old device or a mixed-version sync
-// must not blank the page). Pure. Version 1 (the old forty): laid is { square: oldKind }; version 2: { square: "kind@rot" }. Nothing else
+// must not blank the page). Pure. Version 1 (Book I's old build): laid is { square: oldKind }; version 2: { square: "kind@rot" }. Nothing else
 // is trusted: a level the file does not have, a piece the catalogue does not know, a run for a plate that changed, are dropped by the
 // controller (the run's `sig`), not here.
 import { legacyLaid } from "./pipes-gear-legacy.js";

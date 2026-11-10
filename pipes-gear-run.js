@@ -2,7 +2,7 @@
 // rules of pipes-gear-engine.js through the flat view (pipes-view-2d.js), and draws what is DOM: the hand, the workings strip, the layer
 // chips, the status line and the buttons. Placing: tap a tile to hold it, tap it again to turn it, tap a square to lay it (the turn that
 // suits the square is taken unless you chose one); or drag a tile (or a laid piece) onto the board with the ghost riding above the finger.
-// A laid piece taps round its turns; a long press (or the Lift toggle) takes it back up. Book I (the old forty) never turns.
+// A laid piece taps round its turns; a long press (or the Lift toggle) takes it back up. Book I (the old levels) never turns.
 // The board is one of two views with one interface: the flat SVG (pipes-view-2d.js) or the watch movement (pipes-view-3d.js, three.js, loaded only when
 // wanted); the page asks for one with useView(), and where WebGL fails the flat one stays. Everything below touches the board through view.hit and view.project.
 import { levelOn } from "./playlog.js";

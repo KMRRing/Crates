@@ -1,9 +1,9 @@
-// Gears: all the levels in order (Book I, the old forty read through the legacy table; Books II onwards, the generated file) and the saved
+// Gears: all the levels in order (Book I, the old levels read through the legacy table; Books II onwards, the generated file) and the saved
 // state around them. Pure.
 import { LEGACY, LEGACY_CHAPTERS } from "./pipes-gear-legacy.js";
 import { BOOKS as NEW_BOOKS, CHAPTERS as NEW_CHAPTERS, LEVELS as NEW_LEVELS } from "./pipes-gear-levels.js";
 
-export const BOOKS = [{ key: "I", name: "The bench", rule: "The first forty: whole gears, parity and jams." }, ...NEW_BOOKS];
+export const BOOKS = [{ key: "I", name: "The bench", rule: "Whole gears, parity and jams." }, ...NEW_BOOKS];
 export const CHAPTERS = [...LEGACY_CHAPTERS, ...NEW_CHAPTERS];
 export const LEVELS = [...LEGACY, ...NEW_LEVELS];
 export const indexOf = id => LEVELS.findIndex(l => l.id === id);
