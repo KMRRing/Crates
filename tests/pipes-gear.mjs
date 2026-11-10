@@ -107,6 +107,9 @@ const row = (n, o = {}) => ({
   check(M.loops.length === 0 && M.jam.size === 0, "a ring of six single wheels (six meshes) turns freely: no jam");
   const M2 = E.mesh(L, lay(L, { ...ring, 7: "D5.1:6+6@0" }));
   check(M2.jam.size >= 3 && M2.loops[0].why === "turn", "a duo in the ring makes seven meshes, an odd loop: two wheels must turn both ways, the loop is a jam");
+  const all = M2.gears.map(g => g.id), barrel = L.trains[0].barrel.c * E.SLOTS;
+  check(M.locked.size === 0 && all.every(id => M2.locked.has(id)) && M2.locked.has(barrel) && [...M2.jam].every(id => M2.locked.has(id)) && M2.locked.size > M2.jam.size,
+    "a jam locks every wheel joined to it, before and after it, the barrel too; only the loop itself is the jam (Korbi, 11 Nov 2026)");
 }
 {
   // a bind: a ring through a stack, with an even number of meshes, so the signs agree and the speeds do not

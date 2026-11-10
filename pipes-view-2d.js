@@ -55,11 +55,11 @@ export function shapePhases(sh) {
 
 /**
  * One wheel at (x, y) in the group g. opts: dir (0 cw, 1 ccw, null unknown), phase, id (gear id, for the board's animation), skin ("", "barrel",
- * "sink", "pin"), jam, clash, driven, shadow (layer offset), faded, showN, ring.
+ * "sink", "pin"), jam, locked (joined to a jam: strains, not red), clash, driven, shadow (layer offset), faded, showN, ring.
  */
 export function drawWheel(g, w, o = {}) {
   const { x, y, n, m, layer: l } = w, r = radius(m, n), root = rootR(m, n);
-  const out = el("g", { transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})`, class: `gear m${m} l${l} ${o.skin || ""}${o.jam ? " jam" : ""}${o.clash ? " clash" : ""}${o.faded ? " faded" : ""}${o.driven === false ? " idle" : ""}` }, g);
+  const out = el("g", { transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})`, class: `gear m${m} l${l} ${o.skin || ""}${o.jam ? " jam" : ""}${o.locked ? " locked" : ""}${o.clash ? " clash" : ""}${o.faded ? " faded" : ""}${o.driven === false ? " idle" : ""}` }, g);
   if (l > 1 && !o.ring) el("path", { d: outline(n, m), class: "g-shadow", transform: `translate(${(1.4 * (l - 1)).toFixed(1)} ${(1.6 * (l - 1)).toFixed(1)})` }, out);
   const spin = el("g", { class: `spin${o.dir === null || o.dir === undefined ? "" : o.dir ? " ccw" : " cw"}`, "data-n": n, ...(o.id !== undefined ? { "data-id": o.id } : {}) }, out);
   const body = el("g", { transform: `rotate(${(o.phase || 0).toFixed(2)})` }, spin);
@@ -218,7 +218,7 @@ export function createView({ board, onGesture, onLost } = {}) {
   const wheelOpts = (frame, gear) => {
     const M = frame.M, id = gear.id, dim = focus !== null && gear.layer !== focus;
     const skin = gear.fixed === "barrel" ? "barrel" : gear.fixed === "sink" ? "sink" : gear.fixed === "pin" ? "pin" : "";
-    return { id, dir: M.dir[id] >= 0 ? M.dir[id] : null, phase: frame.phase[id] || 0, skin, jam: M.jam.has(id), clash: clashSet.has(id), driven: M.dir[id] >= 0, faded: dim, showN, pips: layered, ring: gear.ring };
+    return { id, dir: M.dir[id] >= 0 ? M.dir[id] : null, phase: frame.phase[id] || 0, skin, jam: M.jam.has(id), locked: !M.jam.has(id) && !!M.locked?.has(id), clash: clashSet.has(id), driven: M.dir[id] >= 0, faded: dim, showN, pips: layered, ring: gear.ring };
   };
   let clashSet = new Set();
 
@@ -301,13 +301,13 @@ export function createView({ board, onGesture, onLost } = {}) {
     const squareOn = c => { const k = M.order.indexOf(c); return k >= 0 && k < runUpTo; };
     for (const sp of gWheels.querySelectorAll(".spin.cw, .spin.ccw")) {
       const id = Number(sp.dataset.id), c = Math.floor(id / SLOTS), w = M.omega[id];
-      if (!w || !squareOn(c)) continue;
+      if (!w || !squareOn(c) || M.locked?.has(id)) continue;            // a wheel a jam locks does not turn
       const turnMs = T0 / F.num(F.abs(w)), a = sp.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${sp.classList.contains("ccw") ? -360 : 360}deg)` }], { duration: turnMs, iterations: Infinity });
       a.currentTime = now - epoch;
     }
     for (const art of gWheels.querySelectorAll("[data-id]:not(.spin)")) {
       const id = Number(art.dataset.id), c = Math.floor(id / SLOTS), w = M.omega[id];
-      if (!w || !squareOn(c)) continue;
+      if (!w || !squareOn(c) || M.locked?.has(id)) continue;
       const g = M.gears[M.idx[id]], sign = M.dir[id] ? -1 : 1, turnMs = T0 / F.num(F.abs(w));
       let ms = turnMs, from = 0, n = 1;
       if (art.dataset.hand === "hour") ms = turnMs * 12;

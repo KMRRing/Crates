@@ -262,7 +262,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const arbMax = new Map();
     for (const g of Mf.gears) {
       const [wx, wz] = P.worldOf(g.x, g.y, cols, rows);
-      const r = { ...g, role: g.role || g.fixed, wx, wz, rate: P.rateOf(Mf, g.id), jam: !!Mf.jam?.has?.(g.id), tip: P.tipR(g.n, g.m) };
+      const r = { ...g, role: g.role || g.fixed, wx, wz, rate: P.rateOf(Mf, g.id), jam: !!Mf.jam?.has?.(g.id), locked: !!Mf.locked?.has?.(g.id), tip: P.tipR(g.n, g.m) };
       if (g.role === "barrel") r.skip = true;
       byId.set(g.id, r); G_.push(r);
       const a = arbMax.get(g.arbor) || []; a.push(r); arbMax.set(g.arbor, a);
@@ -350,7 +350,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   };
   /** The current angle (degrees, clockwise) of gear r. */
   function angleOf(r) {
-    if (r.jam || (frame.M.clash || []).some(([u, v]) => u === r.id || v === r.id)) return (phases.get(r.id) || 0) + Math.sin(tMs / 1000 * 52) * 2.4;
+    // a jam, a clash, and every wheel a jam locks (before and after it: Korbi, 11 Nov 2026) strain where they stand; only the jam and the clash glow red
+    if (r.jam || r.locked || (frame.M.clash || []).some(([u, v]) => u === r.id || v === r.id)) return (phases.get(r.id) || 0) + Math.sin(tMs / 1000 * 52) * 2.4;
     return P.angleOf(phases.get(r.id) || 0, r.rate, turnsFor(r.train));
   }
   const layerDim = r => focus != null && r.layer !== focus;
@@ -464,7 +465,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   let raf = 0, last = 0, ftimes = [];
   const camBusy = () => Math.abs(az - azT) > 1e-3 || Math.abs(el - elT) > 1e-3 || Math.abs(zoom - zoomT) > 1e-3 || Math.abs(ex - exT) > 1e-3 || Math.abs(panX - panXT) > 1e-3 || Math.abs(panY - panYT) > 1e-3;
   const running = () => motion && driveOn && tMs < runEnd + 700;
-  const moving = () => running() || camBusy() || tilting() || (frame && G_.some(r => r.jam) && motion) || (parts?.busy?.() && motion);
+  const moving = () => running() || camBusy() || tilting() || (frame && G_.some(r => r.jam || r.locked) && motion) || (parts?.busy?.() && motion);
   function frameFn(ts) {
     raf = 0;
     if (!shown || held || document.hidden) return;

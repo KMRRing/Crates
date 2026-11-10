@@ -162,7 +162,7 @@ export function bestTurn(L, laid, c, key) {
  * The wheels and how they are joined, and the speeds. M = { gears [{ id, c, i, x, y, n, m, layer, arbor, train, fixed }], idx (gear id -> index in
  * gears or -1), edges [{ u, v, kind: "mesh" | "ring" | "rigid", at: [x, y] }], omega (by gear id: a fraction, the barrel being 1, clockwise
  * positive, or null when no barrel drives it), dir (by gear id: 0 clockwise, 1 counter-clockwise, -1 not driven), jam (Set of gear ids on
- * a locked loop), loops [{ gears, why: "turn" | "bind" }], clash [[u, v]], tangle [[trainA, trainB]], driven (Set of squares), order (the
+ * a locked loop), locked (Set of every gear id joined to a jam: none of them can turn), loops [{ gears, why: "turn" | "bind" }], clash [[u, v]], tangle [[trainA, trainB]], driven (Set of squares), order (the
  * squares in the order the power reaches them), orders (the same by train), trainOf (by gear id, -1 for none), shapes (by square) }.
  */
 export function mesh(L, laid) {
@@ -239,7 +239,11 @@ export function mesh(L, laid) {
     orders.push(flood(id, t.index).mine);
   }
   for (const g of gears) if (!seen[g.id]) flood(g.id, -1);
-  return { gears, idx, edges, omega, dir, jam, loops, clash, tangle, driven, order, orders, trainOf, shapes, adj };
+  // 11 Nov 2026, Korbi: "when the earlier part of the train is jammed, the later part should not be moving. it should also be jittering,
+  // but not red highlighted." A jam locks every wheel joined to it, before and after: LOCKED holds them all (the jam's own wheels too).
+  const locked = new Set(jam), stack = [...jam];
+  while (stack.length) for (const e of adj.get(stack.pop()) || []) if (!locked.has(e.v)) { locked.add(e.v); stack.push(e.v); }
+  return { gears, idx, edges, omega, dir, jam, locked, loops, clash, tangle, driven, order, orders, trainOf, shapes, adj };
 }
 export const speeds = (L, laid) => { const M = mesh(L, laid); return { omega: M.omega, dir: M.dir }; };
 export function jams(L, laid) {

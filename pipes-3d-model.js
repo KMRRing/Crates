@@ -106,6 +106,7 @@ export function rateOf(M, g) {
   if (M.rate) return M.rate[g] || 0;
   if (!M.dir || M.dir[g] == null || M.dir[g] < 0 || !M.omega) return 0;
   if (M.jam && M.jam.has && M.jam.has(g)) return 0;
+  if (M.locked && M.locked.has && M.locked.has(g)) return 0;          // joined to a jam: it cannot turn either
   return (M.dir[g] ? -1 : 1) * Math.abs(fracNum(M.omega[g]));
 }
 
