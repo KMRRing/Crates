@@ -47,7 +47,7 @@ for (const x of MEETINGS) {
   let pl = byName.get(k) ?? (rows.has(slug(x.place)) ? slug(x.place) : null);
   if (!pl) { pl = placeId[k] || slug(x.place); if (!placeId[k]) { placeId[k] = pl; extra.push(JSON.stringify({ id: pl, name: x.place, sets: ["kind:place"], kindBy: "read" }) + ","); newPlaces.push(pl); } }
   const l1 = `${idOfPerson[x.pid]}|${pl}|active-in`;
-  if (!existingLinks.has(l1)) { existingLinks.add(l1); linkLines.push(JSON.stringify({ from: idOfPerson[x.pid], to: pl, rel: "active-in", hint: `${x.year}: ${x.what}` }) + ","); }
+  if (!existingLinks.has(l1)) { existingLinks.add(l1); linkLines.push(JSON.stringify({ from: idOfPerson[x.pid], to: pl, rel: "active-in", hint: x.what, facts: { year: x.year } }) + ","); }
 }
 const have = new Set(ent.filter(l => l.startsWith("{")).map(l => parse(l)?.id).filter(Boolean));
 for (const p of people) {

@@ -8,6 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { givesAway } from "../give-away.js";
 import { LEVELS, entityMark, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
+import { factWords } from "../kb/graph.js";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "lit", "sayings", "law"];
@@ -551,18 +552,20 @@ function whoami(ENTITIES, LINKS, E, DECKS, PEOPLE) {
       const made = into.filter(l => l.rel === rel).map(l => mid(of(l.from).name));
       if (made.length) add(`${verb} ${list(made.slice(0, 3))}`);
     }
+    // a link said in words: its facts (a year, a distance) and then its own words, "1352: visits the court of…"
+    const said = l => [factWords(l.facts, { rank: false }), l.hint].filter(Boolean).join(": ");
     for (const l of out) if (l.rel !== "clue" && l.rel !== "link" && l.rel !== "in-work") {
       const t = called(l.to);
       if (l.rel === "roman-name") add(`Roman name: ${t}`);
-      else if (l.rel === "from") add(l.hint ? `${cap(l.hint)}, from ${t}` : `From ${t}`);
-      else if (l.hint) add(phrase(l.hint, t));
+      else if (l.rel === "from") add(said(l) ? `${cap(said(l))}, from ${t}` : `From ${t}`);
+      else if (said(l)) add(phrase(said(l), t));
       else if (FROM_REL[l.rel]) add(`${FROM_REL[l.rel]} ${FROM_REL[l.rel].endsWith(":") ? t : mid(t)}`);
     }
-    for (const l of out.filter(l => l.rel === "clue" || l.rel === "link").sort(byEase)) if (l.hint) add(`${of(l.to).name}: ${l.hint}`);
-    for (const l of into.filter(l => l.rel === "link")) if (l.hint) add(`${of(l.from).name}: ${l.hint}`);
-    for (const l of into.filter(l => l.rel === "clue").sort(byEase)) add(`${of(l.from).name}: ${l.hint}`);
+    for (const l of out.filter(l => l.rel === "clue" || l.rel === "link").sort(byEase)) if (said(l)) add(`${of(l.to).name}: ${said(l)}`);
+    for (const l of into.filter(l => l.rel === "link")) if (said(l)) add(`${of(l.from).name}: ${said(l)}`);
+    for (const l of into.filter(l => l.rel === "clue").sort(byEase)) add(`${of(l.from).name}: ${said(l)}`);
     // a typed link to it, said whole: "Perseus beheaded Medusa", "The Duke of Wellington defeated Napoleon"
-    for (const l of into) if (!TO_REL[l.rel] && l.rel !== "clue" && l.rel !== "link" && l.rel !== "in" && l.hint) add(`${of(l.from).name} ${l.hint} ${mid(e.name)}`);
+    for (const l of into) if (!TO_REL[l.rel] && l.rel !== "clue" && l.rel !== "link" && l.rel !== "in" && said(l)) add(`${of(l.from).name} ${said(l)} ${mid(e.name)}`);
     const inside = into.filter(l => l.rel === "in").map(l => mid(of(l.from).name));
     if (inside.length) add(`Home to ${list(inside.slice(0, 3))}`);
     return lines.slice(0, CRIB);

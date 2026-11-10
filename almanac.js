@@ -115,7 +115,7 @@ function groupsOf(id) {
     const { away, toward } = RELS[r] || { away: r, toward: `${r} (from)` };
     // a clue's hint describes the clue thing (the one it comes from), so it's shown on either side; the link's own facts
     // (a year, a distance, a rank) come first
-    const why = l => [factWords(l.facts), l.hint].filter(Boolean).join(" · ");
+    const why = l => [factWords(l.facts, { rank: l.rel !== "clue" }), l.hint].filter(Boolean).join(" · ");
     out.push([toward, (IN.get(id) || []).filter(l => l.rel === r), l => l.from, why]);
     out.push([away, (OUT.get(id) || []).filter(l => l.rel === r), l => l.to, why]);
   }
@@ -138,7 +138,7 @@ function linkWords(a, b) {
   if (!l) return null;
   const topics = [...new Set((l.aspects || []).map(t => ASPECTS[t]).filter(Boolean))].slice(0, 2), rel = RELS[l.rel];
   return { name: topics.length ? topics.join(" · ") : rel ? (l.from === a ? rel.away : rel.toward) : l.rel.replace(/-/g, " ").replace(/^./, c => c.toUpperCase()),
-    because: [factWords(l.facts), l.hint].filter(Boolean).join(" · ") };
+    because: [factWords(l.facts, { rank: l.rel !== "clue" }), l.hint].filter(Boolean).join(" · ") };
 }
 const SHOWN = 24;
 /**

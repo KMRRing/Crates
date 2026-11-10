@@ -10,14 +10,15 @@ const num = n => (Math.abs(n) >= 10000 ? n.toLocaleString("en-GB") : String(n));
 /** A quantity in words: 385,207 km², 5.5 million, 12 %. */
 export const amountWords = (v, unit) => `${num(v)}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`;
 
-/** A link's facts in words, in the order a reader wants them: when, how much, how far, rank. "1298", "830 km by barge", "the biggest grower (2023)". */
-export function factWords(facts) {
+/** A link's facts in words, in the order a reader wants them: when, rank, how much, how far. "1298", "830 km by barge",
+ *  "the biggest grower · 208 million tonnes". `rank: false` leaves the rank out (a clue's own words already say it). */
+export function factWords(facts, { rank = true } = {}) {
   if (!facts) return "";
   const x = facts, out = [];
   if (x.year != null) out.push(yearWords(x.year, x.circa));
   if (x.from != null) out.push(x.to != null ? `${yearWords(x.from, x.circa)}–${yearWords(x.to)}` : `from ${yearWords(x.from, x.circa)}`);
   else if (x.to != null) out.push(`until ${yearWords(x.to)}`);
-  if (x.rank != null && x.role) {
+  if (rank && x.rank != null && x.role) {
     const nth = ["", "the biggest", "the second-biggest", "the third-biggest", "the fourth-biggest", "the fifth-biggest"][x.rank] || `number ${x.rank} of the`;
     out.push(`${x.once ? "once " : ""}${nth} ${x.role}`);
   }

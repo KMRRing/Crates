@@ -92,7 +92,8 @@ for (const set of SETS) {
 // ---------- Crossing: land borders ----------
 const idOfCountry = new Map(COUNTRIES.map(c => [c.name, c.about]));
 const existingLinks = new Set(lnk.filter(l => l.startsWith("{")).map(l => { const k = parse(l); return k && `${k.from}|${k.to}|${k.rel}`; }));
-const link = (from, to, rel, hint) => { const k = `${from}|${to}|${rel}`; if (!rows.has(from) || !rows.has(to) || existingLinks.has(k)) return; existingLinks.add(k); linkLines.push(JSON.stringify(hint ? { from, to, rel, hint } : { from, to, rel }) + ","); };
+// a link's facts (a distance, how far up the river) go in `facts` (kb/vocabulary.js FACTS), not in its words
+const link = (from, to, rel, facts) => { const k = `${from}|${to}|${rel}`; if (!rows.has(from) || !rows.has(to) || existingLinks.has(k)) return; existingLinks.add(k); linkLines.push(JSON.stringify(facts ? { from, to, rel, facts } : { from, to, rel }) + ","); };
 for (const c of COUNTRIES) for (const n of c.neighbours) { const o = idOfCountry.get(n); if (o && c.about && c.about < o) link(c.about, o, "borders"); }
 for (const c of COUNTRIES) if (c.about && rows.has(c.about)) tag(c.about, "crossing:land");
 
@@ -110,13 +111,13 @@ const portId = {}, ctry = n => idOfCountry.get(n);
 for (const [name, cn, , , water, nm] of PORTS) {
   const id = find([name], placeOk) || make(name, [], ["kind:place"], "A port on the sea lanes of Crossing.", { label: "port" });
   portId[name] = id; tag(id, "crossing:port");
-  link(id, waterId[water], "port-on", nm ? `${nm} nm up the river to the quay` : "");
+  link(id, waterId[water], "port-on", nm ? { upriver: nm } : null);
   if (ctry(cn)) link(id, ctry(cn), "in");
 }
 for (const [name, cn, , , reach] of INLAND) {
   const id = find([name], placeOk) || make(name, [], ["kind:place"], "An inland place that Crossing's cargo reaches by river or road.", { label: "inland" });
   tag(id, "crossing:inland");
-  for (const [port, km, how] of reach) link(id, portId[port], "inland-of", `${km} km by ${how}`);
+  for (const [port, km, how] of reach) link(id, portId[port], "inland-of", { distance: km, by: how });
   if (ctry(cn)) link(id, ctry(cn), "in");
 }
 
