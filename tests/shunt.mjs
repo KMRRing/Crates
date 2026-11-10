@@ -4,11 +4,13 @@
 // The slow searches (the beam at width 1500, a hundred runs of each bot) are in tests/shunt-search.mjs. Run: node tests/shunt.mjs
 import { CELLS, N, ENTRIES, at, fresh, swap, shove, step, play, track, legal, legalEntries, canSwap, over, judge, goalCheck, effect, sound, mend, movesOf, STUD, EMPTY, VALUE } from "../shunt-engine.js";
 import { rng, playRandom, playGreedy, beam, search } from "../shunt-bots.js";
-import { LEVELS, COACHED, DIFFS, goalWords, plateOf, randomPlate, dailyPlate, rating, rated } from "../shunt-levels.js";
+import { LEVELS, LEGACY, ENDLESS, CAMPAIGN, COACHED, DIFFS, goalWords, plateOf, dailyPlate, rating, rated } from "../shunt-levels.js";
 import { LEVERS, D, HIT } from "../shunt-view-2d.js";
 import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
+/** The twelve levels from before, as they stand in the campaign (their ids, their coach). */
+const OLD = LEGACY.map(d => LEVELS.find(l => l.id === d.id));
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v);
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
@@ -119,7 +121,7 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
   check(f.A.score === VALUE[3] && f.B.score === VALUE[3] && f.moved === 3 && f.broken.length === 0 && f.newJams === 0, "a shove along a train moves it as a block: the train stays whole, no shear");
   // a shove across a train shears it: level 3's own demonstration
   {
-    const L3 = LEVELS[2], t = fresh(L3), shears = legalEntries(t).map(e => ({ e, f: effect(t, shove(t, e)) })).filter(x => x.f.broken.length && x.f.B.score < x.f.A.score);
+    const L3 = OLD[2], t = fresh(L3), shears = legalEntries(t).map(e => ({ e, f: effect(t, shove(t, e)) })).filter(x => x.f.broken.length && x.f.B.score < x.f.A.score);
     check(shears.length > 0 && shears.every(x => x.f.broken.every(tr => tr.n >= 3)), "a shove that pulls a train of three or more apart is reported as breaking it, and costs score");
     const x = shears[0], r = shove(t, x.e), oldCells = x.f.broken[0].cells, where = new Map(r.moved.map(m => [m[0], m[1]])), J = judge(r.s);
     check(new Set(oldCells.map(c => J.comp[where.has(c) ? where.get(c) : c])).size > 1, "its gears now stand in more than one train");
@@ -147,60 +149,66 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
 
 // ---------- a state kept and read back ----------
 {
-  const L = LEVELS[11], s = play(L, L.sol.slice(0, 9));
+  const L = OLD[11], s = play(L, L.sol.slice(0, 9));
   check(sound(s) && sound(fresh(L)), "a state made here is sound");
   check(same(JSON.parse(JSON.stringify(s)), s), "plain JSON: it survives a round through text unchanged");
   const back = mend(roundTrip(s));
   check(sound(back) && same(back, s), "and through a store that keeps no empty arrays or objects (queue out, no jewels, no goal parts)");
-  const ended = play(LEVELS[0], LEVELS[0].sol);
+  const ended = play(OLD[0], OLD[0].sol);
   check(sound(mend(roundTrip(ended))) && same(mend(roundTrip(ended)), ended), "the end of a plate (queue out, nothing held) survives it too");
   check(!sound(null) && !sound({}) && !sound({ ...s, v: 99 }) && !sound({ ...s, cells: s.cells.slice(1) }) && !sound({ ...s, cells: s.cells.map(() => 9) }) && !sound({ ...s, q: "x" }), "a stale or damaged state is not sound (an old run must not crash the page)");
-  check(play(LEVELS[0], [99]) === null && play(LEVELS[0], [3, 3, 3, 3, 3, 3, 3, 3]) === null, "moves that do not play are none");
+  check(play(OLD[0], [99]) === null && play(OLD[0], [3, 3, 3, 3, 3, 3, 3, 3]) === null, "moves that do not play are none");
   check(same(play(L, L.sol.slice(0, 9)), s), "a plate and its moves are the state: the same moves play the same");
 }
 
-// ---------- the twelve levels ----------
-check(LEVELS.length === 12 && LEVELS.every((l, i) => l.no === i + 1 && l.id === `l${i + 1}`), "twelve levels, in order");
+// ---------- the campaign (campaign.js holds its rules; tests/campaign.mjs its data) and Endless ----------
+check(LEVELS.every((l, i) => l.no === i + 1) && OLD.every(Boolean) && CAMPAIGN.chapters.length >= 6 && CAMPAIGN.chapters.every((_, c) => { const n = LEVELS.filter(l => l.chapter === c).length; return n >= 6 && n <= 12; }),
+  "the levels are numbered in order, the twelve from before are in the campaign, and every chapter has six to twelve levels");
+check(LEVELS.filter(l => l.role === "intro").length === CAMPAIGN.chapters.length - 1 && LEVELS.filter(l => l.role === "cap").length === CAMPAIGN.chapters.length && CAMPAIGN.chapters.every((_, c) => LEVELS.filter(l => l.chapter === c).at(-1).role === "cap"),
+  "every chapter ends with its capstone, and all but the last (where the twists meet) open with an introduction");
+check(LEVELS.filter((l, i) => LEVELS[i - 1]?.chapter !== l.chapter).every(l => l.tip), "a chapter's first level says what the chapter brings");
+check(ENDLESS.length >= 200 && ENDLESS.every((e, n) => n === 0 || e.needs >= ENDLESS[n - 1].needs) && ENDLESS.filter(e => e.milestone).length === Math.floor(ENDLESS.length / 25), "Endless: hundreds of plates, the chapters they wait for in order, a milestone every 25th");
 {
   const bad1 = [];
-  for (const L of LEVELS) {
+  const ALL = [...LEVELS, ...ENDLESS.map((e, n) => ({ ...e, id: `endless ${n + 1}` }))];
+  for (const L of ALL) {
     const s = play(L, L.sol), J = s && judge(s);
     if (!s || !over(s) || !goalCheck(s, J).ok || J.score !== L.best) bad1.push(L.id);
   }
-  check(!bad1.length, `every level's deck is won by the line stored with it, to its best score${bad1.length ? `: not ${bad1}` : ""}`);
-  check(LEVELS.every(l => l.stars[0] >= (l.goal.score || 0) && l.stars[1] >= l.stars[0] && l.stars[1] <= l.best), "the stars climb from the goal to just under the best known");
-  check(LEVELS.slice(8).every(l => l.goal.score <= 0.9 * l.best) && LEVELS.every(l => l.goal.score <= 0.9 * l.best), "no goal asks more than nine tenths of the best known score");
-  check(LEVELS.every(l => l.deal.length <= N - l.stud.length - Object.keys(l.start).length && l.deal.every(g => g >= 0 && g <= 6)), "every deck fits its plate");
-  check(LEVELS.every(l => sound(fresh(l)) && l.jewels.every(j => fresh(l).cells[j] === EMPTY)), "every level's start is sound, its jewels on open cells");
+  check(!bad1.length, `every level's deck, and every Endless plate's, is won by the line stored with it, to its best score${bad1.length ? `: not ${bad1.slice(0, 5)}` : ""}`);
+  check(ALL.every(l => l.stars[0] >= (l.goal.score || 0) && l.stars[1] >= l.stars[0] && l.stars[1] <= l.best), "the stars climb from the goal to just under the best known");
+  check(ALL.every(l => l.goal.score <= 0.9 * l.best), "no goal asks more than nine tenths of the best known score");
+  check(ALL.every(l => l.deal.length <= N - l.stud.length - Object.keys(l.start).length && l.deal.every(g => g >= 0 && g <= 6)), "every deck fits its plate");
+  check(ALL.every(l => sound(fresh(l)) && l.jewels.every(j => fresh(l).cells[j] === EMPTY)), "every plate's start is sound, its jewels on open cells");
   const groups = L => new Set(L.deal.concat(Object.values(L.start)).filter(g => g <= 2 || g >= 4).flatMap(g => (g <= 2 ? [g] : g === 4 ? [0, 1] : g === 5 ? [0, 2] : [1, 2])));
-  check(groups(LEVELS[0]).size === 1 && groups(LEVELS[1]).size === 2 && groups(LEVELS[2]).size === 2, "the first level has one pitch, the second and third two");
-  check(LEVELS[2].demo === "shear" && LEVELS[3].demo === "jam" && LEVELS[4].swap && LEVELS[0].guide && LEVELS[1].guide, "levels 3 and 4 demonstrate a shear and a jam, 5 the hold, 1 and 2 are guided");
+  check(groups(OLD[0]).size === 1 && groups(OLD[1]).size === 2 && groups(OLD[2]).size === 2, "the first level has one pitch, the second and third two");
+  check(OLD[2].demo === "shear" && OLD[3].demo === "jam" && OLD[4].swap && OLD[0].guide && OLD[1].guide, "levels 3 and 4 demonstrate a shear and a jam, 5 the hold, 1 and 2 are guided");
   // the demonstrations exist at the first turn: a shear that costs score, a shove that jams
   const first = L => fresh(L);
   const shears = L => legalEntries(first(L)).filter(e => { const f = effect(first(L), shove(first(L), e)); return f.broken.length && f.B.score < f.A.score; });
   const jams = L => legalEntries(first(L)).filter(e => effect(first(L), shove(first(L), e)).newJams > 0);
-  check(shears(LEVELS[2]).length > 0 && jams(LEVELS[3]).length > 0, "level 3 has a shove that shears a train and costs score, level 4 one that jams, at its first turn");
-  check(LEVELS[4].sol[0] === -1, "level 5's best line begins with a swap (the coach pulses the cradle)");
-  check(LEVELS[5].deal.includes(I) && LEVELS[6].jewels.length === 3 && LEVELS[6].goal.jewels && LEVELS[7].deal.some(g => g >= 4) && LEVELS[7].goal.trains, "level 6 deals idlers, 7 has three jewels, 8 deals bridges and asks for separate trains");
-  check(LEVELS[10].deal.some(g => g >= 4) && LEVELS[11].stud.length === 3 && LEVELS[11].jewels.length === 2, "levels 11 and 12 are the old fusion and workshop plates");
-  check(LEVELS.slice(0, COACHED).every(l => l.tip && l.coach?.length >= 3) && LEVELS.slice(COACHED).every(l => l.tip && !l.coach), "levels 1 to 8 have coach lines, the rest only their tip");
-  check(LEVELS.every(l => l.tip.length <= 190 && (l.coach || []).every(c => c.length <= 130)), "every line fits the coach's box");
+  check(shears(OLD[2]).length > 0 && jams(OLD[3]).length > 0, "level 3 has a shove that shears a train and costs score, level 4 one that jams, at its first turn");
+  check(OLD[4].sol[0] === -1, "level 5's best line begins with a swap (the coach pulses the cradle)");
+  check(OLD[5].deal.includes(I) && OLD[6].jewels.length === 3 && OLD[6].goal.jewels && OLD[7].deal.some(g => g >= 4) && OLD[7].goal.trains, "level 6 deals idlers, 7 has three jewels, 8 deals bridges and asks for separate trains");
+  check(OLD[10].deal.some(g => g >= 4) && OLD[11].stud.length === 3 && OLD[11].jewels.length === 2, "levels 11 and 12 are the old fusion and workshop plates");
+  check(OLD.every(l => COACHED.has(l.id) === !!l.coach) && OLD.slice(0, 8).every(l => l.tip && l.coach?.length >= 3) && OLD.slice(8).every(l => l.tip && !l.coach), "the first eight from before have coach lines, the rest only their tip");
+  check(LEVELS.every(l => (l.tip || "").length <= 190 && (l.coach || []).every(c => c.length <= 130)), "every line fits the coach's box");
 }
 // the bots (a few runs each; the hundred-run floors are in tests/shunt-search.mjs)
 {
   const wins = (L, runs, bot) => { let n = 0; for (let i = 0; i < runs; i++) n += bot(L, i + 1).ok; return Math.round(100 * n / runs); };
-  const g = LEVELS.slice(0, 6).map(L => wins(L, 20, playGreedy));
+  const g = OLD.slice(0, 6).map(L => wins(L, 20, playGreedy));
   check(g.slice(0, 4).every(p => p >= 80) && g.slice(4, 6).every(p => p >= 40), `the greedy player (always the best score now) beats levels 1 to 4 at least four times in five and 5 and 6 at least two in five (${g.join(", ")}%)`);
-  const bw = LEVELS.map(L => beam(L, 40).ok);
+  const bw = OLD.map(L => beam(L, 40).ok);
   check(bw.slice(0, 8).every(Boolean), "a beam search of width 40 wins levels 1 to 8");
-  const r = LEVELS.slice(0, 4).map(L => wins(L, 20, playRandom));
+  const r = OLD.slice(0, 4).map(L => wins(L, 20, playRandom));
   check(r.every(p => p < 80), `a player shoving at random does not walk through them (${r.join(", ")}%)`);
 }
 
-// ---------- random plates and the daily ----------
+// ---------- plates by difficulty and the daily ----------
 {
   for (const d of DIFFS) {
-    const p = randomPlate(12345, d), q = randomPlate(12345, d), o = randomPlate(12346, d);
+    const p = plateOf(12345, d), q = plateOf(12345, d), o = plateOf(12346, d);
     check(same(p, q) && !same(p, o), `a ${d} plate is the same from its seed, and another seed gives another plate`);
   }
   const easy = plateOf(1, "easy"), med = plateOf(1, "medium"), hard = plateOf(1, "hard");
@@ -212,7 +220,7 @@ check(LEVELS.length === 12 && LEVELS.every((l, i) => l.no === i + 1 && l.id === 
   check([...DIFFS].every(d => [1, 2, 3, 4, 5].every(s => { const p = plateOf(s, d); return sound(fresh({ ...p, goal: {} })) && new Set([...p.stud, ...p.jewels, ...Object.keys(p.start).map(Number)]).size === p.stud.length + p.jewels.length + Object.keys(p.start).length; })), "studs, jewels and starting gears never share a cell");
   // a rated plate: its goal is one the search itself met
   for (const d of DIFFS) {
-    const plate = randomPlate(77, d), sr = rating(plate, d);
+    const plate = plateOf(77, d), sr = rating(plate, d);
     sr.step(Infinity);
     const spec = sr.result(), sr2 = search(fresh({ ...plate, goal: {} }), 40);
     sr2.step(Infinity);

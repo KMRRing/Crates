@@ -1,0 +1,22 @@
+/* The Campaign in a game's menu (campaign-ui.js): chapters with their rule, levels three to a row, Endless's line. Tokens only. */
+.cp-levels { display: grid; gap: .3rem; }
+.cp-chap { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; margin-top: .55rem; padding-bottom: .2rem; border-bottom: 1px solid var(--rule); }
+.cp-chap:first-child { margin-top: .2rem; }
+.cp-chap b { font-size: .68rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+.cp-chap span { font-size: .72rem; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cp-rule { margin: .1rem 0 .2rem; font-size: .78rem; line-height: 1.35; color: var(--ink-soft); }
+.cp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.cp-grid button { display: grid; align-content: start; gap: .12rem; min-width: 0; padding: .4rem .45rem .45rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.cp-grid button.done { background: color-mix(in srgb, var(--brass) 10%, var(--sheet)); }
+.cp-grid button.cap { border-color: color-mix(in srgb, var(--brass) 70%, var(--rule)); }
+.cp-grid button[aria-current="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1.5px var(--brass); }
+.cp-grid button:disabled { opacity: .42; cursor: default; }
+.cp-top { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; }
+.cp-top b { font-size: .9rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cp-st { font-size: .74rem; letter-spacing: .08em; color: var(--brass-lo, var(--brass)); }
+.cp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 700; }
+.cp-about { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .66rem; color: var(--ink-soft); }
+.cp-endless { display: grid; gap: .35rem; margin-top: .3rem; }
+.cp-go { width: 100%; }
+.cp-wait { margin: 0; font-size: .78rem; line-height: 1.35; color: var(--ink-soft); }
+@media (orientation: landscape) and (min-width: 700px) { .cp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

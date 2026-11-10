@@ -1,12 +1,13 @@
-// Shunt's plates: the twelve levels (fixed decks, each solved by the beam search, whose line is kept in `sol`), a random plate
-// by difficulty, and the daily (the day's plate, the same for everyone). Pure: seeded, no DOM. The goal and stars of a random
-// plate or the daily come from the beam search (`rating`), so a goal is always one the search met.
-// Levels one to eight each teach one thing and are beatable by a player who always takes the best-scoring shove (tests/shunt.mjs);
-// nine to twelve are the old, harder plates with goals under nine tenths of the best score known (tools: shunt-gen.mjs).
+// Shunt's plates: the campaign (shunt-campaign-data.js, made by shunt-pick.mjs: chapters of levels, then Endless), and the daily (the
+// day's plate, the same for everyone). Pure: seeded, no DOM. The rules of a campaign are campaign.js's; the daily's goal and stars come
+// from the beam search (`rating`), so a goal is always one the search met.
+// The twelve levels from before (LEGACY, made with tools: shunt-gen.mjs) keep their ids and their places in the campaign's chapters;
+// the eight that teach have a coach.
 import { fresh, N, STUD } from "./shunt-engine.js";
 import { rng, search } from "./shunt-bots.js";
+import { CHAPTERS, LEVELS as MADE, ENDLESS } from "./shunt-campaign-data.js";
 
-const DATA = [
+export const LEGACY = [
   {id:"l1",name:"Shove",stud:[],jewels:[],start:{9:0,10:0},deal:[0,0,0,0,0],goal:{score:10},stars:[17,25],best:26,sol:[3,0,0,2,4]},
   {id:"l2",name:"Pitch",stud:[],jewels:[],start:{1:1,10:1,16:0},deal:[1,0,1,0,0,0,0,1,1],goal:{score:33},stars:[37,42],best:44,sol:[12,8,-1,26,5,5,-1,0,2,16,6]},
   {id:"l3",name:"Shear",stud:[],jewels:[],start:{1:0,5:0,6:1,10:0},deal:[0,1,0,1,1,0,1,0,0],goal:{score:39},stars:[44,50],best:52,sol:[0,1,-1,5,23,7,-1,25,23,27,2]},
@@ -48,9 +49,15 @@ const META = [
   { tip: "Studs (rivets) never move and end a line, so a shove stops short of them. Bridges, jewels and studs together." },
 ];
 
-export const LEVELS = DATA.map((d, i) => ({ ...d, no: i + 1, ...META[i], coach: META[i].coach || null }));
-/** The levels with a coach (one to eight): hints are offered there after two undos or a shove that lost score. */
-export const COACHED = 8;
+const COACH = Object.fromEntries(LEGACY.map((d, i) => [d.id, META[i]]));
+/** The levels with a coach (the first eight from before, each opening a chapter): hints are offered there after two undos or a shove that lost score. */
+export const COACHED = new Set(LEGACY.slice(0, 8).map(d => d.id));
+/** The campaign's levels in order, numbered from one, each with its chapter, the coach's lines where it has them, and as its tip the
+ *  coach's, or for a chapter's first level its rule (one line, no more: campaign.js). */
+export const LEVELS = MADE.map((d, i) => ({ ...d, no: i + 1, ...COACH[d.id], tip: COACH[d.id]?.tip || (MADE[i - 1]?.chapter !== d.chapter ? CHAPTERS[d.chapter].rule : ""), coach: COACH[d.id]?.coach || null }));
+/** What campaign.js is given. */
+export const CAMPAIGN = { chapters: CHAPTERS, levels: LEVELS, endless: ENDLESS };
+export { ENDLESS };
 
 /** A goal in words: "No jam, score 42". */
 export function goalWords(goal) {
@@ -63,9 +70,8 @@ export function goalWords(goal) {
   return s ? s[0].toUpperCase() + s.slice(1) : "Pure score";
 }
 
-// ---------- random plates and the daily ----------
+// ---------- the daily's plate (and the plate maker by difficulty it uses) ----------
 export const DIFFS = ["easy", "medium", "hard"];
-export const DIFF_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
 /** How much of the beam's score a plate's goal asks, by difficulty (the daily asks the hard plate's, with its three stars). */
 const ASK = { easy: 0.62, medium: 0.76, hard: 0.86 };
 const WIDTH = 40;
@@ -107,8 +113,6 @@ export function rating(plate, diff) {
   const sr = search(fresh({ ...plate, goal: {} }), WIDTH);
   return { step: ms => sr.step(ms), result: () => rated(plate, sr.result().score, diff) };
 }
-/** A random plate: its kind, seed and difficulty with the board and deck. */
-export const randomPlate = (seed, diff) => ({ kind: "random", seed, diff, ...plateOf(seed, diff) });
 /** The daily's plate for a day (YYYYMMDD): the hard plate, with no starting gears, seeded by the day. */
 export function dailyPlate(day) {
   return { kind: "daily", day, diff: "hard", ...plateOf(day, "hard", { noStart: true }) };

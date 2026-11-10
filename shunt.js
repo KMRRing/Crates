@@ -1,15 +1,17 @@
 // Shunt: shove gears onto a hexagonal plate from its rim and make trains of meshing gears (README, Idle; docs/shunt.md). The rules are
 // shunt-engine.js's, the search that gives the Hint and rates a plate is shunt-bots.js's, the plates are shunt-levels.js's and
 // the picture is shunt-view-2d.js's or, in 3D, shunt-view-3d.js's (the watch movement; the same calls, so this file keeps the game and
-// maps touches to moves, and never draws). Three modes (the menu's Mode): Levels (twelve plates, each opening the next, the first eight coached),
-// Random (a fresh plate by difficulty) and Daily (today's plate, the same for everyone).
+// maps touches to moves, and never draws). Three ways to play: Levels (the campaign: chapters of plates, each bringing one thing, each
+// level opening the next; campaign.js keeps the stars), Endless (after the first chapter: one numbered sequence of plates, the same
+// for everyone, each waiting for the chapter it needs), and today's plate (the same for everyone).
 // A touch on a lever previews its shove; the same lever again (or Shove) makes it; sliding a finger over the levers shows each in
 // turn. A game is the plate and its list of moves (-1 swaps, e shoves at entry e): that is all that is kept, as `shunt:run` (Levels),
-// `shunt:rrun` (Random) or `shunt:drun` (Daily), so a partner watching draws the same plate from the same keys.
+// `shunt:erun` (Endless) or `shunt:drun` (Daily), so a partner watching draws the same plate from the same keys.
 import { play, swap, shove, judge, goalCheck, effect, over, canSwap, legal, legalEntries, ENTRIES } from "./shunt-engine.js";
 import { search } from "./shunt-bots.js";
-import { ramp } from "./ramp.js";
-import { LEVELS, COACHED, DIFFS, DIFF_NAMES, goalWords, randomPlate, dailyPlate, rating } from "./shunt-levels.js";
+import { LEVELS, ENDLESS, CAMPAIGN, COACHED, goalWords, dailyPlate, rating } from "./shunt-levels.js";
+import { createCampaign } from "./campaign.js";
+import { levelGrid, endlessLine } from "./campaign-ui.js";
 import { createView as createView2d } from "./shunt-view-2d.js";
 import { sound as sfx } from "./shunt-sound.js";
 import { defaultIs3D } from "./mode3d.js";
@@ -20,15 +22,16 @@ import { sure } from "./sure.js";
 import { busy, load3d } from "./loading.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
-import { KEYS, RUN_KEY, keeper, migrate, readMode, readDiff, readCoach, readSeen, readDaily, readSel, readCam, readCamp, savedRun as savedRunOf } from "./shunt-keep.js";
+import { KEYS, RUN_KEY, keeper, migrate, readMode, readSeen, readDaily, readSel, readCam, legacyCamp, specOf, savedRun as savedRunOf } from "./shunt-keep.js";
 
 const $ = id => document.getElementById(id);
-// MODE: "levels", "random" or "daily". CAMP: { at (the level being played, 0 on), stars (the most won in each) }. BEST: stars won in all, the figure the
-// games screen shows. RUN, RRUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
-// SEL: the lever being previewed, so a partner sees it. COACH: coach lines on or off. DIFF: Random's difficulty. SEEN: terms already explained.
+// MODE: "levels", "endless" or "daily". The campaign (`shunt:campaign`, `shunt:endless`) is campaign.js's: the level being played, the
+// stars won in each, Endless's place; `shunt:camp` is the campaign from before it, read once. BEST: stars won in all, the figure the
+// games screen shows. RUN, ERUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
+// SEL: the lever being previewed, so a partner sees it. SEEN: terms already explained.
 // Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
 // CAM: the 3D view's turn, tilt and zoom, kept when the player moves it (null at home, never a default written). VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the watch's sounds on or off. TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
-const MODE = KEYS.mode, CAMP = KEYS.camp, BEST = KEYS.best, RRUN = KEYS.rrun, DRUN = KEYS.drun, DAILY = KEYS.daily, SEL = KEYS.sel, COACH = KEYS.coach, DIFF = KEYS.diff, SEEN = KEYS.seen;
+const MODE = KEYS.mode, BEST = KEYS.best, DAILY = KEYS.daily, SEL = KEYS.sel, SEEN = KEYS.seen;
 const VIEW = "shunt:view", SOUND = "shunt:sound", TILT = "shunt:tilt", CAM = KEYS.cam;
 const kp = keeper(localStorage, IN_FRAME), { write } = kp;
 const read = (k, d, ok) => kp.read(k, d, ok);
@@ -47,16 +50,12 @@ let mode = readMode(kp);
 if (mode === "daily" && (readDaily(kp)[today()] != null || !savedRunOf(kp, "daily", 0, today()))) mode = "levels";
 let rest = mode === "daily" ? "levels" : mode;
 const keepMode = () => { if (mode !== "daily") rest = mode; write(MODE, mode === "daily" ? rest : mode); };
-let camp = readCamp(kp);
-let diff = readDiff(kp);
-// Korbi, 4 November 2026: the menu is the minimum it needs to be. A random plate's difficulty is the hidden ramp (`shunt:ramp`, up after a
-// three-star plate, down after a failed one; first step the difficulty that was saved); the coach lines are always on.
-const OLD_DIFF = diff;
-const diffNow = () => (diff = ramp("shunt", DIFFS, { start: OLD_DIFF }));
-diffNow();
+const newCampaign = () => createCampaign({ game: "shunt", ...CAMPAIGN, store: kp, legacy: () => legacyCamp(kp) });
+let camp = newCampaign();
+// Korbi, 4 November 2026: the menu is the minimum it needs to be; the coach lines are always on.
 let coachOn = true;
 let spec = null;            // the plate being played: stud, jewels, start, deal, goal, stars (+ id, no, name, sol for a level)
-let run = null;             // { kind, n | seed, diff | day, moves, spec? }
+let run = null;             // { kind, id and n (a level) | n (Endless) | day, moves, spec? (the daily's) }
 let S = null;               // the state now (the plate after its moves)
 let pv = null;              // the shove being previewed: { e, before, s, moved, at, swapFirst }
 let done = false, animating = false;
@@ -68,16 +67,13 @@ let seen = readSeen(kp);
 let epoch = 0;              // a new plate or level makes what a search or an animation was about to do void
 
 // ---------- keeping ----------
-function keepCamp() { write(CAMP, camp); write(BEST, camp.stars.reduce((a, b) => a + b, 0)); }
-const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+const keepBest = () => write(BEST, camp.totals().stars);
 const keyOf = () => RUN_KEY[mode];
 const keepRun = () => write(keyOf(), { v: 1, ...run, hints, at: Date.now() });
 const keepSel = () => write(SEL, pv ? { e: pv.e, swap: pv.swapFirst ? 1 : 0 } : null);
 
 /** The mode's saved run, or null (and its key dropped) if it is not one this build made and can draw. */
-const savedRun = () => savedRunOf(kp, mode, camp.at, today());
-/** The plate of a run: a level's from the levels, the others' kept with the run (their goal came from a search). */
-const specOf = r => (r.kind === "level" ? LEVELS[r.n] : r.spec);
+const savedRun = () => savedRunOf(kp, mode, mode === "endless" ? camp.endless.at : LEVELS[camp.at].id, today());
 
 // ---------- the plate in play ----------
 function enter(r, sp) {
@@ -98,13 +94,28 @@ function enter(r, sp) {
   render();
 }
 function playLevel(n) {
-  camp.at = Math.max(0, Math.min(LEVELS.length - 1, n));
-  keepCamp();
+  const i = camp.go(n);
   write(SEL, null);
   mode = "levels";
   keepMode();
   const r = savedRun();
-  enter(r || { kind: "level", n: camp.at, moves: [] }, LEVELS[camp.at]);
+  enter(r || { kind: "level", id: LEVELS[i].id, n: i, moves: [] }, LEVELS[i]);
+}
+/** Endless's next plate, if it is open; else the campaign, and a word on what Endless waits for. */
+function playEndless() {
+  const n = camp.endless.at;
+  if (!camp.endless.isOpen(n)) {
+    const gate = camp.endless.gate(n);
+    toast(n >= ENDLESS.length ? "Every Endless plate so far is beaten." : `Endless ${n + 1} needs chapter ${gate + 1}, ${CAMPAIGN.chapters[gate].name}: beat its last level.`);
+    if (mode === "endless") { mode = "levels"; keepMode(); }
+    playLevel(camp.at);
+    return;
+  }
+  write(SEL, null);
+  mode = "endless";
+  keepMode();
+  const r = savedRun();
+  enter(r || { kind: "endless", n, moves: [] }, ENDLESS[n]);
 }
 /** A plate rated by the beam search (with the mark showing), then played. */
 async function rated(plate, diffName) {
@@ -115,12 +126,6 @@ async function rated(plate, diffName) {
     return t === epoch ? sr.result() : null;
   } finally { finish(); }
 }
-async function newRandom() {
-  const plate = randomPlate(Math.floor(Math.random() * 2 ** 31), diff), sp = await rated(plate, diff);
-  if (!sp) return;
-  write(SEL, null);
-  enter({ kind: "random", seed: plate.seed, diff, spec: sp, moves: [] }, sp);
-}
 async function newDaily() {
   const day = today(), plate = dailyPlate(day), sp = await rated(plate, "hard");
   if (!sp) return;
@@ -130,9 +135,10 @@ async function newDaily() {
 /** The mode's game as it was left, or a new one. */
 async function resume() {
   const r = savedRun();
-  if (mode === "levels") { enter(r || { kind: "level", n: camp.at, moves: [] }, LEVELS[camp.at]); return; }
+  if (mode === "levels") { playLevel(camp.at); return; }
+  if (mode === "endless") { playEndless(); return; }
   if (r) { enter(r, specOf(r)); return; }
-  if (mode === "random") await newRandom(); else await newDaily();
+  await newDaily();
 }
 async function setMode(next) {
   if (next === mode) return;
@@ -150,9 +156,9 @@ function starsFor(score, ok) {
 }
 const nextStar = n => spec.stars[n - 1];
 const levelNo = () => (run.kind === "level" ? spec.no : 0);
-const nameOf = () => (run.kind === "level" ? `<b>${spec.no}</b> ${spec.name}` : run.kind === "random" ? `<b>Random</b> ${DIFF_NAMES[run.diff]}` : `<b>Daily</b> ${dateWords(run.day)}`);
+const nameOf = () => (run.kind === "level" ? `<b>${spec.no}</b> ${spec.name}` : run.kind === "endless" ? `<b>Endless</b> ${run.n + 1}${spec.milestone ? " ✦" : ""}` : `<b>Daily</b> ${dateWords(run.day)}`);
 const dateWords = d => `${String(d % 100).padStart(2, "0")}/${String(Math.floor(d / 100) % 100).padStart(2, "0")}/${Math.floor(d / 10000)}`;
-const coached = () => run.kind === "level" && levelNo() <= COACHED;
+const coached = () => run.kind === "level" && COACHED.has(spec.id);
 const DEFS = {
   train: "A train is a chain of touching gears that mesh; three or more score.",
   shear: "Shear: a shove slides a whole line, so gears can slip away from their neighbours and a train breaks.",
@@ -235,7 +241,7 @@ function coachLine() {
   const lv = spec;
   if (run.kind !== "level") return lv.tip || "";
   if (coachOn && lv.coach) return lv.coach[Math.min(run.moves.filter(m => m !== -1).length, lv.coach.length - 1)];
-  return lv.tip;
+  return lv.tip || "";
 }
 
 // ---------- drawing ----------
@@ -287,7 +293,7 @@ function render() {
   const sh = $("shoveBtn");
   if (done) {
     const g = goalCheck(S), won = g.ok;
-    sh.textContent = run.kind === "level" ? (won ? (levelNo() < LEVELS.length ? "Next ›" : "Again") : "Replay") : run.kind === "random" ? "New plate" : "Share";
+    sh.textContent = run.kind === "level" ? (won ? (levelNo() < LEVELS.length ? "Next ›" : "Again") : "Replay") : run.kind === "endless" ? (won ? "Next ›" : "Replay") : "Share";
     sh.disabled = false;
   } else { sh.textContent = "Shove"; sh.disabled = !pv || animating || IN_FRAME; }
   if (IN_FRAME) document.querySelector(".sh-acts").hidden = true;
@@ -346,10 +352,11 @@ function finish() {
   done = true; pulse = null;
   const J = judge(S), ok = goalCheck(S, J).ok, n = starsFor(J.score, ok);
   if (run.kind === "level") {
-    if (n > camp.stars[run.n]) { camp.stars[run.n] = n; keepCamp(); }
+    camp.record(run.n, n);
+    keepBest();
     if (ok) roundOver("shunt");
   } else {
-    if (run.kind === "random") { diffNow(); if (ok) ramp.won(n >= 3); else ramp.lost(); diffNow(); }
+    if (run.kind === "endless" && ok) camp.endless.passed(run.n);
     if (run.kind === "daily") { const days = readDaily(kp); if (!(days[run.day] >= J.score)) write(DAILY, { ...days, [run.day]: J.score }); }
     roundOver("shunt");
   }
@@ -360,14 +367,13 @@ async function primary() {
   if (!done) { commit(); return; }
   const ok = goalCheck(S).ok;
   if (run.kind === "level") { if (ok && levelNo() < LEVELS.length) playLevel(levelNo()); else replay(true); }
-  else if (run.kind === "random") await newRandom();
+  else if (run.kind === "endless") { if (ok) playEndless(); else replay(true); }
   else await share();
 }
 async function replay(quiet = false) {
   if (!quiet && run.moves.length && !done && !(await sure("Replay this plate? Your moves on it are lost.", { yes: "Replay" }))) return;
   write(SEL, null);
-  if (run.kind === "level") enter({ kind: "level", n: run.n, moves: [] }, LEVELS[run.n]);
-  else enter({ ...run, moves: [], hints: 0 }, spec);
+  enter({ ...run, moves: [], hints: 0 }, spec);
 }
 async function share() {
   const J = judge(S), text = `Shunt · ${dateWords(run.day)}\n${fmt(J.score)} · ${starStr(starsFor(J.score, goalCheck(S, J).ok))}`;
@@ -471,36 +477,22 @@ function wireTouches() {
 }
 
 // ---------- the menu ----------
-function levelList() {
-  const list = document.createElement("div");
-  list.className = "sh-levels";
-  LEVELS.forEach((L, n) => {
-    const b = document.createElement("button"), open = isOpen(n), won = camp.stars[n];
-    b.type = "button"; b.disabled = !open;
-    if (mode === "levels" && n === camp.at) b.setAttribute("aria-current", "true");
-    b.setAttribute("aria-label", `Level ${L.no}, ${L.name}${open ? "" : ", locked: beat the one before it"}${won ? `, ${plural(won, "star")}` : ""}`);
-    b.innerHTML = `<b></b><span></span><span class="st"></span>`;
-    b.children[0].textContent = `${L.no}  ${L.name}`;
-    b.children[1].textContent = goalWords(L.goal);
-    b.children[2].textContent = open ? starStr(won) : "locked";
-    b.addEventListener("click", () => { $("menuDlg").close(); if (mode !== "levels" || n !== camp.at) playLevel(n); });
-    list.append(b);
-  });
-  return list;
-}
-function openMenu() {
+/** `tab`: which of Levels and Endless the menu shows (the way being played, unless the player picked the other there). */
+function openMenu(tab = null) {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
-  play.append(action(run.kind === "level" ? `Replay level ${levelNo()}` : run.kind === "random" ? "New plate" : "Replay today's plate", () => (run.kind === "random" ? newRandomAsk() : replay()), "primary"));
+  play.append(action(run.kind === "level" ? `Replay level ${levelNo()}` : run.kind === "endless" ? `Replay Endless ${run.n + 1}` : "Replay today's plate", () => replay(), "primary"));
   if (!IN_FRAME) play.append(action(view.kind === "3d" ? "Play in 2D" : "Play in 3D", () => setView(view.kind !== "3d", true), "link"));
   const content = part(body, "content");
-  content.append(choice("Mode", [["levels", "Levels"], ["random", "Random"]], mode, v => { $("menuDlg").close(); setMode(v); }));
-  if (mode === "levels") content.append(levelList());
+  const shown = tab || (mode === "daily" ? rest : mode);
+  content.append(choice("Play", [["levels", "Levels"], ["endless", "Endless"]], shown, v => openMenu(v)));
+  if (shown === "levels") content.append(levelGrid(camp, { onPick: i => { $("menuDlg").close(); if (mode !== "levels" || i !== camp.at) playLevel(i); }, about: i => goalWords(LEVELS[i].goal), current: mode === "levels" ? camp.at : -1 }));
+  else content.append(endlessLine(camp, { onPlay: () => { $("menuDlg").close(); playEndless(); }, playing: mode === "endless" && run.kind === "endless" && !done }));
   const got = readDaily(kp)[today()];
   todayPart(body, {
     done: got != null, result: got != null ? fmt(got) : "", play: () => setMode("daily"), playing: mode === "daily",
-    back: mode === "daily" ? { text: `Back to ${rest === "levels" ? "the levels" : "a random plate"}`, fn: () => setMode(rest) } : null,
+    back: mode === "daily" ? { text: `Back to ${rest === "levels" ? "the levels" : "Endless"}`, fn: () => setMode(rest) } : null,
   });
   const settings = part(body, "settings");
   if (view.kind === "3d") settings.append(toggle("Sound", sfx.on, on => { sfx.on = on; write(SOUND, on); if (on) { sfx.unlock(); sfx.play("tick"); } }));
@@ -511,21 +503,14 @@ function openMenu() {
       if (on && !got) toast("The phone's tilt isn't available here.");
     }));
   }
-  const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
-  const about = part(body, "about");
-  about.append(line(`${plural(beaten, "level")} of ${LEVELS.length} beaten, ${plural(total, "star")} of ${LEVELS.length * 3}.`));
+  const t = camp.totals(), about = part(body, "about");
+  about.append(line(`${plural(t.beaten, "level")} of ${t.levels} beaten, ${plural(t.stars, "star")} of ${t.levels * 3}${camp.endless.begun ? `; Endless ${camp.endless.at} beaten` : ""}.`));
   about.append(line("You never place a gear: the next one of the queue is shoved in from a lever at the edge of the plate, and pushes the gears in its way one step along. Gears of one pitch that touch mesh and turn opposite ways; a chain of three or more is a train and scores, half as much again for each jewel under it. A ring of an odd number of gears jams and scores nothing. The idler meshes every pitch, a bridge two. The plate is judged when it is full or the queue is out."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-async function newRandomAsk() {
-  if (run.kind === "random" && run.moves.length && !done && !(await sure("Start a new plate? Your moves on this one are lost.", { yes: "New plate" }))) return;
-  if (mode !== "random") { mode = "random"; keepMode(); }
-  await newRandom();
-}
-
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "shunt");                  // hidden by the full-screen frame: the menu's "Back to menu" clicks it
-$("menuBtn").addEventListener("click", openMenu);
+$("menuBtn").addEventListener("click", () => openMenu());
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("undoBtn").addEventListener("click", undo);
 $("swapBtn").addEventListener("click", doSwap);
@@ -536,7 +521,7 @@ onPause(() => view.setMotion(false), () => view.setMotion(true));
 
 window.__shunt = {
   get view() { return view; }, setView, get S() { return S; }, get spec() { return spec; }, get run() { return run; }, get pv() { return pv; }, get done() { return done; }, get pulse() { return pulse; }, get camp() { return camp; },
-  preview, commit, doSwap, undo, playLevel, newRandom, newDaily, setMode, runHint, get hintInfo() { return hintInfo; }, get offer() { return offer; }, get mode() { return mode; },
+  preview, commit, doSwap, undo, playLevel, playEndless, newDaily, setMode, runHint, get hintInfo() { return hintInfo; }, get offer() { return offer; }, get mode() { return mode; },
 };
 
 (async () => {
@@ -547,7 +532,7 @@ window.__shunt = {
     // a kept value that passed its checks and still broke the page: let go of the runs and start at the first level
     console.warn("Shunt: starting afresh", e);
     for (const k of [...Object.values(RUN_KEY), SEL]) write(k, null);
-    mode = "levels"; keepMode(); camp = readCamp(kp);
+    mode = "levels"; keepMode(); camp = newCampaign();
     await resume();
   }
 })();

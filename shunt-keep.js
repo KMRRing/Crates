@@ -3,17 +3,19 @@
 // `new Set(true)` stopped the page before it drew). Nothing here throws: a value that is not one this build made is dropped (that key
 // only) and the default stands. Pure but for the storage handed in, so tests/shunt-keep.mjs loads every shape in Node.
 import { play, sound, judge, goalCheck } from "./shunt-engine.js";
-import { LEVELS, DIFFS } from "./shunt-levels.js";
+import { LEVELS, LEGACY, ENDLESS } from "./shunt-levels.js";
 
 export const KEYS = {
-  mode: "shunt:mode", camp: "shunt:camp", best: "shunt:best", run: "shunt:run", rrun: "shunt:rrun", drun: "shunt:drun", daily: "shunt:daily",
+  mode: "shunt:mode", camp: "shunt:camp", best: "shunt:best", run: "shunt:run", erun: "shunt:erun", rrun: "shunt:rrun", drun: "shunt:drun", daily: "shunt:daily",
   sel: "shunt:sel", cam: "shunt:cam", coach: "shunt:coach", diff: "shunt:diff", seen: "shunt:seen", ver: "shunt:ver", scrapped: "shunt:scrapped",
 };
-export const MODES = ["levels", "random", "daily"];
+export const MODES = ["levels", "endless", "daily"];
 /** The run key of each mode. */
-export const RUN_KEY = { levels: KEYS.run, random: KEYS.rrun, daily: KEYS.drun };
-/** 2: the rail-yard game's run and best are gone. 3: and its `scrapped` (its `seen` was a flag, not a list: readSeen drops it). */
-export const VER = 3;
+export const RUN_KEY = { levels: KEYS.run, endless: KEYS.erun, daily: KEYS.drun };
+/** 2: the rail-yard game's run and best are gone. 3: and its `scrapped` (its `seen` was a flag, not a list: readSeen drops it).
+ *  4 (10 Nov 2026): the campaign (campaign.js): Random's run and difficulty go (Endless took its place), and a level's run is kept by
+ *  the level's id, not its number (the twelve levels are spread through the chapters now). */
+export const VER = 4;
 
 const isRecord = v => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -37,13 +39,12 @@ export function migrate({ read, write }) {
   const v = read(KEYS.ver, 0, Number.isInteger);
   if (v === VER) return;
   if (v < 2) { write(KEYS.run, null); write(KEYS.best, 0); }
+  if (v < 4) { for (const k of [KEYS.rrun, KEYS.diff, KEYS.coach, KEYS.run]) write(k, null); }
   write(KEYS.scrapped, null);
   write(KEYS.ver, VER);
 }
 
 export const readMode = ({ read }) => read(KEYS.mode, "levels", v => MODES.includes(v));
-export const readDiff = ({ read }) => read(KEYS.diff, "medium", v => DIFFS.includes(v));
-export const readCoach = ({ read }) => read(KEYS.coach, true, v => typeof v === "boolean");
 /** The terms already explained. */
 export const readSeen = ({ read }) => new Set(read(KEYS.seen, [], v => Array.isArray(v) && v.every(t => typeof t === "string")));
 /** Each day's score, by the day. */
@@ -52,31 +53,36 @@ export const readDaily = ({ read }) => read(KEYS.daily, {}, isRecord);
 export const readCam = ({ read }) => read(KEYS.cam, null, v => isRecord(v) && ["az", "el", "z"].every(k => Number.isFinite(v[k])));
 export const readSel = ({ read }) => read(KEYS.sel, null, v => isRecord(v) && Number.isInteger(v.e));
 
-/** The campaign: { at (the level being played), stars (the most won in each) }. */
-export function readCamp({ read }) {
-  const c = read(KEYS.camp, null, isRecord) || {}, st = Array.isArray(c.stars) ? c.stars : [];
-  const stars = LEVELS.map((_, k) => (Number.isInteger(st[k]) ? Math.max(0, Math.min(3, st[k])) : 0));
-  const open = stars.findIndex(s => s < 1);
-  return { at: Number.isInteger(c.at) ? Math.max(0, Math.min(c.at, open < 0 ? LEVELS.length - 1 : open)) : 0, stars };
+/** The campaign as it was kept before campaign.js (the twelve levels' stars by number, `shunt:camp`), as campaign.js takes it over
+ *  once: { at: the id being played, stars: { id: stars } }, or null if there is none. */
+export function legacyCamp({ read }) {
+  const c = read(KEYS.camp, null, isRecord);
+  if (!c) return null;
+  const st = Array.isArray(c.stars) ? c.stars : [], stars = {};
+  LEGACY.forEach((L, k) => { if (Number.isInteger(st[k]) && st[k] > 0) stars[L.id] = Math.min(3, st[k]); });
+  return { at: LEGACY[Number.isInteger(c.at) ? c.at : 0]?.id ?? null, stars };
 }
 
-/** The plate of a run as kept: a level's from the levels, the others' stored with the run (their goal came from a search). */
+/** The plate of a run as kept: a level's from the campaign (by its id), an Endless level's from Endless (by its number), the
+ *  daily's stored with the run (its goal came from a search). */
 export function specOf(r) {
-  if (r.kind === "level") return LEVELS[r.n] || null;
+  if (r.kind === "level") return LEVELS.find(L => L.id === r.id) || null;
+  if (r.kind === "endless") return Number.isInteger(r.n) ? ENDLESS[r.n] || null : null;
   const p = r.spec;
   const ok = isRecord(p) && Array.isArray(p.deal) && Array.isArray(p.jewels) && Array.isArray(p.stud) && isRecord(p.start) && isRecord(p.goal)
     && Array.isArray(p.stars) && p.stars.length >= 2 && p.stars.every(Number.isFinite) && p.deal.every(Number.isInteger);
   return ok ? p : null;
 }
 
-/** The mode's saved run if it is one this build made and the page can draw (`at`: the level the campaign is on; `day`: today),
+/** The mode's saved run if it is one this build made and the page can draw (`at`: the level's id the campaign is on, or Endless's
+ *  number; `day`: today),
  *  else null and its key dropped. */
 export function savedRun(kp, mode, at, day) {
   const key = RUN_KEY[mode], r = kp.read(key, null, isRecord);
   if (!r) return null;
   try {
     if (r.v !== 1 || !Array.isArray(r.moves) || !r.moves.every(Number.isInteger)) throw 0;
-    if (mode === "levels" ? !(r.kind === "level" && r.n === at) : mode === "random" ? r.kind !== "random" : !(r.kind === "daily" && r.day === day)) throw 0;
+    if (mode === "levels" ? !(r.kind === "level" && r.id === at) : mode === "endless" ? !(r.kind === "endless" && r.n === at) : !(r.kind === "daily" && r.day === day)) throw 0;
     const sp = specOf(r), st = sp && play(sp, r.moves);
     if (!st || !sound(st)) throw 0;
     judge(st); goalCheck(st);                                      // what the page draws from it

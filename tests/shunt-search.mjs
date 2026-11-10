@@ -2,13 +2,14 @@
 // width 1500 reproduces every level's stored best, and a hundred runs of each bot give the floors the levels were made to
 // (greedy beats levels 1 to 4 at least four times in five and 5 and 6 two in five; a beam of width 20 wins 1 to 8). Prints each
 // level's numbers (random / greedy / beam). Run: node tests/shunt-search.mjs
-import { LEVELS } from "../shunt-levels.js";
+import { LEVELS, LEGACY } from "../shunt-levels.js";
 import { beam, study } from "../shunt-bots.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const rows = [];
-for (const L of LEVELS) {
+// the twelve levels from before, as they stand in the campaign (the campaign's own were made by the beam and are replayed in tests/shunt.mjs)
+for (const L of LEGACY.map(d => LEVELS.find(l => l.id === d.id))) {
   const b = beam(L, 1500), b20 = beam(L, 20), st = study(L, { runs: 100, offset: 5000 });
   rows.push({ id: L.id, goal: JSON.stringify(L.goal), best: L.best, beam1500: b.score, beam20: b20.ok, random: st.random, greedy: st.greedy, greedy2: st.greedy2 });
   console.log(`${L.id}: best ${L.best}, beam(1500) ${b.score}${b.ok ? "" : " (misses the goal)"}, beam(20) ${b20.ok ? "wins" : "misses"}, wins: random ${st.random}%, greedy ${st.greedy}%, greedy with a tie-break ${st.greedy2}%`);
