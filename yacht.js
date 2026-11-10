@@ -122,6 +122,7 @@ function drawStage(v, rolled) {
   const want3d = view.get() === "3d" && !lost3d;
   if (!want3d && three) { three.dispose(); three = null; $("stage").replaceChildren(); }
   if (want3d && !three) { make3d(); if (!three) return; }
+  $("table").classList.toggle("ya-on3d", !!three);              // the 3D scene draws the table itself: the page's box steps back
   if (!v?.G) { if (!three) $("stage").replaceChildren(); return; }
   const d = diceOf(v), s = v.state;
   if (three) { three.set({ ...d, key: `${v.G.seq}:${s.turn}:${roundOf(s, s.turn)}:${s.left}`, seed: v.G.seed }); return; }

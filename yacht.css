@@ -43,6 +43,8 @@ html[data-theme="office"][data-mode="night"] { --ya-in: #479EF5; --ya-die: #E1DF
 .ya-die-btn.rolling:nth-child(3n) .ya-die { animation-delay: .08s; animation-duration: .62s; }
 @keyframes ya-tumble { 0% { transform: translateY(-1.6rem) rotate(-200deg) scale(.85); } 45% { transform: translateY(.2rem) rotate(40deg); } 70% { transform: translateY(-.35rem) rotate(-10deg); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ya-die-btn.rolling .ya-die { animation: none; } .ya-die-btn { transition: none; } }
+/* in 3D the scene draws the table (yacht-3d.js), so the page's mahogany box gives up its wood, rail and padding: one table, not two */
+#app:not(.tb3) .ya-table.ya-on3d { padding: 0; border-color: transparent; background: none; box-shadow: none; }
 .ya-3d { position: absolute; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; }
 .ya-3d canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-tap-highlight-color: transparent; }
 

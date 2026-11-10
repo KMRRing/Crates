@@ -757,7 +757,7 @@ function stakeText(verbForm, challenger = false) {
 }
 /** A challenge button with its stakes under its name: what a bluff costs them, what the truth costs you. */
 function stakes(btn, word) {
-  btn.replaceChildren(word, Object.assign(document.createElement("small"), { textContent: `bluff: they ${stakeText("pay")} · true: you ${stakeText("pay", true)}` }));
+  btn.replaceChildren(word, Object.assign(document.createElement("small"), { textContent: RULES.goldStakes || RULES.bluffStake === RULES.challengeStake ? `bluff: they ${stakeText("pay")} · true: you do` : `bluff: they ${stakeText("pay")} · true: you ${stakeText("pay", true)}` }));
 }
 
 function answer(decision) {

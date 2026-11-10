@@ -9,7 +9,7 @@
 // levels on it as ever), and your hand, the coach's line and the buttons are the page's own, with the same marks on
 // every card (data-id), so a tap means what it does in the table view and tribute.js's handlers serve both.
 import { courtArt } from "./court-art.js";
-import { createParallax } from "./table3d.js";
+import { createParallax, planeOffset } from "./table3d.js";
 import { SIDEWAYS } from "./wide.js";
 import * as E from "./tribute-engine.js";
 
@@ -310,7 +310,7 @@ export function createTable3d(c) {
     if (!last || box.hidden || !moving()) return null;
     const hand = new Map(), trick = [];
     for (const el of handBox.querySelectorAll(".tb-card[data-id]")) hand.set(Number(el.dataset.id), centred(el.getBoundingClientRect()));
-    for (const el of playBox.querySelectorAll(".t3-cd")) trick.push({ id: Number(el.dataset.id), at: centred(el.getBoundingClientRect()), html: el.outerHTML });
+    for (const el of playBox.querySelectorAll(".t3-cd")) trick.push({ id: Number(el.dataset.id), at: centred(el.getBoundingClientRect()), html: el.outerHTML, cw: el.offsetWidth });
     return { hand, trick };
   }
 
@@ -351,19 +351,24 @@ export function createTable3d(c) {
     const an = track(g.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s0})`, opacity: 1 }, { transform: "none", opacity: fade ? 0 : 1 }], t));
     an.onfinish = () => g.remove();
   }
-  /** The middle's old cards, swept to whoever took the trick, shrinking as they go. */
+  /** The middle's old cards, swept to whoever took the trick, shrinking as they go: drawn again on the cloth, in its plane, where
+   *  they lay, so the very cards that lay there are the ones that go (Korbi, 10 Nov 2026: no flat copy swapped in for the table's). */
   function sweep(was, seat) {
     const to = plateAt(seat);
     if (!to || !was?.trick.length) return;
     was.trick.forEach((t, i) => {
       if (!t.at) return;
-      const g = document.createElement("div");
-      g.className = "t3-ghost sweep";
-      g.style.cssText = `width:${t.at.w}px;height:${t.at.h}px;left:${t.at.x - t.at.w / 2}px;top:${t.at.y - t.at.h / 2}px;--cw:${t.at.w}px`;
-      g.innerHTML = t.html.replace(/ style="[^"]*"/, "");
-      fx.append(g);
-      track(g.animate([{ transform: "none", opacity: 1 }, { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3)`, opacity: 0 }],
-        { duration: 520, delay: 160 + i * 22, easing: "cubic-bezier(.5, 0, .8, .4)", fill: "both" })).onfinish = () => g.remove();
+      const holder = document.createElement("div");
+      holder.innerHTML = t.html.replace(/ style="[^"]*"/, "");
+      const el = holder.firstElementChild;
+      if (!el) return;
+      el.classList.add("t3-swept");
+      if (t.cw) el.style.setProperty("--cw", `${t.cw}px`);
+      centre.append(el);
+      const a = planeOffset(el, t.at), b = planeOffset(el, to, 40);
+      const go = track(el.animate([{ transform: `translate3d(${a.x}px, ${a.y}px, 0)`, opacity: 1 }, { transform: `translate3d(${b.x}px, ${b.y}px, 40px) scale(.3)`, opacity: 0 }],
+        { duration: 520, delay: 160 + i * 22, easing: "cubic-bezier(.5, 0, .8, .4)", fill: "both" }));
+      go.onfinish = go.oncancel = () => el.remove();
     });
   }
   /** A word popped at a seat: a pass, or its place as it goes out. */

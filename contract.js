@@ -17,7 +17,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
-import { createMotion, createParallax, rectOf, fill, settle } from "./table3d.js";
+import { createMotion, createParallax, rectOf, fill, snap } from "./table3d.js";
 import { plaqueHtml, wonHtml, columnsHtml, columnsEm, tallest, callKind } from "./contract-table.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -189,7 +189,8 @@ function draw() {
 function styleTable(s) {
   const t3 = on3(), table = $("table");
   $("app").classList.toggle("bd3", t3);
-  for (const el of [table, $("aside")]) el.classList.toggle("tk-surface", t3);
+  $("mat").classList.toggle("tk-mat", t3);                       // the tipped top (contract-3d.css); the auction's panel beside it stays flat on
+  $("aside").classList.toggle("tk-surface", t3);
   if (t3 && !parallax) parallax = [createParallax(table), createParallax($("aside"))];
   if (!t3 && parallax) { parallax.forEach(p => p.dispose()); parallax = null; for (const el of [table, $("aside")]) { el.style.removeProperty("--tk-px"); el.style.removeProperty("--tk-py"); } }
   const side = t3 && s.contract && s.dummyShown && !["scored", "over", "passed"].includes(s.step) ? placeOf(dummyOf(s)) : "";
@@ -251,7 +252,7 @@ function fitDummy() {
   for (const el of document.querySelectorAll("#table .bd-cols")) {
     const seat = el.closest(".bd-seat"), head = seat.querySelector(".bd-name"), hand = seat.__hand ?? 13;
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const room = { w: seat.clientWidth - 0.4 * rem, h: $("table").clientHeight - (head?.offsetHeight || 0) - 2.6 * rem };
+    const room = { w: seat.clientWidth - 0.4 * rem, h: $("mat").clientHeight - (head?.offsetHeight || 0) - 2.6 * rem };
     el.style.fontSize = `${Math.max(columnsEm(room, hand, { max: 1.05 * rem }), 0.45 * rem)}px`;
   }
 }
@@ -282,12 +283,12 @@ function drawCentre(s) {
 /** The trick in the middle (Table: each card flown from its seat and settling, a closed trick gathered into a stack and swept to
  *  its side's pile). Nothing is redrawn while it is the same, so a card in the air is not reset. */
 function trickMotion(box, html, s, fresh) {
-  const was = [...box.querySelectorAll(".bd-trick .bd-play")].map(el => ({ seat: Number(el.dataset.seat), at: rectOf(el.firstElementChild), html: el.firstElementChild?.outerHTML }));
+  const was = [...box.querySelectorAll(".bd-trick .bd-play")].map(el => ({ seat: Number(el.dataset.seat), ...snap(el.firstElementChild) }));
   if (!fill(box, html) || !on3() || fresh) return;
   const now = [...box.querySelectorAll(".bd-trick .bd-play")];
   if (was.length >= 4 && now.length < was.length && lastWin != null) {
     const mine = sideOf(lastWin) === sideOf(me()), pile = document.querySelector(`#won .bd-won${mine ? ".us" : ":not(.us)"} .bd-pile`);
-    mo().sweep(was, rectOf(pile) || rectOf($("table")));
+    mo().sweep(was, rectOf(pile) || rectOf($("table")), { plane: $("mat") });          // (on the top, which no redraw empties)
   }
   for (const el of now) {
     const seat = Number(el.dataset.seat);

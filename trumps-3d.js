@@ -2,7 +2,7 @@
 // as Guandan, Hearts and Big Two have it. The four seats stand round it as plates with a fan of backs and the cards left, what
 // they last said at the seat; each seat's card in the trick lies on the cloth in a lane in front of it, flown there from its
 // plate, and the trick is swept to the plate of whoever takes it. Your cards and the buttons stay the page's own.
-import { createCloth, createMotion, rectOf, fill, slotOf } from "./table3d.js";
+import { createCloth, createMotion, rectOf, fill, slotOf, snap } from "./table3d.js";
 import { slide, mayMove } from "./cardslide.js";
 
 /**
@@ -42,12 +42,12 @@ export function createTrumps3d(host, { quiet = () => false } = {}) {
     const swept = [];
     t.plates.forEach((_, seat) => {
       const slot = slotOf(seat, t.me, 4), lane = lanes[slot], html = t.lanes[seat] || "";
-      if (!html && lane._h && t.winner != null) [...lane.querySelectorAll(".cd")].forEach(cd => swept.push({ at: rectOf(cd), html: cd.outerHTML }));
+      if (!html && lane._h && t.winner != null) [...lane.querySelectorAll(".cd")].forEach(cd => swept.push(snap(cd)));
       if (!fill(lane, html) || first || !html) return;
       const from = rectOf(cloth.plates[slot].querySelector(".tk-med"));
       if (from && mayMove(quiet)) slide(lane.querySelector(".cd"), from, 0);          // the card that lies there is the one that moves
     });
-    if (swept.length && t.winner != null) m().sweep(swept, rectOf(cloth.plates[slotOf(t.winner, t.me, 4)].querySelector(".tk-med")));
+    if (swept.length && t.winner != null) m().sweep(swept, rectOf(cloth.plates[slotOf(t.winner, t.me, 4)].querySelector(".tk-med")), { plane: cloth.centre });
   }
   return {
     draw,

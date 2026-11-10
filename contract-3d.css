@@ -5,12 +5,27 @@
 #app.contract.bd3 { --tk-felt: #226B46; --pg-ink: var(--ink); --pg-soft: var(--ink-soft); }
 
 /* ---------- the cloth: light lettering on baize ---------- */
-.bd3 .bd-table { --tk-rail: .5rem; --ink: #F4EEDC; --ink-soft: #C9D6C4; --bd-in: #F0CD84; --bd-vul: #FF9C8C; --bd-soft: rgba(255, 255, 255, .08); --bd-under: var(--tk-c); --rule: rgba(240, 205, 132, .4);
+/* Korbi, 10 Nov 2026 ("contract bridge: not 3D"): the table stood flat on; it is the card room's tipped table now. #table is the stage
+   and .bd-mat the top, tipped away from you in perspective as table3d.css's .tk-mat (whose wood, brass and edges it wears), with the
+   seats, the auction or the trick and the tricks taken lying on it. (The perspective is in the top's own transform: cq units on the
+   stage itself would measure the page, not the stage.) */
+#app.bd3 .bd-table { --tk-tilt: 20deg; display: block; container-type: size; padding: 0; border-radius: 0; background: none; }
+#app.bd3 .bd-mat.tk-mat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "left top right" "left centre right"; gap: .3rem; transform: perspective(170cqh) rotateX(var(--tk-tilt)); transform-style: flat; }
+.bd3 .bd-mat > :is(.bd-seat, .bd-centre) { position: relative; z-index: 1; }
+/* the auction under North, as large as the far end allows: the side seats give up a little width while it is bid */
+#app.bd3[data-step="bid"] .bd-mat.tk-mat { grid-template-columns: minmax(0, .85fr) minmax(0, 2.6fr) minmax(0, .85fr); }
+#app.bd3[data-step="bid"] .bd-centre .bd-auction { font-size: clamp(1.1rem, 6cqw, 1.7rem); }
+/* the trick in the middle of the table, whichever side dummy lies on (its columns had pushed it toward a seat), and as large as the
+   middle allows; what it says just above the tricks taken at the foot */
+#app.bd3:not([data-step="bid"]) .bd-mat > .bd-centre { grid-area: auto; position: absolute; left: 21%; right: 21%; top: 30%; bottom: 15%; }   /* (no grid area: a grid area would be its frame) */
+.bd3 .bd-mat { --tk-rail: .5rem; --ink: #F4EEDC; --ink-soft: #C9D6C4; --bd-in: #F0CD84; --bd-vul: #FF9C8C; --bd-soft: rgba(255, 255, 255, .08); --bd-under: var(--tk-c); --rule: rgba(240, 205, 132, .4);
   padding: calc(var(--tk-rail) + .3rem) calc(var(--tk-rail) + .15rem); color: var(--ink); }
-.bd3 .bd-table[data-dummy="left"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1.85fr) minmax(0, .85fr); }
-.bd3 .bd-table[data-dummy="right"] { grid-template-columns: minmax(0, .85fr) minmax(0, 1.85fr) minmax(0, 2fr); }
-.bd3 .bd-table .bd-s:not(.red) { color: var(--tk-text); }
-.bd3 .bd-table .bd-s.red { color: #FF9C8C; }
+#app.bd3 .bd-table.open-top .bd-mat.tk-mat { grid-template-areas: "top top top" "left centre right"; }
+#app.bd3 .bd-table[data-dummy="left"] .bd-mat.tk-mat { grid-template-columns: minmax(0, 2fr) minmax(0, 1.85fr) minmax(0, .85fr); }
+#app.bd3 .bd-table[data-dummy="right"] .bd-mat.tk-mat { grid-template-columns: minmax(0, .85fr) minmax(0, 1.85fr) minmax(0, 2fr); }
+.bd3 .bd-mat .bd-s:not(.red) { color: var(--tk-text); }
+.bd3 .bd-mat .bd-s.red { color: #FF9C8C; }
 .bd3 .bd-seat.turn { background: rgba(255, 255, 255, .06); box-shadow: 0 0 0 1.5px var(--tk-gilt), 0 0 .9rem rgba(233, 196, 124, .38); }
 .bd3 .bd-seat.dummy:is(.at-left, .at-right) { align-self: start; }
 /* the compass letter is a brass roundel on a name plate */

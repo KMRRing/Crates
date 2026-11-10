@@ -41,6 +41,8 @@ html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
 .bd-seat.at-top { grid-area: top; }
 /* dummy's cards yours to play: across the whole table, the opponents beside the trick under it */
 .bd-table.open-top { grid-template-areas: "top top top" "left centre right"; }
+/* the seats and the middle are the table's own on the flat table; on the tipped one (contract-3d.css) they lie on its top, .bd-mat */
+.bd-mat { display: contents; }
 .bd-seat.at-left { grid-area: left; align-self: center; }
 .bd-seat.at-right { grid-area: right; align-self: center; }
 .bd-seat.turn { box-shadow: inset 0 0 0 2px var(--bd-in); background: var(--bd-soft); }

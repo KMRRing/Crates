@@ -175,6 +175,7 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-go { min-height: 2.75rem; padding: 0 .6rem; border-radius: 4px; cursor: pointer; border: 0; background: var(--plate); color: var(--plate-ink); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   font: inherit; font-size: .95rem; font-weight: 800; line-height: 1.15; }
 .ct-go small { display: block; margin-top: .1rem; font-size: .64rem; font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .8; }
+.ct-go:has(small) { min-height: 3.1rem; padding-top: .3rem; padding-bottom: .3rem; line-height: 1.15; }
 .ct-go-quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ct-plain-edge); }
 .ct-go small { display: block; font-size: .7rem; font-weight: 650; opacity: .85; margin-top: .1rem; }
 .ct-waiting { color: var(--ink-soft); text-align: center; margin: .4rem 0; }
@@ -216,7 +217,9 @@ dialog.ct-pop .ct-go { width: 100%; }
 .ct3 { display: flex; flex-direction: column; padding: 0; border: 0; outline: 0; background: none; box-shadow: none; }
 .ct3 .ct-stage { display: block; position: relative; flex: 1 1 0; min-height: 0; }
 .ct3 .tk-field { height: 100%; --tk-tilt: 11deg; }
-.ct3 .tk-mat { height: 112%; }   /* Korbi, 8 Nov 2026: "make the table much longer and bigger": less foreshortened, so the cloth is nearer a full rectangle */
+.ct3 .tk-mat { height: calc(112% - 2.4rem); }   /* Korbi, 8 Nov 2026: "make the table much longer and bigger": less foreshortened, so the cloth is nearer a full rectangle;
+   10 Nov 2026: "table cut off at the top": as long as the stage allows less the room its foot stands on (1.7rem), whatever the stage's height */
+.ct3 { margin-left: 0; margin-right: 0; }   /* (the cloth keeps the page's margins, in line with the tray under it) */
 .ct3 .ct-seats, .ct3 .tk-plate { display: none; }
 .ct3 .tk-centre { --tk-side: .8rem; left: 33%; right: 33%; top: 36%; bottom: 22%; pointer-events: auto; }
 @media (max-height: 700px) and (orientation: portrait) { .ct3 .tk-centre { top: 30%; bottom: 33%; } }   /* (a short phone: clear of your dice) */

@@ -100,6 +100,8 @@
 .tk-mat :is(.tk-centre, .tk-pile) .cd:not(.lit) { box-shadow: var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
 .tk-mat :is(.tk-centre, .tk-pile) .cd.lit { box-shadow: 0 0 0 .14em var(--tk-gilt), var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
 .tk-coming { opacity: 0; }
+/* a closed trick's card drawn again in the cloth's plane to be swept off (table3d.js, sweep): placed by its transform alone */
+.tk-swept { position: absolute !important; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 4; pointer-events: none; box-shadow: var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
 .tk-pile { --cw: 2.6rem; position: relative; display: inline-block; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4); font-size: calc(var(--cw) / 2.5); }
 .tk-pile.empty { border: 1px dashed color-mix(in srgb, var(--tk-text) 40%, transparent); border-radius: .2em; }
 .tk-pl { position: absolute; left: 0; top: 0; translate: calc(var(--i) * .035em) calc(var(--i) * .075em); box-shadow: 0 .04em .1em rgba(0, 0, 0, .35); }

@@ -8,7 +8,8 @@
 // a card, so one face serves the hand, the middle, a plate and a flight.
 //
 //   createCloth(host, { seats, clockwise }) the tipped cloth with a plate for each seat and a middle (table3d.css)
-//   createMotion({ quiet })                 cards flown, swept, dealt, popped; a pause; none when motion is off
+//   createMotion({ quiet })                 cards slid to the cloth, swept, dealt, popped; a pause; none when motion is off
+//   slideIn, planeOffset, snap              a card moved in the cloth's own plane (what createMotion and cardslide.js use)
 //   createParallax(el)                      the lamp and the rail's sheen slide with the phone's tilt or the pointer (Table 2.0)
 //   card, back, plateHtml, pileHtml, fanHtml  the markup (pure strings)
 //   seatSpots, slotOf, rowFit, flightBox, archOf, pileLayers, fanTurns  the arithmetic (pure; tests/table3d.mjs)
@@ -146,11 +147,50 @@ export function settle(el) {
   el.animate([{ scale: 1.14, translate: "0 -.28em", boxShadow: "0 .6em .9em -.1em rgba(0, 0, 0, .42)" }, { scale: .97, translate: "0 0", offset: .6 }, { scale: 1 }], { duration: 300, easing: "ease-out" });
 }
 const still = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null;
+const LIFT = 48;                                                 // px toward you: a card in the air clears the plates standing on the cloth
 /**
- * Cards in the air. Each is a ghost in a fixed layer over the page, flown by the Web Animations API from where it was to where
- * it lands (the real card is hidden until then), so nothing on the cloth is animated or laid out again. `quiet()`: a
- * watching frame, which shows none. With reduced motion, a hidden page, a pause or `quiet`, nothing flies (moving() says so)
- * and the game simply draws the table as it is. Rects are { x, y, w, h } from rectOf().
+ * The move, in the cloth's own plane (px across and down it, and `z` toward you), that puts `el`'s centre at the screen point `p`.
+ * The plane is in perspective, so a straight guess from the card's scale there is corrected by measuring where it really lands.
+ */
+export function planeOffset(el, p, z = 0) {
+  const r = el.getBoundingClientRect(), kx = r.width / (el.offsetWidth || 1) || 1, ky = r.height / (el.offsetHeight || 1) || 1;
+  const d = { x: (p.x - (r.left + r.width / 2)) / kx, y: (p.y - (r.top + r.height / 2)) / ky }, was = el.style.transform;
+  for (let i = 0; i < 6; i++) {
+    el.style.transform = `translate3d(${d.x}px, ${d.y}px, ${z}px)`;
+    const m = el.getBoundingClientRect(), ex = p.x - (m.left + m.width / 2), ey = p.y - (m.top + m.height / 2);
+    if (Math.abs(ex) < 1 && Math.abs(ey) < 1) break;
+    d.x += ex / kx; d.y += ey / ky;
+  }
+  el.style.transform = was;
+  return d;
+}
+/**
+ * Korbi, 7 and 10 Nov 2026: a card played to the cloth is the very element that stays there, slid from where it came from to where
+ * it lies in the cloth's own plane, lifted a little and coming down as it arrives: "the cards are already aligned with the table during
+ * the animation and then just go to their spot", with no copy flown flat over the page and swapped for it. `from` is a screen rect;
+ * a start outside the cloth's stage (your hand under the table) is brought to its edge, as the stage would cut the card off.
+ * Returns the animation (or null when nothing moves).
+ */
+export function slideIn(el, from, { delay = 0, ms = 360 } = {}) {
+  if (!el?.animate || !from || still?.matches) return null;
+  const r = el.getBoundingClientRect(), stage = el.closest(".tk-stage, [data-tk-stage]")?.getBoundingClientRect();
+  const p = { x: from.x, y: from.y };
+  if (stage?.width) {
+    const hw = Math.min(r.width / 2, stage.width / 2), hh = Math.min(r.height / 2, stage.height / 2);
+    p.x = Math.max(stage.left + hw, Math.min(stage.right - hw, p.x));
+    p.y = Math.max(stage.top + hh, Math.min(stage.bottom - hh, p.y));
+  }
+  const d = planeOffset(el, p, LIFT), s = Math.max(0.2, Math.min(1, (from.h || r.height) / (r.height || 1)));
+  return el.animate([{ transform: `translate3d(${d.x}px, ${d.y}px, ${LIFT}px) scale(${s.toFixed(3)})` }, { transform: "none" }],
+    { duration: ms, delay, easing: "cubic-bezier(.3, .7, .2, 1)", fill: "backwards" });
+}
+/** What a sweep needs of a card on the cloth, taken before it is drawn away: where it is, its markup and its size. */
+export const snap = el => (el ? { at: rectOf(el), html: el.outerHTML, fs: parseFloat(getComputedStyle(el).fontSize) || 0 } : null);
+/**
+ * Cards in the air. A card played to the cloth slides there in the cloth's plane (slideIn); a closed trick is gathered and swept off in
+ * that plane too (sweep). Only a card with nowhere on the cloth to be (a back dealt to a plate) flies as a ghost in a fixed layer over
+ * the page. `quiet()`: a watching frame, which shows none. With reduced motion, a hidden page, a pause or `quiet`, nothing flies
+ * (moving() says so) and the game simply draws the table as it is. Rects are { x, y, w, h } from rectOf().
  */
 export function createMotion({ quiet = () => false } = {}) {
   const fx = document.createElement("div");
@@ -160,45 +200,58 @@ export function createMotion({ quiet = () => false } = {}) {
   const running = new Set();                                      // the animations going, so a pause can hold them
   let held = false;
   const moving = () => !still?.matches && !document.hidden && !quiet() && !held;
-  const track = a => { running.add(a); const done = () => running.delete(a); a.addEventListener("finish", done); a.addEventListener("cancel", done); return a; };
+  const track = a => { if (!a) return a; running.add(a); const done = () => running.delete(a); a.addEventListener("finish", done); a.addEventListener("cancel", done); return a; };
 
-  /** A card flown from `from` to `to`, turning over on the way where it's face down at one end (`up0`, `up1`); `land`: the
-   *  element it lands as, hidden until then and given a small bounce; `fade`: it dissolves on arrival (a card dealt to a hand). */
+  /** A card from `from` to `to`. With `land` (the element it lands as) that very card slides there in the cloth's plane (slideIn);
+   *  without, a ghost flies flat over the page, turning over on the way where it's face down at one end (`up0`, `up1`), and `fade`
+   *  dissolves it on arrival (a card dealt to a hand). */
   function fly({ face, back: behind = back(), from, to, up0 = true, up1 = true, delay = 0, ms = FLY_MS, fade = false, land = null }) {
     if (!from || !to || !moving()) return;
+    if (land) { track(slideIn(land, from, { delay, ms })); return; }
     const b = flightBox(from, to), g = document.createElement("div");
     g.className = "tk-ghost";
     g.style.cssText = `width:${b.w}px;height:${b.h}px;left:${b.left}px;top:${b.top}px;--cw:${b.w}px`;
     g.innerHTML = `<div class="tk-gin"><div class="tk-gf">${face}</div><div class="tk-gb">${behind}</div></div>`;
     fx.append(g);
-    if (land) { land.classList.add("tk-coming"); setTimeout(() => land.classList.remove("tk-coming"), ms + delay + 150); }
     const t = { duration: ms, delay, easing: EASE, fill: "both" }, turn = x => `rotateY(${x ? 0 : 180}deg)`;
     track(g.firstElementChild.animate([{ transform: turn(up0) }, { transform: `rotateY(${up0 === up1 ? (up0 ? 0 : 180) : 90}deg) scale(1.12)`, offset: 0.5 }, { transform: turn(up1) }], t));
-    const a = track(g.animate([{ transform: `translate(${b.dx}px, ${b.dy}px) scale(${b.s0})`, opacity: 1 }, { transform: "none", opacity: fade ? 0 : 1 }], t));
-    a.onfinish = () => {
-      g.remove();
-      if (!land) return;
-      land.classList.remove("tk-coming");
-      settle(land);
-    };
+    track(g.animate([{ transform: `translate(${b.dx}px, ${b.dy}px) scale(${b.s0})`, opacity: 1 }, { transform: "none", opacity: fade ? 0 : 1 }], t)).onfinish = () => g.remove();
   }
-  /** Cards that lay on the cloth gathered into a stack, a beat, then swept to `to` (a plate), shrinking as they go: items are
-   *  { at: rect, html: the card's markup }. */
-  function sweep(items, to, { delay = 160 } = {}) {
+  /** Cards that lay on the cloth gathered into a stack, a beat, then swept to `to` (a plate), shrinking as they go: items are snap()s
+   *  ({ at, html, fs }) taken before the trick was drawn away. With `plane` (an element on the cloth, such as its middle) they are
+   *  drawn again there, in the cloth's plane, so the very cards that lay there are the ones that go; without, as ghosts over the page. */
+  function sweep(items, to, { delay = 160, plane = null } = {}) {
     if (!to || !moving()) return;
-    const list = items.filter(t => t.at).slice(-MOST_FLIGHTS);
+    const list = items.filter(t => t?.at).slice(-MOST_FLIGHTS);
     if (!list.length) return;
     const mx = list.reduce((s, t) => s + t.at.x, 0) / list.length, my = list.reduce((s, t) => s + t.at.y, 0) / list.length;
+    const timing = i => ({ duration: SWEEP_MS, delay: delay + i * 14, easing: "cubic-bezier(.4, 0, .6, 1)", fill: "both" });
     list.forEach((t, i) => {
+      const lean = `rotate(${(i % 3 - 1) * 5}deg)`;
+      if (plane?.isConnected) {
+        const holder = document.createElement("div");
+        holder.innerHTML = t.html;
+        const el = holder.firstElementChild;
+        if (!el) return;
+        el.classList.add("tk-swept");
+        if (t.fs) el.style.fontSize = `${t.fs}px`;
+        plane.append(el);
+        const at = planeOffset(el, t.at), mid = planeOffset(el, { x: mx + (i - list.length / 2) * 1.2, y: my - i * 1.5 }, 6 + i), end = planeOffset(el, to, LIFT);
+        const go = track(el.animate([{ transform: `translate3d(${at.x}px, ${at.y}px, 0)`, opacity: 1 },
+          { transform: `translate3d(${mid.x}px, ${mid.y}px, ${6 + i}px) ${lean}`, opacity: 1, offset: 0.3 }, { transform: `translate3d(${mid.x}px, ${mid.y}px, ${6 + i}px) ${lean}`, opacity: 1, offset: 0.46 },
+          { transform: `translate3d(${end.x}px, ${end.y}px, ${LIFT}px) scale(.3) ${lean}`, opacity: 0 }], timing(i)));
+        const off = () => el.remove();
+        go.onfinish = off; go.oncancel = off;
+        return;
+      }
       const g = document.createElement("div");
       g.className = "tk-ghost sweep";
       g.style.cssText = `width:${t.at.w}px;height:${t.at.h}px;left:${t.at.x - t.at.w / 2}px;top:${t.at.y - t.at.h / 2}px;--cw:${t.at.w}px`;
       g.innerHTML = t.html;
       fx.append(g);
-      const stack = `translate(${mx - t.at.x + (i - list.length / 2) * 1.2}px, ${my - t.at.y - i * 1.5}px) rotate(${(i % 3 - 1) * 5}deg)`;
+      const stack = `translate(${mx - t.at.x + (i - list.length / 2) * 1.2}px, ${my - t.at.y - i * 1.5}px) ${lean}`;
       track(g.animate([{ transform: "none", opacity: 1 }, { transform: stack, opacity: 1, offset: 0.3 }, { transform: stack, opacity: 1, offset: 0.46 },
-        { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3) rotate(${(i % 3 - 1) * 5}deg)`, opacity: 0 }],
-        { duration: SWEEP_MS, delay: delay + i * 14, easing: "cubic-bezier(.4, 0, .6, 1)", fill: "both" })).onfinish = () => g.remove();
+        { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3) ${lean}`, opacity: 0 }], timing(i))).onfinish = () => g.remove();
     });
   }
   /** Backs dealt from `from` to each rect of `to` (a plate's fan): `per` rounds, round by round, one after another. */

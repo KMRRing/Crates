@@ -1,5 +1,6 @@
 // Yacht's dice thrown on a felt (Menu, View: 3D), drawn with three.js (vendor/three.js, kept on the device, so it plays
-// offline): five ivory dice with rounded edges and pips, a lamp over them, their shadows on the page's own mahogany (nothing else is drawn: no table of its own). The
+// offline): five ivory dice with rounded edges and pips, a lamp over them, on a mahogany table of the card room's own (a polished top under
+// a brass line, a brass band and a dark-wood edge under it, its shadow on the page), the only table on the page. The
 // flat dice are the default and this is the page's second drawing of the same state: yacht.js hands over what the game
 // says (the five faces, which are held, whether they've been rolled, a key that changes with each roll) and gets back a tap
 // on a die. The throw is a scripted tumble (a toss, bounces, a spin that settles) ending on the face the game gave: the
@@ -7,12 +8,16 @@
 // Held dice stand in a row near you; tap one to hold it or let it go. It draws only while something moves, 30 frames a
 // second at the most, and the pixel ratio is capped at 2.
 import * as THREE from "./vendor/three.js";
-import { CanvasTexture } from "./vendor/three-tex.js";
+import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 import { DIE, ROW_Z, SCATTER, GAP, heldSpot, scatterSpots, keyNumber, FACES, PIP_AT } from "./yacht-3d-geo.js";
 
 const PCF = 1;                                                              // THREE.PCFShadowMap (the soft one is not in the bundle)
 const NEAR = 1, FAR = 120, FOV = 30 * Math.PI / 180, ELEV = 54 * Math.PI / 180, TARGET_Z = 0.3;
-const FIT = [[-3.4, 0, -2.9], [3.4, 0, -2.9], [-3.4, 0, 3.1], [3.4, 0, 3.1], [-3.4, 1.4, -2.9], [3.4, 1.4, -2.9]];   // what the camera must keep in view
+// the table: its top's half width and depth, the brass band and the dark wood under it (Korbi, 10 Nov 2026: "yacht: not 3D", the dice
+// had stood on the page's flat box; the table is drawn here now, as the card games' tipped table, and the page's box is gone in 3D)
+const TOP = { hw: 4.35, z0: -3.75, z1: 3.85, r: 0.42, wood: 0.12, band: 0.1, edge: 0.42 };
+const DROP = TOP.wood + TOP.band + TOP.edge;
+const FIT = [[-TOP.hw, 0, TOP.z0], [TOP.hw, 0, TOP.z0], [-TOP.hw, -DROP, TOP.z1 + 0.35], [TOP.hw, -DROP, TOP.z1 + 0.35], [-3.4, 1.4, -2.9], [3.4, 1.4, -2.9]];   // what the camera must keep in view
 const clamp01 = u => Math.max(0, Math.min(1, u));
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -28,6 +33,14 @@ function roundedBox(size, r, seg = 5) {
   }
   g.computeVertexNormals();
   return g;
+}
+/** A rectangle with rounded corners, as a shape (or a hole, into a Path), centred on cx, cy. */
+function roundedRect(w, h, r, cx = 0, cy = 0, into = new THREE.Shape()) {
+  const x = cx - w / 2, y = cy - h / 2;
+  into.moveTo(x + r, y); into.lineTo(x + w - r, y); into.quadraticCurveTo(x + w, y, x + w, y + r); into.lineTo(x + w, y + h - r);
+  into.quadraticCurveTo(x + w, y + h, x + w - r, y + h); into.lineTo(x + r, y + h); into.quadraticCurveTo(x, y + h, x, y + h - r);
+  into.lineTo(x, y + r); into.quadraticCurveTo(x, y, x + r, y);
+  return into;
 }
 /** Geometries joined into one (positions, normals and indices). */
 function merge(list) {
@@ -102,11 +115,57 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
   const matDie = std(0xffffff, 0.32), matPip = std(0x1c2a34, 0.5), matRed = std(0xc0262d, 0.5);
 
   // ---------- the table ----------
-  // There is no table drawn here: the page's own mahogany shows through the clear canvas (Korbi, 7 Nov 2026: "a table within a
-  // table"), and a plane that draws nothing but shadows lays the dice's on it.
+  // A slab seen from above and in front, as the card games' tipped table: the top in polished mahogany (painted below, in the page's
+  // own --tk-top colours), a brass line inset round it, then down its front a brass band and dark wood, standing on a soft shadow.
   const mesh = (g, m, cast = true, receive = true) => { const o = new THREE.Mesh(g, m); o.castShadow = cast; o.receiveShadow = receive; o.frustumCulled = false; scene.add(o); return o; };
+  const cx = 0, cz = (TOP.z0 + TOP.z1) / 2, W = 2 * TOP.hw, D = TOP.z1 - TOP.z0;
+  const woodCanvas = document.createElement("canvas");
+  woodCanvas.width = 512; woodCanvas.height = 448;
+  const woodTex = track(new CanvasTexture(woodCanvas));
+  woodTex.colorSpace = SRGBColorSpace;
+  woodTex.repeat.set(1 / W, 1 / D);                                     // the shape's own coordinates are its UVs: one texture over the top
+  woodTex.offset.set(0.5, 0.5);
+  const matTop = track(new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.42, metalness: 0 }));
+  const matBand = std(0xcfa24e, 0.32, 0.8), matEdge = std(0x2a1208, 0.62), matLine = std(0xcfa24e, 0.3, 0.85);
+  const slab = (y, h, m) => { const g = track(new THREE.ExtrudeGeometry(roundedRect(W, D, TOP.r), { depth: h, bevelEnabled: false, curveSegments: 8 })); g.rotateX(-Math.PI / 2); g.translate(cx, y - h, cz); return mesh(g, m); };
+  slab(0, TOP.wood, [matTop, matEdge]);
+  slab(-TOP.wood, TOP.band, matBand);
+  { const g = track(new THREE.ExtrudeGeometry(roundedRect(W - 0.06, D - 0.06, TOP.r), { depth: TOP.edge, bevelEnabled: false, curveSegments: 8 })); g.rotateX(-Math.PI / 2); g.translate(cx, -DROP, cz); mesh(g, matEdge); }
+  { const ring = roundedRect(W - 0.5, D - 0.5, TOP.r * 0.7); ring.holes.push(roundedRect(W - 0.58, D - 0.58, TOP.r * 0.66, 0, 0, new THREE.Path()));
+    const g = track(new THREE.ShapeGeometry(ring, 8)); g.rotateX(-Math.PI / 2); g.translate(cx, 0.004, cz); mesh(g, matLine, false, true); }
+  // its shadow on the page, soft, a little toward you (the CSS tables' drop shadow); blurred with a canvas shadow, which every browser
+  // draws (Safari has no canvas filter), and fading out well inside its own square, so the stage's edge never cuts it
+  const groundTex = track((() => { const c = document.createElement("canvas"); c.width = 256; c.height = 224; const x = c.getContext("2d");
+    x.shadowColor = "rgba(0,0,0,.62)"; x.shadowBlur = 22; x.shadowOffsetX = 1000;
+    x.fillStyle = "#000"; x.beginPath(); x.roundRect(46 - 1000, 40, 164, 144, 20); x.fill(); return new CanvasTexture(c); })());
+  { const g = track(new THREE.BoxGeometry(W * 1.3, 0.002, D * 1.3)), m = track(new THREE.MeshBasicMaterial({ map: groundTex, transparent: true, depthWrite: false }));
+    const o = new THREE.Mesh(g, m); o.position.set(0.12, -DROP - 0.02, cz + 0.35); o.renderOrder = -2; o.frustumCulled = false; scene.add(o); }
+  /** The top's wood, in the theme's colours: the grain, a lamp's pool in the middle, the far end in shade. */
+  function paintWood(stops) {
+    const x = woodCanvas.getContext("2d"), w = woodCanvas.width, h = woodCanvas.height;
+    const base = x.createLinearGradient(0, 0, 0, h);
+    base.addColorStop(0, stops[0]); base.addColorStop(0.56, stops[1]); base.addColorStop(1, stops[2]);
+    x.fillStyle = base; x.fillRect(0, 0, w, h);
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 520; i++) {                                     // long streaks across, as a plank's grain runs
+      const y = rnd() * h, dark = rnd() < 0.62;
+      x.strokeStyle = dark ? `rgba(20,6,0,${0.05 + rnd() * 0.11})` : `rgba(255,214,160,${0.025 + rnd() * 0.05})`;
+      x.lineWidth = 0.6 + rnd() * 1.8;
+      x.beginPath(); x.moveTo(0, y);
+      for (let px = 0; px <= w; px += 32) x.lineTo(px, y + Math.sin(px / 90 + i) * 2.2 + (rnd() - 0.5) * 1.2);
+      x.stroke();
+    }
+    const shade = x.createLinearGradient(0, 0, 0, h);
+    shade.addColorStop(0, "rgba(8,3,1,.5)"); shade.addColorStop(0.46, "rgba(8,3,1,0)");
+    x.fillStyle = shade; x.fillRect(0, 0, w, h);
+    const pool = x.createRadialGradient(w / 2, h * 0.56, 10, w / 2, h * 0.56, w * 0.5);
+    pool.addColorStop(0, "rgba(255,208,150,.2)"); pool.addColorStop(1, "rgba(255,208,150,0)");
+    x.fillStyle = pool; x.fillRect(0, 0, w, h);
+    woodTex.needsUpdate = true;
+  }
   // (the vendored three leaves ShadowMaterial out, which stopped the 3D dice altogether: each die lays a soft blob of its own instead,
-  // fainter and wider the higher it is)
+  // fainter and wider the higher it is; the top takes the lamp's shadows too, so the blob is only the contact's darkening)
   const blobTex = track((() => { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
     g.addColorStop(0, "rgba(0,0,0,.85)"); g.addColorStop(.55, "rgba(0,0,0,.4)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new CanvasTexture(c); })());
   const blobMat = track(new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
@@ -125,21 +184,29 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
   // ---------- the camera ----------
   let width = 1, height = 1, night = false;
   const P = new THREE.Vector3();
-  function pose(dist) {
+  /** The camera `dist` from the middle at ELEV; `shift` moves the picture up or down (in the screen's own -1..1) without turning it. */
+  function pose(dist, shift = 0) {
     camera.position.set(0, Math.sin(ELEV) * dist, TARGET_Z + Math.cos(ELEV) * dist);
     camera.up.set(0, 1, 0);
     camera.lookAt(0, 0, TARGET_Z);
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     const t = NEAR * Math.tan(FOV / 2), r = t * (width / height);
-    camera.projectionMatrix.makePerspective(-r, r, t, -t, NEAR, FAR);
+    camera.projectionMatrix.makePerspective(-r, r, t + shift * t, -t + shift * t, NEAR, FAR);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
-  const fits = () => FIT.every(([x, y, z]) => { P.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix); return Math.abs(P.x) <= 1 && Math.abs(P.y) <= 1; });
+  /** Where what must be seen falls on the screen, -1..1 each way. */
+  function extent() {
+    let y0 = Infinity, y1 = -Infinity, x1 = 0;
+    for (const [x, y, z] of FIT) { P.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix); y0 = Math.min(y0, P.y); y1 = Math.max(y1, P.y); x1 = Math.max(x1, Math.abs(P.x)); }
+    return { y0, y1, x1 };
+  }
+  // the camera comes as close as the table and the dice allow, the table in the middle of its box (it had sat low, with the wood's
+  // worth of empty page above it)
   function frameAll() {
-    let dist = 6;
-    pose(dist);
-    while (!fits() && dist < 60) { dist += 0.25; pose(dist); }
+    let dist = 6, e;
+    for (;;) { pose(dist); e = extent(); if ((e.x1 <= 0.97 && e.y1 - e.y0 <= 1.9) || dist >= 60) break; dist += 0.2; }
+    pose(dist, (e.y0 + e.y1) / 2);
     invalidate();
   }
   function resize() {
@@ -153,6 +220,12 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
     const root = document.documentElement, css = getComputedStyle(root);
     night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
     renderer.setClearColor(0x000000, 0);
+    // the table in the card room's colours (table3d.css: --tk-top's three stops, --tk-brass), so it is the same mahogany, or Office's graphite
+    const stops = css.getPropertyValue("--tk-top").match(/#[0-9a-f]{6}/gi) || ["#7C4025", "#5C2D19", "#43200F"];
+    paintWood(stops.length >= 3 ? stops : ["#7C4025", "#5C2D19", "#43200F"]);
+    const brass = css.getPropertyValue("--tk-brass").trim() || "#CFA24E";
+    try { matBand.color.set(brass); matLine.color.set(brass); } catch { /* keep the brass */ }
+    matEdge.color.set(root.dataset.theme === "office" ? 0x111317 : night ? 0x1e0d05 : 0x2a1208);
     ivory = new THREE.Color(night ? 0xede3cc : 0xfbf4e4);
     sun.intensity = night ? 2.3 : 2.8;
     hemi.intensity = night ? 0.85 : 1.0;
@@ -172,7 +245,7 @@ export function createYacht3d(host, { onTap = () => {}, onLost = () => {} } = {}
     lastDraw = t;
     const now = performance.now();
     for (let i = anims.length - 1; i >= 0; i--) if (!anims[i](now)) anims.splice(i, 1);
-    dice.forEach((d, k) => { const h = Math.max(0, d.p.y - DIE / 2), b = blobs[k]; b.position.set(d.p.x + h * 0.25, 0.02, d.p.z + h * 0.3); b.scale.setScalar(DIE * (2.1 + h * 0.5)); b.material.opacity = 0.62 / (1 + h * 0.8); });
+    dice.forEach((d, k) => { const h = Math.max(0, d.p.y - DIE / 2), b = blobs[k]; b.position.set(d.p.x + h * 0.25, 0.02, d.p.z + h * 0.3); b.scale.setScalar(DIE * (2.1 + h * 0.5)); b.material.opacity = 0.4 / (1 + h * 0.8); });
     dice.forEach((d, k) => { M4.compose(d.p, d.q, ONE); body.setMatrixAt(k, M4); pips.setMatrixAt(k, M4); reds.setMatrixAt(k, M4); });
     body.instanceMatrix.needsUpdate = pips.instanceMatrix.needsUpdate = reds.instanceMatrix.needsUpdate = true;
     dirty = false;

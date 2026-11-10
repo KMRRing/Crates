@@ -46,7 +46,7 @@ if (!E.VARIANTS[prefs.variant]) prefs.variant = "klondike1";
 prefs.auto = true; prefs.four = false;
 delete prefs.mode;                                   // older saves chose Random or Today's here; Today's is a button now (menu.js todayPart), and a saved run of it still resumes
 const savePrefs = () => write(PREFS, prefs);
-// prefs.view ("3d" or "flat"), .tilt and .yaw (degrees) are written only when the player picks one; with none the suite's
+// prefs.view ("3d" or "flat"), .tilt and .yaw (degrees) and .pan ({ x, z, zoom }: where the table was slid to) are written only when the player picks one; with none the suite's
 // 2D/3D default (mode3d.js, the main menu's battery saver) decides, so it must never be written in for them.
 // prefs.sound is off only when the player turned it off.
 sound.setOn(!IN_FRAME && prefs.sound !== false);
@@ -412,10 +412,11 @@ async function applyView() {
       const m = await load3d(import("./solitaire-3d.js"));
       if (my !== viewing || board.view) return;
       const v = m.createView($("table"), {
-        onCamera: (tilt, yaw) => { prefs.tilt = Math.round(tilt); prefs.yaw = Math.round(yaw); savePrefs(); },
+        onCamera: (tilt, yaw, pan) => { prefs.tilt = Math.round(tilt); prefs.yaw = Math.round(yaw); prefs.pan = pan; savePrefs(); },
         onLost: () => { failed3d = true; applyView(); },
       });
       v.setCamera(tiltNow(), prefs.yaw || 0, false);
+      v.setPan(prefs.pan);                       // (where you last slid or zoomed the table to)
       board.setView(v);
     } catch (err) { console.warn("Solitaire: no 3D here.", err); failed3d = true; }
   } else if (!want && board.view) {

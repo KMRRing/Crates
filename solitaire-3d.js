@@ -383,12 +383,14 @@ export function createView(host, opts = {}) {
     if (!f.cw || !f.W || !f.H) return;
     frame = f;
     const grew = made && texW() !== texSize;
-    W = f.W; H = f.H; cw = f.cw; ch = f.ch; em = cw / 2.5; thick = Math.max(0.6, cw * 0.016);
+    // a card has a thickness that shows at the angle, as a real one does (Korbi, 10 Nov 2026: "too flat on top of the table")
+    W = f.W; H = f.H; cw = f.cw; ch = f.ch; em = cw / 2.5; thick = Math.max(1, cw * 0.026);
     if (!made || grew) make();
     let tall = 0;
     for (const p of f.pos.values()) if (p.h > tall) tall = p.h;
     const room = (tall + 1) * thick + ch * 0.3;                        // the tallest pile, and a card carried over it, must stay in the picture
     if (`${W}x${H}` !== sized || Math.abs(room - headroom) > thick * 3) { headroom = room; resize(); }
+    usePending();
     const now = performance.now(), snap = f.instant || reduced;
     let flying = 0;
     if (f.deal && !reduced) for (const p of f.pos.values()) if (!p.stock) flying++;
@@ -429,8 +431,10 @@ export function createView(host, opts = {}) {
     const aspect = W / H;
     dist = fitDistance(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom) / zoom;
     pose = poseOf(tilt, yaw, dist);
-    const reach = k => (k / 2 + margin()) * (1 - 1 / zoom);
-    panX = Math.max(-reach(W), Math.min(reach(W), panX)); panZ = Math.max(-reach(H), Math.min(reach(H), panZ));
+    // zoomed, the camera may look anywhere on the table; at the whole table it may still slide a little, most of all toward
+    // the far side, so the cards come down the screen toward the hand (Korbi, 10 Nov 2026)
+    const reach = (k, free) => (k / 2 + margin()) * (1 - 1 / zoom) + k * free;
+    panX = Math.max(-reach(W, 0.12), Math.min(reach(W, 0.12), panX)); panZ = Math.max(-reach(H, 0.32), Math.min(reach(H, 0.32), panZ));
     pose.pos = [pose.pos[0] + panX, pose.pos[1], pose.pos[2] + panZ];
     const near = dist * 0.1, top = near * Math.tan(FOV / 2), right = top * aspect;
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, dist * 4);
@@ -500,7 +504,11 @@ export function createView(host, opts = {}) {
   /** Back to the whole table. */
   function unzoom() { if (zoom === 1 && !panX && !panZ) return; zoom = 1; panX = panZ = 0; aim(true); wake(); }
   /** The gesture is over: the page keeps the pick. */
-  function commit() { opts.onCamera?.(tTilt, tYaw); }
+  function commit() { opts.onCamera?.(tTilt, tYaw, { x: W ? panX / W : 0, z: H ? panZ / H : 0, zoom }); }
+  /** Where the camera looks and how near, as the page kept it (`x`, `z` in shares of the table): applied once the table has its size. */
+  let pending = null;
+  function setPan(p) { pending = p || null; if (W && H) usePending(); }
+  function usePending() { if (!pending) return; zoom = Math.max(1, Math.min(3.5, pending.zoom || 1)); panX = (pending.x || 0) * W; panZ = (pending.z || 0) * H; pending = null; aim(true); wake(); }
   /** The camera's button: straight above, or at the angle. → which. */
   function preset() {
     const top = tTilt >= ANGLED / 2;
@@ -587,11 +595,12 @@ export function createView(host, opts = {}) {
       c.mesh.rotation.set(Math.PI * (1 - cur.flip), 0, 0);
       // its shadow lies on the table, or on the cards under a carried one; it is longer and fainter the higher the card is
       // a card at rest on a pile adds only a little to the pile's shadow, one in the air (carried, sliding, turning) casts its own
-      const surface = dragged ? under : 0, h = Math.max(0, y - thick / 2 - surface), spread = 1.5 + h * 0.2;
-      c.shadow.position.set(cur.x + jx + 0.5 + h * 0.28, surface + 0.2, cur.z + 0.9 + h * 0.5);
+      // at rest it still casts a soft shadow toward you, so it lies on the cloth rather than being printed on it
+      // (a card resting in a pile casts from the pile's foot: one cast from its own height smeared the stock's 24 into a dark blot beside it)
+      const air = rise + hop, surface = dragged ? under : 0, h = air > 1.5 || dragged ? Math.max(0, y - thick / 2 - surface) : 0, spread = cw * 0.07 + h * 0.2;
+      c.shadow.position.set(cur.x + jx + cw * 0.03 + h * 0.28, surface + 0.2, cur.z + ch * 0.05 + h * 0.5);
       c.shadow.scale.set((cw + spread * 2) / ((SH_W - 2 * SH_IN) / SH_W), 1, (ch + spread * 2) / ((SH_H - 2 * SH_IN) / SH_H));
-      const air = rise + hop;
-      c.shadow.material.opacity = air > 1.5 ? (dragged ? Math.max(0.2, 0.36 - air * 0.003) : 0.13) : cur.e > 0.5 ? 0.035 : 0.32;
+      c.shadow.material.opacity = air > 1.5 ? (dragged ? Math.max(0.2, 0.36 - air * 0.003) : 0.13) : cur.e > 0.5 ? 0.06 : 0.42;
       c.cx = cur.x + jx; c.cy = y; c.cz = cur.z;
     }
     // slots, the stock's count, rings, the places a carried card may go
@@ -703,7 +712,7 @@ export function createView(host, opts = {}) {
 
   readColours();
   return {
-    canvas, build, set, wake, pick, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, hold, restyle, setFourColour, resize, dispose,
+    canvas, build, set, wake, pick, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, setPan, hold, restyle, setFourColour, resize, dispose,
     camera: () => ({ tilt: tTilt, yaw: tYaw }),
     /** For tests: the camera's state, and where a card's face is on the page. */
     get state() { return { tilt, yaw, zoom, dist, W, H, cards: cards.size, moving: camBusy || !!rafId }; },
