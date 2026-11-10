@@ -170,8 +170,8 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
 }
 
 // ---------- the campaign (campaign.js holds its rules; tests/campaign.mjs its data) and Endless ----------
-check(LEVELS.every((l, i) => l.no === i + 1) && OLD.every(Boolean) && CAMPAIGN.chapters.length >= 6 && CAMPAIGN.chapters.every((_, c) => { const n = LEVELS.filter(l => l.chapter === c).length; return c === 0 ? n === 3 : n >= 6 && n <= 12; }),
-  "the levels are numbered in order, the twelve from before are in the campaign, the first chapter is three (one lesson each) and every other six to twelve");
+check(LEVELS.every((l, i) => l.no === i + 1) && OLD.every(Boolean) && CAMPAIGN.chapters.length >= 6 && CAMPAIGN.chapters.every((_, c) => { const n = LEVELS.filter(l => l.chapter === c).length; return n >= 3 && n <= 5; }),
+  "the levels are numbered in order, the twelve from before are in the campaign, and a chapter is as long as its lessons: three to five levels");
 check(LEVELS.filter(l => l.role === "intro").length === CAMPAIGN.chapters.length - 1 && LEVELS.filter(l => l.role === "cap").length === CAMPAIGN.chapters.length && CAMPAIGN.chapters.every((_, c) => LEVELS.filter(l => l.chapter === c).at(-1).role === "cap"),
   "every chapter ends with its capstone, and all but the last (where the twists meet) open with an introduction");
 check(LEVELS.filter((l, i) => LEVELS[i - 1]?.chapter !== l.chapter).every(l => l.tip), "a chapter's first level says what the chapter brings");

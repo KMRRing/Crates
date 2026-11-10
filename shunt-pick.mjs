@@ -18,8 +18,10 @@ const { LEGACY, tiers } = await import(new URL("shunt-levels.js", here));
 
 const WIDTH = 60;
 // how many gears short of the longest trains a greedy player ends, on average, by role: an introduction's goal (two short) it beats
-// with every star, a capstone's it only just makes
-const MARK = { intro: 0, fam: 1, quirk: 1.4, mas: 1.8, cap: 2.4 };
+// with every star, a capstone's it only just makes; each chapter asks a little more than the one before (RAMP a chapter)
+const MARK = { intro: 0, fam: 1, quirk: 1.5, mas: 2, cap: 2.6 };
+const RAMP = 0.12;
+const markOf = (role, c) => (role === "intro" ? 0 : MARK[role] + RAMP * c);
 
 // k: how many trains the goal asks for; p: pitches; i: idlers; b: bridges; s: studs; j: jewels; t: gears already on the plate; d: the
 // deck's length ("fill": every free cell); conditions: nojam, jewels; hold: without the hold the longest trains are shorter; swapFirst:
@@ -27,45 +29,56 @@ const MARK = { intro: 0, fam: 1, quirk: 1.4, mas: 1.8, cap: 2.4 };
 // level used before (stars are kept by id); tip: the level's own line for the coach's box
 const R = (role, name, rec = {}) => ({ role, name, ...rec });
 const K = (role, id, rec = {}) => ({ role, keep: id, ...rec });
+// Korbi, 10 November 2026: the learning curve must be steep. A chapter is as long as its lessons and no longer: the twist alone,
+// then each thing it does that is new (a quirk, where it meets an older rule), then its capstone; a level that only repeats one before
+// it goes. So three or four levels a chapter, the workshop five, every level asking more than the last; Endless carries the volume.
 const CHAPTERS = [
   { name: "Shove", rule: "Shove the next gear in from a lever at the rim. Gears of one pitch that touch mesh; three or more in a chain make a train. The goal asks for trains of a length.",
-    // Korbi, 10 November 2026: the first chapter taught in seven levels what takes three (the shove, a jam is bad, sometimes more
-    // trains beat one long one), so it is three: one lesson a level, no level that only repeats one. One pitch throughout: every gear
-    // meshes with every other, so a triangle anywhere jams, and two trains of one pitch must never touch.
+    // one pitch throughout: every gear meshes with every other, so a triangle anywhere jams, and two trains of one pitch must never touch
     slots: [K("intro", "l1"),
       R("quirk", "Triangle", { id: "c1-jam", k: 1, p: 1, d: 8, t: 2, tip: "Three gears of one pitch in a triangle jam: the whole train locks and doesn't count. Keep the train a chain, not a clump." }),
       R("cap", "Two of a kind", { id: "c1-two", k: 2, p: 1, d: 7, t: 4, tip: "Two trains this time, not one long one. Gears of one pitch that touch join into one train: keep a gap between them." })] },
   { name: "Pitches", rule: "Gears of different pitches (tooth sizes) never mesh: grow a train of each.",
-    slots: [K("intro", "l2"), R("fam", "Two trains", { k: 2, p: 2, d: 10 }), R("fam", "Side by side", { k: 2, p: 2, d: 12, t: 2 }), R("quirk", "Third pitch", { k: 3, p: 3, d: 15 }),
-      R("mas", "Three colours", { k: 2, p: 3, d: 16 }), R("mas", "Sorting", { k: 3, p: 3, d: 15, t: 2 }), R("cap", "Pitch perfect", { k: 3, p: 3, d: "fill" })] },
+    slots: [K("intro", "l2"),
+      R("mas", "Three colours", { k: 3, p: 3, d: 15, tip: "Three pitches, three trains: each pitch needs its own room on the plate." }),
+      R("cap", "Odd one out", { k: 2, p: 3, d: 15, tip: "Three pitches but only two trains count: put the third pitch where it blocks neither." })] },
   { name: "Shear and jam", rule: "A shove moves a whole line and can pull a train apart; three gears of one pitch in a triangle jam, and a jammed train doesn't count.",
-    slots: [K("intro", "l3"), K("fam", "l4"), R("fam", "Odd ring", { k: 2, p: 2, d: 13, nojam: true }), R("quirk", "Loose ends", { k: 3, p: 3, d: 12, t: 3, nojam: true }),
-      R("mas", "Clean lines", { k: 3, p: 3, d: 15, nojam: true }), R("mas", "Tight fit", { k: 3, p: 3, d: 16, t: 2, nojam: true }), K("cap", "l9")] },
+    slots: [K("intro", "l3"), K("quirk", "l4"),
+      R("mas", "Tight fit", { k: 3, p: 3, d: 16, t: 2, nojam: true, tip: "No jam anywhere, three trains, and little room: every shove moves a line, so check what it drags along." }),
+      K("cap", "l9")] },
   { name: "The hold", rule: "Swap sets the next gear aside or brings the held one back, once a turn: the order is yours to plan.",
-    slots: [K("intro", "l5", { swapFirst: true }), R("fam", "Wait your turn", { k: 2, p: 3, d: 12, hold: true }), R("fam", "Swap back", { k: 2, p: 3, d: 13, nojam: true, hold: true }),
-      R("quirk", "Out of order", { k: 3, p: 3, d: 15, hold: true }), R("mas", "Saved for last", { k: 3, p: 3, d: 15, nojam: true, hold: true }),
-      R("mas", "Queue jumping", { k: 3, p: 3, d: 16, nojam: true, hold: true }), R("cap", "The long game", { k: 3, p: 3, d: "fill", nojam: true, hold: true })] },
+    slots: [K("intro", "l5", { swapFirst: true }),
+      R("mas", "Out of order", { k: 3, p: 3, d: 15, hold: true, tip: "The queue comes in the wrong order for three trains: hold a gear back until its train is ready for it." }),
+      R("cap", "The long game", { k: 3, p: 3, d: "fill", nojam: true, hold: true, tip: "Every cell filled and no jam: the last gears have nowhere to hide, so hold the awkward one for the end." })] },
   { name: "Idlers", rule: "The black idler meshes every pitch: it joins trains of different pitches into one, and it can close a ring and jam.",
-    slots: [K("intro", "l6"), R("fam", "Go-between", { k: 1, p: 3, i: 1, d: 12 }), R("fam", "Black gear", { k: 1, p: 3, i: 2, d: 13 }), R("quirk", "Unlucky ring", { k: 2, p: 3, i: 2, d: 13, nojam: true }),
-      R("mas", "Junction", { k: 2, p: 3, i: 2, d: 15, nojam: true }), R("mas", "Two by idler", { k: 2, p: 3, i: 3, d: 16, nojam: true }), R("cap", "Idle hands", { k: 2, p: 3, i: 2, t: 1, d: 16, nojam: true })] },
+    slots: [K("intro", "l6"),
+      R("quirk", "Go-between", { k: 1, p: 3, i: 1, d: 12, tip: "One train of every pitch at once: only the idler joins them, so it goes where the pitches meet." }),
+      R("mas", "Unlucky ring", { k: 2, p: 3, i: 2, d: 13, nojam: true, tip: "Idlers mesh everything around them, so they close rings: no jam allowed." }),
+      R("cap", "Idle hands", { k: 2, p: 3, i: 2, t: 1, d: 16, nojam: true })] },
   { name: "Jewels", rule: "A jewel counts only under a train that turns: cover every jewel.",
-    slots: [K("intro", "l7"), R("fam", "Ruby", { k: 2, p: 3, j: 1, d: 12, jewels: true }), R("fam", "Setting", { k: 2, p: 3, j: 2, d: 13, jewels: true }),
-      R("quirk", "Bezel", { k: 2, p: 3, j: 2, t: 2, d: 12, jewels: true, nojam: true }), R("mas", "Three stones", { k: 3, p: 3, j: 3, d: 15, jewels: true }),
-      R("mas", "Pavé", { k: 3, p: 3, j: 3, i: 1, d: 16, jewels: true }), K("cap", "l10")] },
+    slots: [K("intro", "l7"),
+      R("quirk", "Bezel", { k: 2, p: 3, j: 2, t: 2, d: 12, jewels: true, nojam: true, tip: "The jewels pull the trains to them, and no jam is allowed where they crowd." }),
+      R("mas", "Three stones", { k: 3, p: 3, j: 3, d: 15, jewels: true, tip: "Three jewels, three trains: one train per stone is the obvious way, but not the only one." }),
+      K("cap", "l10")] },
   { name: "Bridges", rule: "A bridge shows two pitches and meshes both, so it fuses their trains into one: keep the trains you need apart.",
-    slots: [K("intro", "l8"), R("fam", "Fusion risk", { k: 2, p: 3, b: 1, d: 12 }), R("fam", "Keep apart", { k: 2, p: 3, b: 2, d: 13 }),
-      R("quirk", "Twin pitches", { k: 2, p: 3, b: 2, d: 14 }), R("mas", "Separate ways", { k: 3, p: 3, b: 3, d: 15 }),
-      R("mas", "Crossing", { k: 2, p: 3, b: 3, j: 2, d: 16, jewels: true }), K("cap", "l11")] },
+    slots: [K("intro", "l8"),
+      R("quirk", "Keep apart", { k: 2, p: 3, b: 2, d: 13, tip: "Two bridges and two trains: a bridge between your trains makes them one." }),
+      R("mas", "Separate ways", { k: 3, p: 3, b: 3, d: 15, tip: "Three trains and three bridges: each bridge has to sit inside a train, never between two." }),
+      K("cap", "l11")] },
   { name: "Studs", rule: "A stud (a rivet) never moves and ends a line: a shove stops short of it.",
-    slots: [R("intro", "Rivet", { k: 2, p: 2, s: 1, d: 10 }), R("fam", "Short line", { k: 2, p: 3, s: 1, d: 12 }), R("fam", "Blocked", { k: 2, p: 3, s: 2, d: 13 }),
-      R("quirk", "Around the stud", { k: 2, p: 3, s: 3, d: 12, nojam: true }), R("mas", "Rivet row", { k: 2, p: 3, s: 2, j: 2, d: 14, jewels: true }),
-      R("mas", "Fixed points", { k: 2, p: 3, s: 2, b: 2, d: 14 }), R("cap", "Riveted", { k: 3, p: 3, s: 3, i: 1, j: 2, d: "fill", jewels: true, nojam: true })] },
+    slots: [R("intro", "Rivet", { k: 2, p: 2, s: 1, d: 10 }),
+      R("quirk", "Around the stud", { k: 2, p: 3, s: 3, d: 12, nojam: true, tip: "Studs break the lines into short ones: a shove moves only up to the stud." }),
+      R("mas", "Fixed points", { k: 2, p: 3, s: 2, b: 2, d: 14, tip: "Studs and bridges: plan where each train runs before the lines close up." }),
+      R("cap", "Riveted", { k: 3, p: 3, s: 3, i: 1, j: 2, d: "fill", jewels: true, nojam: true })] },
   { name: "The workshop", rule: "Everything together: pitches, the hold, idlers, jewels, bridges and studs on one plate.",
-    slots: [R("fam", "Bench", { k: 2, p: 3, s: 1, j: 2, i: 1, d: 13, jewels: true }), R("fam", "Apprentice", { k: 2, p: 3, b: 2, s: 1, d: 13 }),
-      R("quirk", "Journeyman", { k: 3, p: 3, t: 4, s: 2, d: 11, nojam: true }), R("mas", "Commission", { k: 3, p: 3, j: 3, b: 2, d: 15, jewels: true }),
-      R("mas", "Repeater", { k: 2, p: 3, i: 2, s: 2, j: 2, d: 14, nojam: true, jewels: true }), R("mas", "Complication", { k: 3, p: 3, b: 3, s: 1, d: 16, hold: true }),
-      R("mas", "Masterpiece", { k: 3, p: 3, i: 1, b: 2, s: 1, j: 2, d: "fill", jewels: true }), K("cap", "l12")] },
+    slots: [R("quirk", "Bench", { k: 2, p: 3, s: 1, j: 2, i: 1, d: 13, jewels: true }),
+      R("mas", "Commission", { k: 3, p: 3, j: 3, b: 2, d: 15, jewels: true }),
+      R("mas", "Complication", { k: 3, p: 3, b: 3, s: 1, d: 16, hold: true }),
+      R("mas", "Masterpiece", { k: 3, p: 3, i: 1, b: 2, s: 1, j: 2, d: "fill", jewels: true }),
+      K("cap", "l12")] },
 ];
+/** A made level's id: its own where it has one, else its name's (stars are kept by id, so a name stands for one level for good). */
+const idOf = slot => slot.id || slot.name.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 // ---------- a plate from a recipe ----------
 function plateFor(seed, rec) {
@@ -134,10 +147,10 @@ function campaign(only) {
       process.stdout.write(`${ch.name} · ${P.name} (kept): ${goalOf(got.L)}, greedy ${got.gap.toFixed(1)} short\n`);
       return;
     }
-    const got = pick(slot, slot.role, 1000 * (c + 1) + 37 * n, 48);
+    const got = pick(slot, slot.role, 1000 * (c + 1) + 37 * n, 64, markOf(slot.role, c));
     if (!got) throw new Error(`no plate for ${ch.name} / ${slot.name}`);
-    out.push({ id: slot.id || `c${c + 1}-${n + 1}`, chapter: c, role: slot.role, name: slot.name, ...(slot.tip ? { tip: slot.tip } : {}), ...slim(got.L) });
-    process.stdout.write(`${ch.name} · ${slot.name}: ${goalOf(got.L)}, greedy ${got.gap.toFixed(1)} short (mark ${MARK[slot.role]})\n`);
+    out.push({ id: idOf(slot), chapter: c, role: slot.role, name: slot.name, ...(slot.tip ? { tip: slot.tip } : {}), ...slim(got.L) });
+    process.stdout.write(`${ch.name} · ${slot.name}: ${goalOf(got.L)}, greedy ${got.gap.toFixed(1)} short (mark ${markOf(slot.role, c).toFixed(1)})\n`);
   }));
   return out;
 }
@@ -155,7 +168,7 @@ function endlessPlan() {
     for (let k = 0; k < count; k++) {
       const n = out.length, milestone = n % 25 === 24;
       const from = k < LEAN ? c : Math.floor(R0() * (c + 1)), list = recipes[from].length ? recipes[from] : recipes[c];
-      out.push({ n, c, milestone, list, slot: list[Math.floor(R0() * list.length)], mark: milestone ? MARK.cap : Math.min(MARK.mas, MARK.fam + n * 0.004) });
+      out.push({ n, c, milestone, list, slot: list[Math.floor(R0() * list.length)], mark: milestone ? markOf("cap", c) : Math.min(markOf("mas", c), MARK.quirk + n * 0.004) });
     }
   });
   return out;
