@@ -557,6 +557,7 @@ function whoami(ENTITIES, LINKS, E, DECKS, PEOPLE) {
     for (const l of out) if (l.rel !== "clue" && l.rel !== "link" && l.rel !== "in-work") {
       const t = called(l.to);
       if (l.rel === "roman-name") add(`Roman name: ${t}`);
+      else if (l.rel === "member-of") add(l.facts?.pos ? `No. ${l.facts.pos} of ${mid(t)}` : `In the set: ${t}`);
       else if (l.rel === "from") add(said(l) ? `${cap(said(l))}, from ${t}` : `From ${t}`);
       else if (said(l)) add(phrase(said(l), t));
       else if (FROM_REL[l.rel]) add(`${FROM_REL[l.rel]} ${FROM_REL[l.rel].endsWith(":") ? t : mid(t)}`);
