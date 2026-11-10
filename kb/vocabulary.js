@@ -30,7 +30,9 @@ export const FIELDS = {
   // what it is called, and what it is
   id: name("text", "Id"), name: name("text", "Name"), aliases: name("texts", "Also called"), qualifier: name("text", "Told apart as"),
   short: name("text", "Short name"), title: name("text", "Full title"), called: name("text", "In English"), same: meta("ref", "The same as"),
-  sets: meta("tags", "Kinds"), pic: meta("text", "Picture"), kindBy: meta("text", "Kind set by"),
+  sets: meta("tags", "Kinds"), kindBy: meta("text", "Kind set by"),
+  // what it looks like: a picture (a painting is known by it; Spyglass and Punt ask "which is this?") and a country's flag
+  pic: f("text", "Picture"), flag: f("text", "Flag"),
   // said about it
   note: f("text", "Note"), text: f("text", "Words"), lang: f("lang", "Language"), meaning: f("text", "Means"), literal: f("text", "Literally"),
   rendering: f("text", "In English"), english: f("text", "In English"), origin: f("text", "Origin"), who: f("text", "Said by"), form: f("text", "Form"),

@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { givesAway } from "../give-away.js";
 import { LEVELS, entityMark, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
-import { factWords } from "../kb/graph.js";
+import { factWords, makeGraph, fieldFact } from "../kb/graph.js";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "bavaria", "britain", "china", "skiing", "lit", "sayings", "law"];
@@ -31,6 +31,8 @@ export async function build({ level = "public" } = {}) {
     ["entities.js", "links.js", "geometry.js", "items/pins.js", "items/estimates.js"].map(load));
   const E = new Map(ENTITIES.map(e => [e.id, e]));
   const of = id => { const e = E.get(id); if (!e) throw new Error(`no entity ${id}`); return e; };
+  // every question carries the facts it tests (kb/graph.js: the same ids in every game, so what you learn in one, another asks)
+  const G = makeGraph(ENTITIES, LINKS), tested = q => { const f = G.testsOf(q); return f.length ? f : undefined; };
 
   // Crates: the answers in board order, each with its clues in list order (both append-only)
   const clues = new Map();
@@ -50,11 +52,11 @@ export async function build({ level = "public" } = {}) {
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = [...pins.PINS, ...gen.pins].filter(p => dealt.has(pinMark(p))).map(({ id, cat, about, ...over }, i, all) => {
     const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
-    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about });
+    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about, facts: G.holds(fieldFact(about, "place")) ? [fieldFact(about, "place")] : undefined });
   });
   const GEO = pins.FEATURES.filter(p => dealt.has(pinMark(p))).map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
-    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about] });
+    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about], facts: G.holds(fieldFact(about, "place")) ? [fieldFact(about, "place")] : undefined });
   });
 
   // a picture's own name goes with its questions (Order asks "When was … painted?", and a game whose picture can't be
@@ -64,9 +66,9 @@ export async function build({ level = "public" } = {}) {
   const titleOf = e => (e.sets.includes("building") && !e.sets.includes("painting") ? e.name.replace(/^The /, "the ") : e.name);
   // Quote: a number that's an entity's fact comes from the entity
   const ALL = [...estimates.ESTIMATES, ...gen.quotes.map(q => ({ ...q, audience: estimates.AUDIENCE[q.about] ?? 1 }))].map(({ fact, ...q }) => {
-    if (!fact) return q;
+    if (!fact) return defined({ ...q, facts: q.about ? tested({ about: [q.about], right: [q.truth] }) : undefined });
     const e = of(q.about), pic = q.pic ?? (fact === "year" ? e.pic : undefined);
-    return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined });
+    return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined, facts: [fieldFact(q.about, fact)] });
   });
   // what Quote deals, and what it keeps only to show a run or a table that already has it (the living: a saved run shows them)
   // (every question is kept with its mark; only a living person's is retired, so a saved run still shows it)
@@ -84,7 +86,10 @@ export async function build({ level = "public" } = {}) {
     // a question whose right answer is a word of it is left out of the bank, not out of kb/ (give-away.js)
     const all = [...m.ITEMS, ...(gen[b] || [])], asked = all.filter(q => !givesAway(q) && dealt.has(choiceMark(b, q)));
     leaking += all.filter(q => givesAway(q)).length;
-    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q); return { ...q, ...(title ? { title } : {}) }; }) };
+    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => {
+      const title = named(q), facts = q.facts ?? tested({ about: q.about, q: q.q, right: q.a.map(i => q.o[i]) });
+      return { ...q, ...(title ? { title } : {}), ...(facts ? { facts } : {}) };
+    }) };
   }
   console.log(`${leaking} questions left out: the right answer is a word of the question`);
   const cards = await load("items/whoami.js"), decoyFacts = (await load("items/decoy.js")).FACTS;
@@ -558,10 +563,13 @@ function whoami(ENTITIES, LINKS, E, DECKS, PEOPLE) {
     }
     // a link said in words: its facts (a year, a distance) and then its own words, "1352: visits the court of…"
     const said = l => [factWords(l.facts, { rank: false }), l.hint].filter(Boolean).join(": ");
+    // one set says the most: the smallest it's in (one of the Tudors, not one of the EU's 27)
+    const size = id => (to.get(id) || []).filter(l => l.rel === "member-of").length;
+    const smallest = out.filter(l => l.rel === "member-of").sort((a, b) => size(a.to) - size(b.to))[0];
     for (const l of out) if (l.rel !== "clue" && l.rel !== "link" && l.rel !== "in-work") {
       const t = called(l.to);
       if (l.rel === "roman-name") add(`Roman name: ${t}`);
-      else if (l.rel === "member-of") add(l.facts?.pos ? `No. ${l.facts.pos} of ${mid(t)}` : `In the set: ${t}`);
+      else if (l.rel === "member-of") { if (l === smallest) add(l.facts?.pos ? `No. ${l.facts.pos} of ${mid(t)}` : `In the set: ${t}`); }
       else if (l.rel === "from") add(said(l) ? `${cap(said(l))}, from ${t}` : `From ${t}`);
       else if (said(l)) add(phrase(said(l), t));
       else if (FROM_REL[l.rel]) add(`${FROM_REL[l.rel]} ${FROM_REL[l.rel].endsWith(":") ? t : mid(t)}`);

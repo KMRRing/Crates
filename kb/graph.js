@@ -2,6 +2,14 @@
 // fields name (a ski race `at` Kitzbühel is a link to Kitzbühel), its dates and its place (its own, or the place of what
 // it's in, hangs in, is held at…), its steps, and a link's facts in words. Pure: the Almanac, the build and the tests
 // read kb/ the same way. Indexes once; nothing here scans the links in a loop.
+//
+// Every fact has an id, the same in every game, so what you learn in one is what another asks (Korbi, 10 Nov 2026: "when
+// in learn mode, the user should revise the same items regardless of which game they play"):
+//   a link        krone>clue>norway, mona-lisa>painted-by>leonardo-da-vinci, earth-planet>member-of>set-planets
+//   a field       norway.area, mona-lisa.year, high-renaissance.card.aim (a record's field)
+//   a place       louvre.place (where it is: its own coordinates, or those of what it's in)
+//   a step        story-voc~3 (a story's third event), magellan~ferdinand-magellan-2 (a Dispatch meeting, by its id)
+// A question names the facts it tests (`facts`); testsOf() works them out from what it's about and its right answer.
 import { FIELDS, RECORD, FACTS, RELS, labelOf, yearWords, period } from "./vocabulary.js";
 
 const fold = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/^the /, "").trim();
@@ -29,6 +37,19 @@ export function factWords(facts, { rank = true } = {}) {
   if (x.upriver != null) out.push(`${amountWords(x.upriver, FACTS.upriver.unit)} up the river`);
   if (x.asOf != null) out.push(`as of ${x.asOf}`);
   return out.join(" · ");
+}
+
+/** A fact's id. */
+export const linkFact = (from, rel, to) => `${from}>${rel}>${to}`;
+export const fieldFact = (id, key) => `${id}.${key}`;
+export const stepFact = (id, step) => `${id}~${step}`;
+/** A fact id read back: { kind: "link", from, rel, to } | { kind: "field", id, key } (key may be "card.aim", or "place") | { kind: "step", id, step }. */
+export function parseFact(f) {
+  let m;
+  if ((m = /^([^>~.]+)>([^>]+)>([^>]+)$/.exec(f))) return { kind: "link", from: m[1], rel: m[2], to: m[3] };
+  if ((m = /^([^>~.]+)~(.+)$/.exec(f))) return { kind: "step", id: m[1], step: m[2] };
+  if ((m = /^([^>~.]+)\.(.+)$/.exec(f))) return { kind: "field", id: m[1], key: m[2] };
+  return null;
 }
 
 /** The graph over kb/'s things and links. */
@@ -59,7 +80,7 @@ export function makeGraph(entities, links) {
     const rows = [];
     for (const [key, value] of Object.entries(e)) {
       const d = FIELDS[key];
-      if (!d || d.role !== "fact" || value == null || ["lat", "lon", "circa", "card", "archCard", "meetings", "steps", "note"].includes(key)) continue;
+      if (!d || d.role !== "fact" || value == null || ["lat", "lon", "circa", "card", "archCard", "meetings", "steps", "note", "pic"].includes(key)) continue;
       if (d.type === "ref" && refOf(key, value)) continue;
       const words = d.type === "quantity" ? amountWords(value, d.unit)
         : d.type === "year" ? yearWords(value, key === "year" && e.circa)
@@ -109,6 +130,48 @@ export function makeGraph(entities, links) {
   function stepsOf(e) {
     return [...(e.steps || []), ...(e.meetings || [])].map(s => ({ ...s, text: s.text ?? s.what, thing: s.thing ? resolve(s.thing) : null }));
   }
-  return { byId, canon, resolve, refOf, out, inn, factsOf, refsOf, whenOf, placeOf, stepsOf };
+  const linked = new Set(links.map(l => linkFact(l.from, l.rel, l.to)));
+  /** The ids of a thing's steps, in order: a Dispatch meeting by its own id, a story's event by its place in the story (1, 2…). */
+  const stepIds = e => [...(e.steps || []).map((_, i) => String(i + 1)), ...(e.meetings || []).map(m => m.id)];
+  /** Whether kb/ holds the fact an id names. */
+  function holds(f) {
+    const x = parseFact(f);
+    if (!x) return false;
+    if (x.kind === "link") return linked.has(f);
+    const e = byId.get(x.id);
+    if (!e) return false;
+    if (x.kind === "step") return stepIds(e).includes(x.step);
+    if (x.key === "place") return !!placeOf(x.id);
+    const [k, sub] = x.key.split(".");
+    return sub ? e[k]?.[sub] != null : e[k] != null && FIELDS[k]?.role === "fact";
+  }
+  /**
+   * The facts a question tests, from the things it's about and its right answers ({ about, q, right }): for each thing,
+   * a field whose value is a right answer, or a link to or from the thing a right answer names. A question whose right
+   * answer is the thing itself ("Which merchant power traded nutmeg?") tests the field or link its own words quote.
+   */
+  function testsOf({ about = [], q = "", right = [] }) {
+    const out = new Set(), said = fold(q), names = e => [e.name, e.short, e.title, ...(e.aliases || [])].filter(Boolean).map(fold);
+    const same = (v, r) => v != null && r != null && fold(v) === fold(r);
+    for (const id0 of about) {
+      const id = canon(id0), e = byId.get(id);
+      if (!e) continue;
+      const fields = [...Object.entries(e).filter(([k]) => FIELDS[k]?.role === "fact"),
+        ...["card", "archCard"].flatMap(k => Object.entries(e[k] || {}).map(([s, v]) => [`${k}.${s}`, v]))];
+      const ends = [...(out_(id)), ...(inn.get(id) || []).map(l => ({ l, other: l.from }))];
+      for (const r of right) {
+        if (names(e).includes(fold(r))) {                       // the answer is the thing: the question quotes what it's asked by
+          for (const [k, v] of fields) if (typeof v === "string" && v.length >= 4 && said.includes(fold(v))) out.add(fieldFact(id, k));
+          for (const { l, other } of ends) { const o = byId.get(other); if (o && names(o).some(n => n.length >= 4 && said.includes(n))) out.add(linkFact(l.from, l.rel, l.to)); }
+          continue;
+        }
+        for (const [k, v] of fields) if (same(v, r) || (Array.isArray(v) && v.some(x => same(x, r)))) out.add(fieldFact(id, k));
+        for (const { l, other } of ends) { const o = byId.get(other); if (o && names(o).includes(fold(r))) out.add(linkFact(l.from, l.rel, l.to)); }
+      }
+    }
+    return [...out];
+  }
+  const out_ = id => (out.get(id) || []).map(l => ({ l, other: l.to }));
+  return { byId, canon, resolve, refOf, out, inn, factsOf, refsOf, whenOf, placeOf, stepsOf, stepIds, holds, testsOf };
 }
 
