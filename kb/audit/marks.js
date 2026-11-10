@@ -715,5 +715,21 @@ export const ENTITY = {
   "story-gurlitt": "r", "story-kings-of-bavaria": "r", "story-ludwig-ii": "r", "story-brewing": "r", "story-road-to-union": "r", "story-the-forty-five": "r",
   "story-tudors": "r", "story-henry-viii-wives": "r", "story-whisky-making": "r", "story-dynasties": "r", "story-zodiac": "r", "story-road-to-1949": "r",
   "story-reform-era": "r", "story-streif": "r", "story-ski-history": "r", "story-avalanche-rescue": "r", "story-power-path": "r", "story-horology-history": "r",
-  "story-lake-shore": "r", "story-documentary-credit": "r", "story-cif-cargo": "r", "story-arbitration": "r", "story-trade-law": "r"
+  "story-lake-shore": "r", "story-documentary-credit": "r", "story-cif-cargo": "r", "story-arbitration": "r", "story-trade-law": "r", "stuttgart": "r",
+  "dusseldorf": "r", "cologne": "r", "leipzig": "r", "dresden": "r", "wolfsburg": "r", "ludwigshafen": "r",
+  "leverkusen": "r", "essen": "r", "gelsenkirchen": "r", "schwedt": "r", "wilhelmshaven": "r", "karlsruhe": "r",
+  "kiel": "r", "rostock": "r", "jena": "r", "hanover": "r", "mannheim": "r", "dortmund": "r",
+  "bonn": "r", "manchester": "r", "birmingham": "r", "leeds": "r", "newcastle": "r", "middlesbrough": "r",
+  "grimsby": "r", "hull": "r", "bristol": "r", "cambridge": "r", "oxford": "r", "belfast": "r",
+  "cardiff": "r", "grangemouth": "r", "milford-haven": "r", "sheffield": "r", "cork": "r", "hangzhou": "r",
+  "suzhou": "r", "shenyang": "r", "zhoushan": "r", "dongguan": "r", "kunming": "r", "hsinchu": "r",
+  "toulouse": "r", "bordeaux": "r", "turin": "r", "sines": "r", "ghent": "r", "p-ock": "r",
+  "krakow": "r", "wroc-aw": "r", "malmo": "r", "stavanger": "r", "aarhus": "r", "esbjerg": "r",
+  "izmir": "r", "ploiesti": "r", "burgas": "r", "mazeikiai": "r", "schwechat": "r", "pernis": "r",
+  "eindhoven": "r", "groningen": "r", "vlissingen": "r", "mariupol": "r", "lviv": "r", "kazan": "r",
+  "belo-horizonte": "r", "manaus": "r", "vitoria": "r", "curitiba": "r", "porto-alegre": "r", "rosario": "r",
+  "cordoba": "r", "bahia-blanca": "r", "concepcion": "r", "arequipa": "r", "medellin": "r", "barranquilla": "r",
+  "cali": "r", "maracaibo": "r", "santa-cruz-de-la-sierra": "r", "monterrey": "r", "guadalajara": "r", "tampico": "r",
+  "villahermosa": "r", "cancun": "r", "tijuana": "r", "punta-arenas": "r", "cushing": "r", "midland": "r",
+  "jamnagar": "r", "bangalore": "r", "dhahran": "r", "basra": "r"
 };

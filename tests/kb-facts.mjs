@@ -67,9 +67,9 @@ rows.push(["Decoy", "odd facts", decoy.FACTS.length, 0]);
 
 // the table, and the floors: a game's held count never drops (raise its floor when knowledge moves in)
 const FLOOR = {
-  "Crates, Lode, Crossword, Origin/clue pairs": 1292, "Punt/art": 728, "Punt/cities": 279, "Punt/flags": 123, "Punt/arch": 201, "Punt/myth": 98,
-  "Punt/merchants": 63, "Punt/titles": 27, "Punt/bavaria": 44, "Punt/britain": 30, "Punt/china": 48, "Punt/skiing": 82, "Punt/lit": 705,
-  "Punt/sayings": 186, "Punt/law": 176, "Quote, Order/numbers and dates": 663, "Order/story steps": 329, "Chart/places": 676, "Census/set members": 500,
+  "Crates, Lode, Crossword, Origin/clue pairs": 1292, "Punt/swiss": 44, "Punt/refining": 25, "Punt/art": 765, "Punt/cities": 415, "Punt/flags": 123, "Punt/arch": 201, "Punt/myth": 127,
+  "Punt/merchants": 84, "Punt/titles": 30, "Punt/bavaria": 69, "Punt/britain": 51, "Punt/china": 60, "Punt/skiing": 92, "Punt/lit": 705,
+  "Punt/sayings": 186, "Punt/law": 192, "Quote, Order/numbers and dates": 810, "Order/story steps": 329, "Chart/places": 676, "Census/set members": 500,
   "Dispatch/meetings": 146, "Spyglass, Nonogram/flags": 168, "Spyglass/paintings and buildings": 277, "Decoy/sayings": 245, "Crossing/land borders": 307,
 };
 let asked = 0, held = 0;

@@ -169,6 +169,17 @@ function fillEntry(box, id, nav = {}) {
     for (const [name, value, long] of rows) { const row = el("p", long ? "lx-fact long" : "lx-fact"); row.append(el("span", null, name), el("b", null, value)); sec.append(row); }
     box.append(sec);
   }
+  // what's said about it in words or figures (facts that came in as a question's: tools/kb-said.mjs), each one tap from the thing its answer names
+  if (e.said?.length) {
+    const sec = el("section", "lx-sec");
+    sec.append(el("h3", null, `Said about it (${e.said.length})`));
+    for (const x of e.said) {
+      const value = x.year != null ? yearWords(x.year) : x.value != null ? (x.unit === "%" ? `${x.value}%` : `${x.value.toLocaleString("en-GB")} ${x.unit}`) : x.answer;
+      const row = el("p", x.value != null || x.year != null ? "lx-fact" : "lx-fact long"); row.append(el("span", null, x.ask), el("b", null, value)); sec.append(row);
+      if (x.thing && ENT.has(x.thing)) sec.append(entityButton(ENT.get(x.thing), "", nav));
+    }
+    box.append(sec);
+  }
   // its steps: Dispatch's acts of a person (`meetings`: a fact worded two ways is one step, both wordings in it, each a section of
   // its own), a story's events (`steps`: a numbered list, each with its year where kb/ has one, and the thing it names one tap away)
   const steps = G.stepsOf(e), whenOf = x => [x.year != null ? `${yearWords(x.year, x.circa)}${x.to ? `–${yearWords(x.to)}` : ""}` : "", x.place || ""].filter(Boolean).join(" · ");

@@ -66,7 +66,7 @@ export async function build({ level = "public" } = {}) {
   const titleOf = e => (e.sets.includes("building") && !e.sets.includes("painting") ? e.name.replace(/^The /, "the ") : e.name);
   // Quote: a number that's an entity's fact comes from the entity
   const ALL = [...estimates.ESTIMATES, ...gen.quotes.map(q => ({ ...q, audience: estimates.AUDIENCE[q.about] ?? 1 }))].map(({ fact, ...q }) => {
-    if (!fact) return defined({ ...q, facts: q.about ? tested({ about: [q.about], right: [q.truth] }) : undefined });
+    if (!fact) return defined({ ...q, facts: q.about ? tested({ about: [q.about], q: q.q, right: [q.truth] }) : undefined });
     const e = of(q.about), pic = q.pic ?? (fact === "year" ? e.pic : undefined);
     return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined, facts: [fieldFact(q.about, fact)] });
   });

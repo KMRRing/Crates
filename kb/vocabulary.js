@@ -58,6 +58,9 @@ export const FIELDS = {
   rank: f("number", "Rank"),
   // records and steps
   card: f("record", "Movement"), archCard: f("record", "Style"), meetings: f("acts", "Acts"), steps: f("acts", "Steps"),
+  // facts that came into kb/ as a question's words (tools/kb-said.mjs): a sentence (ask, answer) or a figure (ask, value, unit; or a year),
+  // each with its own id, until it is taken apart into the thing's own dates, places and links (Korbi, 10 Nov 2026)
+  said: f("acts", "Said about it"),
   // the games' own
   crates: play("number", "Crates' board position"), d: play("number", "Difficulty"), stage: play("text", "Stage"), wrong: play("texts", "Wrong options"),
   fromWrong: play("texts", "Wrong sources"), notWith: play("texts", "Not with"), iconic: play("flag", "Iconic"), pinCat: play("text", "Chart category"),
@@ -72,6 +75,7 @@ export const RECORD = {
 export const STEP = {
   id: meta("ref", "Who"), text: f("text", "What"), what: f("text", "What"), alt: f("text", "Also put"), why: f("text", "Why it mattered"),
   year: f("year", "Year"), to: f("year", "Until"), circa: f("flag", "Around"), place: f("text", "Place"), thing: f("ref", "The thing"), pic: meta("text", "Picture"),
+  ask: f("text", "Asked"), answer: f("text", "Answer"), value: f("quantity", "Figure"), unit: meta("text", "Unit"),
 };
 
 /** The facts a link may carry (`facts` on a link). A quantity's unit is in the same facts as `unit` unless given here. */

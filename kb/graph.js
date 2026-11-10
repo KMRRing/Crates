@@ -9,6 +9,7 @@
 //   a field       norway.area, mona-lisa.year, high-renaissance.card.aim (a record's field)
 //   a place       louvre.place (where it is: its own coordinates, or those of what it's in)
 //   a step        story-voc~3 (a story's third event), magellan~ferdinand-magellan-2 (a Dispatch meeting, by its id)
+//   a saying      geneva~escalade-geneva-december-festival (a fact said about a thing in words, or a figure: tools/kb-said.mjs)
 // A question names the facts it tests (`facts`); testsOf() works them out from what it's about and its right answer.
 import { FIELDS, RECORD, FACTS, RELS, labelOf, yearWords, period } from "./vocabulary.js";
 
@@ -80,7 +81,7 @@ export function makeGraph(entities, links) {
     const rows = [];
     for (const [key, value] of Object.entries(e)) {
       const d = FIELDS[key];
-      if (!d || d.role !== "fact" || value == null || ["lat", "lon", "circa", "card", "archCard", "meetings", "steps", "note", "pic"].includes(key)) continue;
+      if (!d || d.role !== "fact" || value == null || ["lat", "lon", "circa", "card", "archCard", "meetings", "steps", "said", "note", "pic"].includes(key)) continue;
       if (d.type === "ref" && refOf(key, value)) continue;
       const words = d.type === "quantity" ? amountWords(value, d.unit)
         : d.type === "year" ? yearWords(value, key === "year" && e.circa)
@@ -132,7 +133,7 @@ export function makeGraph(entities, links) {
   }
   const linked = new Set(links.map(l => linkFact(l.from, l.rel, l.to)));
   /** The ids of a thing's steps, in order: a Dispatch meeting by its own id, a story's event by its place in the story (1, 2…). */
-  const stepIds = e => [...(e.steps || []).map((_, i) => String(i + 1)), ...(e.meetings || []).map(m => m.id)];
+  const stepIds = e => [...(e.steps || []).map((_, i) => String(i + 1)), ...(e.meetings || []).map(m => m.id), ...(e.said || []).map(x => x.id)];
   /** Whether kb/ holds the fact an id names. */
   function holds(f) {
     const x = parseFact(f);
@@ -166,6 +167,7 @@ export function makeGraph(entities, links) {
           continue;
         }
         for (const [k, v] of fields) if (same(v, r) || (Array.isArray(v) && v.some(x => same(x, r)))) out.add(fieldFact(id, k));
+        for (const x of e.said || []) if (same(x.ask, q) && (same(x.answer, r) || same(x.value, r) || same(x.year, r))) out.add(stepFact(id, x.id));
         for (const { l, other } of ends) { const o = byId.get(other); if (o && names(o).includes(fold(r))) out.add(linkFact(l.from, l.rel, l.to)); }
       }
     }
