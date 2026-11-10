@@ -75,12 +75,10 @@ async function flagSource(it) {
   const svg = (await import("./spyglass-flags.js")).FLAG_SVG[it.id];
   if (!svg) return null;
   const img = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '))}`);
-  const c = document.createElement("canvas"); c.width = 1200; c.height = 960;      // as tall as the lens is, so the flag fills it
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 900;      // the flag to its edges (all in the 4:3 set): the glass stretches them to the rim
   const x = c.getContext("2d");
-  x.fillStyle = "#EFE6CF"; x.fillRect(0, 0, c.width, c.height);
-  const w = c.width * 0.96, h = w * 3 / 4;                                        // (all in the 4:3 set)
   x.imageSmoothingQuality = "high";
-  x.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+  x.drawImage(img, 0, 0, c.width, c.height);
   return { img: c, w: c.width, h: c.height };
 }
 function outlineSource(name) {
@@ -143,7 +141,7 @@ async function begin() {
   render();
   if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; tint = 1; source = await sourceFor(item()); if (me === token) { showCaption(); render(); } return; }
   const done = busy("", { delay: 350 });
-  try { source = await sourceFor(item()); } finally { done(); }
+  try { source = await sourceFor(item()); if (source) { stretched(source); if (source.full) stretched(source.full); } } finally { done(); }   // the surround is drawn while it still says loading
   if (me !== token) return;
   if (!source) {                                   // a painting that won't load (offline): a flag or outline in its place
     const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
@@ -177,7 +175,33 @@ function draw() {
   // in black and white or ink the answer brings the colour back: the same view of the colour picture, faded in over the grey
   if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full, out); ctx.globalAlpha = 1; }
 }
-/** The picture through the glass: the part of it in view for the moment's zoom and blur. */
+// The glass is round and a picture is not: its edges are stretched out to the rim, as a lens bends what is at its edge
+// (Korbi, 10 Nov 2026: "the centre of the image undistorted, a sort of fisheye effect around the edges"). Measured by how
+// far a point is from the middle as a share of the picture's half-width or half-height, whichever is the more (its box
+// norm u: 1 on the picture's edge), the middle up to INNER stays as it is; beyond it a point shows the picture from
+// bend(u), nearer the middle, so the outer band of the picture is drawn out and its very edge reaches the rim.
+const INNER = 0.78, REACH = 0.75, SEAM = 1.5;     // the part left as it is; how far round the picture the stretch reaches (a share of its longer side); the most a ring's edge may jump, in pixels
+const bend = u => (u <= INNER ? u : INNER + (1 - INNER) * (1 - Math.exp(-(u - INNER) / (1 - INNER))));
+/** The picture with its surround: drawn once for a picture, from the outside in, each ring the picture as large as the bend asks there. */
+function stretched(pic) {
+  if (pic.ext) return pic.ext;
+  const M = Math.round(Math.max(pic.w, pic.h) * REACH), W = pic.w + 2 * M, H = pic.h + 2 * M, k = Math.min(1, 1000 / Math.max(W, H));   // the surround is only ever the stretched edge: it needs no more
+  const c = document.createElement("canvas"); c.width = Math.round(W * k); c.height = Math.round(H * k);
+  const x = c.getContext("2d"), hw = pic.w / 2 * k, hh = pic.h / 2 * k, mx = c.width / 2, my = c.height / 2, top = Math.max(W / pic.w, H / pic.h);
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+  // where one ring meets the next the picture jumps by u·Δ(1/s) of a half-width: rings are spaced so that's under SEAM pixels
+  const inv = u => bend(u) / u, slope = u => Math.abs(inv(u + 1e-3) - inv(u - 1e-3)) / 2e-3;
+  for (let u = top; u > INNER; u -= Math.min(0.08, SEAM / (Math.max(hw, hh) * u * Math.max(slope(u), 1e-4)))) {
+    const s = u / bend(u);
+    x.save(); x.beginPath(); x.rect(mx - u * hw, my - u * hh, 2 * u * hw, 2 * u * hh); x.clip();
+    x.drawImage(pic.img, mx - s * hw, my - s * hh, 2 * s * hw, 2 * s * hh);
+    x.restore();
+  }
+  x.save(); x.beginPath(); x.rect(mx - INNER * hw, my - INNER * hh, 2 * INNER * hw, 2 * INNER * hh); x.clip();
+  x.drawImage(pic.img, mx - hw, my - hh, 2 * hw, 2 * hh); x.restore();
+  return (pic.ext = { img: c, M, k });
+}
+/** The picture through the glass: the part of it in view for the moment's zoom and blur, its stretched surround round it. */
 function paint(ctx, cw, ch, pic = source, out = 1) {
   const { res, zoom: z0 } = focus(u()), zoom = z0 * out, a = cw / ch, W0 = Math.max(pic.w, pic.h * a), H0 = W0 / a, it = item();
   const W = W0 * zoom, H = H0 * zoom;
@@ -185,18 +209,19 @@ function paint(ctx, cw, ch, pic = source, out = 1) {
   const mid = (win, whole, margin, want) => win >= whole + 2 * margin ? whole / 2 : Math.max(win / 2 - margin, Math.min(whole - win / 2 + margin, want));
   const cx = mid(W, pic.w, (W0 - pic.w) / 2, zoom < 1 ? it.cx * pic.w : pic.w / 2);
   const cy = mid(H, pic.h, (H0 - pic.h) / 2, zoom < 1 ? it.cy * pic.h : pic.h / 2);
-  const sx = cx - W / 2, sy = cy - H / 2;
-  // the part of the window that lies on the picture (a wide window around a narrow picture leaves margins)
-  const ix0 = Math.max(0, sx), iy0 = Math.max(0, sy), ix1 = Math.min(pic.w, sx + W), iy1 = Math.min(pic.h, sy + H);
-  if (ix1 <= ix0 || iy1 <= iy0) return;
-  const dx = (ix0 - sx) / W * cw, dy = (iy0 - sy) / H * ch, dw = (ix1 - ix0) / W * cw, dh = (iy1 - iy0) / H * ch;
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-  if (res >= cw) { ctx.drawImage(pic.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx, dy, dw, dh); return; }
+  const sx = cx - W / 2, sy = cy - H / 2, ext = stretched(pic);
+  // into a target tw by th: the surround fills the window; the picture's own middle goes over it, as sharp as it comes
+  const layers = (t, tw, th) => {
+    t.imageSmoothingEnabled = true; t.imageSmoothingQuality = "high";
+    t.drawImage(ext.img, (sx + ext.M) * ext.k, (sy + ext.M) * ext.k, W * ext.k, H * ext.k, 0, 0, tw, th);
+    const ex = pic.w / 2 * (1 - INNER), ey = pic.h / 2 * (1 - INNER);
+    const x0 = Math.max(ex, sx), y0 = Math.max(ey, sy), x1 = Math.min(pic.w - ex, sx + W), y1 = Math.min(pic.h - ey, sy + H);
+    if (x1 > x0 && y1 > y0) t.drawImage(pic.img, x0, y0, x1 - x0, y1 - y0, (x0 - sx) / W * tw, (y0 - sy) / H * th, (x1 - x0) / W * tw, (y1 - y0) / H * th);
+  };
+  if (res >= cw) { layers(ctx, cw, ch); return; }
   const lw = Math.max(2, res), lh = Math.max(2, Math.round(res * ch / cw));
   low.width = lw; low.height = lh;
-  const lc = low.getContext("2d");
-  lc.imageSmoothingEnabled = true;
-  lc.drawImage(pic.img, ix0, iy0, ix1 - ix0, iy1 - iy0, dx / cw * lw, dy / ch * lh, dw / cw * lw, dh / ch * lh);
+  layers(low.getContext("2d"), lw, lh);
   ctx.drawImage(low, 0, 0, lw, lh, 0, 0, cw, ch);
 }
 let last = 0, savedAt = 0, unveil = 0, tint = 0;                        // unveil: how far the answer has drawn the picture back to sit whole in the glass (0 close, 1 whole)
