@@ -1,10 +1,10 @@
 // Shunt (shunt-engine.js, shunt-bots.js, shunt-levels.js; the page is shunt.js): the shove and the line rule, shear, jams by odd
-// rings, bridges and idlers, the scoring, the goals, a state kept and read back, the twelve levels (each deck won by the line
-// stored with it, each teaching what it says, the bots' floors), the random plates and the daily, and the levers' geometry.
+// rings, bridges and idlers, trains and jewels, the goals and stars, a state kept and read back, the campaign (each deck won to three
+// stars by the line stored with it, each of the twelve from before teaching what it says, the bots' floors), the daily, the levers.
 // The slow searches (the beam at width 1500, a hundred runs of each bot) are in tests/shunt-search.mjs. Run: node tests/shunt.mjs
-import { CELLS, N, ENTRIES, at, fresh, swap, shove, step, play, track, legal, legalEntries, canSwap, over, judge, goalCheck, effect, sound, mend, movesOf, STUD, EMPTY, VALUE } from "../shunt-engine.js";
-import { rng, playRandom, playGreedy, beam, search } from "../shunt-bots.js";
-import { LEVELS, LEGACY, ENDLESS, CAMPAIGN, COACHED, DIFFS, goalWords, plateOf, dailyPlate, rating, rated } from "../shunt-levels.js";
+import { CELLS, N, ENTRIES, at, fresh, swap, shove, step, play, track, legal, legalEntries, canSwap, over, judge, goalCheck, starsOf, reach, progress, effect, sound, mend, movesOf, STUD, EMPTY } from "../shunt-engine.js";
+import { rng, playRandom, playGreedy, beam, search, longest } from "../shunt-bots.js";
+import { LEVELS, LEGACY, ENDLESS, CAMPAIGN, COACHED, goalWords, tiers, dailyPlate, rating } from "../shunt-levels.js";
 import { LEVERS, D, HIT } from "../shunt-view-2d.js";
 import { roundTrip } from "./rtdb.js";
 
@@ -82,35 +82,36 @@ const A = 0, B = 1, C = 2, I = 3, AB = 4, AC = 5, BC = 6;
 const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([k, v]) => [at(...k.split(",").map(Number)), v]))));
 {
   const row3 = c => place({ "-1,0": c[0], "0,0": c[1], "1,0": c[2] });
-  check(judge(row3([A, A, A])).score === VALUE[3] && judge(row3([A, A, A])).comps.some(t => t.n === 3 && !t.jam), "three gears of one pitch in a row: a train of three, 10");
-  check(judge(row3([A, B, A])).score === 0 && judge(row3([A, B, A])).comps.length === 3, "different pitches never mesh");
-  check(judge(row3([A, I, B])).score === VALUE[3], "an idler meshes every pitch");
-  check(judge(row3([A, AB, B])).score === VALUE[3] && judge(row3([A, AB, C])).score === 0, "a bridge meshes the two pitches it shows, and no other");
-  check(judge(row3([AB, AB, AB])).score === VALUE[3] && judge(row3([AC, B, BC])).score === 0, "a bridge meshes another bridge it shares a pitch with");
+  const sz = s => judge(s).sizes.join();
+  check(sz(row3([A, A, A])) === "3" && judge(row3([A, A, A])).comps.some(t => t.n === 3 && !t.jam), "three gears of one pitch in a row: a train of three");
+  check(sz(row3([A, B, A])) === "" && judge(row3([A, B, A])).comps.length === 3, "different pitches never mesh");
+  check(sz(row3([A, I, B])) === "3", "an idler meshes every pitch");
+  check(sz(row3([A, AB, B])) === "3" && sz(row3([A, AB, C])) === "", "a bridge meshes the two pitches it shows, and no other");
+  check(sz(row3([AB, AB, AB])) === "3" && sz(row3([AC, B, BC])) === "", "a bridge meshes another bridge it shares a pitch with");
   const fuse = place({ "-2,0": A, "-1,0": A, "0,0": AB, "1,0": B, "2,0": B });
-  check(judge(fuse).comps.length === 1 && judge(fuse).score === VALUE[5], "a bridge fuses two trains into one of five");
+  check(judge(fuse).comps.length === 1 && sz(fuse) === "5", "a bridge fuses two trains into one of five");
   // spin classes alternate along a train
   const J = judge(row3([A, A, A]));
   check(J.sg[at(0, 0)] === -J.sg[at(1, 0)] && J.sg[at(1, 0)] === J.sg[at(-1, 0)] * 1 && J.sg[at(0, 0)] === -J.sg[at(-1, 0)], "meshed gears turn opposite ways");
   // an odd ring jams
   const tri = place({ "0,0": A, "1,0": A, "0,1": A });
-  check(judge(tri).jams === 1 && judge(tri).score === 0 && judge(tri).comps[0].jam, "three gears in a triangle jam: no score");
+  check(judge(tri).jams === 1 && sz(tri) === "" && judge(tri).comps[0].jam, "three gears in a triangle jam: no train");
   const tri2 = place({ "0,0": A, "1,0": A, "0,1": A, "-1,0": A, "-2,0": A });
-  check(judge(tri2).jams === 1 && judge(tri2).score === 0, "a jam takes the whole train down with it");
+  check(judge(tri2).jams === 1 && sz(tri2) === "", "a jam takes the whole train down with it");
   const hexRing = place({ "1,0": A, "0,1": A, "-1,1": A, "-1,0": A, "0,-1": A, "1,-1": A });
-  check(judge(hexRing).jams === 0 && judge(hexRing).score === VALUE[6], "a ring of six (even) turns: a train of six, 22");
+  check(judge(hexRing).jams === 0 && sz(hexRing) === "6", "a ring of six (even) turns: a train of six");
   const triMixed = place({ "0,0": A, "1,0": A, "0,1": I });
   check(judge(triMixed).jams === 1, "an idler can close a ring and jam");
   const pair = place({ "0,0": A, "1,0": A });
-  check(judge(pair).score === 0 && judge(pair).jams === 0, "two gears turn but score nothing");
-  check([3, 4, 5, 6, 7].every((n, i) => VALUE[n] === [10, 16, 20, 22, 23][i]) && VALUE[Math.min(9, 7)] === 23, "trains of three to seven and more score 10, 16, 20, 22, 23");
+  check(sz(pair) === "" && judge(pair).jams === 0, "two gears turn but are no train");
+  const two = place({ "-2,0": A, "-1,0": A, "0,0": A, "0,-2": B, "1,-2": B, "2,-2": B, "2,-1": B });
+  check(sz(two) === "4,3" && reach(judge(two), 1) === 4 && reach(judge(two), 2) === 3 && reach(judge(two), 3) === 0, "trains longest first: two trains of 3+, one of 4+, not three");
+  check(progress(judge(two), 2, 4) === 7 && progress(judge(two), 2, 3) === 6 && progress(judge(pair), 1, 5) === 2 && progress(judge(pair), 1, 5, true) === 0, "progress counts the k longest groups towards a length, a pair on its way to a train too (unless only trains count)");
   // jewels
-  const jw = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [0], { jewels: [at(0, 0), at(2, 0)] }));
-  check(judge(jw).score === VALUE[3] * 1.5, "a jewel under a turning train: half as much again");
-  const jw2 = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [0], { jewels: [at(0, 0), at(1, 0)] }));
-  check(judge(jw2).score === VALUE[3] * 2, "two jewels: twice");
-  const jj = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(0, 1)]: A }, [0], { jewels: [at(0, 0)] }));
-  check(judge(jj).score === 0, "a jewel under a jammed train pays nothing");
+  const jw = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [0], { jewels: [at(0, 0), at(2, 0)], goal: { jewels: true } }));
+  check(goalCheck(jw).parts[0].have === 1, "a jewel is covered under a turning train, not on an empty cell");
+  const jj = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(0, 1)]: A }, [0], { jewels: [at(0, 0)], goal: { jewels: true } }));
+  check(!goalCheck(jj).ok, "a jewel under a jammed train is not covered");
 }
 
 // ---------- what a shove does ----------
@@ -118,18 +119,19 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
   // shear: a shove slides a whole line and pulls a train apart
   const s = place({ "-2,0": A, "-1,0": A, "0,0": A, "0,-1": B });
   const e = entry(-2, 0, 1, 0), r = shove({ ...s, q: [B], hold: -1 }, e), f = effect({ ...s, q: [B], hold: -1 }, r);
-  check(f.A.score === VALUE[3] && f.B.score === VALUE[3] && f.moved === 3 && f.broken.length === 0 && f.newJams === 0, "a shove along a train moves it as a block: the train stays whole, no shear");
+  check(f.A.sizes.join() === "3" && f.B.sizes.join() === "3" && f.moved === 3 && f.broken.length === 0 && f.newJams === 0, "a shove along a train moves it as a block: the train stays whole, no shear");
   // a shove across a train shears it: level 3's own demonstration
   {
-    const L3 = OLD[2], t = fresh(L3), shears = legalEntries(t).map(e => ({ e, f: effect(t, shove(t, e)) })).filter(x => x.f.broken.length && x.f.B.score < x.f.A.score);
-    check(shears.length > 0 && shears.every(x => x.f.broken.every(tr => tr.n >= 3)), "a shove that pulls a train of three or more apart is reported as breaking it, and costs score");
+    const L3 = OLD[2], t = fresh(L3), k = L3.goal.trains.k, aim = L3.stars[1];
+    const shears = legalEntries(t).map(e => ({ e, f: effect(t, shove(t, e)) })).filter(x => x.f.broken.length && progress(x.f.B, k, aim, true) < progress(x.f.A, k, aim, true));
+    check(shears.length > 0 && shears.every(x => x.f.broken.every(tr => tr.n >= 2)), "a shove that pulls a train apart is reported as breaking it, and sets the trains back");
     const x = shears[0], r = shove(t, x.e), oldCells = x.f.broken[0].cells, where = new Map(r.moved.map(m => [m[0], m[1]])), J = judge(r.s);
     check(new Set(oldCells.map(c => J.comp[where.has(c) ? where.get(c) : c])).size > 1, "its gears now stand in more than one train");
   }
   const tri = place({ "0,0": A, "1,0": A });
   const withNext = { ...tri, q: [A] }, e3 = entry(0, 2, 0, -1);
   const rj = shove(withNext, e3), fj = effect(withNext, rj);
-  check(fj.newJams >= 0 && typeof fj.B.score === "number", "effect reports new jams");
+  check(fj.newJams >= 0 && Array.isArray(fj.B.sizes), "effect reports new jams");
   // a jam the shove makes: a gear landing next to two meshed gears
   const base = place({ "1,0": A, "0,1": A });
   let found = -1;
@@ -139,12 +141,18 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
 
 // ---------- goals ----------
 {
-  const s = fresh({ ...lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [A]), goal: { score: 10 }, jewels: [at(0, 0)] });
-  check(goalCheck(s).ok && goalCheck({ ...s, goal: { score: 16 } }).ok === false, "a score goal");
+  const s = fresh({ ...lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [A]), goal: { trains: { k: 1, m: 3 } }, jewels: [at(0, 0)] });
+  check(goalCheck(s).ok && goalCheck({ ...s, goal: { trains: { k: 1, m: 4 } } }).ok === false, "a trains goal: a train of 3+ is there, of 4+ not");
   check(goalCheck({ ...s, goal: { jewels: true } }).ok && !goalCheck({ ...s, jewels: [at(0, 0), at(0, -2)], goal: { jewels: true } }).ok, "a jewel goal: every jewel under a turning train");
   check(goalCheck({ ...s, goal: { trains: { k: 1, m: 3 } } }).ok && !goalCheck({ ...s, goal: { trains: { k: 2, m: 3 } } }).ok && !goalCheck({ ...s, goal: { trains: { k: 1, m: 4 } } }).ok, "a trains goal: so many separate trains of so many");
   check(goalCheck({ ...s, goal: { nojam: true } }).ok && !goalCheck({ ...place({ "0,0": A, "1,0": A, "0,1": A }), goal: { nojam: true } }).ok, "a no-jam goal");
-  check(goalWords({ nojam: true, score: 42 }) === "No jam, score 42" && goalWords({ jewels: true, trains: { k: 2, m: 4 }, score: 68 }) === "Cover every jewel, 2 separate trains of 4+, score 68" && goalWords({}) === "Pure score", "a goal in words");
+  check(goalWords({ nojam: true, trains: { k: 2, m: 5 } }) === "2 trains of 5+, no jam" && goalWords({ jewels: true, trains: { k: 1, m: 9 } }) === "A train of 9+, cover every jewel", "a goal in words");
+  // stars: none for a goal missed, one for the goal, one more for each longer size the same number of trains reach
+  const st = place({ "-2,0": A, "-1,0": A, "0,0": A, "1,0": A, "0,-2": B, "1,-2": B, "2,-2": B, "2,-1": B });
+  const at2 = (m, conds = {}) => ({ ...st, goal: { trains: { k: 2, m }, ...conds } });
+  check(starsOf(at2(3), null, [4, 5]) === 2 && starsOf(at2(3), null, [3, 4]) === 3 && starsOf(at2(4), null, [5, 6]) === 1 && starsOf(at2(5), null, [6, 7]) === 0, "stars: the goal one, each longer size one more");
+  check(starsOf({ ...at2(3, { jewels: true }), jewels: [at(-1, 1)] }, null, [4, 4]) === 0, "and none while another part of the goal is missed");
+  check(JSON.stringify(tiers(2, 7)) === '{"trains":{"k":2,"m":5},"stars":[6,7]}' && tiers(3, 4).trains.m === 3, "the goal two gears short of the longest trains found, a star for each gear more");
 }
 
 // ---------- a state kept and read back ----------
@@ -173,23 +181,23 @@ check(ENDLESS.length >= 200 && ENDLESS.every((e, n) => n === 0 || e.needs >= END
   const ALL = [...LEVELS, ...ENDLESS.map((e, n) => ({ ...e, id: `endless ${n + 1}` }))];
   for (const L of ALL) {
     const s = play(L, L.sol), J = s && judge(s);
-    if (!s || !over(s) || !goalCheck(s, J).ok || J.score !== L.best) bad1.push(L.id);
+    if (!s || !over(s) || starsOf(s, J, L.stars) !== 3 || reach(J, L.goal.trains.k) !== L.best) bad1.push(L.id);
   }
-  check(!bad1.length, `every level's deck, and every Endless plate's, is won by the line stored with it, to its best score${bad1.length ? `: not ${bad1.slice(0, 5)}` : ""}`);
-  check(ALL.every(l => l.stars[0] >= (l.goal.score || 0) && l.stars[1] >= l.stars[0] && l.stars[1] <= l.best), "the stars climb from the goal to just under the best known");
-  check(ALL.every(l => l.goal.score <= 0.9 * l.best), "no goal asks more than nine tenths of the best known score");
+  check(!bad1.length, `every level's deck, and every Endless plate's, is won to three stars by the line stored with it${bad1.length ? `: not ${bad1.slice(0, 5)}` : ""}`);
+  check(ALL.every(l => l.goal.trains && l.goal.trains.m >= 3 && same(l.stars, [l.goal.trains.m + 1, l.goal.trains.m + 2]) && l.stars[1] === l.best), "each goal is trains two gears short of the longest found, a star for each gear more");
+  check(ALL.every(l => !("score" in l.goal)), "no points anywhere");
   check(ALL.every(l => l.deal.length <= N - l.stud.length - Object.keys(l.start).length && l.deal.every(g => g >= 0 && g <= 6)), "every deck fits its plate");
   check(ALL.every(l => sound(fresh(l)) && l.jewels.every(j => fresh(l).cells[j] === EMPTY)), "every plate's start is sound, its jewels on open cells");
   const groups = L => new Set(L.deal.concat(Object.values(L.start)).filter(g => g <= 2 || g >= 4).flatMap(g => (g <= 2 ? [g] : g === 4 ? [0, 1] : g === 5 ? [0, 2] : [1, 2])));
   check(groups(OLD[0]).size === 1 && groups(OLD[1]).size === 2 && groups(OLD[2]).size === 2, "the first level has one pitch, the second and third two");
   check(OLD[2].demo === "shear" && OLD[3].demo === "jam" && OLD[4].swap && OLD[0].guide && OLD[1].guide, "levels 3 and 4 demonstrate a shear and a jam, 5 the hold, 1 and 2 are guided");
-  // the demonstrations exist at the first turn: a shear that costs score, a shove that jams
+  // the demonstrations exist at the first turn: a shear that sets the trains back, a shove that jams
   const first = L => fresh(L);
-  const shears = L => legalEntries(first(L)).filter(e => { const f = effect(first(L), shove(first(L), e)); return f.broken.length && f.B.score < f.A.score; });
+  const shears = L => legalEntries(first(L)).filter(e => { const f = effect(first(L), shove(first(L), e)), k = L.goal.trains.k; return f.broken.length && progress(f.B, k, L.stars[1], true) < progress(f.A, k, L.stars[1], true); });
   const jams = L => legalEntries(first(L)).filter(e => effect(first(L), shove(first(L), e)).newJams > 0);
-  check(shears(OLD[2]).length > 0 && jams(OLD[3]).length > 0, "level 3 has a shove that shears a train and costs score, level 4 one that jams, at its first turn");
+  check(shears(OLD[2]).length > 0 && jams(OLD[3]).length > 0, "level 3 has a shove that shears a train and sets the trains back, level 4 one that jams, at its first turn");
   check(OLD[4].sol[0] === -1, "level 5's best line begins with a swap (the coach pulses the cradle)");
-  check(OLD[5].deal.includes(I) && OLD[6].jewels.length === 3 && OLD[6].goal.jewels && OLD[7].deal.some(g => g >= 4) && OLD[7].goal.trains, "level 6 deals idlers, 7 has three jewels, 8 deals bridges and asks for separate trains");
+  check(OLD[5].deal.includes(I) && OLD[6].jewels.length === 3 && OLD[6].goal.jewels && OLD[7].deal.some(g => g >= 4) && OLD[7].goal.trains.k === 2, "level 6 deals idlers, 7 has three jewels, 8 deals bridges and asks for two separate trains");
   check(OLD[10].deal.some(g => g >= 4) && OLD[11].stud.length === 3 && OLD[11].jewels.length === 2, "levels 11 and 12 are the old fusion and workshop plates");
   check(OLD.every(l => COACHED.has(l.id) === !!l.coach) && OLD.slice(0, 8).every(l => l.tip && l.coach?.length >= 3) && OLD.slice(8).every(l => l.tip && !l.coach), "the first eight from before have coach lines, the rest only their tip");
   check(LEVELS.every(l => (l.tip || "").length <= 190 && (l.coach || []).every(c => c.length <= 130)), "every line fits the coach's box");
@@ -198,44 +206,26 @@ check(ENDLESS.length >= 200 && ENDLESS.every((e, n) => n === 0 || e.needs >= END
 {
   const wins = (L, runs, bot) => { let n = 0; for (let i = 0; i < runs; i++) n += bot(L, i + 1).ok; return Math.round(100 * n / runs); };
   const g = OLD.slice(0, 6).map(L => wins(L, 20, playGreedy));
-  check(g.slice(0, 4).every(p => p >= 80) && g.slice(4, 6).every(p => p >= 40), `the greedy player (always the best score now) beats levels 1 to 4 at least four times in five and 5 and 6 at least two in five (${g.join(", ")}%)`);
+  check(g.every(p => p >= 80), `the greedy player (the shove that looks best at once) beats levels 1 to 6 at least four times in five (${g.join(", ")}%)`);
   const bw = OLD.map(L => beam(L, 40).ok);
   check(bw.slice(0, 8).every(Boolean), "a beam search of width 40 wins levels 1 to 8");
   const r = OLD.slice(0, 4).map(L => wins(L, 20, playRandom));
   check(r.every(p => p < 80), `a player shoving at random does not walk through them (${r.join(", ")}%)`);
 }
 
-// ---------- plates by difficulty and the daily ----------
+// ---------- the daily ----------
 {
-  for (const d of DIFFS) {
-    const p = plateOf(12345, d), q = plateOf(12345, d), o = plateOf(12346, d);
-    check(same(p, q) && !same(p, o), `a ${d} plate is the same from its seed, and another seed gives another plate`);
-  }
-  const easy = plateOf(1, "easy"), med = plateOf(1, "medium"), hard = plateOf(1, "hard");
-  check(easy.stud.length === 0 && med.stud.length === 0 && Object.values(easy.start).every(g => g <= 1) && easy.deal.every(g => g <= 1), "easy: two pitches, no studs, no idlers or bridges");
-  check(med.deal.filter(g => g === 3).length === 2 && med.deal.every(g => g <= 3) && med.jewels.length === 2, "medium: three pitches and two idlers, two jewels");
-  const hardIs = [1, 2, 3, 4, 5, 6, 7, 8].map(s => plateOf(s, "hard"));
-  check(hardIs.every(h => h.deal.some(g => g >= 4) && h.deal.some(g => g === 3) && h.jewels.length === 3 && h.stud.length <= 2), "hard: idlers, bridges, three jewels, up to two studs");
-  check(hardIs.every(h => h.deal.length === N - h.stud.length - Object.keys(h.start).length), "hard plates are dealt full");
-  check([...DIFFS].every(d => [1, 2, 3, 4, 5].every(s => { const p = plateOf(s, d); return sound(fresh({ ...p, goal: {} })) && new Set([...p.stud, ...p.jewels, ...Object.keys(p.start).map(Number)]).size === p.stud.length + p.jewels.length + Object.keys(p.start).length; })), "studs, jewels and starting gears never share a cell");
-  // a rated plate: its goal is one the search itself met
-  for (const d of DIFFS) {
-    const plate = plateOf(77, d), sr = rating(plate, d);
-    sr.step(Infinity);
-    const spec = sr.result(), sr2 = search(fresh({ ...plate, goal: {} }), 40);
-    sr2.step(Infinity);
-    const top = sr2.result().score;
-    check(spec.goal.score <= top && spec.stars[0] >= spec.goal.score && spec.stars[1] <= top && spec.stars[1] >= spec.stars[0] && spec.goal.score >= 10, `a ${d} plate's goal (${spec.goal.score}) and stars (${spec.stars}) are under what the search scored (${top})`);
-    const w = beam(spec, 40);
-    check(w.ok, `and the search wins it (${d})`);
-  }
   const days = [20261104, 20261105, 20261231];
   const ds = days.map(d => dailyPlate(d)), again = days.map(d => dailyPlate(d));
-  check(same(ds, again) && !same(ds[0], ds[1]) && ds.every(p => p.kind === "daily" && same(p.start, {}) && p.deal.length === N - p.stud.length), "the daily is dealt from the day alone: the same every time, another each day, full, with no starting gears");
-  const rate = day => { const p = dailyPlate(day), sr = rating(p, "hard"); sr.step(Infinity); return sr.result(); };
+  check(same(ds, again) && !same(ds[0], ds[1]) && ds.every(p => p.kind === "daily" && same(p.start, {}) && p.deal.length === 16 && p.jewels.length === 2 && p.stud.length <= 2), "the daily is dealt from the day alone: the same every time, another each day, sixteen gears, two jewels, no starting gears");
+  check(ds.every(p => p.deal.some(g => g === 3) && p.deal.filter(g => g >= 4).length === 2) && ds.every(p => new Set([...p.stud, ...p.jewels]).size === p.stud.length + p.jewels.length), "an idler or two and two bridges; studs and jewels never share a cell");
+  const rate = day => { const p = dailyPlate(day), sr = rating(p); sr.step(Infinity); return sr.result(); };
   const r1 = rate(20261104), r2 = rate(20261104);
-  check(same(r1, r2) && r1.goal.score >= 10 && r1.stars[0] <= r1.stars[1], "its goal and stars are the same on every device (the search is deterministic)");
-  check(!ds.some(p => !sound(fresh({ ...p, goal: {} }))), "a daily plate is sound");
+  check(same(r1, r2) && r1.goal.trains && r1.goal.jewels && r1.stars[1] === r1.best && r1.stars[0] === r1.best - 1, "its goal and stars are the same on every device (the search is deterministic): trains two gears short, a star for each gear more");
+  const top = longest(r1, r1.goal.trains.k);
+  top.step(Infinity);
+  check(top.result().m >= r1.best && beam(r1, 40).ok, `and the search makes them (${goalWords(r1.goal)}, stars at ${r1.stars})`);
+  check(!ds.some(p => !sound(fresh(p))), "a daily plate is sound");
 }
 
 // ---------- the levers ----------

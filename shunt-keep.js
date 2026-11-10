@@ -14,8 +14,9 @@ export const MODES = ["levels", "endless", "daily"];
 export const RUN_KEY = { levels: KEYS.run, endless: KEYS.erun, daily: KEYS.drun };
 /** 2: the rail-yard game's run and best are gone. 3: and its `scrapped` (its `seen` was a flag, not a list: readSeen drops it).
  *  4 (10 Nov 2026): the campaign (campaign.js): Random's run and difficulty go (Endless took its place), and a level's run is kept by
- *  the level's id, not its number (the twelve levels are spread through the chapters now). */
-export const VER = 4;
+ *  the level's id, not its number (the twelve levels are spread through the chapters now). 5 (10 Nov 2026): no points (goals and
+ *  stars are trains of a length): the days' scores go, and the runs, whose plates were picked again. */
+export const VER = 5;
 
 const isRecord = v => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -40,6 +41,7 @@ export function migrate({ read, write }) {
   if (v === VER) return;
   if (v < 2) { write(KEYS.run, null); write(KEYS.best, 0); }
   if (v < 4) { for (const k of [KEYS.rrun, KEYS.diff, KEYS.coach, KEYS.run]) write(k, null); }
+  if (v < 5) { for (const k of [KEYS.daily, KEYS.run, KEYS.erun, KEYS.drun]) write(k, null); }
   write(KEYS.scrapped, null);
   write(KEYS.ver, VER);
 }
@@ -47,8 +49,8 @@ export function migrate({ read, write }) {
 export const readMode = ({ read }) => read(KEYS.mode, "levels", v => MODES.includes(v));
 /** The terms already explained. */
 export const readSeen = ({ read }) => new Set(read(KEYS.seen, [], v => Array.isArray(v) && v.every(t => typeof t === "string")));
-/** Each day's score, by the day. */
-export const readDaily = ({ read }) => read(KEYS.daily, {}, isRecord);
+/** The stars won on each day's plate, by the day. */
+export const readDaily = ({ read }) => read(KEYS.daily, {}, v => isRecord(v) && Object.values(v).every(n => Number.isInteger(n) && n >= 0 && n <= 3));
 /** The 3D camera the player left: { az, el, z }, all numbers (the view clamps them), or null for the home view. */
 export const readCam = ({ read }) => read(KEYS.cam, null, v => isRecord(v) && ["az", "el", "z"].every(k => Number.isFinite(v[k])));
 export const readSel = ({ read }) => read(KEYS.sel, null, v => isRecord(v) && Number.isInteger(v.e));
@@ -68,9 +70,11 @@ export function legacyCamp({ read }) {
 export function specOf(r) {
   if (r.kind === "level") return LEVELS.find(L => L.id === r.id) || null;
   if (r.kind === "endless") return Number.isInteger(r.n) ? ENDLESS[r.n] || null : null;
-  const p = r.spec;
+  // (through the database, which keeps no empty arrays or objects, a plate with no studs or no starting gears comes back without them)
+  const p = isRecord(r.spec) ? { ...r.spec, stud: r.spec.stud ?? [], jewels: r.spec.jewels ?? [], start: r.spec.start ?? {} } : null;
   const ok = isRecord(p) && Array.isArray(p.deal) && Array.isArray(p.jewels) && Array.isArray(p.stud) && isRecord(p.start) && isRecord(p.goal)
-    && Array.isArray(p.stars) && p.stars.length >= 2 && p.stars.every(Number.isFinite) && p.deal.every(Number.isInteger);
+    && isRecord(p.goal.trains) && [p.goal.trains.k, p.goal.trains.m].every(n => Number.isInteger(n) && n >= 1)
+    && Array.isArray(p.stars) && p.stars.length >= 2 && p.stars.every(Number.isInteger) && p.deal.every(Number.isInteger);
   return ok ? p : null;
 }
 

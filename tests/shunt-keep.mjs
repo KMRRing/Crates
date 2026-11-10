@@ -3,7 +3,8 @@
 // leave a game state that builds. Korbi's page once stopped before it drew: the old game's `shunt:seen` was `true`. Run: node tests/shunt-keep.mjs
 import { KEYS, RUN_KEY, keeper, migrate, readMode, readSeen, readDaily, readSel, legacyCamp, savedRun, specOf, MODES, VER } from "../shunt-keep.js";
 import { play, sound, judge, goalCheck, fresh, legalEntries, shove } from "../shunt-engine.js";
-import { LEVELS, ENDLESS, CAMPAIGN, plateOf, rated } from "../shunt-levels.js";
+import { LEVELS, ENDLESS, CAMPAIGN, dailyPlate, tiers } from "../shunt-levels.js";
+import { roundTrip } from "./rtdb.js";
 import { createCampaign } from "../campaign.js";
 
 let bad = 0;
@@ -16,14 +17,17 @@ const store = init => {
 /** A line of play on a plate: the first legal shove, n times. */
 const moves = (sp, n) => { let s = fresh(sp); const out = []; for (let i = 0; i < n && legalEntries(s).length; i++) { const e = legalEntries(s)[0]; out.push(e); s = shove(s, e).s; } return out; };
 
-const rnd = { kind: "random", seed: 7, diff: "medium", ...rated({ kind: "random", seed: 7, diff: "medium", ...plateOf(7, "medium") }, 60, "medium") };   // (Random, before Endless took its place)
-const dly = { kind: "daily", day: DAY, ...rated({ kind: "daily", day: DAY, diff: "hard", ...plateOf(DAY, "hard", { noStart: true }) }, 60, "hard") };
+// a plate as the first builds kept one (a goal in points): Random's, before Endless took its place, and the daily's
+const pointsPlate = { stud: [], jewels: [4], start: {}, deal: [0, 1, 0, 1, 0, 1, 0, 1], goal: { score: 30 }, stars: [33, 38], best: 40 };
+const rnd = { kind: "random", seed: 7, diff: "medium", ...pointsPlate };
+const oldDly = { kind: "daily", day: DAY, diff: "hard", ...pointsPlate };
+const t7 = tiers(2, 7), dly = { ...dailyPlate(DAY), goal: { jewels: true, trains: t7.trains }, stars: t7.stars, best: 7 };
 const stage1 = {
   "shunt:mode": "daily", "shunt:ver": 2, "shunt:best": 7, "shunt:camp": { at: 1, stars: [3, 0] }, "shunt:diff": "hard", "shunt:coach": false,
   "shunt:seen": ["train", "shear"], "shunt:daily": { [DAY - 1]: 50 }, "shunt:sel": { e: 3, swap: 0 },
   "shunt:run": { v: 1, kind: "level", n: 1, moves: moves(LEVELS[1], 3), hints: 0, at: 1 },
   "shunt:rrun": { v: 1, kind: "random", seed: 7, diff: "medium", spec: rnd, moves: moves(rnd, 4), at: 1 },
-  "shunt:drun": { v: 1, kind: "daily", day: DAY, spec: dly, moves: moves(dly, 4), at: 1 },
+  "shunt:drun": { v: 1, kind: "daily", day: DAY, spec: oldDly, moves: moves(oldDly, 4), at: 1 },
 };
 // the rail-yard game: a 6 by 6 yard as `run`, a score in thousands as `best`, the flags `seen` (true) and `scrapped`, no `ver`
 const railYard = {
@@ -78,13 +82,17 @@ function startUp(name, init) {
 }
 {
   const { st, runs, kp } = startUp("the first builds' keys", stage1);
-  check(!runs.levels && !st.m.has(KEYS.run) && !st.m.has(KEYS.rrun) && !st.m.has(KEYS.diff) && runs.daily, "a level's run kept by its number and Random's run go; today's daily stays");
+  check(!runs.levels && !st.m.has(KEYS.run) && !st.m.has(KEYS.rrun) && !st.m.has(KEYS.diff), "a level's run kept by its number and Random's run go");
+  check(!runs.daily && !st.m.has(KEYS.drun) && !st.m.has(KEYS.daily), "and with points gone, the daily's run and the days' scores");
   check(createCampaign({ game: "shunt", ...CAMPAIGN, store: kp }).stars(LEVELS.findIndex(l => l.id === "l1")) === 3, "the twelve levels' stars from before are carried into the campaign");
   check(JSON.parse(st.m.get(KEYS.seen)).join() === "train,shear" && JSON.parse(st.m.get(KEYS.best)) === 7, "the explained terms and the best stay");
 }
 {
   const { runs } = startUp("this build's keys", stage4);
   check(runs.levels && runs.endless && runs.daily, "a level's, Endless's and today's runs are kept");
+  const back = specOf({ kind: "daily", spec: roundTrip({ ...dly, stud: [] }) });
+  check(back && back.stud.length === 0 && back.goal.trains.k === 2, "a daily plate with no studs comes back from the database whole");
+  check(Object.keys(readDaily(keeper(store({ "shunt:daily": { [DAY]: 2, [DAY - 1]: 3 } })))).length === 2 && !Object.keys(readDaily(keeper(store({ "shunt:daily": { [DAY]: 57 } })))).length, "the days' stars are read, a score is not");
 }
 {
   const withOldSeen = { ...stage4, "shunt:ver": VER, "shunt:seen": true };

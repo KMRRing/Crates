@@ -31,7 +31,9 @@ html[data-mode="night"] { --sh-wood: #3C2517; --sh-baize: #1D362C; --sh-recess: 
 .sh-name b { color: var(--ink); }
 .sh-sc { flex: none; font-size: .86rem; color: var(--ink-soft); white-space: nowrap; }
 .sh-sc b { color: var(--ink); font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.sh-stars { margin-left: .45rem; color: var(--brass-lo); letter-spacing: .1em; }
+.sh-stars { margin-left: .2rem; color: var(--brass-lo); }
+.sh-stars i { font-style: normal; margin-left: .3rem; }
+.sh-stars small { margin-left: .06rem; font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .sh-aim { display: flex; gap: .3rem; flex-wrap: nowrap; overflow: hidden; align-items: center; min-height: 1.65rem; }
 .sh-aim .lab { flex: none; font-size: .64rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .sh-part { flex: none; padding: .12rem .4rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--sheet); font-size: .72rem; white-space: nowrap; font-variant-numeric: tabular-nums; }

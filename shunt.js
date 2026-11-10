@@ -7,7 +7,7 @@
 // A touch on a lever previews its shove; the same lever again (or Shove) makes it; sliding a finger over the levers shows each in
 // turn. A game is the plate and its list of moves (-1 swaps, e shoves at entry e): that is all that is kept, as `shunt:run` (Levels),
 // `shunt:erun` (Endless) or `shunt:drun` (Daily), so a partner watching draws the same plate from the same keys.
-import { play, swap, shove, judge, goalCheck, effect, over, canSwap, legal, legalEntries, ENTRIES } from "./shunt-engine.js";
+import { play, swap, shove, judge, goalCheck, starsOf, progress, effect, over, canSwap, legal, legalEntries, ENTRIES } from "./shunt-engine.js";
 import { search } from "./shunt-bots.js";
 import { LEVELS, ENDLESS, CAMPAIGN, COACHED, goalWords, dailyPlate, rating } from "./shunt-levels.js";
 import { createCampaign } from "./campaign.js";
@@ -27,7 +27,7 @@ import { KEYS, RUN_KEY, keeper, migrate, readMode, readSeen, readDaily, readSel,
 const $ = id => document.getElementById(id);
 // MODE: "levels", "endless" or "daily". The campaign (`shunt:campaign`, `shunt:endless`) is campaign.js's: the level being played, the
 // stars won in each, Endless's place; `shunt:camp` is the campaign from before it, read once. BEST: stars won in all, the figure the
-// games screen shows. RUN, ERUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
+// games screen shows. RUN, ERUN, DRUN: the game of each mode (plate and moves). DAILY: the stars won on each day's plate, by the day (YYYYMMDD).
 // SEL: the lever being previewed, so a partner sees it. SEEN: terms already explained.
 // Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
 // CAM: the 3D view's turn, tilt and zoom, kept when the player moves it (null at home, never a default written). VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the watch's sounds on or off. TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
@@ -35,7 +35,6 @@ const MODE = KEYS.mode, BEST = KEYS.best, DAILY = KEYS.daily, SEL = KEYS.sel, SE
 const VIEW = "shunt:view", SOUND = "shunt:sound", TILT = "shunt:tilt", CAM = KEYS.cam;
 const kp = keeper(localStorage, IN_FRAME), { write } = kp;
 const read = (k, d, ok) => kp.read(k, d, ok);
-const fmt = v => String(Math.round(v * 10) / 10);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const starStr = n => "★".repeat(n) + "☆".repeat(3 - n);
 
@@ -150,19 +149,23 @@ async function setMode(next) {
 
 // ---------- reading the plate ----------
 const goal = () => spec.goal;
-function starsFor(score, ok) {
-  if (Object.keys(goal()).length && !ok) return 0;
-  return 1 + (score >= spec.stars[0] ? 1 : 0) + (score >= spec.stars[1] ? 1 : 0);
-}
-const nextStar = n => spec.stars[n - 1];
+const K = () => goal().trains.k;
+/** The plate's stars if it were judged now. */
+const starsAt = (st, J) => starsOf(st, J, spec.stars);
+/** "2 trains of 6+", "a train of 9+". */
+const trainWords = (k, m) => (k === 1 ? `a train of ${m}+` : `${k} trains of ${m}+`);
+/** The goal's number of longest trains, longest first, as the plate stands: "6 · 4" (a dash for one not made yet, "none" for none). */
+const trainsText = J => (J.sizes.length ? Array.from({ length: K() }, (_, i) => J.sizes[i] ?? "–").join("\u00a0·\u00a0") : "none");             // (kept on one line)
+/** How far the trains have come towards three stars: what a shove is said to win or cost. */
+const gain = J => progress(J, K(), spec.stars[1], true);
 const levelNo = () => (run.kind === "level" ? spec.no : 0);
 const nameOf = () => (run.kind === "level" ? `<b>${spec.no}</b> ${spec.name}` : run.kind === "endless" ? `<b>Endless</b> ${run.n + 1}${spec.milestone ? " ✦" : ""}` : `<b>Daily</b> ${dateWords(run.day)}`);
 const dateWords = d => `${String(d % 100).padStart(2, "0")}/${String(Math.floor(d / 100) % 100).padStart(2, "0")}/${Math.floor(d / 10000)}`;
 const coached = () => run.kind === "level" && COACHED.has(spec.id);
 const DEFS = {
-  train: "A train is a chain of touching gears that mesh; three or more score.",
+  train: "A train is a chain of three or more touching gears that mesh.",
   shear: "Shear: a shove slides a whole line, so gears can slip away from their neighbours and a train breaks.",
-  jam: "A jam: gears touching in an odd ring cannot all turn, so the whole train locks and scores nothing.",
+  jam: "A jam: gears touching in an odd ring cannot all turn, so the whole train locks and doesn't count.",
   bridge: "A bridge is one gear showing two pitches: it meshes both, so it joins their trains into one.",
   idler: "An idler (black, with every pitch's teeth on its rim) meshes with every pitch.",
 };
@@ -179,26 +182,26 @@ function colourName(t, st) {
   const m = Math.max(...cnt);
   return m === 0 ? "black" : PITCHES[cnt.indexOf(m)];
 }
-/** What the previewed shove would do, in words: gears pushed, trains broken or joined, jams, the score. */
+/** What the previewed shove would do, in words: gears pushed, trains broken or joined, jams, the trains that come of it. */
 function effectOf(p) {
   const E = effect(p.before, { s: p.s, moved: p.moved, at: p.at }), bits = [];
   let tone = "", defs = "";
   bits.push(E.moved === 0 ? "Lands in an empty cell." : `Pushes <b>${E.moved}</b> gear${E.moved > 1 ? "s" : ""} one step.`);
   E.broken.forEach(t => { bits.push(`<b class="r">Breaks</b> the ${colourName(t, p.before)} train of ${t.n} (shear).`); defs += define("shear"); tone = "bad"; });
   E.joined.forEach(j => { bits.push(`Joins trains (${j.from.map(t => t.n).join(" + ")}) into one of ${j.t.n}.`); defs += define("train"); });
-  if (E.newJams > 0) { bits.push(`<b class="r">Jams</b> a train of ${E.B.comps.filter(t => t.jam).sort((a, b) => b.n - a.n)[0].n}: it locks and scores nothing.`); defs += define("jam"); tone = "bad"; }
+  if (E.newJams > 0) { bits.push(`<b class="r">Jams</b> a train of ${E.B.comps.filter(t => t.jam).sort((a, b) => b.n - a.n)[0].n}: it locks and doesn't count.`); defs += define("jam"); tone = "bad"; }
   else if (E.B.jams === 0) bits.push("Jams nothing.");
-  const d = E.B.score - E.A.score;
-  bits.push(`Score ${fmt(E.A.score)} → <b class="${d > 0 ? "g" : d < 0 ? "r" : ""}">${fmt(E.B.score)}</b>.`);
+  const d = gain(E.B) - gain(E.A);
+  bits.push(`Trains ${trainsText(E.A)} → <b class="${d > 0 ? "g" : d < 0 ? "r" : ""}">${trainsText(E.B)}</b>.`);
   if (!tone && d > 0) tone = "good";
   return { html: bits.join(" ") + defs, tone: goalCheck(p.s, E.B).ok && !tone ? "good" : tone, E };
 }
 function dropNote(before, r) {
-  const E = effect(before, r), a = E.A.score, b = E.B.score;
-  if (b >= a) return "";
+  const E = effect(before, r);
+  if (gain(E.B) >= gain(E.A)) return "";
   const why = E.broken.map(t => `broke the ${colourName(t, before)} train of ${t.n}`);
   if (E.newJams > 0) why.push("jammed a train");
-  return `Score ${fmt(a)} → ${fmt(b)}: the shove ${why.join(" and ") || "split a train"}.`;
+  return `Trains ${trainsText(E.A)} → ${trainsText(E.B)}: the shove ${why.join(" and ") || "split a train"}.`;
 }
 
 // ---------- the coach ----------
@@ -218,17 +221,17 @@ function coachFor() {
     quietSearch();
   }
 }
-/** The first lever whose shove shows a shear that costs score, or a jam. */
+/** The first lever whose shove shows a shear that sets the trains back, or a jam. */
 function demoEntry(kind) {
   const s0 = S;
   for (const e of legalEntries(s0)) {
     const E = effect(s0, shove(s0, e));
-    if (kind === "shear" ? E.broken.length && E.B.score < E.A.score : E.newJams > 0) return e;
+    if (kind === "shear" ? E.broken.length && gain(E.B) < gain(E.A) : E.newJams > 0) return e;
   }
   return -1;
 }
 function quietSearch() {
-  const tok = hintTok, ep = epoch, sr = search(S, 120);
+  const tok = hintTok, ep = epoch, sr = search(S, 120, false, spec.stars[1]);
   const tick = () => {
     if (tok !== hintTok || ep !== epoch) return;
     if (!sr.step(14)) return void setTimeout(tick, 0);
@@ -245,26 +248,32 @@ function coachLine() {
 }
 
 // ---------- drawing ----------
-function chips(J) {
-  const g = goalCheck(S, J), out = [];
+/** The goal's parts as chips: two trains of 5+ as "1/2 trains of 5+". */
+function chips(st, J) {
+  const g = goalCheck(st, J), out = [], m = goal().trains.m;
   g.parts.forEach(p => {
-    const t = p.id === "score" ? `Score ${fmt(p.have)}/${p.need}` : p.id === "trains" ? `${p.have}/${goal().trains.k} separate trains of ${goal().trains.m}+` : p.id === "jewels" ? `Jewels ${p.have}/${p.need}` : p.ok ? "No jam" : `No jam: ${p.have} jammed`;
+    const t = p.id === "trains" ? (p.need === 1 ? `A train of ${m}+` : `${p.have}/${p.need} trains of ${m}+`) : p.id === "jewels" ? `Jewels ${p.have}/${p.need}` : p.ok ? "No jam" : `No jam: ${p.have} jammed`;
     out.push(`<span class="sh-part${p.ok ? " ok" : p.id === "nojam" && p.have ? " bad" : ""}">${t}</span>`);
   });
   return `<span class="lab">Goal</span>${out.join("")}`;
 }
+/** The three stars, each with the length of train it asks for (the goal's number of them): ★5+ ☆6+ ☆7+. */
+function starsHtml(n) {
+  return [goal().trains.m, ...spec.stars].map((m, i) => `<i${i < n ? ' class="on"' : ""}>${i < n ? "★" : "☆"}<small>${m}+</small></i>`).join("");
+}
 function coachBox() {
   let cls = "", html;
   if (done) {
-    const J = judge(S), g = goalCheck(S, J), n = starsFor(J.score, g.ok);
-    const why = g.parts.filter(p => !p.ok).map(p => p.id === "score" ? `score ${fmt(J.score)} of ${p.need}` : p.id === "trains" ? `only ${p.have} separate train${p.have === 1 ? "" : "s"}` : p.id === "jewels" ? `${p.have} of ${p.need} jewels covered` : `${p.have} jammed`).join(", ");
+    const J = judge(S), g = goalCheck(S, J), n = starsAt(S, J);
+    const why = g.parts.filter(p => !p.ok).map(p => p.id === "trains" ? `${p.have} of ${p.need} train${p.need === 1 ? "" : "s"} of ${goal().trains.m}+` : p.id === "jewels" ? `${p.have} of ${p.need} jewels covered` : `${p.have} jammed`).join(", ");
     cls = g.ok ? "good" : "bad";
-    html = g.ok ? `<b class="g">Plate judged: goal met.</b> Score ${fmt(J.score)}, ${starStr(n)}. ${n < 3 ? `Next star at ${nextStar(n)}.` : "Best possible stars."}` : `<b class="r">Plate judged: goal missed</b> (${why}). Undo to rewind, or Replay in the menu.`;
+    html = g.ok ? `<b class="g">Plate judged: goal met.</b> Trains ${trainsText(J)}: ${starStr(n)}. ${n < 3 ? `The next star is for ${trainWords(K(), spec.stars[n - 1])}.` : "Every star."}` : `<b class="r">Plate judged: goal missed</b> (${why}). Undo to rewind, or Replay in the menu.`;
   } else if (pv) {
     const ef = effectOf(pv);
     cls = ef.tone;
     html = ef.html;
     if (demoE === pv.e && !demoSeen) html = `<b class="r">${spec.demo === "shear" ? "This shove would shear the train" : "This shove would jam"}.</b> ${spec.demo === "shear" ? "A shove slides a whole line, so it pulls a train apart: see it flash." : "Three gears in a ring cannot all turn: see the red."} Now tap another lever.`;
+    else if (hintInfo && hintInfo.e === pv.e) { cls = "good"; html = hintInfo.html; }              // the Hint's own words, while its lever is shown
     else if (coachOn && pulse?.e === pv.e) html = `<b class="g">Good shove.</b> ${html} Tap it again to shove.`;
   } else if (thinking) html = "<b>Thinking…</b> searching the queue and the hold for a winning line.";
   else if (hintInfo) { cls = hintInfo.nowin ? "bad" : "good"; html = hintInfo.html; }
@@ -276,11 +285,13 @@ function coachBox() {
   box.innerHTML = html;
 }
 function render() {
-  const base = S, shown = pv ? pv.s : S, J = judge(shown), ok = goalCheck(shown, J).ok;
+  const base = S, shown = pv ? pv.s : S, J = judge(shown);
   $("plateName").innerHTML = nameOf();
-  $("score").textContent = fmt(J.score);
-  $("stars").textContent = starStr(starsFor(J.score, ok));
-  $("goal").innerHTML = chips(J);
+  $("trains").textContent = trainsText(J);
+  const n = starsAt(shown, J);
+  $("stars").innerHTML = starsHtml(n);
+  $("stars").setAttribute("aria-label", `${n} of 3 stars: ${trainWords(K(), goal().trains.m)}, then ${spec.stars.join("+, then ")}+`);
+  $("goal").innerHTML = chips(shown, J);
   coachBox();
   const fx = pv ? effect(pv.before, { s: pv.s, moved: pv.moved, at: pv.at }) : null;
   view.draw({ state: shown, base, preview: pv, fx, pulse: pv ? null : pulse, done });
@@ -350,14 +361,14 @@ function settle() {
 }
 function finish() {
   done = true; pulse = null;
-  const J = judge(S), ok = goalCheck(S, J).ok, n = starsFor(J.score, ok);
+  const J = judge(S), ok = goalCheck(S, J).ok, n = starsAt(S, J);
   if (run.kind === "level") {
     camp.record(run.n, n);
     keepBest();
     if (ok) roundOver("shunt");
   } else {
     if (run.kind === "endless" && ok) camp.endless.passed(run.n);
-    if (run.kind === "daily") { const days = readDaily(kp); if (!(days[run.day] >= J.score)) write(DAILY, { ...days, [run.day]: J.score }); }
+    if (run.kind === "daily") { const days = readDaily(kp); if (!(days[run.day] >= n)) write(DAILY, { ...days, [run.day]: n }); }
     roundOver("shunt");
   }
   render();
@@ -376,7 +387,7 @@ async function replay(quiet = false) {
   enter({ ...run, moves: [], hints: 0 }, spec);
 }
 async function share() {
-  const J = judge(S), text = `Shunt · ${dateWords(run.day)}\n${fmt(J.score)} · ${starStr(starsFor(J.score, goalCheck(S, J).ok))}`;
+  const J = judge(S), text = `Shunt · ${dateWords(run.day)}\n${starStr(starsAt(S, J))} · trains ${trainsText(J)}`;
   try { await navigator.clipboard.writeText(text); toast("Result copied"); } catch { toast("Couldn't copy the result"); }
 }
 
@@ -385,7 +396,7 @@ function runHint() {
   if (done || animating || thinking || IN_FRAME) return;
   pv = null; hintInfo = null; offer = false; hints++;
   thinking = 1;
-  const tok = ++hintTok, ep = epoch, sr = search(S, 220);
+  const tok = ++hintTok, ep = epoch, sr = search(S, 220, false, spec.stars[1]);
   keepSel(); render();
   const tick = () => {
     if (tok !== hintTok || ep !== epoch) return;
@@ -399,7 +410,7 @@ function runHint() {
     }
     const [sw, e] = r.first;
     preview(e, !!sw);
-    const E = effectOf(pv).E, targetNote = goal().score != null ? ` I expect about <b>${fmt(r.score)}</b> against the goal of ${goal().score}.` : ` I expect about <b>${fmt(r.score)}</b> with the goal met.`;
+    const E = effectOf(pv).E, targetNote = ` I can see it ending with trains of <b>${trainsText(judge(r.s))}</b>: ${starStr(starsAt(r.s, judge(r.s)))}.`;
     hintInfo = { e, html: `<b class="g">${sw ? "Swap first, then shove" : "Shove"} at the lit lever.</b> It ${E.broken.length ? `breaks the ${colourName(E.broken[0], pv.before)} train of ${E.broken[0].n}` : "keeps your trains intact"}, ${E.newJams > 0 ? "jams a train" : "jams nothing"}.${targetNote}` };
     render();
   };
@@ -491,7 +502,7 @@ function openMenu(tab = null) {
   else content.append(endlessLine(camp, { onPlay: () => { $("menuDlg").close(); playEndless(); }, playing: mode === "endless" && run.kind === "endless" && !done }));
   const got = readDaily(kp)[today()];
   todayPart(body, {
-    done: got != null, result: got != null ? fmt(got) : "", play: () => setMode("daily"), playing: mode === "daily",
+    done: got != null, result: got != null ? starStr(got) : "", play: () => setMode("daily"), playing: mode === "daily",
     back: mode === "daily" ? { text: `Back to ${rest === "levels" ? "the levels" : "Endless"}`, fn: () => setMode(rest) } : null,
   });
   const settings = part(body, "settings");
@@ -505,7 +516,7 @@ function openMenu(tab = null) {
   }
   const t = camp.totals(), about = part(body, "about");
   about.append(line(`${plural(t.beaten, "level")} of ${t.levels} beaten, ${plural(t.stars, "star")} of ${t.levels * 3}${camp.endless.begun ? `; Endless ${camp.endless.at} beaten` : ""}.`));
-  about.append(line("You never place a gear: the next one of the queue is shoved in from a lever at the edge of the plate, and pushes the gears in its way one step along. Gears of one pitch that touch mesh and turn opposite ways; a chain of three or more is a train and scores, half as much again for each jewel under it. A ring of an odd number of gears jams and scores nothing. The idler meshes every pitch, a bridge two. The plate is judged when it is full or the queue is out."));
+  about.append(line("You never place a gear: the next one of the queue is shoved in from a lever at the edge of the plate, and pushes the gears in its way one step along. Gears of one pitch that touch mesh and turn opposite ways; a chain of three or more is a train. The goal asks for trains of a length (2 trains of 5+), and each star more for a gear more in each. A ring of an odd number of gears jams, and a jammed train doesn't count; a jewel counts under a train that turns. The idler meshes every pitch, a bridge two. The plate is judged when it is full or the queue is out."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 // ---------- wiring ----------

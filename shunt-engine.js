@@ -7,8 +7,12 @@
 // Gears: 0, 1, 2 plain, of pitch A, B, C (the tooth size); 3 an idler (meshes every pitch); 4, 5, 6 a bridge, A+B, A+C, B+C
 // (meshes the two pitches it shows; it is ONE gear, so it fuses the families it touches). Two gears that touch mesh when their
 // pitch sets meet. Meshed gears turn opposite ways, so a connected group (a TRAIN) with an odd loop JAMS and turns nothing.
-// A train of three or more that turns scores VALUE[n], half as much again for each jewel under it. The plate is judged when it
-// is full, the queue is out, or no shove is legal. A queue shows five gears ahead; one gear may be held back (once a turn).
+// A TRAIN is three or more gears that mesh and turn. A plate's goal is a number of separate trains of a size ("2 trains of 5+"),
+// with, on some plates, every jewel under a turning train or no jam anywhere; its stars ask for trains of the same number, each
+// longer (`starsOf`). The plate is judged when it is full, the queue is out, or no shove is legal. A queue shows five gears ahead;
+// one gear may be held back (once a turn).
+// Korbi, 10 November 2026: points, multipliers and a minimum score were unintuitive, where "make x trains of at least y gears"
+// works, so there are no points: goals and stars are trains of a size, and a jewel is a cell to cover.
 //
 // A game's moves are a list of integers: -1 swaps the next gear with the hold, e (0..29) shoves at entry e. The state is
 // always the level plus its moves (`play`), which is how the page keeps a run and a partner's watching frame draws it.
@@ -35,7 +39,6 @@ AXES.forEach((a, ai) => CELLS.forEach(c => {
 /** The pitches a gear meshes by, as a bit set (A=1, B=2, C=4), by code. */
 export const PS = [1, 2, 4, 7, 3, 5, 6];
 const MESH = PS.map(a => PS.map(b => (a & b) !== 0));
-export const VALUE = [0, 0, 0, 10, 16, 20, 22, 23];
 export const STUD = -2, EMPTY = -1;
 export const VERSION = 1;
 
@@ -105,12 +108,13 @@ export function play(L, moves) {
 /** A bot's path of [swap?, entry] pairs as moves. */
 export const movesOf = path => path.flatMap(([sw, e]) => (sw ? [-1, e] : [e]));
 
-/** Trains: the groups of meshing gears, two-coloured by turning direction (sg); a JAM is an odd loop. */
+/** The groups of meshing gears (comps), two-coloured by turning direction (sg); a JAM is an odd loop. sizes: the trains (three or
+ *  more, turning), longest first. */
 export function judge(s) {
   const c = s.cells, comp = new Int16Array(N).fill(-1), sg = new Int8Array(N), comps = [];
   const jw = new Uint8Array(N);
   s.jewels.forEach(i => { jw[i] = 1; });
-  let edges = 0, score = 0, jams = 0;
+  let edges = 0, jams = 0;
   for (let i = 0; i < N; i++) {
     if (c[i] < 0 || comp[i] >= 0) continue;
     const k = comps.length, list = [i];
@@ -126,27 +130,42 @@ export function judge(s) {
     }
     let j = 0;
     for (const x of list) j += jw[x];
-    const n = list.length, value = jam || n < 3 ? 0 : VALUE[Math.min(n, 7)] * (1 + 0.5 * j);
     if (jam) jams++;
-    score += value;
-    comps.push({ cells: list, n, jam, j, value });
+    comps.push({ cells: list, n: list.length, jam, j });
   }
-  return { comp, sg, comps, score, edges, jams };
+  const sizes = comps.filter(t => !t.jam && t.n >= 3).map(t => t.n).sort((a, b) => b - a);
+  return { comp, sg, comps, sizes, edges, jams };
 }
+/** The size every one of the k longest trains reaches: "k trains of reach+" is met (0 with fewer than k trains). */
+export const reach = (J, k) => J.sizes[k - 1] || 0;
+/** The jewels under a turning train. */
+export const covered = (s, J) => s.jewels.filter(j => { const t = J.comps[J.comp[j]]; return t && !t.jam && t.n >= 3; }).length;
 /** The goal's parts, each { id, have, need, ok }. */
 export function goalCheck(s, J) {
   J = J || judge(s);
   const g = s.goal, parts = [];
-  if (g.score != null) parts.push({ id: "score", have: J.score, need: g.score, ok: J.score >= g.score });
-  if (g.trains) { const have = J.comps.filter(t => !t.jam && t.n >= g.trains.m).length; parts.push({ id: "trains", have, need: g.trains.k, ok: have >= g.trains.k }); }
-  if (g.jewels) {
-    const have = s.jewels.filter(j => { const t = J.comps[J.comp[j]]; return t && !t.jam && t.n >= 3; }).length;
-    parts.push({ id: "jewels", have, need: s.jewels.length, ok: have >= s.jewels.length });
-  }
+  if (g.trains) { const have = J.sizes.filter(n => n >= g.trains.m).length; parts.push({ id: "trains", have, need: g.trains.k, ok: have >= g.trains.k }); }
+  if (g.jewels) { const have = covered(s, J); parts.push({ id: "jewels", have, need: s.jewels.length, ok: have >= s.jewels.length }); }
   if (g.nojam) parts.push({ id: "nojam", have: J.jams, need: 0, ok: J.jams === 0 });
   return { parts, ok: parts.every(p => p.ok) };
 }
-/** What a shove does, raw material for words: trains broken (by old train), joined, new jams, the score change. */
+/** A judged plate's stars: none if the goal is missed; else one, and one more for each of the level's two `stars` sizes its trains reach
+ *  (the same number of trains as the goal, each that long). */
+export function starsOf(s, J, stars) {
+  J = J || judge(s);
+  if (!s.goal.trains || !goalCheck(s, J).ok) return 0;
+  const r = reach(J, s.goal.trains.k);
+  return 1 + (r >= stars[0] ? 1 : 0) + (r >= stars[1] ? 1 : 0);
+}
+/** How far the k longest turning groups have come towards trains of `aim` (each counted up to aim): what the search climbs (a pair on
+ *  its way to a train counts), or with `trains` only the trains (what a shove is said to win or cost: a train broken into pairs is a loss). */
+export function progress(J, k, aim, trains = false) {
+  const sz = trains ? J.sizes : J.comps.filter(t => !t.jam).map(t => t.n).sort((a, b) => b - a);
+  let v = 0;
+  for (let i = 0; i < k; i++) v += Math.min(sz[i] || 0, aim);
+  return v;
+}
+/** What a shove does, raw material for words: trains broken (by old train), joined, new jams, and the plate judged before and after. */
 export function effect(s, r) {
   const A = judge(s), B = judge(r.s), where = new Map(r.moved.map(m => [m[0], m[1]]));
   const broken = [], joined = [];
