@@ -689,7 +689,15 @@ export function createView({ board, tray, onGesture, onLost, cam: kept = null, o
 
   const view = {
     kind: "3d",
-    draw(m) { applySkin(); animState = null; load(withLegal(m)); },
+    // a picture while a shove plays ends the shove there: the newer picture stands, and the shove's caller still hears it is done
+    draw(m) {
+      applySkin();
+      const a = animState;
+      animState = null;
+      if (a) { leverSel.visible = false; halo.visible = false; queueMicrotask(a.done); }
+      load(withLegal(m));
+      wake();
+    },
     animate(m, move, done) {
       applySkin();
       const mm = withLegal(m);

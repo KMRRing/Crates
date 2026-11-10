@@ -228,6 +228,7 @@ export function createView({ board, tray }) {
   tray.setAttribute("viewBox", "0 0 340 82");
   tray.setAttribute("preserveAspectRatio", "xMidYMid meet");
   let model = null, motion = !reduced(), raf = 0, spinners = [], pulses = [], glows = [];
+  let playing = null;         // the done of the shove being animated
   const t0 = performance.now();
   let legalNow = new Set();
 
@@ -339,20 +340,26 @@ export function createView({ board, tray }) {
 
   const view = {
     kind: "2d",
-    draw(m) { model = m; drawBoard(m, null); drawTray(m); collect(); },
+    // a picture while a shove plays ends the shove there: the newer picture stands, and the shove's caller still hears it is done
+    draw(m) {
+      if (playing) { const d = playing; playing = null; queueMicrotask(d); }
+      model = m; drawBoard(m, null); drawTray(m); collect();
+    },
     animate(m, move, done) {
       model = m;
       const ent = ENTRIES[move.e], [ux, uy] = dirXY(ent.d), off = {};
       for (const [a, b] of move.moved) { const [fx, fy] = cellXY(a), [tx, ty] = cellXY(b); off[b] = [fx - tx, fy - ty]; }
       off[move.at] = [-ux * D * 1.25, -uy * D * 1.25];
       if (!motion || reduced()) { view.draw(m); done(); return; }
-      const start = performance.now(), dur = 230;
+      const start = performance.now(), dur = 230, me = done;
+      playing = me;
       drawTray(m);
       const step = ts => {
+        if (playing !== me) return;                                   // drawn over: ended there
         const k = Math.min(1, ((ts ?? performance.now()) - start) / dur), e = ease(k), cur = {};
         for (const c in off) cur[c] = [off[c][0] * (1 - e), off[c][1] * (1 - e)];
         drawBoard(m, k < 1 ? cur : null);
-        if (k < 1) requestAnimationFrame(step); else { view.draw(m); done(); }
+        if (k < 1) requestAnimationFrame(step); else { playing = null; view.draw(m); done(); }
       };
       requestAnimationFrame(step);
     },

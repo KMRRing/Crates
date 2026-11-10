@@ -58,6 +58,7 @@ let run = null;             // { kind, id and n (a level) | n (Endless) | day, m
 let S = null;               // the state now (the plate after its moves)
 let pv = null;              // the shove being previewed: { e, before, s, moved, at, swapFirst }
 let done = false, animating = false;
+let animTok = 0;            // the shove being animated: its callback counts only while it is this one (a new plate or a stalled picture lets go of it)
 let hintInfo = null, thinking = 0, hintTok = 0, hints = 0;
 let note = "", offer = false, undoStreak = 0;
 let pulse = null;           // the coach's pulse: { e } (a lever) or { hold: true }
@@ -77,6 +78,7 @@ const savedRun = () => savedRunOf(kp, mode, mode === "endless" ? camp.endless.at
 // ---------- the plate in play ----------
 function enter(r, sp) {
   epoch++;
+  dropAnimation();
   run = r; spec = sp;
   hints = r.hints || 0;
   S = play(spec, run.moves);
@@ -294,7 +296,9 @@ function render() {
   $("goal").innerHTML = chips(shown, J);
   coachBox();
   const fx = pv ? effect(pv.before, { s: pv.s, moved: pv.moved, at: pv.at }) : null;
-  view.draw({ state: shown, base, preview: pv, fx, pulse: pv ? null : pulse, done });
+  // while a shove plays, the view is drawing it and draws the plate when it ends: a picture now would cut it short (the 3D view
+  // dropped the shove, and with it the call that frees the levers: the page stood dead but for its menu, Korbi 10 November 2026)
+  if (!animating) view.draw({ state: shown, base, preview: pv, fx, pulse: pv ? null : pulse, done });
   $("undoBtn").disabled = !run.moves.length || animating || IN_FRAME;
   $("swapBtn").disabled = done || animating || !canSwap(S) || IN_FRAME;
   $("hintBtn").disabled = done || animating || !!thinking || IN_FRAME;
@@ -335,12 +339,17 @@ function commit() {
   keepSel(); keepRun(); coachFor();
   animating = true;
   render();
-  view.animate({ state: S, base: S, preview: null, fx: null, pulse, done: false }, { moved: r.moved, at: r.at, e: p.e }, () => {
-    if (ep !== epoch) return;
+  const tok = ++animTok, end = () => {
+    if (tok !== animTok) return;
+    animTok++;
     animating = false;
-    settle();
-  });
+    if (ep === epoch) settle();
+  };
+  view.animate({ state: S, base: S, preview: null, fx: null, pulse, done: false }, { moved: r.moved, at: r.at, e: p.e }, end);
+  setTimeout(end, 2500);                                     // a shove takes half a second: a picture that never ends (a stalled frame loop) must not keep the levers dead
 }
+/** Lets go of a shove still being animated (a new plate is coming in). */
+function dropAnimation() { animTok++; animating = false; }
 function doSwap() {
   if (!canSwap(S) || done || animating) return;
   run.moves.push(-1);
