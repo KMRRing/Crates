@@ -3,7 +3,7 @@
 // reads, a quantity a number, a place on the globe, a ranked link's role one of ROLES, a link's amount with its unit.
 // A field that names another thing strictly (a race `at` its resort) names one that exists. kb/graph.js finds a
 // painting's place through the museum it hangs in.
-import { FIELDS, RECORD, STEP, FACTS, RELS, ROLES, ASPECTS, KINDS, PLAYED, TYPES, period } from "../kb/vocabulary.js";
+import { FIELDS, RECORD, STEP, FACTS, RELS, ROLES, ASPECTS, KINDS, TYPES, period } from "../kb/vocabulary.js";
 import { makeGraph, factWords } from "../kb/graph.js";
 import { MEASURES } from "../kb/measures.js";
 import { UNITS } from "../kb/units.js";
@@ -31,7 +31,7 @@ for (const e of ENTITIES) {
   for (const [k, v] of Object.entries(e)) typed(FIELDS, k, v, e.id);
   for (const k of ["card", "archCard"]) for (const [x, v] of Object.entries(e[k] || {})) typed(RECORD, x, v, `${e.id}.${k}`);
   for (const k of ["meetings", "steps"]) for (const s of e[k] || []) for (const [x, v] of Object.entries(s)) typed(STEP, x, v, `${e.id}.${k}`);
-  for (const s of e.sets) if (!KINDS[s] && !PLAYED[s.split(":")[0]]) strays.add(s);
+  for (const s of e.sets) if (!KINDS[s]) strays.add(s);
 }
 check(!unknown.size, "every field of every thing is in the vocabulary", [...unknown]);
 check(!mistyped.length, "every field's value is of its type", mistyped);

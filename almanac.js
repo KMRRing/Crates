@@ -5,10 +5,9 @@
 // an entry (in the sky's popup, or #list&e=<id> in the list), so the browser's back button walks back through them.
 // It was Lexicon until 2 November 2026: its id, `lexicon`, stays, so saved state and Random's lists are as they were.
 import { QUOTES } from "./quote-bank.js";
-import { SETS } from "./census-sets.js";
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
-import { KINDS, ASPECTS, RELS, PLAYED, FIELDS, yearWords } from "./kb/vocabulary.js";
+import { KINDS, ASPECTS, RELS, FIELDS, yearWords } from "./kb/vocabulary.js";
 import { makeGraph, factWords } from "./kb/graph.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture, pictureName } from "./pics.js";
@@ -39,12 +38,9 @@ for (const q of QUOTES) if (q.about && ENT.has(q.about)) (FACTS.get(q.about) || 
 
 // ---------- words for the kinds and the topics (kb/vocabulary.js) ----------
 const G = makeGraph(ENTITIES, LINKS);
-// `census:<set>` and `crossing:<part>` in a thing's sets say which games ask for it; they are not what it is (tools/games-to-kb.mjs)
-const CENSUS = new Map(SETS.map(s => [s.id, s.title]));
-const CROSSING = { land: "Crossing, by land", sea: "Crossing, by sea", port: "Crossing, by sea (a port)", inland: "Crossing, by sea (an inland place)" };
 const REFS_IN = new Map();                                   // id → the things whose fields name it ([{ from, key }])
 for (const e of ENTITIES) for (const x of G.refsOf(e)) (REFS_IN.get(x.to) || REFS_IN.set(x.to, []).get(x.to)).push({ from: e.id, key: x.key });
-const kindsOf = e => [...new Set((e.sets || []).filter(s => !PLAYED[s.split(":")[0]]).map(s => KINDS[s] || s))];
+const kindsOf = e => [...new Set((e.sets || []).map(s => KINDS[s] || s))];
 function topicsOf(id) {
   const n = {};
   for (const l of [...(OUT.get(id) || []), ...(IN.get(id) || [])]) for (const a of l.aspects || []) if (ASPECTS[a]) n[ASPECTS[a]] = (n[ASPECTS[a]] || 0) + 1;
@@ -116,7 +112,8 @@ function groupsOf(id) {
     // a clue's hint describes the clue thing (the one it comes from), so it's shown on either side; the link's own facts
     // (a year, a distance, a rank) come first
     const why = l => [factWords(l.facts, { rank: l.rel !== "clue" }), l.hint].filter(Boolean).join(" · ");
-    out.push([toward, (IN.get(id) || []).filter(l => l.rel === r), l => l.from, why]);
+    const inOrder = (a, b) => (a.facts?.pos ?? Infinity) - (b.facts?.pos ?? Infinity);      // a set's members in its order (the planets from the Sun)
+    out.push([toward, (IN.get(id) || []).filter(l => l.rel === r).sort(inOrder), l => l.from, why]);
     out.push([away, (OUT.get(id) || []).filter(l => l.rel === r), l => l.to, why]);
   }
   // the things its fields name (a race held at its resort), unless a link says so already, and the things whose fields name it
@@ -161,9 +158,6 @@ function fillEntry(box, id, nav = {}) {
   if (e.pic) { const pic = el("div", "lx-pic"); box.append(pic); showPicture(pic, e.pic, { width: 500, alt: e.name }); }
   // what's said about it: its note, then its facts (kb/vocabulary.js labels and units them), where it is, and the numbers Quote asks of it
   if (e.note) box.append(el("p", "lx-note", e.note));
-  const played = [...(e.sets || []).filter(s => s.startsWith("census:")).map(s => CENSUS.get(s.slice(7))).filter(Boolean).map(t => `In Census: ${t}`),
-    ...(e.sets || []).filter(s => s.startsWith("crossing:")).map(s => CROSSING[s.slice(9)]).filter(Boolean).map(t => `On the map of ${t}`)];
-  for (const t of played) box.append(el("p", "lx-note", `${t}.`));
   const rows = G.factsOf(e).map(f => [f.label, f.words, f.type !== "quantity" && f.type !== "year" && f.type !== "number"]);
   const where = G.placeOf(id);
   if (where) rows.push(["Where", `${Math.abs(where.lat).toFixed(2)}° ${where.lat < 0 ? "S" : "N"}, ${Math.abs(where.lon).toFixed(2)}° ${where.lon < 0 ? "W" : "E"}${where.via ? ` (${label(ENT.get(where.via))})` : ""}`, false]);

@@ -71,6 +71,8 @@ export const REGIONAL_COMMODITIES = new Set(["nickel", "zinc", "tin", "lithium",
 export const PERSONAL_SETS = ["legal-maxim", "legal-concept", "trade-place", "trade-good", "futures-exchange", "kind:market", "kind:law", "art-market-person", "art-market-place", "art-market-thing", "auction-house", "art-dealer", "art-forger", "art-fair", "art-record", "group:bio", "group:cred", "group:circ"];
 /** Set defaults, first match wins. [set, mark] */
 export const SET_DEFAULT = [
+  // a set (Census's: the planets, the Tudor monarchs) is known where its members are taught; the school-wide ones are in SET_UNIVERSAL
+  ["set", "r"],
   ["greek-god", "u"], ["egyptian-god", "r"], ["roman-god", "r"], ["norse-god", "r"], ["myth-hero", "r"], ["myth-creature", "r"], ["myth-place", "s"],
   ["chinese-thinker", "r"], ["chinese-province", "r"], ["china-place", "r"], ["china-person", "r"], ["china-thing", "r"], ["chinese-dish", "s"], ["chinese-tea", "s"], ["chinese-festival", "r"], ["chengyu", "s"],
   ["merchant-power", "r"], ["merchant-person", "r"], ["trade-history", "r"], ["architecture-style", "r"], ["architecture-term", "s"], ["art-movement", "r"],
@@ -78,6 +80,8 @@ export const SET_DEFAULT = [
   ["city", "r"], ["geo-place", "r"], ["people-place", "s"],
   ["saying", "s"], ["quotation", "s"], ["kind:currency", "r"], ["kind:sport", "s"], ["kind:animal", "s"], ["kind:plant", "s"], ["kind:natural", "s"], ["kind:person", "s"],
 ];
+/** Sets taught in every school system (10 Nov 2026): the planets, continents, oceans, the colours of the rainbow, the Seven Wonders, the first 20 elements. */
+export const SET_UNIVERSAL = new Set(["set-planets", "set-continents", "set-oceans", "set-rainbow", "set-wonders", "set-first-20"]);
 /** Entities whose name collides with a universal one (the fashion house is not the god). */
 export const OVERRIDE = { hermes: "s" };
 /** Cities every geography syllabus names (megacities and the capitals of the world's major countries): a city or place entity of these names. */

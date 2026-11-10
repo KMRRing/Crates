@@ -74,7 +74,7 @@ export const STEP = {
 /** The facts a link may carry (`facts` on a link). A quantity's unit is in the same facts as `unit` unless given here. */
 export const FACTS = {
   year: f("year", "Year"), circa: f("flag", "Around"), from: f("year", "From"), to: f("year", "Until"), asOf: f("year", "As of"),
-  rank: f("number", "Rank"), role: f("text", "As"), once: f("flag", "In the past"),
+  rank: f("number", "Rank"), role: f("text", "As"), once: f("flag", "In the past"), pos: f("number", "Place in order"),
   amount: f("quantity", "Amount"), share: f("quantity", "Share", { unit: "%" }), unit: meta("text", "Unit"),
   distance: f("quantity", "Distance", { unit: "km" }), upriver: f("quantity", "Up the river", { unit: "nm" }), by: f("text", "By"),
   source: meta("text", "Source"),
@@ -90,7 +90,7 @@ export const ROLES = {
 const r = (away, toward, family, locates = false) => ({ away, toward, family, locates });
 /** Every kind of link. */
 export const RELS = {
-  clue: r("A clue to", "Clues to it", "clue"), link: r("Linked to", "Linked from", "link"),
+  clue: r("A clue to", "Clues to it", "clue"), link: r("Linked to", "Linked from", "link"), "member-of": r("In the set", "Members", "set"),
   // where
   in: r("In", "Within it", "place", true), city: r("Stands in", "Buildings here", "place", true), "based-in": r("Based in", "Based here", "place", true),
   "held-in": r("Held in", "Held here", "place", true), "held-at": r("Held at", "Held here", "place", true), "born-in": r("Born in", "Born here", "place"),
@@ -155,8 +155,8 @@ export const ASPECTS = {
   spec: "Specifications", reg: "Regulation",
 };
 
-/** What a thing is: the tags in its `sets`, in words. Families (kind:…, feature:…, group:…) and the rest. `census:` and
- *  `crossing:` tags are where a game plays a thing, not what it is: listed in PLAYED. */
+/** What a thing is: the tags in its `sets`, in words. Families (kind:…, feature:…, group:…) and the rest. Where a game plays a
+ *  thing is not a tag: Census's sets are things with members, Crossing's sea and land are its links. */
 export const KINDS = {
   country: "country", city: "city", commodity: "commodity", painting: "painting", museum: "museum", feature: "natural feature", building: "building",
   work: "work", author: "writer", painter: "painter", architect: "architect", person: "person", quotation: "quotation", saying: "saying", artwork: "artwork",
@@ -184,8 +184,6 @@ export const KINDS = {
   "group:met": "metal", "group:nrg": "energy", "group:grain": "grain", "group:bio": "biofuel", "group:chem": "chemical", "group:cred": "credit",
   "group:circ": "circular",
 };
-/** Tags that say where a game plays a thing (not what it is): their family, and the words for it. */
-export const PLAYED = { census: "In Census", crossing: "On Crossing's map" };
 
 /** A field's label for this thing: a year is when it was painted, built or written. */
 export function labelOf(key, e) {

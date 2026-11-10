@@ -19,6 +19,7 @@ const COUNTRY_U = new Set(["switzerland", "netherlands", "sweden", "norway", "gr
 
 export function markOf(e, aspects) {
   if (R.OVERRIDE[e.id]) return R.OVERRIDE[e.id];
+  if (R.SET_UNIVERSAL.has(e.id)) return "u";
   const n = R.norm(e.name), has = s => e.sets.includes(s), prefix = p => e.sets.some(s => s === p || s.startsWith(`${p}:`));
   if (e.sets.some(s => PERSON.test(s)) && R.LIVING.has(n)) return R.LIVING_OK.has(n) ? "u" : "l";
   if (R.PERSONAL_SETS.some(prefix)) return "p";

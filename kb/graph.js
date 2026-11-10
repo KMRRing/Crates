@@ -15,6 +15,7 @@ export const amountWords = (v, unit) => `${num(v)}${unit === "%" ? "%" : unit ? 
 export function factWords(facts, { rank = true } = {}) {
   if (!facts) return "";
   const x = facts, out = [];
+  if (x.pos != null) out.push(`no. ${x.pos}`);                // a member's place in its set's order
   if (x.year != null) out.push(yearWords(x.year, x.circa));
   if (x.from != null) out.push(x.to != null ? `${yearWords(x.from, x.circa)}–${yearWords(x.to)}` : `from ${yearWords(x.from, x.circa)}`);
   else if (x.to != null) out.push(`until ${yearWords(x.to)}`);
