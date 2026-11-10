@@ -143,20 +143,31 @@ function atSea(flag, id) {
   }
   return { img: c, w: N, h: N, view: { x: fx - 6, y: fy - amp, w: fw + 12, h: fh + 2 * amp } };
 }
-function outlineSource(name) {
+// A country's outline as a satellite sees it (Korbi, 10 Nov 2026: "the sea blue and the country as per satellite, desert etc;
+// in ink the sea black and the country white"): NASA's Blue Marble (public domain, as Columbiad's globe uses it) laid inside the
+// outline, the sea around it plain blue, so nothing but the country's own shape and ground gives it away.
+let earth = null;
+const earthMap = () => (earth ||= load("columbiad-earth.jpg").catch(() => null));
+async function outlineSource(name, ink = false) {
   const c = document.createElement("canvas"); c.width = 640; c.height = 427;
-  const x = c.getContext("2d"), country = COUNTRIES.find(k => k.name === name);
+  const x = c.getContext("2d"), country = COUNTRIES.find(k => k.name === name), map = ink ? null : await earthMap();
   const span = country.rings.flat().reduce((m, [lon]) => [Math.min(m[0], lon), Math.max(m[1], lon)], [180, -180]);
   const wrap = span[1] - span[0] > 180, shift = lon => (wrap && lon < 0 ? lon + 360 : lon);
   const pts = country.rings.flat(), lats = pts.map(p => p[1]), lons = pts.map(p => shift(p[0]));
   const lat0 = Math.min(...lats), lat1 = Math.max(...lats), lon0 = Math.min(...lons), lon1 = Math.max(...lons);
   const kx = Math.cos((lat0 + lat1) / 2 * Math.PI / 180), k = Math.min(540 / ((lon1 - lon0) * kx || 1), 340 / (lat1 - lat0 || 1));
   const ox = 320 - (lon0 + lon1) / 2 * kx * k, oy = 213 + (lat0 + lat1) / 2 * k;
-  x.fillStyle = "#C9D7DC"; x.fillRect(0, 0, 640, 427);
-  x.fillStyle = "#F3ECDC"; x.strokeStyle = "#4A3F2A"; x.lineWidth = 2; x.lineJoin = "round";
+  const ink6 = ([r, g, b]) => `rgb(${r},${g},${b})`;
+  x.fillStyle = ink ? ink6(INK.dark) : "#2E6295"; x.fillRect(0, 0, 640, 427);
   x.beginPath();
   for (const ring of country.rings) ring.forEach(([lon, lat], i) => { const X = shift(lon) * kx * k + ox, Y = oy - lat * k; if (i) x.lineTo(X, Y); else x.moveTo(X, Y); });
-  x.fill("evenodd"); x.stroke();
+  if (map) {
+    // the map is longitude and latitude in equal steps, as the outline is drawn, so it lands on the outline by one scale and shift
+    x.save(); x.clip("evenodd"); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    for (const turn of wrap ? [0, 360] : [0]) x.drawImage(map, (turn - 180) * kx * k + ox, oy - 90 * k, 360 * kx * k, 180 * k);
+    x.restore();
+    x.strokeStyle = "rgba(15,25,32,0.85)"; x.lineWidth = 1.6; x.lineJoin = "round"; x.stroke();
+  } else { x.fillStyle = ink ? ink6(INK.light) : "#5E8A4A"; x.fill("evenodd"); }
   return { img: c, w: 640, h: 427 };
 }
 /** A flag or an outline as the look has it: greyscale, or ink: black or white by brightness, with a line wherever two neighbouring colours differ
@@ -194,7 +205,10 @@ async function sourceFor(it) {
     if (look.full) scene.full = atSea(look.full, it.id);                 // the colour one the answer fades to: the same ship, the flag in colour
     return scene;
   }
-  if (it.kind === "outline") return looked(outlineSource(it.name), true);
+  if (it.kind === "outline") {
+    const colour = await outlineSource(it.name);
+    return read(LOOK, "colour") === "ink" ? { ...(await outlineSource(it.name, true)), full: colour } : looked(colour);   // grey: the same ground in greys
+  }
   const urls = await pictureUrls(it.pic, 960);
   if (!urls) return null;
   for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return { img, w: img.naturalWidth, h: img.naturalHeight }; } catch { /* try the original */ } }
