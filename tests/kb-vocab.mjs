@@ -3,7 +3,7 @@
 // reads, a quantity a number, a place on the globe, a ranked link's role one of ROLES, a link's amount with its unit.
 // A field that names another thing strictly (a race `at` its resort) names one that exists. kb/graph.js finds a
 // painting's place through the museum it hangs in.
-import { FIELDS, RECORD, STEP, FACTS, RELS, ROLES, ASPECTS, KINDS, TYPES, period } from "../kb/vocabulary.js";
+import { FIELDS, RECORD, STEP, FACTS, LINK, RELS, ROLES, ASPECTS, KINDS, TYPES, period } from "../kb/vocabulary.js";
 import { makeGraph, factWords } from "../kb/graph.js";
 import { MEASURES } from "../kb/measures.js";
 import { UNITS } from "../kb/units.js";
@@ -38,7 +38,7 @@ check(!mistyped.length, "every field's value is of its type", mistyped);
 check(!strays.size, "every kind a thing has is named", [...strays]);
 
 // the links
-const LINK_KEYS = new Set(["from", "to", "rel", "hint", "aspects", "d", "alt", "pos", "since", "w", "facts"]);
+const LINK_KEYS = new Set(Object.keys(LINK));
 const rels = new Set(), keys = new Set(), aspects = new Set(), facts = [], roles = [];
 unknown.clear(); mistyped.length = 0;                      // from here, a link's facts
 for (const l of LINKS) {

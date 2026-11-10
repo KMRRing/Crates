@@ -86,13 +86,18 @@ const PERSON = {
   "hans-holbein-the-younger": "Hans Holbein the Younger", "thomas-roe": "Thomas Roe", "enrico-dandolo": "Enrico Dandolo", "francesco-datini": "Francesco Datini", "robert-the-bruce": "Robert the Bruce",
   "margaret-i": "Margaret I of Denmark", "zheng-he": "Zheng He", "mansa-musa": "Mansa Musa", "piri-reis": "Piri Reis", "ulugh-beg": "Ulugh Beg", "sejong-the-great": "Sejong the Great",
 };
+// the person's id in kb/ where kb/ had them first under a shorter one. A meeting's `fact` is `<person>~<meeting>` (kb/graph.js), the
+// same in every game, so what Dispatch teaches the Deck and the other games ask again (Korbi, 10 Nov 2026)
+const KB = { "johannes-gutenberg": "gutenberg", "christopher-columbus": "columbus", "ferdinand-magellan": "magellan", "nicolaus-copernicus": "copernicus",
+  "jan-pieterszoon-coen": "coen", "antonie-van-leeuwenhoek": "leeuwenhoek", "klaus-stortebeker": "stortebeker" };
 // fame is the person's, so a later meeting of theirs has the same
 const seen = new Set();
 const m = (who, place, year, region, what, why, alt) => {
   const pid = idOf(who), id = seen.has(pid) ? `${pid}-${year}` : pid;
   seen.add(pid);
   if (!NAT[pid]) throw new Error(`dispatch-bank: no nationality for ${who}`);
-  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, pic: PIC[id] ?? PERSON[id] ?? PERSON[pid] ?? null, face: PERSON[id] ?? PERSON[pid] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2 };
+  return { id, pid, who, nat: NAT[pid], place, year, region, what, alt: alt ?? ALT[id] ?? null, pic: PIC[id] ?? PERSON[id] ?? PERSON[pid] ?? null, face: PERSON[id] ?? PERSON[pid] ?? null, why, fame: FAMOUS.has(pid) ? 1 : OBSCURE.has(pid) ? 3 : 2,
+    fact: `${KB[pid] ?? pid}~${id}` };
 };
 
 export const MEETINGS = [

@@ -1,4 +1,4 @@
-// Census (census-engine.js, census-sets.js): the sets are whole and their members tell apart, a typed name is judged (forgiven a
+// Census (census-engine.js; its sets are kb/'s, census-bank.js): the sets are whole and their members tell apart, a typed name is judged (forgiven a
 // slip, an exact name beating one, an ambiguous slip refused, a repeat noticed), the clock follows the set's size and the level,
 // the score is a share, the day's set is the day's. Run: node tests/census.mjs
 import { normalize } from "../typing.js";
@@ -20,6 +20,8 @@ for (const s of E.SETS) {
 }
 check(!clash.length, `no name belongs to two members of a set${clash.length ? `: ${clash.slice(0, 5).join("; ")}` : ""}`);
 check(E.SETS.every(s => s.items.every(it => it.name === it.name.trim() && it.name.length > 1)), "every member has a name");
+const G = (await import("../kb/graph.js")).makeGraph((await import("../kb/entities.js")).ENTITIES, (await import("../kb/links.js")).LINKS);
+check(E.SETS.every(s => s.items.every(it => G.holds(it.fact) && it.fact.endsWith(`>member-of>set-${s.id}`))), "every member names the fact it proves: its link to the set in kb/");
 
 // ---------- judging ----------
 const africa = E.setOf("africa"), none = new Set();

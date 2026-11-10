@@ -33,15 +33,12 @@ count("Order", "story steps", SEQUENCES.flatMap(s => s.steps.map((_, i) => stepF
 const { PLACES } = await import("../chart-bank.js");
 count("Chart", "places", PLACES, named);
 
-// Census, Dispatch, Crossing: their data lives in the game; kb/ holds it as links and steps (tools/games-to-kb.mjs)
-const { SETS } = await import("../census-sets.js");
-const membersOf = new Map();
-for (const l of LINKS) if (l.rel === "member-of") (membersOf.get(l.to) || membersOf.set(l.to, []).get(l.to)).push(l.from);
-count("Census", "set members", SETS.flatMap(s => (membersOf.get(`set-${s.id}`) || []).slice(0, s.items.length).map(m => linkFact(m, "member-of", `set-${s.id}`))
-  .concat(Array(Math.max(0, s.items.length - (membersOf.get(`set-${s.id}`) || []).length)).fill(null))), f => (f ? [f] : []));
+// Census deals kb/'s sets (census-bank.js); Dispatch and Crossing keep their data in the game, kb/ holds it as links and steps
+// (tools/games-to-kb.mjs, tools/dispatch-to-kb.mjs)
+const { SETS } = await import("../census-bank.js");
+count("Census", "set members", SETS.flatMap(s => s.items), it => [it.fact]);
 const { MEETINGS } = await import("../dispatch-bank.js");
-const meetingAt = new Map(ENTITIES.flatMap(e => (e.meetings || []).map(m => [m.id, e.id])));
-count("Dispatch", "meetings", MEETINGS, x => (meetingAt.has(x.id) ? [stepFact(meetingAt.get(x.id), x.id)] : []));
+count("Dispatch", "meetings", MEETINGS, x => [x.fact]);
 const { LANES, PORTS, INLAND } = await import("../crossing-sea-data.js");
 const { COUNTRIES } = await import("../chart-countries.js");
 const has = rel => LINKS.filter(l => l.rel === rel).length;

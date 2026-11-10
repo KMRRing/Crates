@@ -2,7 +2,7 @@
 // found (typing.js: case, accents, a leading "the" and a slip of a letter are forgiven); an exact name beats a slip, and a slip
 // that two members could be is not taken. The score is the share of the set found; nothing is lost for a wrong name.
 import { check } from "./typing.js";
-import { SETS, GROUPS } from "./census-sets.js";
+import { SETS, GROUPS } from "./census-bank.js";
 
 export { SETS, GROUPS };
 export const LEVELS = { easy: { time: 1.5 }, medium: { time: 1 }, hard: { time: 0.7 } };

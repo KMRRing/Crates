@@ -1,6 +1,6 @@
 // Census: a set is named and you type its members against the clock: the countries of Africa, the Swiss cantons, the noble gases.
 // A name that is in the set is kept, one that isn't costs nothing, one you already had is said so; the clock runs out, or you give up,
-// or you have the lot. The score is the share found. The sets are census-sets.js's, the judging and the clock census-engine.js's;
+// or you have the lot. The score is the share found. The sets are kb/'s (census-bank.js), the judging and the clock census-engine.js's;
 // this file keeps the run and builds the page.
 import { SETS, LEVEL_IDS, setOf, judge, secondsFor, percent, starsFor, dailySet, dealSet } from "./census-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -51,12 +51,14 @@ function learn() {
   const sset = set(), mine = new Set(sset.items.flatMap(it => [it.name, ...it.alt].map(n => n.toLowerCase())));
   const strangers = SETS.filter(x => x.group === sset.group && x.id !== sset.id).flatMap(x => x.items.map(it => it.name)).filter(n => !mine.has(n.toLowerCase()));
   sset.items.forEach((it, i) => {
-    const key = `${sset.id}|${it.name}`;
-    if (S.found.includes(i)) { if (pile.has("census", key)) pile.answer("census", key, true); return; }
+    // the fact is the member's link to its set: the same pile in Census, the Deck, and any game that asks it
+    const key = `${sset.id}|${it.name}`, facts = [it.fact];
+    if (S.found.includes(i)) { pile.answer("census", key, true, facts); return; }
     if (sset.items.filter((_, j) => j < i && !S.found.includes(j)).length >= 3) return;
     const others = strangers.map((n, k) => [((k + i) * 7919) % 997, n]).sort((a, b) => a[0] - b[0]).map(a => a[1]).slice(0, 3);
     if (others.length < 3) return;
-    pile.record("census", key, { ask: "Census · which belongs", prompt: sset.title, options: [it.name, ...others], right: [0], note: `${it.name} is one of ${sset.title.toLowerCase()}.` }, "miss");
+    pile.record("census", key, { ask: "Census · which belongs", prompt: sset.title, options: [it.name, ...others], right: [0], note: `${it.name} is one of ${sset.title.toLowerCase()}.`,
+      facts, about: [it.fact.split(">")[0]] }, "miss");
   });
 }
 function begin() {

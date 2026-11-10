@@ -48,13 +48,15 @@ function learn() {
   const { marks } = score(S.ids, S.notes);
   S.ids.forEach((id, i) => {
     const x = meetingOf(id), miss = SLOTS.find(slot => !marks[i][slot]);
-    if (!miss) { if (pile.has("dispatch", id)) pile.answer("dispatch", id, true); return; }
+    const facts = [x.fact];                // the meeting as kb/ holds it: the same pile in the Deck and any game that asks it
+    if (!miss) { pile.answer("dispatch", id, true, facts); return; }
     const same = MEETINGS.filter(y => y.id !== id && textOf(miss, y) !== textOf(miss, x));
     const near = [...same.filter(y => continentOf(y) === continentOf(x)), ...same.filter(y => continentOf(y) !== continentOf(x))];
     const pick = near.map((y, k) => [((k + id.length) * 7919) % 997 + (continentOf(y) === continentOf(x) ? 0 : 1000), textOf(miss, y)]).sort((a, b) => a[0] - b[0]);
     const others = [...new Set(pick.map(a => a[1]))].slice(0, 3);
     const prompt = miss === "who" ? `${x.place}, ${x.year}: ${x.what}` : miss === "where" ? `${x.who} ${x.what} (${x.year})` : `${x.who} in ${x.place}, ${x.year}`;
-    pile.record("dispatch", id, { ask: `Dispatch · ${miss === "what" ? "what was said" : miss}`, prompt, options: [textOf(miss, x), ...others], right: [0], note: `${x.who} (${x.nat}), ${x.place}, ${x.year}: ${x.why}` }, "miss");
+    pile.record("dispatch", id, { ask: `Dispatch · ${miss === "what" ? "what was said" : miss}`, prompt, options: [textOf(miss, x), ...others], right: [0], note: `${x.who} (${x.nat}), ${x.place}, ${x.year}: ${x.why}`,
+      facts, about: [x.fact.split("~")[0]] }, "miss");
   });
 }
 

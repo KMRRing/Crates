@@ -65,7 +65,18 @@ export const FIELDS = {
   crates: play("number", "Crates' board position"), d: play("number", "Difficulty"), stage: play("text", "Stage"), wrong: play("texts", "Wrong options"),
   fromWrong: play("texts", "Wrong sources"), notWith: play("texts", "Not with"), iconic: play("flag", "Iconic"), pinCat: play("text", "Chart category"),
   marks: play("texts", "Names on the map"), anonymous: play("flag", "Anonymous"),
-  unit: play("text", "Order's word for a step"), ask: play("text", "Order's question"),
+  unit: play("text", "Order's word for a step"), ask: play("text", "The game's question (Order's story, Census's set)"),
+  census: play("text", "Census's group"), subject: play("text", "Settings' subject"), regions: play("texts", "Settings' continents"),
+};
+/** The fields of a link besides its facts: what a game shows and accepts for it, and Crates' own. */
+export const LINK = {
+  from: meta("ref", "From"), to: meta("ref", "To"), rel: meta("text", "Kind of link"), facts: meta("record", "Facts"),
+  hint: f("text", "Why"), aspects: meta("tags", "Aspects"),
+  // `w`: the name the game shows for the thing at `from`, where it isn't the thing's own (Crates' clue word, Census's member);
+  // `also`: the other names a game takes for it (Census)
+  w: play("text", "Shown as"), also: play("texts", "Also taken"),
+  // Crates': difficulty, the other answers a clue could fit (its red herrings), its place in the answer's list, from when it counts
+  d: play("number", "Difficulty"), alt: play("refs", "Also fits"), pos: play("number", "Place in the list"), since: play("number", "Counts from"),
 };
 /** The fields of a record (`card`, `archCard`) and of a step (`meetings`, `steps`). */
 export const RECORD = {

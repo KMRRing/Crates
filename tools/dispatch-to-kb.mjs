@@ -12,7 +12,6 @@ const parse = l => { try { return JSON.parse(l.replace(/,\s*$/, "")); } catch { 
 const rows = new Map();                       // id -> line index
 ent.forEach((l, i) => { const e = l.startsWith("{") ? parse(l) : null; if (e && !rows.has(e.id)) rows.set(e.id, i); });
 const get = id => parse(ent[rows.get(id)]);
-const SHORT = { "johannes-gutenberg": "gutenberg", "christopher-columbus": "columbus", "ferdinand-magellan": "magellan", "nicolaus-copernicus": "copernicus", "francis-drake": "drake", "jan-pieterszoon-coen": "coen", "antonie-van-leeuwenhoek": "leeuwenhoek", "klaus-stortebeker": "stortebeker" };
 const byName = new Map();
 for (const l of ent) { const e = l.startsWith("{") ? parse(l) : null; if (!e || e.same) continue; for (const k of [e.name, ...(e.aliases || [])]) if (!byName.has(fold(k))) byName.set(fold(k), e.id); }
 const COUNTRY = { Venetian: "italy", Florentine: "italy", Tuscan: "italy", Pisan: "italy", Genoese: "italy", Italian: "italy", German: "germany", Bavarian: "germany", Portuguese: "portugal", Spanish: "spain", Basque: "spain", Navarrese: "spain",
@@ -27,12 +26,14 @@ const existingLinks = new Set(lnk.filter(l => l.startsWith("{")).map(l => { cons
 const placeId = {};
 for (const p of people) {
   const meetings = MEETINGS.filter(x => x.pid === p.pid).sort((a, b) => a.year - b.year).map(x => { const o = { id: x.id, year: x.year, place: x.place, what: x.what }; if (x.alt) o.alt = x.alt; o.why = x.why; if (x.pic) o.pic = x.pic; return o; });
-  let id = rows.has(p.pid) ? p.pid : SHORT[p.pid] || (byName.get(fold(p.who)) ?? null);
+  // the person's kb/ id is the one the meeting's fact names (dispatch-bank.js), so the bank and kb/ name the same thing
+  const kb = p.fact.split("~")[0];
+  let id = rows.has(kb) ? kb : byName.get(fold(p.who)) ?? null;
   if (id && rows.has(id)) {
     const e = get(id);
     e.nat = p.nat; e.meetings = meetings;
     if (!e.note && /person/.test((e.sets || []).join())) e.note = meetings[0].why;     // what the first meeting meant, so the thing says something
-    if (SHORT[p.pid] && !(e.aliases || []).includes(fold(p.who))) e.aliases = [...(e.aliases || []), fold(p.who)];
+    if (id !== p.pid && !(e.aliases || []).includes(fold(p.who))) e.aliases = [...(e.aliases || []), fold(p.who)];
     ent[rows.get(id)] = JSON.stringify(e) + ",";
     patched.push(id);
   } else {

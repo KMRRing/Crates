@@ -1,12 +1,11 @@
 // Writes the knowledge the games hold apart from kb/ into kb/, so the Almanac and the knowledge graph have all of it (Korbi, 9 Nov
-// 2026: Dispatch, Census, Spyglass, Crossing): Census's sets (each set a thing of its own, its members linked to it `member-of`, with
-// their place in order where the set has one: the planets from the Sun; a member kb/ lacks becomes a thing of its own), Crossing's
-// land borders (a `borders` link per pair), its sea (waters, ports and inland places become things; `sea-lane`, `port-on` and
-// `inland-of` links). Since 10 November 2026 nothing is tagged: what a game plays is in the links (kb/vocabulary.js). Spyglass shows kb/'s own paintings, flags and country outlines, so
-// it needs nothing here (tests/games-kb.mjs holds that). Dispatch has tools/dispatch-to-kb.mjs. Safe to run again; after it run
+// 2026: Dispatch, Census, Spyglass, Crossing): Crossing's land borders (a `borders` link per pair) and its sea (waters, ports and
+// inland places become things; `sea-lane`, `port-on` and `inland-of` links). Nothing is tagged: what a game plays is in the links
+// (kb/vocabulary.js). Census's sets have been kb/'s own since 10 November 2026 (set things, their members linked `member-of`; the
+// build writes census-bank.js), so they are edited there. Spyglass shows kb/'s own paintings, flags and country outlines, so it
+// needs nothing here (tests/games-kb.mjs holds that). Dispatch has tools/dispatch-to-kb.mjs. Safe to run again; after it run
 // `node tools/audit-marks.mjs` and `node tools/build-kb.mjs`.
 import fs from "node:fs";
-import { SETS } from "../census-sets.js";
 import { COUNTRIES } from "../chart-countries.js";
 import { WATERS, LANES, PORTS, INLAND } from "../crossing-sea-data.js";
 const root = new URL("../kb/", import.meta.url).pathname;
@@ -44,63 +43,6 @@ const existingLinks = new Set(lnk.filter(l => l.startsWith("{")).map(l => { cons
 // a link's facts (a distance, how far up the river) go in `facts` (kb/vocabulary.js FACTS), not in its words
 const link = (from, to, rel, facts) => { const k = `${from}|${to}|${rel}`; if (!rows.has(from) || !rows.has(to) || existingLinks.has(k)) return; existingLinks.add(k); linkLines.push(JSON.stringify(facts ? { from, to, rel, facts } : { from, to, rel }) + ","); };
 
-// ---------- Census ----------
-const country = e => has(e, "country");
-const element = e => has(e, "kind:material") || (has(e, "commodity") && (has(e, "group:met") || has(e, "group:chem")));
-const CFG = {                // set id -> how its members are found, and made when kb/ lacks them; ordered: its list is in order
-  africa: { ok: country }, "south-america": { ok: country }, "central-america": { ok: country }, eu: { ok: country }, g20: { ok: country }, g7: { ok: country },
-  "germany-borders": { ok: country }, nordic: { ok: country }, alpine: { ok: country }, asean: { ok: country },
-  "eu-capitals": { ok: e => has(e, "city", "kind:place"), sets: ["kind:place"], note: "A capital city of the European Union." },
-  cantons: { label: "canton", always: true, pre: "ch", sets: ["kind:place"], note: "A canton of Switzerland." },
-  laender: { label: "German state", always: true, pre: "de", sets: ["kind:place"], note: "A state (Land) of Germany." },
-  "us-states": { label: "US state", always: true, pre: "us", sets: ["kind:place"], note: "A state of the United States." },
-  canada: { label: "Canadian province", always: true, pre: "ca", sets: ["kind:place"], note: "A province or territory of Canada." },
-  australia: { label: "Australian state", always: true, pre: "au", sets: ["kind:place"], note: "A state or territory of Australia." },
-  "great-lakes": { ok: e => has(e, "feature:lake"), sets: ["kind:natural"], note: "One of the Great Lakes." },
-  "seven-summits": { ok: e => has(e, "geo-place", "feature"), sets: ["kind:natural"], note: "One of the Seven Summits, the highest mountain of a continent." },
-  oceans: { label: "ocean", always: true, sets: ["kind:natural"], note: "One of the world's five oceans." },
-  continents: { label: "continent", always: true, sets: ["kind:place"], note: "One of the seven continents." },
-  planets: { ordered: true, label: "planet", always: true, sets: ["kind:natural"], note: "A planet of the solar system." },
-  "noble-gases": { ok: element, sets: ["kind:material"], note: "A noble gas." }, alkali: { ok: element, sets: ["kind:material"], note: "An alkali metal." },
-  halogens: { ok: element, sets: ["kind:material"], note: "A halogen." }, "first-20": { ordered: true, ok: element, sets: ["kind:material"], note: "One of the first twenty elements." },
-  pgms: { ok: element, sets: ["kind:material"], note: "A platinum group metal." }, "base-metals": { ok: element, sets: ["kind:material"], note: "A base metal." },
-  rainbow: { ordered: true, label: "colour", always: true, sets: ["kind:word"], note: "A colour of the rainbow." },
-  "greek-letters": { ordered: true, label: "Greek letter", always: true, sets: ["kind:word"], note: "A letter of the Greek alphabet." },
-  nato: { ordered: true, label: "NATO alphabet", always: true, sets: ["kind:word"], note: "A word of the NATO spelling alphabet." },
-  wonders: { ok: e => has(e, "kind:site"), sets: ["kind:site"], note: "One of the Seven Wonders of the Ancient World." },
-  "henry-wives": { ordered: true, ok: e => has(e, "kind:person"), sets: ["kind:person"], note: "One of the six wives of Henry VIII." },
-  tudors: { ordered: true, ok: e => has(e, "kind:person"), sets: ["kind:person"], note: "A Tudor monarch." },
-  olympians: { ok: e => has(e, "greek-god"), sets: ["kind:person", "greek-god"], note: "One of the twelve Olympian gods." },
-  muses: { ok: e => has(e, "greek-god"), label: "Muse", sets: ["kind:person", "greek-god"], note: "One of the nine Muses." },
-  tragedies: { ok: e => has(e, "work"), sets: ["work", "kind:book"], note: "A tragedy by Shakespeare." },
-  "first-growths": { ok: e => has(e, "kind:drink", "kind:company"), sets: ["kind:drink"], note: "One of the five first growths of the 1855 Bordeaux classification." },
-  "bordeaux-grapes": { ok: e => has(e, "kind:plant", "kind:drink"), sets: ["kind:plant"], note: "One of the five Bordeaux red grapes." },
-};
-const missing = [];
-for (const set of SETS) {
-  const c = CFG[set.id];
-  if (!c) throw new Error(`no entry for Census set ${set.id}: say how its members are found in tools/games-to-kb.mjs`);
-  // the set itself: its title, and what Census asks ("Name the eight planets…") said as what it is ("The eight planets…")
-  const setId = `set-${set.id}`;
-  if (!rows.has(setId)) {
-    created.set(setId, { id: setId, name: set.title, sets: ["set"], note: set.ask.replace(/^Name (the )?/, (m, the) => (the ? "The " : "")).replace(/^./, x => x.toUpperCase()) });
-    rows.set(setId, -1); extra.push(setId);
-  }
-  set.items.forEach((it, i) => {
-    const names = [it.name, ...it.alt];
-    let id = c.pre ? (rows.has(`${c.pre}-${slug(it.name)}`) ? `${c.pre}-${slug(it.name)}` : null) : null;
-    if (!id && c.label && c.always) { const again = `${slug(`${it.name} (${c.label})`)}`; if (rows.has(again)) id = again; }
-    // made by an earlier run: linked to the set already, or made with the set's own note
-    if (!id) id = names.map(slug).find(i => rows.has(i) && (existingLinks.has(`${i}|${setId}|member-of`) || (c.note && get(i).note === c.note))) || null;
-    if (!id && c.ok) id = find(names, c.ok);
-    if (!id) {
-      if (!c.sets) { missing.push(`${set.id}: ${it.name}`); return; }
-      id = make(it.name, it.alt, [...c.sets], c.note, { id: c.pre ? `${c.pre}-${slug(it.name)}` : undefined, label: c.label, always: c.always });
-    }
-    link(id, setId, "member-of", c.ordered ? { pos: i + 1 } : null);
-  });
-}
-
 // ---------- Crossing: land borders ----------
 const idOfCountry = new Map(COUNTRIES.map(c => [c.name, c.about]));
 for (const c of COUNTRIES) for (const n of c.neighbours) { const o = idOfCountry.get(n); if (o && c.about && c.about < o) link(c.about, o, "borders"); }
@@ -134,4 +76,4 @@ const lastE = ent.lastIndexOf("];"), lastL = lnk.lastIndexOf("];");
 for (const [list, at] of [[ent, lastE], [lnk, lastL]]) if (!list[at - 1].endsWith(",")) list[at - 1] += ",";
 ent.splice(lastE, 0, ...newLines.filter((_, i) => !ent.some(l => l.startsWith(`{"id":${JSON.stringify(extra[i])},`)))); lnk.splice(lastL, 0, ...linkLines);
 fs.writeFileSync(root + "entities.js", ent.join("\n")); fs.writeFileSync(root + "links.js", lnk.join("\n"));
-console.log({ made: extra.length, links: linkLines.length, missing });
+console.log({ made: extra.length, links: linkLines.length });
