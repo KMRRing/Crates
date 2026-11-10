@@ -34,7 +34,8 @@ let board = null;
 let picked = [];
 const kbIndex = { SUBJECTS, SUBJECT };
 /** What's due in the games and topics Deck covers (deck-scope.js), the most revised first: a review's order, and the count the games screen shows. */
-const dueNow = () => inScope(pile.due(), scopeNow(), labelOf(kbIndex));
+// a fact asked in several games is reviewed once, in the form you last met it (pile.js: items on one fact share their state)
+const dueNow = () => pile.oncePerFact(inScope(pile.due(), scopeNow(), labelOf(kbIndex)));
 let answered = false;  // the card on show has been answered: Enter (or, on a typed card, typing) moves on
 let submitTyped = null;
 
@@ -116,7 +117,7 @@ const gapText = ms => {
 /** `topic`: a one-off review of that subject (by label) from every game, whatever the device's scope; nothing is kept. */
 function startReview(topic = null) {
   if (typeof topic !== "string") topic = null;          // a click hands over its event
-  const items = (topic ? aboutTopic(pile.due(), topic, labelOf(kbIndex)) : dueNow()).slice(0, MAX_REVIEW);
+  const items = (topic ? pile.oncePerFact(aboutTopic(pile.due(), topic, labelOf(kbIndex))) : dueNow()).slice(0, MAX_REVIEW);
   if (!items.length) { overview(); if (topic) toast(`Nothing due in ${topic} yet.`); return; }
   session = { items, at: 0, right: 0, wrong: 0, topic };
   $("overview").hidden = true;

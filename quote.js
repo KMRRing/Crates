@@ -82,7 +82,7 @@ const setFor = (seed, w, personal = true, fresh = personal) => {
   // learning mode: what's due leads the set (up to half of it), the rest dealt as usual around it
   // and questions about what the other games found you weak on, in Quote's form
   const own = personal && pile.learning() ? pile.picks("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
-  const due = personal && pile.learning() ? pile.dealDue("quote", pool.map(q => ({ key: q.id, about: q.about ? [q.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
+  const due = personal && pile.learning() ? pile.dealDue("quote", pool.map(q => ({ key: q.id, about: q.about ? [q.about] : [], facts: q.facts })), own, Math.ceil(PER_SET / 2)) : [];
   const left = pool.filter(q => !due.includes(q.id)), draw = (from, n) => pickMixed(seed, from, w, n);
   // nothing again until the rest of the pool has had its turn (a daily is the same for everyone: no history in it)
   const rest = (fresh ? pile.freshPicks("quote", left, q => q.id, PER_SET - due.length, draw) : draw(left, PER_SET - due.length)).map(q => q.id);
@@ -123,8 +123,8 @@ function quote() {
   const r = settle(q, bid, ask);
   noteMarket(r.grade, r.inside);   // the Ledger: the grade, and whether the truth was inside the market
   // the pile: a B or below means you didn't adequately know it; an A or better moves a banked question up
-  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id, pic: q.pic || null, about: q.about ? [q.about] : undefined }, r.inside ? "wide" : "wrong");
-  else if (pile.has("quote", q.id)) pile.answer("quote", q.id, true);
+  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id, pic: q.pic || null, about: q.about ? [q.about] : undefined, facts: q.facts }, r.inside ? "wide" : "wrong");
+  else pile.answer("quote", q.id, true, q.facts);                                  // its own item, or another game's on the same fact
   S.book += r.delta;
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond, grade: r.grade });
   S.phase = "reveal";

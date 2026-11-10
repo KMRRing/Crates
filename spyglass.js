@@ -355,11 +355,11 @@ function learn(why) {
   const it = item();
   if (S.daily || it.kind === "outline") return;
   const key = `${it.kind}/${it.answer}`;
-  if (why === "right") { if (pile.has("spyglass", key)) pile.answer("spyglass", key, true); return; }
+  if (why === "right") { pile.answer("spyglass", key, true, it.facts); return; }     // its own item, or another game's on the same fact
   const others = [...it.options.filter(o => o !== it.answer), ...POOLS[it.kind].map(p => p.answer).filter(a => a !== it.answer)].filter((o, i, all) => all.indexOf(o) === i).slice(0, 3);   // none were shown on Hard
   const payload = it.kind === "flag" ? { ask: "Spyglass · which flag", prompt: `${it.emoji} Which country's flag is this?`, options: [it.answer, ...others], right: [0], note: it.caption }
     : { ask: it.kind === "building" ? "Spyglass · which building" : "Spyglass · which painting", prompt: it.kind === "building" ? "Which building is this?" : "Who painted this?", pic: it.pic, options: [it.answer, ...others], right: [0], note: it.caption, about: it.about };
-  pile.record("spyglass", key, payload, why);
+  pile.record("spyglass", key, { ...payload, facts: it.facts }, why);
 }
 function guess(text) {
   if (phase !== "look") return null;

@@ -545,13 +545,14 @@ function closeName() {
  *  this game's learning mode as a picture again; one named right that was due moves up. */
 function learnt(right) {
   if (IN_FRAME) return;
-  if (right) { bump("named"); pile.answer("nonogram", pic.id, true); return; }
+  const facts = pic.topic === "flags" && pic.about ? [`${pic.about}.flag`] : [];
+  if (right) { bump("named"); pile.answer("nonogram", pic.id, true, facts); return; }
   const others = poolOf(pic.topic, pic.regions[0] || "world").filter(p => p.id !== pic.id && p.name !== pic.name);
   const picks = [];
   while (picks.length < 3 && others.length) picks.push(others.splice(Math.floor(Math.random() * others.length), 1)[0].name);
   pile.record("nonogram", pic.id, {
     ask: `Nonogram · ${TOPIC_ONE[pic.topic]}`, prompt: askOf(pic.topic, pic), svg: svgOf(P), options: [pic.name, ...picks], right: [0],
-    note: `${pic.flag ? `${pic.flag} ` : ""}${pic.name}${pic.note ? `: ${pic.note}` : "."}`, about: pic.about ? [pic.about] : [],
+    note: `${pic.flag ? `${pic.flag} ` : ""}${pic.name}${pic.note ? `: ${pic.note}` : "."}`, about: pic.about ? [pic.about] : [], facts,
   }, "wrong");
 }
 /** The finished picture as an SVG, small, for Deck: a one-colour picture in the page's ink, a flag in its colours. */

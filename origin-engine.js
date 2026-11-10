@@ -33,8 +33,10 @@ for (const l of LINKS) {
   const names = [...ALIASES.get(l.to), ...(INSIDE.get(l.to) || [])], said = `${NAME.get(l.from)} ${l.hint || ""}`.toLowerCase();
   if (names.some(n => n.length > 3 && said.includes(n))) continue;
   if (!CLUES.has(l.to)) CLUES.set(l.to, []);
-  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)), aspects: l.aspects || [] });
+  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)), aspects: l.aspects || [], fact: `${l.from}>${l.rel}>${l.to}` });
 }
+/** The facts a country's round can ask (kb/graph.js ids: its clues), for the shared pile. */
+export const factsOfCountry = id => (CLUES.get(id) || []).map(c => c.fact);
 export const ANSWERS = [...CLUES.keys()].filter(id => CLUES.get(id).length >= 6).sort();
 
 // ---------- topics ----------

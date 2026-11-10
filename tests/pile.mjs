@@ -111,3 +111,36 @@ if (bad) process.exitCode = 1;
   if (!ok) process.exitCode = 1;
   P.clear();
 }
+
+// a fact is one item of learning, whichever game asks it (Korbi, 10 Nov 2026)
+{
+  const F = "krone>clue>norway";
+  P.clear(); P.setMode("revision");
+  P.record("crates", "norway.krone", { word: "Krone", facts: [F] }, "wrong");
+  P.record("punt", "art/AR-1", { prompt: "Who painted this?", facts: ["mona-lisa>painted-by>leonardo-da-vinci"] }, "wrong");
+  const pool = [{ key: "countries/CT-9", facts: [F] }, { key: "countries/CT-10", facts: ["norway.area"] }];
+  const dealt = P.dealDue("punt", pool, [], 5);
+  const ok1 = dealt.includes("countries/CT-9") && !dealt.includes("countries/CT-10");
+  console.log(`${ok1 ? "ok  " : "FAIL"} a clue missed in Crates brings Punt's question on the same fact into its block, not one on another fact`); if (!ok1) process.exitCode = 1;
+  P.answer("punt", "countries/CT-9", true, [F]);
+  const crates = P.all("crates")[0], ok2 = crates.pile === 1 && crates.due > Date.now() && crates.last.via === "punt";
+  console.log(`${ok2 ? "ok  " : "FAIL"} right in Punt, where Punt has no item for it, moves Crates' item on that fact up a pile`); if (!ok2) process.exitCode = 1;
+  P.record("lode", "norway|Krone", { word: "Krone", facts: [F] }, "miss");
+  const ok3 = P.all("crates")[0].pile === 0 && P.due().length === 3 && P.oncePerFact(P.due()).length === 2;
+  console.log(`${ok3 ? "ok  " : "FAIL"} missed again in Lode, Crates' item drops back with it; Deck asks the fact once (${P.oncePerFact(P.due()).length} of ${P.due().length})`); if (!ok3) process.exitCode = 1;
+  P.clear(); P.record("punt", "art/AR-2", { prompt: "old" }, "wrong");
+  P.adopt("punt", [{ key: "art/AR-2", facts: ["the-night-watch>painted-by>rembrandt"] }]);
+  const ok4 = P.all("punt")[0].facts?.[0] === "the-night-watch>painted-by>rembrandt";
+  console.log(`${ok4 ? "ok  " : "FAIL"} an item from before facts takes its question's facts when the game deals`); if (!ok4) process.exitCode = 1;
+  P.clear();
+}
+{
+  const F = "rotterdam>clue>netherlands";
+  P.clear(); P.setMode("revision");
+  P.record("crates", "nl.rotterdam", { facts: [F] }, "wrong");
+  P.answer("punt", "countries/CT-1", true, [F]);
+  P.answer("lode", "netherlands|Rotterdam", true, [F]);
+  const it = P.all("crates")[0], ok = it.pile === 1;
+  console.log(`${ok ? "ok  " : "FAIL"} right in two more games within the minute moves the fact one pile, not two: its gap still stands (pile ${it.pile})`); if (!ok) process.exitCode = 1;
+  P.clear();
+}

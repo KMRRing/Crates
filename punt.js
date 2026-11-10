@@ -57,6 +57,9 @@ const here = () => {
   return where?.[together.room.uid] ? presentIds(S, where, me()) : seatedIds(S);
 };
 
+/** The facts a question tests (kb/graph.js ids): a bank's own, or for a question from Crates' clues, the clue pairs it asks
+ *  (known.js keys answer>clue; the fact is clue>clue>answer). The pile keeps one state per fact, whichever game asks it. */
+const factsOf = q => q.facts || (q.pairs || (q.pair ? [q.pair] : [])).map(k => { const [a, c] = k.split(">"); return `${c}>clue>${a}`; });
 // ---------- question banks (Maths, Refining): a bank module with STAGES and MATHS, filtered by stages and difficulties ----------
 const DIFFICULTIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const banks = {};            // level id -> the loaded module
@@ -85,7 +88,8 @@ async function bankDeal(level, picks, personal = true) {
   const learning = personal && pile.learning();
   // its own due questions, then its questions about what the other games found you weak on (up to a third of a block)
   const ownDue = learning ? pile.picks("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
-  const dueKeys = learning ? pile.dealDue("punt", pool.map(q => ({ key: q.id, about: q.about })), ownDue, ownDue.length + 5) : [];
+  if (learning) pile.adopt("punt", pool.map(q => ({ key: `${level}/${q.id}`, facts: q.facts })));     // items from before facts take their question's
+  const dueKeys = learning ? pile.dealDue("punt", pool.map(q => ({ key: q.id, about: q.about, facts: q.facts })), ownDue, ownDue.length + 5) : [];
   const seenKeys = learning ? new Set(pile.all("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1))) : new Set();
   return { deal: { pool, stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])), dueKeys, seenKeys }, picks: resolved };
 }
@@ -800,12 +804,12 @@ function bankLatest(last) {
   // so Deck asks it again as a name to type, not as options to choose from
   if (asName && q.pair) known.named(q.pair, right === true);
   else if (right && mine.pct > 0 && q.pairs?.length) known.recognised(q.pairs);
-  const lv = q.src || S.level, key = asName ? `${lv}/name/${q.key}` : `${lv}/${q.key}`;
-  const payload = asName ? { name: true, prompt: q.prompt, ask: q.ask, answer: q.answer, note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "" } : { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, ...(q.title && { title: q.title }), code: q.code || null, level: S.level, about: q.about };
+  const lv = q.src || S.level, key = asName ? `${lv}/name/${q.key}` : `${lv}/${q.key}`, facts = factsOf(q);
+  const payload = asName ? { name: true, prompt: q.prompt, ask: q.ask, answer: q.answer, note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", about: q.about, facts } : { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, ...(q.title && { title: q.title }), code: q.code || null, level: S.level, about: q.about, facts };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
   else if (!right) pile.record("punt", key, payload, "wrong");
   else if (mine.pct <= 20) pile.record("punt", key, payload, "lowStake");
-  else if (pile.has("punt", key)) pile.answer("punt", key, true);
+  else pile.answer("punt", key, true, facts);                 // its own item, or another game's on the same fact
 }
 
 const pctText = x => (x == null ? "–" : `${Math.round(x * 100)}%`);

@@ -11,7 +11,7 @@ import { WORLD, turn, zoom as zoomGlobe } from "./chart-globe.js";
 import { fingers, worldView, clampView, viewWindow, merc } from "./chart-engine.js";
 import { defaultIs3D, onDefaultChange } from "./mode3d.js";
 import { draw as drawGlobe, drawFlat, flatFor, pick as pickCountry, viewOf, A_MIN, A_MAX } from "./origin-globe.js";
-import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
+import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, factsOfCountry, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
 import { subjectPreset } from "./topics.js";
 import { subjectsOn } from "./topics-on.js";
@@ -212,7 +212,7 @@ const save = () => write(RUN, S);
 /** The countries the learning mode would have come back in this run: its own due ones, then what other games found you weak on. */
 function dueCountries(region) {
   if (!pile.learning()) return [];
-  const pool = ANSWERS.filter(id => region === "world" || regionsOf(id).includes(region)).map(id => ({ key: id, about: [id] }));
+  const pool = ANSWERS.filter(id => region === "world" || regionsOf(id).includes(region)).map(id => ({ key: id, about: [id], facts: factsOfCountry(id) }));
   const own = pile.picks("origin").map(it => it.key);
   return pile.dealDue("origin", pool, own, Math.ceil(PER_RUN / 2));
 }
@@ -263,11 +263,12 @@ function learn(R) {
   if (S?.daily || !R?.done) return;
   const name = PLACE.get(R.id)?.name, clean = R.done === "found" && R.shown <= 2 && !R.guesses.length;
   if (!name) return;
-  if (clean) { if (pile.has("origin", R.id)) pile.answer("origin", R.id, true); return; }
+  const facts = R.clues.slice(0, R.shown).map(c => c.fact).filter(Boolean);      // the clues it took (kb/graph.js ids)
+  if (clean) { pile.answer("origin", R.id, true, facts); return; }                // its own item, or another game's on the same fact
   const near = ANSWERS.filter(id => id !== R.id && regionsOf(id).some(g => regionsOf(R.id).includes(g))).sort();
   const others = near.map((id, i) => [(i * 7919 + R.id.length * 31) % 997, PLACE.get(id)?.name]).sort((a, b) => a[0] - b[0]).map(x => x[1]).filter(Boolean).slice(0, 3);
   pile.record("origin", R.id, { ask: "Origin · which country", prompt: R.clues.slice(0, 2).map(c => c.hint).join(". "), options: [name, ...others], right: [0],
-    note: `${name}: ${R.clues[0]?.hint ?? ""}`, about: [R.id] }, R.done === "found" ? "clue" : "miss");
+    note: `${name}: ${R.clues[0]?.hint ?? ""}`, about: [R.id], facts }, R.done === "found" ? "clue" : "miss");
 }
 function next() {
   if (G) { nextTogether(); return; }

@@ -724,8 +724,9 @@ function learnFrom(p, pl, mine) {
     if (!k) continue;
     if (e.kind === "fwd") { if (!helped) known.recognised([e.pair]); }
     else known.named(e.pair, !helped);
-    if (helped) pile.record("crossword", e.key, reviewCard(k), "clue");
-    else if (pile.has("crossword", e.key)) pile.answer("crossword", e.key, true);
+    const facts = e.pair ? [e.pair.split(">").reverse().join(">clue>")] : [];      // answer>clue → clue>clue>answer (kb/graph.js)
+    if (helped) pile.record("crossword", e.key, { ...reviewCard(k), facts }, "clue");
+    else pile.answer("crossword", e.key, true, facts);                              // its own item, or another game's on the same fact
   }
 }
 function showDone() {

@@ -30,6 +30,7 @@ import { roomInAddress, joiningWords, branchPath } from "./rooms.js";
 import { busy, waitMark } from "./loading.js";
 import { leaderboard } from "./standings.js";
 import * as pile from "./pile.js";
+const clueFact = (clue, answer) => (clue && answer ? [`${clue}>clue>${answer}`] : []);   // the fact a clue pair is (kb/graph.js), for the shared pile
 
 dropdown(document.getElementById("region"));
 
@@ -460,8 +461,8 @@ function learnFrom(b, run) {
     if (missed.has(i)) {
       const options = [b.name, ...three()];                   // Deck deals fresh wrong ones each time
       pile.record("lode", key, { ask: `Lode · which ${b.kind}`, prompt: `${w.shown}: ${w.hint}`, options, right: [0], note: `${b.name}: ${w.shown}, ${lower(w.hint)}`,
-        about: [w.entity, b.theme].filter(Boolean) }, run.revealed.includes(i) ? "miss" : "hint");
-    } else if (run.found.includes(i) && pile.has("lode", key)) pile.answer("lode", key, true);
+        about: [w.entity, b.theme].filter(Boolean), facts: clueFact(w.entity, b.theme) }, run.revealed.includes(i) ? "miss" : "hint");
+    } else if (run.found.includes(i)) pile.answer("lode", key, true, clueFact(w.entity, b.theme));   // its own item, or another game's on the same fact
   });
 }
 function useHintNow() {

@@ -57,7 +57,7 @@ const markSeen = ids => { const had = new Set(seenIds()); if (ids.some(id => !ha
 const forget = ids => { const out = new Set(ids); write(SEEN, seenIds().filter(id => !out.has(id))); };
 function newRun(mode, daily) {
   const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31);
-  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds()), daily, daily || mode === "stories" || !pile.learning() ? [] : pile.picks("order").map(it => it.key)), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
+  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds()), daily, daily || mode === "stories" || !pile.learning() ? [] : dueCards()), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
   if (S.recycled) { forget(mode === "dates" ? DATES : familyOf(S.unit).ids); delete S.recycled; }
   if (tracked(S)) markSeen([S.line[0].id]);
   save(); render();
@@ -73,14 +73,19 @@ function place(slot) {
   if (S.over) end();
   save(); render();
 }
+/** What the learning mode leads with: its own due cards, then its cards on facts another game found due (pile.js). */
+function dueCards() {
+  const own = pile.picks("order").map(it => it.key), facts = pile.dueFacts();
+  return [...own, ...[...BY_ID.values()].filter(q => !q.story && !own.includes(q.id) && q.facts?.some(f => facts.has(f))).map(q => q.id)];
+}
 /** The learning piles (pile.js): a card placed wrong comes back as a question (to Deck, and as a lead card in Order's next runs); one placed
  *  right that was on a pile moves up it. Not in a daily or a story, nor at a table. */
 function learn(id, ok) {
   if (S.daily || S.mode === "stories") return;
-  if (ok) { if (pile.has("order", id)) pile.answer("order", id, true); return; }
+  if (ok) { pile.answer("order", id, true, BY_ID.get(id)?.facts); return; }        // its own item, or another game's on the same fact
   const q = BY_ID.get(id), year = q.unit === "year", t = q.truth;
   const wrong = year ? [t - 4, t + 7, t - 13].map(v => ({ ...q, truth: v })) : [0.5, 2, 5].map(f => ({ ...q, truth: t * f }));
-  pile.record("order", id, { ask: year ? "Order · which year" : "Order · how much", prompt: q.q, options: [valueOf(q), ...wrong.map(valueOf)], right: [0], note: q.note || valueOf(q) }, "miss");
+  pile.record("order", id, { ask: year ? "Order · which year" : "Order · how much", prompt: q.q, options: [valueOf(q), ...wrong.map(valueOf)], right: [0], note: q.note || valueOf(q), facts: q.facts }, "miss");
 }
 function end() {
   const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;

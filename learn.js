@@ -8,6 +8,7 @@
 // "n" seen without a clear signal, "k" known; q = became a card because its clue was opened.
 import { BANK, PAIRS, cardKey, norm } from "./core.js";
 import * as pile from "./pile.js";
+const clueFact = (clue, answer) => (clue && answer ? [`${clue}>clue>${answer}`] : []);   // the fact a clue pair is (kb/graph.js), for the shared pile
 
 export const MODES = ["off", "learn", "norepeat", "clues"];
 import { groupIndexOf } from "./gen.js";
@@ -100,11 +101,11 @@ export function learnFromBoard(deck, board, game, rng = Math.random) {
       deck.cards[key] = { s: "w", ...clued, d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
       tags[w] = TAG.fail;
       pile.record("crates", key, { word: w, hint: BANK[g.a].words[wi].hint, answer: BANK[g.a].name, cat: BANK[g.a].cat, a: g.a,
-        about: [BANK[g.a].words[wi].entity, BANK[g.a].entity].filter(Boolean) }, "wrong");   // the shared pile too, for Deck and the other games
+        about: [BANK[g.a].words[wi].entity, BANK[g.a].entity].filter(Boolean), facts: clueFact(BANK[g.a].words[wi].entity, BANK[g.a].entity) }, "wrong");   // the shared pile too, for Deck and the other games
     } else if (v === "pass") {
       deck.cards[key] = { s: "k", ...clued, f: tally.f, p: tally.p + 1 };
       if (prev?.s === "w") tags[w] = TAG.learned;
-      if (pile.has("crates", key)) pile.answer("crates", key, true);
+      pile.answer("crates", key, true, clueFact(BANK[g.a].words[wi].entity, BANK[g.a].entity));   // its own item, or another game's on the same fact
     } else if (prev?.s === "w") {                       // still unproven: try again in a new setting
       deck.cards[key] = { ...prev, d: deck.t + gap(rng), c: context, m: mates };
     } else {

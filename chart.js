@@ -136,7 +136,7 @@ function setFor(seed, sel, personal = true, fresh = personal) {
   const pool = poolOf(sel, !personal), inPool = new Set(pool.map(p => p.id));
   // and places that the other games found you weak on (a city whose clue you missed in Crates), to pin
   const own = personal && pile.learning() ? pile.picks("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
-  const due = personal && pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
+  const due = personal && pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [], facts: p.facts })), own, Math.ceil(PER_SET / 2)) : [];
   const left = pool.filter(p => !due.includes(p.id)), draw = (from, n) => pickMixed(seed, from, sel.topics, n);
   // nothing again until the rest of the pool has had its turn (a daily is the same for everyone: no history in it)
   const rest = (fresh ? pile.freshPicks("chart", left, p => p.id, PER_SET - due.length, draw) : draw(left, PER_SET - due.length)).map(p => p.id);
@@ -166,8 +166,8 @@ function confirmPin() {
   S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues, near: p.geo ? m.point : undefined });
   // the pile: a pin over 500 km off (outside, for a country), or any clue, means you didn't know where it was; a
   // clean close pin moves a banked place up
-  if (missed(p, d, pin) || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined }, clues > 0 ? "clue" : "miss");
-  else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
+  if (missed(p, d, pin) || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined, facts: p.facts }, clues > 0 ? "clue" : "miss");
+  else pile.answer("chart", p.id, true, p.facts);                                  // its own item, or another game's on the same fact
   S.phase = "reveal";
   save();
   if (S.index + 1 >= S.set.length) { count(); roundOver("chart"); }   // the last pin is in: the set's score is final

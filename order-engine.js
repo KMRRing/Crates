@@ -33,7 +33,7 @@ export const familyOf = unit => FAMILIES.find(f => f.unit === unit || f.units.in
 export const bestIn = (best, fam) => Math.max(0, best[`q:${fam.unit}`] ?? 0, ...fam.units.map(u => best[`q:${u}`] ?? 0));
 // stories: each event a card whose truth is its place in the story
 export const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
-for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
+for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id, facts: [`story-${s.id}~${i + 1}`] }));
 
 // ---------- topics ----------
 // A card's topic is its question's category in Quote's bank (a painting's year is Art, OPEC's founding Trade), and a run

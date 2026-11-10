@@ -95,7 +95,7 @@ check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Random on this screen"/.
 check(/KEY = "suite:deck"/.test(row), "Deck's scope is kept under a suite: key");
 check(/import\("\.\/kb-index\.js"\)/.test(row) && !/^import[^\n]*kb-index/m.test(row), "the knowledge base's index is fetched only when it's needed, not carried by every page");
 check(/revised\(session\.items, session\.at, answered/.test(deckJs) && /addEventListener\("close", reviseSession/.test(deckJs) && /return sheet;/.test(row), "Deck's page revises the stack under review when the sheet of games and topics closes");
-check(/inScope\(pile\.due\(\)/.test(deckJs) && /\(topic \? aboutTopic\(pile\.due\(\), topic, labelOf\(kbIndex\)\) : dueNow\(\)\)\.slice\(0, MAX_REVIEW\)/.test(deckJs) && /asked\(location\.hash\)/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
+check(/inScope\(pile\.due\(\)/.test(deckJs) && /\(topic \? pile\.oncePerFact\(aboutTopic\(pile\.due\(\), topic, labelOf\(kbIndex\)\)\) : dueNow\(\)\)\.slice\(0, MAX_REVIEW\)/.test(deckJs) && /asked\(location\.hash\)/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
 check(/session\.topic \|\|/.test(deckJs) && !/suite:deck/.test(deckJs), "a topic's review is one-off: the sheet's changes leave its cards alone, and the scope kept on the device isn't touched");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

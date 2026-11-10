@@ -7,6 +7,12 @@
 // items learned then come back once, a month after they were learned.) Every item that comes back, right or wrong,
 // goes to the Ledger's record with how long it was away (ledger-log.js). Learning mode lets each game's dealer draw what's due into its next block, alongside
 // new content. Deck is the tile that reviews everything due, across the games.
+//
+// What you learn is a fact, whichever game asks it (Korbi, 10 Nov 2026: "the user should revise the same items regardless of
+// which game they play"). An item is one game's question, as it was asked, so Deck can ask it again; it also names the facts
+// it tests (`facts`, kb/graph.js ids: krone>clue>norway, norway.area). Items that test the same fact share one state: missed in
+// any game, every one of them drops to the first pile; right in any game, even a question that game has no item for, every one
+// moves up. A game in learning mode deals its own questions on any fact that's due, whoever missed it; Deck asks a fact once.
 
 import { noteRecall } from "./ledger-log.js";
 import { today } from "./days.js";
@@ -50,6 +56,38 @@ function load() {
   return items;
 }
 function save() { write(STORE, items); }
+
+// ---------- facts ----------
+/** The items that test any of these facts (kb/graph.js ids), learned or not. */
+function carrying(facts) {
+  if (!facts?.length) return [];
+  const want = new Set(facts);
+  return Object.values(load()).filter(it => it.facts?.some(f => want.has(f)));
+}
+/** One item's new state on every other item that tests one of its facts: a fact is in one pile, whichever game asked it. */
+function share(it) {
+  for (const o of carrying(it.facts)) {
+    if (o === it) continue;
+    o.pile = it.pile; o.due = it.due; o.last = { ...it.last, via: it.game };
+    if (it.learned) o.learned = it.learned; else delete o.learned;
+  }
+}
+/** The facts due now (or by `at`), in the learning mode's order: what any game's items say is due. */
+export function dueFacts(at = Date.now()) {
+  const out = new Set();
+  for (const it of picks(null, at)) for (const f of it.facts || []) out.add(f);
+  return out;
+}
+/**
+ * Gives the items a game recorded before items named their facts the facts its questions test: the game hands over its pool
+ * ([{ key, facts }]) as it deals. Nothing else of an item changes.
+ */
+export function adopt(game, pool) {
+  const all = load(), at = new Map(pool.filter(q => q.facts?.length).map(q => [q.key, q.facts]));
+  let changed = false;
+  for (const it of Object.values(all)) if (it.game === game && !it.facts && at.has(it.key)) { it.facts = at.get(it.key); changed = true; }
+  if (changed) save();
+}
 
 /** An item's last answers, oldest first: [[YYYYMMDD, 1 right | 0 wrong when it came back | 2 the miss that put it in the pile]…],
  *  at most HISTORY. Items stored before it existed have none (`it.h` absent): the Ledger then falls back on their latest answer. */
@@ -108,6 +146,7 @@ export function record(game, key, payload, why) {
   const it = all[id] || { id, game, key, added: now, seen: 0, fails: 0, passes: 0 };
   it.payload = payload;
   if (payload?.about?.length) it.about = payload.about;     // the entities it's about (kb/), so other games can ask about them too
+  if (payload?.facts?.length) it.facts = payload.facts;     // the facts it tests: its state is theirs, in every game
   it.pile = 0;
   it.due = now;
   delete it.learned;                                   // a learned item that's missed again is back in the piles
@@ -115,6 +154,7 @@ export function record(game, key, payload, why) {
   it.last = { at: now, why };
   remember(it, all[id] ? 0 : 2, now);
   all[id] = it;
+  share(it);
   save();
   return it;
 }
@@ -132,10 +172,22 @@ export function seen(game, key) {
   const all = load(), id = `${game}:${key}`;
   if (all[id]) { all[id].seen++; all[id].shown = Date.now(); save(); }
 }
-/** The item got answered when it came back: right moves it up a pile (and out, past the long one); wrong drops it to the first. */
-export function answer(game, key, right) {
-  const all = load(), id = `${game}:${key}`, it = all[id];
-  if (!it) return null;
+/**
+ * The item got answered when it came back: right moves it up a pile (and out, past the long one); wrong drops it to the first.
+ * `facts`: what the question tests. A game with no item for it moves another game's item on the same fact instead (its
+ * learning mode dealt the question because that fact was due), so a fact learned in one game is learned in all.
+ */
+export function answer(game, key, right, facts = null) {
+  const all = load(), id = `${game}:${key}`;
+  let it = all[id];
+  if (it && !it.facts && facts?.length) it.facts = facts;
+  if (!it) {
+    const due = Date.now();
+    it = carrying(facts).filter(o => !o.learned).sort((a, b) => (b.due <= due) - (a.due <= due) || b.pile - a.pile)[0];
+    if (!it) return null;
+    // right in another game before the fact is due: it was in mind anyway, so the gap it was waiting out still stands
+    if (right && it.due > due) return it;
+  }
   const now = Date.now();
   noteRecall(now - (it.last?.at ?? it.added), right);
   if (right) {
@@ -148,8 +200,9 @@ export function answer(game, key, right) {
     it.pile = 0;
     it.due = now;
   }
-  it.last = { at: now, why: right ? "right" : "wrong" };
+  it.last = { at: now, why: right ? "right" : "wrong", ...(it.game !== game ? { via: game } : {}) };
   remember(it, right ? 1 : 0, now);
+  share(it);
   save();
   return it;
 }
@@ -164,6 +217,15 @@ export function all(game = null) {
  */
 export function due(game = null, at = Date.now()) {
   return all(game).filter(it => !it.learned && it.due <= at).sort((a, b) => b.pile - a.pile || a.due - b.due);
+}
+/** Items, one for each fact: of the items that test the same fact, the one asked last (the form you last met it in). Deck asks a fact once. */
+export function oncePerFact(list) {
+  const seen = new Set(), out = [];
+  const latest = [...list].sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0));
+  const keep = new Set();
+  for (const it of latest) { if (it.facts?.some(f => seen.has(f))) continue; for (const f of it.facts || []) seen.add(f); keep.add(it); }
+  for (const it of list) if (keep.has(it)) out.push(it);
+  return out;
 }
 /**
  * What the learning mode deals now, from a game's items (or every game's), in the order to deal it: revise is due(); learn
@@ -195,14 +257,18 @@ export function weakElsewhere(game, at = Date.now()) {
   return weak;
 }
 /**
- * A learning mode's picks from a game's pool: its own due keys first, then (up to `cap`) questions about what other
- * games found you weak on, most-missed first, never one already dealt. pool: [{ key, about }].
+ * A learning mode's picks from a game's pool: its own due keys first, then (up to `cap`) its questions on facts that are due
+ * (whichever game missed them), then questions about what other games found you weak on, most-missed first, never one
+ * already dealt. pool: [{ key, about, facts }].
  */
 export function dealDue(game, pool, ownDue, cap) {
-  const weak = weakElsewhere(game), taken = new Set(ownDue);
+  adopt(game, pool);
+  const weak = weakElsewhere(game), facts = dueFacts(), taken = new Set(ownDue);
+  const onFact = pool.filter(q => !taken.has(q.key) && q.facts?.some(f => facts.has(f)));
+  for (const q of onFact) taken.add(q.key);
   const cross = pool.filter(q => !taken.has(q.key) && q.about?.some(id => weak.has(id)))
     .sort((a, b) => Math.max(...b.about.map(id => weak.get(id) || 0)) - Math.max(...a.about.map(id => weak.get(id) || 0)));
-  return [...ownDue, ...cross.slice(0, Math.max(0, cap - ownDue.length)).map(q => q.key)];
+  return [...ownDue, ...[...onFact, ...cross].slice(0, Math.max(0, cap - ownDue.length)).map(q => q.key)];
 }
 /** Has this item been recorded (and not yet learned)? */
 /** Replaces what an item shows (its question has been rewritten since it went in) and nothing else: not its pile, its
@@ -219,7 +285,10 @@ export function clear() { items = {}; save(); }
  */
 export function plan(game, pool, size) {
   if (!learning()) return null;
-  const keys = new Set(pool.map(p => p.key));
-  const dueKeys = picks(game).map(it => it.key).filter(k => keys.has(k)).slice(0, Math.ceil(size / 2));
-  return dueKeys;
+  adopt(game, pool);
+  const keys = new Set(pool.map(p => p.key)), facts = dueFacts();
+  const own = picks(game).map(it => it.key).filter(k => keys.has(k));
+  // and its own questions on facts another game found due
+  const onFact = pool.filter(p => !own.includes(p.key) && p.facts?.some(f => facts.has(f))).map(p => p.key);
+  return [...own, ...onFact].slice(0, Math.ceil(size / 2));
 }

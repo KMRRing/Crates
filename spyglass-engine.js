@@ -27,7 +27,7 @@ export function paintings(bank) {
     if (q.lv !== "who" || !q.pic) continue;
     const answer = q.o[q.a[0]], year = +(/,\s*(?:c\. ?)?(\d{4})/.exec(q.x || "") || [])[1];
     if (!year || year > 1930 || LATE.has(answer)) continue;
-    out.push({ kind: "painting", pic: q.pic, answer, options: [...q.o], caption: (q.x || "").split(/\.\s/)[0], d: q.d, year });
+    out.push({ kind: "painting", pic: q.pic, answer, options: [...q.o], caption: (q.x || "").split(/\.\s/)[0], d: q.d, year, facts: q.facts });
   }
   return out;
 }
@@ -37,7 +37,7 @@ export function buildings(bank) {
   for (const q of bank) {
     if (q.lv !== "buildings" || !q.pic || !q.title || seen.has(q.title)) continue;
     seen.add(q.title);
-    out.push({ kind: "building", pic: q.pic, answer: q.title, caption: (q.x || "").split(/\.\s/)[0], d: q.d, about: q.about });
+    out.push({ kind: "building", pic: q.pic, answer: q.title, caption: (q.x || "").split(/\.\s/)[0], d: q.d, about: q.about, facts: q.about?.[0] ? [`${q.about[0]}.pic`] : [] });
   }
   return out;
 }
@@ -46,7 +46,7 @@ export function flags(bank) {
   const out = [];
   for (const q of bank) {
     const emoji = /\p{Regional_Indicator}{2}/u.exec(q.q || "")?.[0];
-    if (emoji) out.push({ kind: "flag", id: q.about?.[0], emoji, answer: q.o[q.a[0]], options: [...q.o], caption: `${emoji} is the flag of ${q.o[q.a[0]]}.`, lv: q.lv });
+    if (emoji) out.push({ kind: "flag", id: q.about?.[0], emoji, answer: q.o[q.a[0]], options: [...q.o], caption: `${emoji} is the flag of ${q.o[q.a[0]]}.`, lv: q.lv, facts: q.about?.[0] ? [`${q.about[0]}.flag`] : [] });
   }
   return out;
 }
