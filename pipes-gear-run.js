@@ -5,6 +5,7 @@
 // A laid piece taps round its turns; a long press (or the Lift toggle) takes it back up. Book I (the old forty) never turns.
 // The board is one of two views with one interface: the flat SVG (pipes-view-2d.js) or the watch movement (pipes-view-3d.js, three.js, loaded only when
 // wanted); the page asks for one with useView(), and where WebGL fails the flat one stays. Everything below touches the board through view.hit and view.project.
+import { levelOn } from "./playlog.js";
 import { el } from "./pipes-draw.js";
 import * as E from "./pipes-gear-engine.js";
 import { shapeOf, orientations, kindName, canonRot } from "./pipes-gear-shapes.js";
@@ -51,6 +52,7 @@ export function createPuzzle(deps) {
     index = plate ? -1 : Math.max(0, indexOf(id));
     spec = plate || LEVELS[index];
     L = E.parseLevel(spec);
+    levelOn("pipes", spec.id, plate ? (plate.daily ? `Daily ${plate.daily}` : "Random plate") : `${index + 1} · ${spec.name}`);
     if (!plate) saved.id = spec.id;
     let r = saved.runs[spec.id];
     if (!r || r.sig !== sigOf(spec) || fresh) r = saved.runs[spec.id] = { sig: sigOf(spec), laid: {}, sel: null, selRot: null, lifts: 0, hints: 0, solved: 0 };

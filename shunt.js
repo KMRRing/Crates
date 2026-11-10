@@ -22,6 +22,7 @@ import { part, action, line, toggle, choice, onPause, todayPart } from "./menu.j
 import { sure } from "./sure.js";
 import { busy, load3d } from "./loading.js";
 import { roundOver } from "./random.js";
+import { levelOn } from "./playlog.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { KEYS, RUN_KEY, keeper, migrate, readMode, readSeen, readDaily, readSel, readCam, legacyCamp, specOf, savedRun as savedRunOf } from "./shunt-keep.js";
 
@@ -81,6 +82,8 @@ function enter(r, sp) {
   epoch++;
   dropAnimation();
   run = r; spec = sp;
+  levelOn("shunt", r.kind === "level" ? sp.id : r.kind === "endless" ? `e${r.n + 1}` : `d${r.day}`,
+    r.kind === "level" ? `${sp.no} · ${sp.name}` : r.kind === "endless" ? `Endless ${r.n + 1}` : `Daily ${dateWords(r.day)}`);
   hints = r.hints || 0;
   S = play(spec, run.moves);
   pv = null; hintInfo = null; thinking = 0; hintTok++; note = ""; offer = false; undoStreak = 0; pulse = null;

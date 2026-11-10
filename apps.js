@@ -8,6 +8,7 @@ import { sure, typed, notice } from "./sure.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line } from "./menu.js";
+import { readLog, logText, clock } from "./playlog.js";
 import { topicsControls } from "./topics-ui.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
@@ -490,6 +491,7 @@ function openSettings(host) {
     line("Every game opens flat unless you chose 3D in it."),
     topicsPart(),
     picturesPart(sheet),
+    playLog(),
     startOver());
   sheet.showModal();
 }
@@ -534,6 +536,43 @@ if (!IN_FRAME && keepingPictures() && navigator.onLine) setTimeout(() => keepPic
 // The games a reset can start over: all but Crates (its run is synced on its own, and it resets its learning in its own
 // Settings), Deck (its pile is every game's misses) and Ledger and Almanac (records of the others, not games of their own)
 const KEEP_ON_RESET = new Set(["crates", "deck", "ledger", "lexicon"]);
+/** Settings' play log, folded away: the time on every game, the levels with their time, plays and rating, and a Copy that puts it all on
+ *  the clipboard as text (Korbi, 11 November 2026: timed and rated, to review the levels by). */
+function playLog() {
+  const box = document.createElement("details"), L = readLog(), nameOf = id => APPS.find(a => a.id === id)?.name || id;
+  const games = Object.entries(L.games).sort((a, b) => b[1].ms - a[1].ms), total = games.reduce((n, [, g]) => n + g.ms, 0);
+  box.className = "menu-stages settings-log";
+  box.innerHTML = `<summary>Play log</summary>`;
+  const head = document.createElement("p");
+  head.className = "menu-line";
+  head.textContent = games.length ? `${clock(total)} played in all.` : "Nothing timed yet: time counts while a game is on screen and played.";
+  box.append(head);
+  for (const [id, { ms }] of games) {
+    const levels = Object.values(L.levels).filter(r => r.game === id);
+    const row = document.createElement("div");
+    row.className = "log-game";
+    row.innerHTML = `<p class="log-head"><b></b><span>${clock(ms)}</span></p>`;
+    row.querySelector("b").textContent = nameOf(id);
+    for (const r of levels) {
+      const p = document.createElement("p");
+      p.className = "log-level";
+      p.innerHTML = `<span class="log-name"></span><span>${clock(r.ms)} · ${r.plays}×${r.rating ? ` · ${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}` : ""}</span>`;
+      p.querySelector(".log-name").textContent = r.name;
+      row.append(p);
+    }
+    box.append(row);
+  }
+  if (games.length) {
+    const copy = document.createElement("button");
+    copy.type = "button"; copy.className = "btn wide"; copy.textContent = "Copy the log";
+    copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(logText(nameOf)); copy.textContent = "Copied"; }
+      catch { notice("This browser won't copy here."); }
+    });
+    box.append(copy);
+  }
+  return box;
+}
 /** Settings' "Start a game over", folded away: a game's name, a confirmation, and every level, save and setting of it
  *  goes, here and on your other devices. The game open in this page starts again at once. The games stand as the games screen
  *  shows them: by its sections, in its order within each (Korbi, 10 November 2026). */

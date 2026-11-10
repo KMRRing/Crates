@@ -12,6 +12,7 @@
 import "./suite.js";   // the solo code's sync runs on every page
 import "./menu.js";    // every game's menu: one popup, laid out the same
 import "./flags.js";   // flags drawn as flags where the system shows only their letters
+import "./playlog.js"; // time on every game and level, and a rating after each level (Settings shows the log)
 import { busy, progress } from "./loading.js";
 
 // The page is drawn: the mark style.css shows while a page loads (html:not(.ready)) goes. Module scripts have all
