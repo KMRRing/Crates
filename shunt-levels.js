@@ -53,8 +53,8 @@ const COACH = Object.fromEntries(LEGACY.map((d, i) => [d.id, META[i]]));
 /** The levels with a coach (the first eight from before, each opening a chapter): hints are offered there after two undos or a shove that set your trains back. */
 export const COACHED = new Set(LEGACY.slice(0, 8).map(d => d.id));
 /** The campaign's levels in order, numbered from one, each with its chapter, the coach's lines where it has them, and as its tip the
- *  coach's, or for a chapter's first level its rule (one line, no more: campaign.js). */
-export const LEVELS = MADE.map((d, i) => ({ ...d, no: i + 1, ...COACH[d.id], tip: COACH[d.id]?.tip || (MADE[i - 1]?.chapter !== d.chapter ? CHAPTERS[d.chapter].rule : ""), coach: COACH[d.id]?.coach || null }));
+ *  coach's, its own, or for a chapter's first level its rule (one line, no more: campaign.js). */
+export const LEVELS = MADE.map((d, i) => ({ ...d, no: i + 1, ...COACH[d.id], tip: COACH[d.id]?.tip || d.tip || (MADE[i - 1]?.chapter !== d.chapter ? CHAPTERS[d.chapter].rule : ""), coach: COACH[d.id]?.coach || null }));
 /** What campaign.js is given. */
 export const CAMPAIGN = { chapters: CHAPTERS, levels: LEVELS, endless: ENDLESS };
 export { ENDLESS };

@@ -4,7 +4,8 @@
 // Korbi, 10 November 2026: the minigames and puzzles follow a few patterns, the same in every game of a kind.
 //   Campaign  levels in chapters (this file): Gears, Bridges, Shunt, Stow, Columbiad, Survey, Moor, Lanterns, Portolan, Dujiang,
 //             Drift, Slipway, Asterism, Loom, Settle, Manifest, and Landfall's voyages. 60 to 100 levels in 6 to 10 chapters
-//             of 6 to 12. A chapter brings one twist and explores it, as Gears' first books do ("introduction, familiarity, a fun
+//             of 6 to 12, a chapter no longer than its lessons (Korbi, 10 November 2026: Shunt's first taught in seven levels what
+//             takes three, so it is three; a level that only repeats one before it goes). A chapter brings one twist and explores it, as Gears' first books do ("introduction, familiarity, a fun
 //             quirk, mastery, next mechanic introduction"): the twist alone on a small board, with no way to win but by it; the
 //             same in other places; a quirk, where it does something unexpected or meets an older rule; mastery, larger boards
 //             with all that came before; a capstone, the chapter's hardest. Each chapter opens easier than the last one closed

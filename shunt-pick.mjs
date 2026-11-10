@@ -23,15 +23,18 @@ const MARK = { intro: 0, fam: 1, quirk: 1.4, mas: 1.8, cap: 2.4 };
 
 // k: how many trains the goal asks for; p: pitches; i: idlers; b: bridges; s: studs; j: jewels; t: gears already on the plate; d: the
 // deck's length ("fill": every free cell); conditions: nojam, jewels; hold: without the hold the longest trains are shorter; swapFirst:
-// the line kept begins with a swap (the coach shows the hold on the first turn)
+// the line kept begins with a swap (the coach shows the hold on the first turn); id: the level's id where its place's would be one a
+// level used before (stars are kept by id); tip: the level's own line for the coach's box
 const R = (role, name, rec = {}) => ({ role, name, ...rec });
 const K = (role, id, rec = {}) => ({ role, keep: id, ...rec });
 const CHAPTERS = [
   { name: "Shove", rule: "Shove the next gear in from a lever at the rim. Gears of one pitch that touch mesh; three or more in a chain make a train. The goal asks for trains of a length.",
-    // (one pitch: every gear meshes with every other and a triangle anywhere jams. One train is a matter of keeping it a chain; two
-    // of one pitch must never touch, which gears already on the plate make room for, and that takes a plan)
-    slots: [K("intro", "l1"), R("fam", "First train", { k: 1, p: 1, d: 6, t: 1 }), R("fam", "Long chain", { k: 1, p: 1, d: 8, t: 1 }), R("quirk", "Two of a kind", { k: 2, p: 1, d: 6, t: 4 }),
-      R("mas", "Push through", { k: 2, p: 1, d: 7, t: 4 }), R("mas", "Clear the line", { k: 2, p: 1, d: 7, t: 3 }), R("cap", "Full mesh", { k: 1, p: 1, d: 9, t: 3 })] },
+    // Korbi, 10 November 2026: the first chapter taught in seven levels what takes three (the shove, a jam is bad, sometimes more
+    // trains beat one long one), so it is three: one lesson a level, no level that only repeats one. One pitch throughout: every gear
+    // meshes with every other, so a triangle anywhere jams, and two trains of one pitch must never touch.
+    slots: [K("intro", "l1"),
+      R("quirk", "Triangle", { id: "c1-jam", k: 1, p: 1, d: 8, t: 2, tip: "Three gears of one pitch in a triangle jam: the whole train locks and doesn't count. Keep the train a chain, not a clump." }),
+      R("cap", "Two of a kind", { id: "c1-two", k: 2, p: 1, d: 7, t: 4, tip: "Two trains this time, not one long one. Gears of one pitch that touch join into one train: keep a gap between them." })] },
   { name: "Pitches", rule: "Gears of different pitches (tooth sizes) never mesh: grow a train of each.",
     slots: [K("intro", "l2"), R("fam", "Two trains", { k: 2, p: 2, d: 10 }), R("fam", "Side by side", { k: 2, p: 2, d: 12, t: 2 }), R("quirk", "Third pitch", { k: 3, p: 3, d: 15 }),
       R("mas", "Three colours", { k: 2, p: 3, d: 16 }), R("mas", "Sorting", { k: 3, p: 3, d: 15, t: 2 }), R("cap", "Pitch perfect", { k: 3, p: 3, d: "fill" })] },
@@ -133,7 +136,7 @@ function campaign(only) {
     }
     const got = pick(slot, slot.role, 1000 * (c + 1) + 37 * n, 48);
     if (!got) throw new Error(`no plate for ${ch.name} / ${slot.name}`);
-    out.push({ id: `c${c + 1}-${n + 1}`, chapter: c, role: slot.role, name: slot.name, ...slim(got.L) });
+    out.push({ id: slot.id || `c${c + 1}-${n + 1}`, chapter: c, role: slot.role, name: slot.name, ...(slot.tip ? { tip: slot.tip } : {}), ...slim(got.L) });
     process.stdout.write(`${ch.name} · ${slot.name}: ${goalOf(got.L)}, greedy ${got.gap.toFixed(1)} short (mark ${MARK[slot.role]})\n`);
   }));
   return out;
