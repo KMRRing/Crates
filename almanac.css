@@ -23,6 +23,7 @@
 .lx-sec h3 { margin: 0 0 .4rem; font-size: .95rem; color: var(--ink-soft); }
 .lx-fact { display: flex; justify-content: space-between; gap: .8rem; margin: .25rem 0; padding-bottom: .25rem; border-bottom: 1px solid color-mix(in srgb, var(--tile-edge) 60%, transparent); }
 .lx-fact b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lx-fact.long b { white-space: normal; text-align: right; font-weight: 600; }   /* words, not a number: they wrap */
 .lx-more { margin-top: .4rem; }
 .lx-toast { display: none; }
 .lx-mark { display: inline-block; }

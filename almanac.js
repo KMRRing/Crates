@@ -8,6 +8,8 @@ import { QUOTES } from "./quote-bank.js";
 import { SETS } from "./census-sets.js";
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
+import { KINDS, ASPECTS, RELS, PLAYED, FIELDS, yearWords } from "./kb/vocabulary.js";
+import { makeGraph, factWords } from "./kb/graph.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture, pictureName } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -35,24 +37,17 @@ for (const l of LINKS) {
 const FACTS = new Map();                                     // id → the numbers Quote knows about it
 for (const q of QUOTES) if (q.about && ENT.has(q.about)) (FACTS.get(q.about) || FACTS.set(q.about, []).get(q.about)).push(q);
 
-// ---------- words for the kinds and the topics ----------
-const KIND = { country: "country", city: "city", commodity: "commodity", painting: "painting", museum: "museum", feature: "natural feature",
-  "trade-place": "trade hub", "geo-place": "place", "art-place": "art place", "legal-maxim": "legal maxim", "legal-concept": "legal concept" };
-// the knowledge base's groups: regions for countries, families for commodities (Crates' pools)
-const GROUP = { eu: "Europe", asia: "Asia", me: "Middle East", am: "Americas", af: "Africa", soft: "soft commodity", met: "metal",
-  nrg: "energy", grain: "grain", bio: "biofuel", chem: "chemical", cred: "credit", circ: "circular" };
+// ---------- words for the kinds and the topics (kb/vocabulary.js) ----------
+const G = makeGraph(ENTITIES, LINKS);
 // `census:<set>` and `crossing:<part>` in a thing's sets say which games ask for it; they are not what it is (tools/games-to-kb.mjs)
 const CENSUS = new Map(SETS.map(s => [s.id, s.title]));
 const CROSSING = { land: "Crossing, by land", sea: "Crossing, by sea", port: "Crossing, by sea (a port)", inland: "Crossing, by sea (an inland place)" };
-const kindsOf = e => (e.sets || []).filter(s => !/^(census|crossing):/.test(s)).map(s => s.startsWith("kind:") ? s.slice(5) : s.startsWith("feature:") ? s.slice(8)
-  : s.startsWith("group:") ? GROUP[s.slice(6)] || s.slice(6) : KIND[s] || s).filter((k, i, all) => all.indexOf(k) === i);
-const TOPIC = { nrg: "Energy", met: "Metals", agr: "Agriculture", mkt: "Markets", mkts: "Markets", trade: "Trade", co: "Companies", firm: "Companies",
-  fin: "Finance", geo: "Geography", hist: "History", past: "History", cult: "Culture", ppl: "People", sci: "Science", food: "Food", lang: "Language",
-  nat: "Nature", pol: "Politics", screen: "Film & TV", sport: "Sport", style: "Style", spec: "Specifications", life: "Life", uses: "Uses",
-  prod: "Production", orig: "Origins", reg: "Regulation", logi: "Logistics" };
+const REFS_IN = new Map();                                   // id → the things whose fields name it ([{ from, key }])
+for (const e of ENTITIES) for (const x of G.refsOf(e)) (REFS_IN.get(x.to) || REFS_IN.set(x.to, []).get(x.to)).push({ from: e.id, key: x.key });
+const kindsOf = e => [...new Set((e.sets || []).filter(s => !PLAYED[s.split(":")[0]]).map(s => KINDS[s] || s))];
 function topicsOf(id) {
   const n = {};
-  for (const l of [...(OUT.get(id) || []), ...(IN.get(id) || [])]) for (const a of l.aspects || []) if (TOPIC[a]) n[TOPIC[a]] = (n[TOPIC[a]] || 0) + 1;
+  for (const l of [...(OUT.get(id) || []), ...(IN.get(id) || [])]) for (const a of l.aspects || []) if (ASPECTS[a]) n[ASPECTS[a]] = (n[ASPECTS[a]] || 0) + 1;
   return Object.entries(n).sort((p, q) => q[1] - p[1]).map(([t]) => t);
 }
 
@@ -111,22 +106,25 @@ function listResults() {
 // ---------- an entry ----------
 // every kind of link gets a group each way: what it points to, and what points to it. A clue is Crates' pair, a link
 // a plain association; the rest are typed relations
-const REL = { clue: ["A clue to", "Clues to it"], link: ["Linked to", "Linked from"], in: ["In", "Within it"],
-  "painted-by": ["Painted by", "Paintings"], "hangs-in": ["Hangs in", "On its walls"], movement: ["Movement", "Works"],
-  "designed-by": ["Designed by", "Designs"], style: ["Style", "In this style"], city: ["Stands in", "Buildings here"],
-  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"], "in-work": ["From the work", "Lines"], "active-in": ["Active in", "People active here"], "written-by": ["Written by", "Works"],
-  borders: ["Borders", "Borders"], "sea-lane": ["Sea lane to", "Sea lane to"], "port-on": ["Port on", "Ports here"], "inland-of": ["Reaches the sea at", "Inland places served"] };
 const ORDER = ["clue", "link", "painted-by", "hangs-in", "movement", "designed-by", "style", "city", "from", "led-to", "in"];
 function groupsOf(id) {
   const rels = new Set([...(OUT.get(id) || []), ...(IN.get(id) || [])].map(l => l.rel));
   const order = [...ORDER.filter(r => rels.has(r)), ...[...rels].filter(r => !ORDER.includes(r))];
   const out = [];
   for (const r of order) {
-    const [away, toward] = REL[r] || [r, `${r} (from)`];
-    // a clue's hint describes the clue thing (the one it comes from), so it's shown on either side
-    out.push([toward, (IN.get(id) || []).filter(l => l.rel === r), l => l.from, l => l.hint || ""]);
-    out.push([away, (OUT.get(id) || []).filter(l => l.rel === r), l => l.to, l => l.hint || ""]);
+    const { away, toward } = RELS[r] || { away: r, toward: `${r} (from)` };
+    // a clue's hint describes the clue thing (the one it comes from), so it's shown on either side; the link's own facts
+    // (a year, a distance, a rank) come first
+    const why = l => [factWords(l.facts), l.hint].filter(Boolean).join(" · ");
+    out.push([toward, (IN.get(id) || []).filter(l => l.rel === r), l => l.from, why]);
+    out.push([away, (OUT.get(id) || []).filter(l => l.rel === r), l => l.to, why]);
   }
+  // the things its fields name (a race held at its resort), unless a link says so already, and the things whose fields name it
+  const linked = new Set([...(OUT.get(id) || [])].map(l => l.to));
+  for (const x of G.refsOf(ENT.get(id))) if (!linked.has(x.to)) out.push([x.label, [x], y => y.to, () => ""]);
+  const back = new Map();
+  for (const x of REFS_IN.get(id) || []) if (FIELDS[x.key].back) (back.get(x.key) || back.set(x.key, []).get(x.key)).push(x);
+  for (const [key, xs] of back) out.push([FIELDS[key].back, xs, y => y.from, () => ""]);
   return out;
 }
 /**
@@ -136,10 +134,11 @@ function groupsOf(id) {
  */
 function linkWords(a, b) {
   const joins = [...(OUT.get(a) || []).filter(l => l.to === b), ...(IN.get(a) || []).filter(l => l.from === b)];
-  const l = joins.find(x => (x.aspects || []).some(t => TOPIC[t])) || joins[0];
+  const l = joins.find(x => (x.aspects || []).some(t => ASPECTS[t])) || joins[0];
   if (!l) return null;
-  const topics = [...new Set((l.aspects || []).map(t => TOPIC[t]).filter(Boolean))].slice(0, 2), rel = REL[l.rel];
-  return { name: topics.length ? topics.join(" · ") : rel ? rel[l.from === a ? 0 : 1] : l.rel.replace(/-/g, " ").replace(/^./, c => c.toUpperCase()), because: l.hint || "" };
+  const topics = [...new Set((l.aspects || []).map(t => ASPECTS[t]).filter(Boolean))].slice(0, 2), rel = RELS[l.rel];
+  return { name: topics.length ? topics.join(" · ") : rel ? (l.from === a ? rel.away : rel.toward) : l.rel.replace(/-/g, " ").replace(/^./, c => c.toUpperCase()),
+    because: [factWords(l.facts), l.hint].filter(Boolean).join(" · ") };
 }
 const SHOWN = 24;
 /**
@@ -160,37 +159,32 @@ function fillEntry(box, id, nav = {}) {
     box.append(head);
   }
   if (e.pic) { const pic = el("div", "lx-pic"); box.append(pic); showPicture(pic, e.pic, { width: 500, alt: e.name }); }
-  // what's said about it
-  const said = [];
-  if (e.note) said.push(e.note);
-  if (e.def) said.push(e.def.replace(/^./, c => c.toUpperCase()) + ".");
-  if (e.rendering) said.push(`In English: ${e.rendering}.`);
-  if (e.literal) said.push(`Literally: ${e.literal}.`);
-  if (e.meaning) said.push(`Means ${e.meaning}.`);
-  if (e.who) said.push(e.who.replace(/^./, c => c.toUpperCase()) + ".");
-  if (e.nat) said.push(`Nationality: ${e.nat}.`);
-  const census = (e.sets || []).filter(s => s.startsWith("census:")).map(s => CENSUS.get(s.slice(7))).filter(Boolean);
-  if (census.length) said.push(`In Census: ${census.join("; ")}.`);
-  const cross = (e.sets || []).filter(s => s.startsWith("crossing:")).map(s => CROSSING[s.slice(9)]).filter(Boolean);
-  if (cross.length) said.push(`On the map of ${cross.join("; ")}.`);
-  if (e.region || e.country) said.push([e.country && e.country !== e.name ? e.country : "", e.region].filter(Boolean).join(", "));
-  if (e.year) said.push(`${e.circa ? "Around " : ""}${e.year}`);
-  for (const s of said) box.append(el("p", "lx-note", s));
-  // Dispatch's meetings with a person (kb/ holds them as `meetings`): a fact worded two ways is one item, both wordings in it
-  for (const x of e.meetings || []) {
+  // what's said about it: its note, then its facts (kb/vocabulary.js labels and units them), where it is, and the numbers Quote asks of it
+  if (e.note) box.append(el("p", "lx-note", e.note));
+  const played = [...(e.sets || []).filter(s => s.startsWith("census:")).map(s => CENSUS.get(s.slice(7))).filter(Boolean).map(t => `In Census: ${t}`),
+    ...(e.sets || []).filter(s => s.startsWith("crossing:")).map(s => CROSSING[s.slice(9)]).filter(Boolean).map(t => `On the map of ${t}`)];
+  for (const t of played) box.append(el("p", "lx-note", `${t}.`));
+  const rows = G.factsOf(e).map(f => [f.label, f.words, f.type !== "quantity" && f.type !== "year" && f.type !== "number"]);
+  const where = G.placeOf(id);
+  if (where) rows.push(["Where", `${Math.abs(where.lat).toFixed(2)}° ${where.lat < 0 ? "S" : "N"}, ${Math.abs(where.lon).toFixed(2)}° ${where.lon < 0 ? "W" : "E"}${where.via ? ` (${label(ENT.get(where.via))})` : ""}`, false]);
+  const shown = new Set(Object.values(e).filter(v => typeof v === "number"));
+  for (const q of FACTS.get(id) || []) if (!shown.has(q.truth)) rows.push([q.pic ? "Painted" : q.q, withUnit(q.truth, q), false]);
+  if (rows.length) {
     const sec = el("section", "lx-sec");
-    sec.append(el("h3", null, `${x.year} · ${x.place}`));
-    if (x.pic) { const pic = el("div", "lx-pic"); sec.append(pic); showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic }); }
-    sec.append(el("p", "lx-note", `${x.what[0].toUpperCase()}${x.what.slice(1)}.`));
-    if (x.alt) sec.append(el("p", "lx-note", `Also put: ${x.alt}.`));
-    sec.append(el("p", "lx-note", x.why));
+    sec.append(el("h3", null, "Facts"));
+    for (const [name, value, long] of rows) { const row = el("p", long ? "lx-fact long" : "lx-fact"); row.append(el("span", null, name), el("b", null, value)); sec.append(row); }
     box.append(sec);
   }
-  const facts = FACTS.get(id) || [];
-  if (facts.length) {
+  // its steps: Dispatch's acts of a person (`meetings`), a story's events (`steps`); a fact worded two ways is one step, both wordings in it
+  for (const x of G.stepsOf(e)) {
     const sec = el("section", "lx-sec");
-    sec.append(el("h3", null, "Numbers"));
-    for (const q of facts) { const row = el("p", "lx-fact"); row.append(el("span", null, q.pic ? "Painted" : q.q), el("b", null, withUnit(q.truth, q))); sec.append(row); }
+    const when = [x.year != null ? yearWords(x.year, x.circa) : "", x.place || ""].filter(Boolean).join(" · ");
+    if (when) sec.append(el("h3", null, when));
+    if (x.pic) { const pic = el("div", "lx-pic"); sec.append(pic); showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic }); }
+    sec.append(el("p", "lx-note", `${x.text[0].toUpperCase()}${x.text.slice(1)}${/[.!?]$/.test(x.text) ? "" : "."}`));
+    if (x.alt) sec.append(el("p", "lx-note", `Also put: ${x.alt}.`));
+    if (x.why) sec.append(el("p", "lx-note", x.why));
+    if (x.thing) sec.append(entityButton(ENT.get(x.thing), "", nav));
     box.append(sec);
   }
   const topics = topicsOf(id);
