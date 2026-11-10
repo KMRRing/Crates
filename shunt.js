@@ -1,4 +1,5 @@
-// Shunt: shove gears onto a hexagonal plate from its rim and make trains of meshing gears (README, Idle; docs/shunt.md). The rules are
+// Jam (files: shunt; Korbi, 10 November 2026: renamed from Shunt, as you jam gears in from the rim and must not jam them): shove gears onto a
+// hexagonal plate from its rim and make trains of meshing gears. The rules are
 // shunt-engine.js's, the search that gives the Hint and rates a plate is shunt-bots.js's, the plates are shunt-levels.js's and
 // the picture is shunt-view-2d.js's or, in 3D, shunt-view-3d.js's (the watch movement; the same calls, so this file keeps the game and
 // maps touches to moves, and never draws). Three ways to play: Levels (the campaign: chapters of plates, each bringing one thing, each
@@ -396,7 +397,7 @@ async function replay(quiet = false) {
   enter({ ...run, moves: [], hints: 0 }, spec);
 }
 async function share() {
-  const J = judge(S), text = `Shunt · ${dateWords(run.day)}\n${starStr(starsAt(S, J))} · trains ${trainsText(J)}`;
+  const J = judge(S), text = `Jam · ${dateWords(run.day)}\n${starStr(starsAt(S, J))} · trains ${trainsText(J)}`;
   try { await navigator.clipboard.writeText(text); toast("Result copied"); } catch { toast("Couldn't copy the result"); }
 }
 

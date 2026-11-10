@@ -438,7 +438,7 @@ export const APPS = [
   { id: "carrom", sec: "board", name: "Carrom", href: "./carrom.html", logo: LOGO("carrom", CARROM_LOGO), players: [1, 2] },
   { id: "carrack", sec: "board", name: "Carrack", href: "./carrack.html", logo: LOGO("carrack", CARRACK_LOGO), players: [1, 6] },
   // Minigames: as much thinking as a bubble shooter, and no more (README, Idle)
-  { id: "shunt", sec: "minigames", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
+  { id: "shunt", sec: "minigames", name: "Jam", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
   { id: "topple", sec: "minigames", name: "Topple", href: "./topple.html", logo: LOGO("topple", TOPPLE_LOGO), players: [1, 1] },
   { id: "columbiad", sec: "minigames", name: "Columbiad", href: "./columbiad.html", logo: LOGO("columbiad", COLUMBIAD_LOGO), players: [1, 1] },
   { id: "orrery", sec: "minigames", name: "Orrery", href: "./orrery.html", logo: LOGO("orrery", ORRERY_LOGO), players: [1, 1] },
