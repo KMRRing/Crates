@@ -144,7 +144,49 @@ export const PLAN = [
   [100, null, "Supercomplication", ["Branch","Keyless","Crossing","Twin barrels","Spares","Turning","Mechanical"], 30],
 ];
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const idOf = row => row[1] || `x-${slug(row[2])}`;
+const idOf = row => row[1] || `${REBUILT[row[0]] ? "r" : "x"}-${slug(row[2])}`;
+
+// ---------- the rebuild (12 November 2026) ----------
+// Korbi: "gears wasn't done at all like the plan? the levels are... really bad?" The levels made from theme lists alone broke the plan's rules,
+// so each chapter is rebuilt from its notes, a level at a time, and must pass the rules below (tests/pipes-gear-levels.mjs holds them too).
+// A design gives the plate, the pieces besides singles (a family or an exact kind), and the seed the maker drew it from, chosen by eye from
+// the ones that pass. Its id starts r-, so no star won on the old level counts for the new one. Pieces are speed-neutral until Ratios.
+const NEUTRAL = ["S5.1", "D5.1:6+6", "D5.1:5>5e", "T5.1:5-4-5", "T5.1:4-5-4e"];
+export const REBUILT = {
+  // Mainspring: the duos and trios of chapters 2 and 3, blind; each a small crowded plate, mostly singles, like Book I's
+  15: { plate: [4, 4, true], mix: ["D"], seed: 6 },                       // a duo sets the escape wheel's turn
+  16: { plate: [4, 4, false], mix: ["T"], seed: 85 },                     // no arrows: count the meshes, a trio keeps the turn
+  17: { plate: [4, 4, false], mix: ["D", "T"], seed: 336 },
+  18: { plate: [5, 4, false], mix: ["D", "T"], seed: 311, far: 4 },       // the escape wheel across the plate: plan the whole train
+  19: { plate: [5, 5, true], mix: ["D5.1:6+6", "D5.1:5>5e", "T"], seed: 5022 },   // both kinds of duo, each fits one stretch
+  20: { plate: [6, 4, false], mix: ["D", "D", "T", "T"], seed: 3682 },
+};
+/** The plan's rules a rebuilt level must meet, as the reasons it fails (none: it passes). */
+export function rulesBroken(spec, row) {
+  const open = spec.map.join("").split("").filter(c => c !== " " && c !== "#").length, pillars = spec.map.join("").split("#").length - 1;
+  const laid = Object.values(spec.sols[0] || {}), singles = laid.filter(p => p.startsWith("S")).length, why = [];
+  if (spec.sols.length !== 1) why.push(`${spec.sols.length} answers`);
+  if (laid.length / open < 0.5) why.push(`plate ${Math.round(100 * laid.length / open)}% filled`);
+  if (laid.length < row[4]) why.push(`${laid.length} pieces, ${row[4]} planned`);
+  if (pillars > 3) why.push(`${pillars} pillars`);
+  if (singles < laid.length / 2) why.push(`${singles} singles of ${laid.length}`);
+  if (!row[3].includes("Fixed gears") && spec.pins.length) why.push("pinned gears");
+  if (!row[3].includes("Loads") && spec.clicks.length) why.push("loads");
+  for (const [theme, f] of [["Duos", "D"], ["Trios", "T"]]) if (row[3].includes(theme) && !laid.some(p => p.startsWith(f))) why.push(`no ${theme.toLowerCase()}`);
+  return why;
+}
+function rebuild(row) {
+  const d = REBUILT[row[0]], [cols, rows, disc] = d.plate;
+  const res = forgeLevel(mix(row[0], d.seed, 77), {
+    cols, rows, disc, turn: row[3].includes("Turning"), power: row[3].includes("Mechanical") ? "mech" : "quartz", spares: 0, extras: {},
+    lastResortPins: false, minimal: true, limit: 4e5, chapter: chapterOf(row[0]), far: d.far,
+    trains: [{ m: 5, l: 1, pieces: row[4], bends: 2, fams: { S: 1, D: 1, T: 1 }, kinds: NEUTRAL, mix: d.mix }],
+  });
+  if (!res) throw new Error(`level ${row[0]} ${row[2]}: its seed makes nothing`);
+  const why = rulesBroken(res.spec, row);
+  if (why.length) throw new Error(`level ${row[0]} ${row[2]}: ${why.join(", ")}`);
+  return { ...res.spec, themes: row[3] };
+}
 
 /** The themes taught before level n (any level up to n-1 that names them). */
 const taughtBy = n => new Set(PLAN.filter(r => r[0] < n).flatMap(r => r[3]));
@@ -293,7 +335,7 @@ function keep(row) {
 function write(chunks) {
   const made = Object.assign({}, ...chunks.map(f => JSON.parse(fs.readFileSync(f, "utf8"))));
   const levels = PLAN.map(row => {
-    const spec = row[1] ? keep(row) : made[row[0]];
+    const spec = row[1] ? keep(row) : REBUILT[row[0]] ? rebuild(row) : made[row[0]];
     if (!spec) throw new Error(`level ${row[0]} ${row[2]} was not made`);
     return { ...spec, id: idOf(row), name: row[2], chapter: chapterOf(row[0]), themes: spec.themes || row[3] };
   });

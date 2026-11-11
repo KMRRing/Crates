@@ -6,6 +6,7 @@ import { parseLevel, check, emptyLaid } from "../pipes-gear-engine.js";
 import { solve } from "../pipes-gear-solve.js";
 import { LEVELS as PLAYED, CHAPTERS as PLAYED_CHAPTERS, BOOKS as PLAYED_BOOKS } from "../pipes-gear-book.js";
 import { LEVELS, CHAPTERS, BOOKS } from "../pipes-gear-levels.js";
+import { PLAN, rulesBroken } from "../pipes-gear-campaign.mjs";
 import { sigOf } from "../pipes-gear-book.js";
 import { POOL } from "../pipes-gear-pool.js";
 import { transformLevel } from "../pipes-gear-legacy.js";
@@ -13,10 +14,25 @@ import { dailySpec, randomSpec, bandOf } from "../pipes-gear-daily.js";
 
 let bad = 0;
 const ok = (c, what) => { console.log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) bad++; };
-// played until the campaign's chapters are rebuilt and passed (12 Nov 2026): Book I's kept levels, each in its chapter
-ok(PLAYED.length === 36 && new Set(PLAYED.map(l => l.id)).size === 36 && PLAYED.every(l => PLAYED_CHAPTERS.some(c => c.key === l.chapter)) && PLAYED_CHAPTERS.every(c => PLAYED_BOOKS.some(b => b.key === c.book)),
-  `${PLAYED.length} levels played, Book I's, every one in its chapter`);
+// played while the campaign is rebuilt (12 Nov 2026): Book I's kept levels and the rebuilt chapters, each level in its chapter
+ok(PLAYED.length === 42 && new Set(PLAYED.map(l => l.id)).size === 42 && PLAYED.every(l => PLAYED_CHAPTERS.some(c => c.key === l.chapter)) && PLAYED_CHAPTERS.every(c => PLAYED_BOOKS.some(b => b.key === c.book)),
+  `${PLAYED.length} levels played, Book I's and Mainspring's, every one in its chapter`);
 ok(PLAYED.every(l => LEVELS.some(k => k.id === l.id)), "every level played is in the campaign too, so its stars carry over");
+// a rebuilt level meets the plan's rules, and each of its pillars is needed: without it there is a second answer
+{
+  const w = [];
+  LEVELS.forEach((l, i) => {
+    if (!l.id.startsWith("r-")) return;
+    const broken = rulesBroken(l, PLAN[i]);
+    if (broken.length) w.push(`${l.id}: ${broken.join(", ")}`);
+    l.map.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch !== "#") return;
+      const open = { ...l, map: l.map.map((r, k) => (k === y ? r.slice(0, x) + "." + r.slice(x + 1) : r)) }, s = solve(parseLevel(open), 2, 4e5);
+      if (!s.aborted && s.sols.length < 2) w.push(`${l.id}: the pillar at ${y * l.cols + x} is not needed`);
+    }));
+  });
+  ok(!w.length && LEVELS.filter(l => l.id.startsWith("r-")).length >= 6, `the rebuilt levels meet the plan's rules and every pillar counts${w.length ? `: ${w.slice(0, 4).join("; ")}` : ""}`);
+}
 const ids = new Set(LEVELS.map(l => l.id));
 ok(ids.size === LEVELS.length, `${LEVELS.length} levels with unique ids`);
 ok(LEVELS.every(l => CHAPTERS.some(c => c.key === l.chapter)) && CHAPTERS.every(c => BOOKS.some(b => b.key === c.book)), "every level has its chapter and every chapter its book");

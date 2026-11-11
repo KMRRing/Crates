@@ -161,7 +161,9 @@ const fmt = w => F.fmt(F.abs(w));
  *   take once the pillars are out), full (keep every square the routes leave as a pillar: a filled plate), touch (routes may run beside
  *   themselves), extras { pins, clicks, bridges } (the most of each to add), forcePins,
  *   trains: [{ m, l, pieces, bends, fams, mods, layers, adapt, end { m, l }, goal { type, ring }, stations, stationType, self (crosses itself),
- *            ends: [{ len, look: "hands" | "barrel", type }], clutch { len }, hands (a pinned hands station on the way) }],
+ *            ends: [{ len, look: "hands" | "barrel", type }], clutch { len }, hands (a pinned hands station on the way),
+ *            kinds (only these kinds), mix (exactly these pieces besides singles: a family "D" or a kind each) }],
+ *   minimal (every pillar left is needed for the one answer, however hard that makes it), far (the barrel at least this far from the sink)
  *   cross: [[a, b]] (train b crosses train a once at a pinned crossing)
  * }
  */
@@ -182,7 +184,8 @@ export function forgeLevel(seed, o) {
       if (crossWith) for (const p of routes[crossWith[0]].main.passes) if (!p.cross && p.b === back(p.a)) cross.set(p.c, p.b % 2 ? "h" : "v");
       const w = walkRoute(L0, r, first, back(d0), t.pieces, { blocked: new Set([...blocked, s]), keep, touch: !!o.touch, cross,
         self: !!t.self, crosses: (crossWith ? 1 : 0) + (t.self ? 1 : 0), bends: t.bends || 0 });
-      if (w && !keep.has(w.end)) R = { barrel: { c: s, side: d0 }, main: w, sink: { c: w.end, side: back(w.passes[w.passes.length - 1].b) } };
+      const apart = (a, b) => Math.abs((a % o.cols) - (b % o.cols)) + Math.abs(Math.floor(a / o.cols) - Math.floor(b / o.cols));
+      if (w && !keep.has(w.end) && apart(s, w.end) >= (o.far || 0)) R = { barrel: { c: s, side: d0 }, main: w, sink: { c: w.end, side: back(w.passes[w.passes.length - 1].b) } };
     }
     if (!R) return no(`route ${ti}`);
     const taken = new Set([R.barrel.c, R.sink.c, ...R.main.passes.map(p => p.c)]);
@@ -192,7 +195,7 @@ export function forgeLevel(seed, o) {
   // ---- dress each train's main line
   const dressed = [];
   for (let ti = 0; ti < o.trains.length; ti++) {
-    const t = o.trains[ti], R = routes[ti], pal = paletteOf({ mods: t.mods || [t.m], layers: t.layers || [t.l], fams: t.fams, adapt: t.adapt });
+    const t = o.trains[ti], R = routes[ti], pal = paletteOf({ mods: t.mods || [t.m], layers: t.layers || [t.l], fams: t.fams, adapt: t.adapt }).filter(p => !t.kinds || t.kinds.includes(p.kind));
     // a skeleton of a few kinds per channel, as a hand of every different piece has a factorial of ways to be laid
     const chanKey = p => { const q = parseKind(p.kind); return `${q.m}.${q.l}`; };
     const chans = [...new Set(pal.filter(p => p.fam !== "K" && p.fam !== "R").map(chanKey))];
@@ -238,7 +241,15 @@ export function forgeLevel(seed, o) {
         const x = crossIdx.includes(i) ? (p.cross ? 2 : 1) : crossedByOther.has(p.c) ? 1 : 0;
         if (x) for (const j of [i - 1, i + 1]) if (j >= 0 && j < passes.length && !crossIdx.includes(j)) nextTo.set(j, x);
       });
+      // an exact mix: its pieces on passes drawn at random, singles on the rest
+      const mixAt = new Map();
+      if (t.mix) {
+        const room = shuffled(passes.map((p, i) => i).filter(i => !crossIdx.includes(i) && i !== clutchAt && !junctions.includes(i)), r);
+        t.mix.forEach((m, q) => { if (q < room.length) mixAt.set(room[q], m.length === 1 ? { fam: m } : { kind: m }); });
+      }
       const force = i => {
+        if (mixAt.has(i)) return mixAt.get(i);
+        if (t.mix && !crossIdx.includes(i) && i !== clutchAt) return { fam: "S" };
         if (crossIdx.includes(i)) return { kind: crossKind, rot: 0, layer: passes[i].cross ? 2 : 1 };
         if (crossedByOther.has(passes[i].c)) return { kind: crossKind, rot: 0, layer: 1 };
         if (nextTo.has(i)) return { notFam: "R", layer: nextTo.get(i) };
@@ -420,7 +431,7 @@ export function forgeLevel(seed, o) {
   if (!o.full) for (const c of shuffled(freeSq, r)) {
     setMap(c, ".");
     const t = build(), s = solve(t, maxSols + 1, Math.max(limit, target * 3));
-    if (settled(s) && s.nodes <= target) { pillars.splice(pillars.indexOf(c), 1); L = t; fin = s; } else setMap(c, "#");
+    if (settled(s) && (o.minimal || s.nodes <= target)) { pillars.splice(pillars.indexOf(c), 1); L = t; fin = s; } else setMap(c, "#");
   }
   // whatever the answer doesn't need goes again
   const tryDrop = (list, take) => {
