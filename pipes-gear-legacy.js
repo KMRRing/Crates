@@ -42,8 +42,9 @@ export function legacySpec(spec) {
   };
 }
 // 11 Nov 2026, Korbi, replaying Book I (21 Clack "not great", 26 Stud "trash, way too easy", 28 Regulator "bad"): "just delete the levels
-// I didn't like". The old level file keeps them, for the old engine's own tests.
-export const CUT = new Set(["we1", "wf1", "wf3"]);
+// I didn't like"; and "level 11 should go, level 12 is better intro to trios" (Train). The old level file keeps them, for the old
+// engine's own tests.
+export const CUT = new Set(["wc1", "we1", "wf1", "wf3"]);
 export const LEGACY = OLD_LEVELS.filter(l => !CUT.has(l.id)).map(legacySpec);
 export const LEGACY_CHAPTERS = OLD_CHAPTERS.map(c => ({ ...c, book: "I" }));
 /** An old unfinished run ({ square: oldKind }) as laid data. */

@@ -1,7 +1,7 @@
 // Gears, the rules (docs/pipes.md, docs/pipes-contract.md): exact fractions; every piece of the catalogue is a legal piece (inside its
 // square, tangent at its ports, meshed where it says, clear otherwise, no arbor covered, four turns are the identity, the old thirteen
 // pieces are the same pieces); the flood gives every wheel one speed, an odd loop jams, a loop whose ratios do not multiply to 1 binds, two
-// modules on one layer clash, two trains that mesh tangle; Book I (the old levels, less the three cut) plays unchanged through the new rules and the
+// modules on one layer clash, two trains that mesh tangle; Book I (the old levels, less the four cut) plays unchanged through the new rules and the
 // new solver finds exactly its listed answers; the symmetries of a plate keep it solved; the fixtures are what they say.
 // Run: node tests/pipes-gear.mjs
 import * as F from "../pipes-gear-frac.js";
@@ -201,7 +201,7 @@ const row = (n, o = {}) => ({
     if (L.rotate || !/^w[a-h][1-5]$/.test(spec.id)) ids = false;
     for (const sol of L.sols) { const r = E.check(L, sol); if (!r.solved) { agree = false; why = `${spec.id}: ${r.messages[0]}`; } }
   }
-  check(n === 37 && LEGACY.every(l => !CUT.has(l.id)) && ids && agree, `Book I: ${n} levels (three cut) keep their ids, don't turn, and every listed answer is solved by the new check${why ? ` (${why})` : ""}`);
+  check(n === 36 && LEGACY.every(l => !CUT.has(l.id)) && ids && agree, `Book I: ${n} levels (four cut) keep their ids, don't turn, and every listed answer is solved by the new check${why ? ` (${why})` : ""}`);
   let lifted = true;
   for (const spec of LEGACY) { const L = E.parseLevel(spec), sol = L.sols[0].slice(), c = sol.findIndex(Boolean); sol[c] = null; if (E.check(L, sol).solved) lifted = false; }
   check(lifted, "with one piece lifted no old level is solved");
