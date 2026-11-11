@@ -30,7 +30,7 @@ export function createPuzzle(deps) {
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
   let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
   let windMode = null, windTimer = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
-  let running = false, jamKey = "", kind = "2d", mod3d = null;
+  let running = false, jamKey = "", kind = "2d", mod3d = null, crown = 0;
 
   // ---------- keeping ----------
   const firstOpen = () => (LEVELS.find(l => !stars[l.id]) || LEVELS[0]).id;
@@ -58,7 +58,7 @@ export function createPuzzle(deps) {
     if (!r || r.sig !== sigOf(spec) || fresh) r = saved.runs[spec.id] = { sig: sigOf(spec), laid: {}, sel: null, selRot: null, lifts: 0, hints: 0, solved: 0 };
     run = r;
     laid = E.unpackLaid(L, run.laid);
-    clearTimeout(windTimer); windMode = null;
+    clearTimeout(windTimer); windMode = null; crown = 0;
     undoStack = []; hint = null; jamKey = ""; focus = null; looking = false; liftMode = false;
     persist();
   }
@@ -100,14 +100,15 @@ export function createPuzzle(deps) {
   function lost() { toast("The 3D view stopped: showing the flat plate."); setTimeout(() => useView(false), 0); }
   function draw(extra = {}) {
     ensureView();
-    const f = E.frameOf(L, laid, { hint, focus, look: looking, ...extra });
+    const f = E.frameOf(L, laid, { hint, focus, look: looking, state: crown, ...extra });
     f.solved = !!run.solved && f.res.solved;           // a level is only seen turning once it has been finished here
     // 9 Nov 2026, Korbi: "mechanical watch levels should have a wind button. winding a spring before it is connected to the escapement should rapidly unwind; once connected, it should
     // tick tock." Wind borrows the solved run: connected (an escape wheel meeting its goal) it runs at the going pace and the escapement ticks; not connected it spins ten times
     // faster with the escapement still, and stops.
     // 9 Nov 2026, Korbi: "if the watch isn't wound and mechanical, it shouldn't move. When wound, it should spin out, unless it's connected to an escapement, in which case the escapement
     // should start visibly working and the whole gear train jumps one second at a time." A mechanical level rests until Wind is pressed (`still`).
-    if (mechanical()) { f.still = !windMode; f.solved = !!windMode; }
+    // 11 Nov 2026, Korbi: in a mechanical movement no wheel shows its turn until it is wound (`blind`): the parity is reasoned, not watched
+    if (mechanical()) { f.still = !windMode; f.solved = !!windMode; f.blind = !windMode; }
     if (windMode) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
     last = f;
     view.draw(f);
@@ -206,7 +207,7 @@ export function createPuzzle(deps) {
     box.style.setProperty("--rows", rows.length);
     box.replaceChildren(...rows);
   }
-  const mechanical = () => !!spec.v && (L.trains.some(t => ["escape", "tourbillon"].includes(t.sink.goal?.type)) || spec.pins?.some(p => p.goal?.type === "escape"));
+  const mechanical = () => spec.power === "mech" || (!!spec.v && !spec.power && (L.trains.some(t => ["escape", "tourbillon"].includes(t.sink.goal?.type)) || spec.pins?.some(p => p.goal?.type === "escape")));
   /** The Wind button of a mechanical movement. */
   function wind() {
     if (frame || running || !last) return;
@@ -241,6 +242,16 @@ export function createPuzzle(deps) {
     turns.className = "pi-turns";
     turns.textContent = L.rotate ? (mechanical() ? "↻" : "↻ Turn") : "No turning";
     chips.push(turns);
+    if (L.clutch) {
+      // 11 Nov 2026: the keyless works. The crown pushed in winds the barrel, pulled out it sets the hands; the same layout must run both ways
+      const k = document.createElement("button");
+      k.type = "button";
+      k.className = `pi-layer pi-crown${crown ? " now" : ""}`;
+      k.textContent = crown ? "Crown out" : "Crown in";
+      k.setAttribute("aria-label", crown ? "The crown is pulled out, setting the hands: push it in" : "The crown is pushed in, winding: pull it out");
+      k.addEventListener("click", () => { crown = 1 - crown; hint = null; render(); });
+      chips.push(k);
+    }
     if (mechanical()) {
       const w = document.createElement("button");
       w.type = "button";
@@ -266,16 +277,16 @@ export function createPuzzle(deps) {
     if (res.messages.length && res.placed) return res.messages[0];
     if (!res.placed) {
       const ch = CHAPTERS.find(c => c.key === spec.chapter);
-      return !extra && LEVELS.findIndex(l => l.chapter === spec.chapter) === index ? `${ch.name}: ${ch.rule}` : `${spec.name}: lay all ${plural(L.total, "piece")}`;
+      return !extra && LEVELS.findIndex(l => l.chapter === spec.chapter) === index ? `${ch.name}: ${ch.rule}` : L.spare ? `${spec.name}: ${plural(L.total, "piece")} in the tray, more than the movement needs` : `${spec.name}: lay all ${plural(L.total, "piece")}`;
     }
     const cur = sel();
-    if (left) return `${cur ? `Tap a square for the ${kindName(kindOfKey(cur)).split(",")[0]}${turnable(kindOfKey(cur)) ? " (tap the tile to turn it)" : ""}` : "Pick a piece from the hand"} · ${plural(left, "piece")} to lay`;
+    if (left) return `${cur ? `Tap a square for the ${kindName(kindOfKey(cur)).split(",")[0]}${turnable(kindOfKey(cur)) ? " (tap the tile to turn it)" : ""}` : "Pick a piece from the hand"} · ${plural(left, "piece")} ${L.spare ? "in the tray" : "to lay"}`;
     return "";
   }
   function drawText(res) {
     $("status").textContent = textOf(res);
     $("stat1Label").textContent = extra ? (extra.daily ? "Today" : "Random") : "Level"; $("stat1").textContent = extra ? extra.chapter[0].toUpperCase() + extra.chapter.slice(1) : String(index + 1);
-    $("stat3Label").textContent = "To lay"; $("stat3").textContent = run.solved ? "✓" : String(res.left);
+    $("stat3Label").textContent = L.spare ? "In tray" : "To lay"; $("stat3").textContent = run.solved ? "✓" : String(res.left);
     $("stat3").className = run.solved ? "met" : "";
     $("scoreLabel").textContent = "Stars";
     $("score").textContent = `${totalStars()}${STAR}`;

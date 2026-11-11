@@ -1,9 +1,9 @@
-// Gears, the levels of Books II to V (docs/pipes.md): each is parsed, each listed answer is solved by the full check, and the solver finds
-// exactly the listed answers (at most six), no others. Ids are unique and every chapter has a name. Run: node tests/pipes-gear-levels.mjs
+// Gears, the hundred levels of the campaign (pipes-gear-campaign.mjs): each is parsed, each listed answer is solved by the full check, the
+// solver finds exactly the listed answers and no others, and each level carries what its themes say (a mechanical one its escape wheel, a
+// tray its spares, a crown its clutch...). Ids are unique and every chapter has a name. Run: node tests/pipes-gear-levels.mjs
 import { parseLevel, check, emptyLaid } from "../pipes-gear-engine.js";
 import { solve } from "../pipes-gear-solve.js";
 import { LEVELS, CHAPTERS, BOOKS, sigOf } from "../pipes-gear-book.js";
-import { LEVELS as NEW } from "../pipes-gear-levels.js";
 import { POOL } from "../pipes-gear-pool.js";
 import { transformLevel } from "../pipes-gear-legacy.js";
 import { dailySpec, randomSpec, bandOf } from "../pipes-gear-daily.js";
@@ -26,7 +26,7 @@ const prove = (spec, label = spec.id) => {
   return "";
 };
 const key = o => JSON.stringify(Object.entries(o).sort((a, b) => a[0] - b[0]));
-for (const spec of NEW) {
+for (const spec of LEVELS) {
   const L = parseLevel(spec);
   for (const sol of spec.sols) {
     const laid = emptyLaid(L);
@@ -35,6 +35,7 @@ for (const spec of NEW) {
   }
   const s = solve(L, 7, 4e6);
   nodes += s.nodes;
+  if (!spec.sols.length) why ||= `${spec.id}: no answer`;
   if (s.aborted) why ||= `${spec.id}: the solver gave up`;
   else if (s.sols.length !== spec.sols.length) why ||= `${spec.id}: ${s.sols.length} answers, ${spec.sols.length} listed`;
   else if (spec.sols.length > 6) why ||= `${spec.id}: more than six answers`;
@@ -43,7 +44,27 @@ for (const spec of NEW) {
     if (!spec.sols.every(o => mine.has(key(o)))) why ||= `${spec.id}: the solver's answers differ from the listed`;
   }
 }
-ok(!why, `the solver finds exactly the listed answers of all ${NEW.length} levels of Books II to V (${nodes} pieces tried, ${Date.now() - t0} ms)${why ? `: ${why}` : ""}`);
+ok(!why, `the solver finds exactly the listed answers of all ${LEVELS.length} levels (${nodes} pieces tried, ${Date.now() - t0} ms)${why ? `: ${why}` : ""}`);
+ok(LEVELS.length === 100 && CHAPTERS.length === 13, `${LEVELS.length} levels in ${CHAPTERS.length} chapters`);
+// 11 Nov 2026, Korbi: each level is a combination of themes, and the data must carry them
+{
+  const has = (l, t) => (l.themes || []).includes(t), w = [];
+  for (const l of LEVELS) {
+    const L = parseLevel(l), mech = l.power === "mech";
+    if (has(l, "Mechanical") !== mech) w.push(`${l.id} mechanical`);
+    if (mech && !L.trains.every(t => t.goal?.type === "escape")) w.push(`${l.id}: a mechanical train ends in its escape wheel`);
+    if (has(l, "Spares") !== !!l.spare) w.push(`${l.id} spares`);
+    if (has(l, "Turning") !== !!L.rotate) w.push(`${l.id} turning`);
+    if (has(l, "Keyless") !== !!L.clutch) w.push(`${l.id} crown`);
+    if (has(l, "Branch") && !L.pins.some(p => p.end && p.look !== "barrel")) w.push(`${l.id} branch`);
+    if (has(l, "Twin barrels") && !L.pins.some(p => p.end && p.look === "barrel")) w.push(`${l.id} twin barrels`);
+    if ((has(l, "Crossing") || has(l, "Layers")) && !L.pins.some(p => p.trains)) w.push(`${l.id} crossing`);
+    if (L.trains.length !== (has(l, "Three trains") ? 3 : has(l, "Two pitches") || has(l, "One pitch apart") || has(l, "Crossing") ? 2 : 1)) w.push(`${l.id} trains`);
+  }
+  ok(!w.length, `every level carries its themes${w.length ? `: ${w.slice(0, 6).join("; ")}` : ""}`);
+  const firstMech = LEVELS.findIndex(l => l.power === "mech");
+  ok(firstMech === 14, `levels 1 to 14 are quartz and the mainspring arrives at 15 (first mechanical: ${firstMech + 1})`);
+}
 
 // ---------- the pool of the Daily and Random plates ----------
 {

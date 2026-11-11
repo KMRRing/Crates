@@ -65,7 +65,11 @@ export function drawWheel(g, w, o = {}) {
   const body = el("g", { transform: `rotate(${(o.phase || 0).toFixed(2)})` }, spin);
   el("path", { d: outline(n, m, !!o.ring), class: "g-body", "fill-rule": "evenodd" }, body);
   const hub = Math.max(2.4, Math.min(6, r * 0.26));
-  if (o.skin === "barrel") {
+  if (/\bmotor\b/.test(o.skin || "")) {
+    // a quartz movement's motor: a coil round the stator and the crystal beside it
+    el("circle", { r: (root * 0.62).toFixed(2), class: "g-coil" }, body);
+    el("rect", { x: (-root * 0.18).toFixed(2), y: (-root * 0.5).toFixed(2), width: (root * 0.36).toFixed(2), height: (root * 0.7).toFixed(2), rx: (root * 0.12).toFixed(2), class: "g-crystal" }, body);
+  } else if (o.skin === "barrel") {
     let d = "M0 0";
     for (let t = 0; t <= 5.2 * Math.PI; t += 0.25) d += `L${((root * 0.1 + t * root * 0.075) * Math.cos(t)).toFixed(2)} ${((root * 0.1 + t * root * 0.075) * Math.sin(t)).toFixed(2)}`;
     el("path", { d, class: "g-spring" }, body);
@@ -217,8 +221,12 @@ export function createView({ board, onGesture, onLost } = {}) {
 
   const wheelOpts = (frame, gear) => {
     const M = frame.M, id = gear.id, dim = focus !== null && gear.layer !== focus;
-    const skin = gear.fixed === "barrel" ? "barrel" : gear.fixed === "sink" ? "sink" : gear.fixed === "pin" ? "pin" : "";
-    return { id, dir: M.dir[id] >= 0 ? M.dir[id] : null, phase: frame.phase[id] || 0, skin, jam: M.jam.has(id), locked: !M.jam.has(id) && !!M.locked?.has(id), clash: clashSet.has(id), driven: M.dir[id] >= 0, faded: dim, showN, pips: layered, ring: gear.ring };
+    // 11 Nov 2026, Korbi: "until then quartz": a quartz movement is driven by a motor, a mechanical one by its barrel; a second barrel is an end pinned on a branch
+    const endPin = gear.fixed === "pin" ? plan.pins.find(p => p.c === gear.c) : null;
+    const sinkOf = gear.fixed === "sink" ? plan.trains.find(t => t.sink.c === gear.c) : null;
+    const skin = gear.fixed === "barrel" ? (plan.power === "mech" ? "barrel" : "motor") : endPin?.look === "barrel" || sinkOf?.sink.goal?.type === "barrel" ? "barrel" : gear.fixed === "sink" ? "sink" : gear.fixed === "pin" ? "pin" : "";
+    // a mechanical movement shows no wheel's turn until it is wound (frame.blind)
+    return { id, dir: M.dir[id] >= 0 && !(frame.blind && gear.fixed !== "barrel") ? M.dir[id] : null, phase: frame.phase[id] || 0, skin, jam: M.jam.has(id), locked: !M.jam.has(id) && !!M.locked?.has(id), clash: clashSet.has(id), driven: M.dir[id] >= 0, faded: dim, showN, pips: layered, ring: gear.ring };
   };
   let clashSet = new Set();
 
@@ -244,7 +252,9 @@ export function createView({ board, onGesture, onLost } = {}) {
       if (gear.fixed === "pin" && plan.pins.find(p => p.c === gear.c && p.goal) && gear.i === (plan.pins.find(p => p.c === gear.c).goal.w ?? 0)) {
         const [cx, cy] = cellXY(gear.c);
         el("circle", { cx: cx + 8, cy: cy + 52, r: 4, class: "fixed-mark" }, gTop);
-        if (plan.pins.find(p => p.c === gear.c && p.goal).goal.type === "escape") sinkArt(gWheels, gear, "escape", gear.id);     // 9 Nov 2026: an escapement station wears its balance
+        const pg = plan.pins.find(p => p.c === gear.c && p.goal);
+        if (pg.goal.type === "escape") sinkArt(gWheels, gear, "escape", gear.id);     // 9 Nov 2026: an escapement station wears its balance
+        else if (pg.end && pg.look !== "barrel" && pg.goal.type !== "wheel") sinkArt(gWheels, gear, pg.goal.type || "hands", gear.id);     // a branch's end wears its hands (or moon)
       }
       if (gear.fixed === "barrel") { const [cx, cy] = cellXY(gear.c); turnArrow(gTop, cx + 9, cy + 9, 0, 5, "g-turn bright"); }
     }

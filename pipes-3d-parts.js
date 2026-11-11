@@ -45,10 +45,12 @@ export function createParts(env) {
     for (let i = 0; i < p.count; i++) { const a = Math.atan2(p.getZ(i), p.getX(i)), band = Math.floor((a + Math.PI) / TAU * 48) % 2 ? 0.9 : 1; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = band; }
     lid.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
     lid.translate(0, H - 0.022, 0);
-    const spring = G.tint(G.spiralGeometry(lidR * 0.2, lidR * 0.84, 5, 0.014, 0.05, 14), 0x2b4f9c);
+    // 11 Nov 2026, Korbi: "until then quartz": a quartz movement's drum is its motor, the blued spring a copper coil under a dark lid
+    const quartz = plan?.power !== "mech";
+    const spring = G.tint(G.spiralGeometry(lidR * 0.2, lidR * 0.84, quartz ? 9 : 5, quartz ? 0.02 : 0.014, 0.05, 14), quartz ? 0xb8733a : 0x2b4f9c);
     G.polish(spring); spring.translate(0, 0.02, 0);
     const floor = G.tint(G.slab(G.shapeOf(G.circle(lidR * 0.9, 40)), 0.014, 0.003), 0x6a6e78); G.polish(floor); floor.translate(0, 0.012, 0);
-    const lidAll = G.merge([G.tint(lid, 0xcfd3d9), spring, floor]);
+    const lidAll = G.merge([G.tint(lid, quartz ? 0x3a3f48 : 0xcfd3d9), spring, floor]);
     const lidM = mk(lidAll, M.parts, turn); lidM.position.y = y0;
     // the arbor of the barrel is fixed; on it the ratchet wheel (it only turns when winding) with its click
     const rat = G.slab(G.shapeOf(G.ratchetOutline(14, root_ * 0.2, root_ * 0.3), [G.circle(0.02, 8)]), 0.035, 0.005, 1);

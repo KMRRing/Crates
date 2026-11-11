@@ -1,5 +1,8 @@
 // Gears: the rules (4 November 2026; docs/pipes.md and docs/pipes-contract.md). Pure: no page. A level is a plate of squares, one to three
-// trains (a barrel, a sink with a goal, pinned pieces on the way) and a hand of pieces (pipes-gear-shapes.js) that must all be laid.
+// trains (a barrel, a sink with a goal, pinned pieces on the way) and a hand of pieces (pipes-gear-shapes.js) that must all be laid, or
+// with `spare` only those the movement needs. A train is a tree whose leaves are its ends: the barrel, the sink and any pinned END (a branch's
+// hands, a second barrel). A pinned crossing (X) carries two trains, one per layer. A train with a CLUTCH (the crown's two positions) is
+// checked twice, the clutch turned each way: in each position the other position's branch stands idle and must not be touched.
 // Every wheel is a node of one graph: a MESH (facing port wheels of one layer and one module, or two wheels meshed inside a piece), a RING
 // mesh (internal teeth: the same turn) or a RIGID link (one arbor). Each barrel turns clockwise at speed 1; speeds are exact fractions
 // flooded out from it (a mesh gives w_v = -w_u n_u / n_v). A wheel reached twice with two different speeds is LOCKED, and the loop that
@@ -41,7 +44,8 @@ const wayOf = d => (d === "ccw" || d === 1 ? 1 : 0);
 export function parseLevel(spec) {
   const rows = spec.map.length, cols = spec.map[0].length, size = cols * rows, bad = m => { throw new Error(`level ${spec.id}: ${m}`); };
   const L = { id: spec.id, name: spec.name, chapter: spec.chapter, cols, rows, size, rotate: spec.rotate !== false, cap: new Int8Array(size).fill(3), fixed: Array(size).fill(null),
-    click: new Int8Array(size).fill(-1), trains: [], pins: [], clicks: [], hand: {}, total: 0, sols: [], spec, void: new Uint8Array(size) };
+    click: new Int8Array(size).fill(-1), trains: [], pins: [], clicks: [], hand: {}, total: 0, sols: [], spec, void: new Uint8Array(size),
+    spare: !!spec.spare, power: spec.power || null, clutch: null };
   spec.map.forEach((row, y) => {
     if (row.length !== cols) bad(`row ${y} is ${row.length} wide, not ${cols}`);
     [...row].forEach((ch, x) => {
@@ -64,12 +68,17 @@ export function parseLevel(spec) {
     L.trains.push(tr);
   });
   if (!L.trains.length) bad("needs a train");
+  const trainIx = x => (x === undefined ? 0 : typeof x === "number" ? x : L.trains.findIndex(t => t.id === x));
   (spec.pins || []).forEach(p => {
     const shape = shapeOf(p.kind, p.rot || 0);
     if (!shape) bad(`bad pin ${p.kind}`);
-    const train = p.train === undefined ? 0 : typeof p.train === "number" ? p.train : L.trains.findIndex(t => t.id === p.train);
-    const pin = { c: p.c, kind: p.kind, rot: p.rot || 0, train, goal: goalOf(p.goal) };
-    fix(p.c, { k: "pin", train, shape, goal: pin.goal });
+    const train = trainIx(p.train);
+    // a crossing carries a train per wheel; a clutch has a shape for each position of the crown; an end is a leaf of its train (hands on a branch, a second barrel)
+    const trains = p.trains ? p.trains.map(trainIx) : null, shapes = p.states ? p.states.map(r => shapeOf(p.kind, r)) : null;
+    if (trains && trains.length !== shape.wheels.length) bad(`pin ${p.c}: one train per wheel`);
+    const pin = { c: p.c, kind: p.kind, rot: p.rot || 0, train, goal: goalOf(p.goal), end: !!p.end, state: p.state ?? null, trains, look: p.look || null };
+    fix(p.c, { k: "pin", train, trains, shape: shapes ? shapes[0] : shape, shapes, goal: pin.goal, end: pin.end, state: pin.state });
+    if (shapes) { if (L.clutch) bad("one clutch a level"); L.clutch = { c: p.c, train, rots: p.states }; }
     L.pins.push(pin);
   });
   for (const k of spec.clicks || []) {
@@ -109,9 +118,9 @@ export function handLeft(L, laid) {
 }
 export const handKinds = L => Object.keys(L.hand);
 export const laidCount = laid => laid.reduce((n, p) => n + (p ? 1 : 0), 0);
-export const shapeAt = (L, laid, c) => {
+export const shapeAt = (L, laid, c, state = 0) => {
   const f = L.fixed[c];
-  if (f) return f.shape;
+  if (f) return f.shapes ? f.shapes[state] : f.shape;
   const p = laid[c];
   if (!p) return null;
   const { kind, rot } = pieceOf(p);
@@ -165,15 +174,15 @@ export function bestTurn(L, laid, c, key) {
  * a locked loop), locked (Set of every gear id joined to a jam: none of them can turn), loops [{ gears, why: "turn" | "bind" }], clash [[u, v]], tangle [[trainA, trainB]], driven (Set of squares), order (the
  * squares in the order the power reaches them), orders (the same by train), trainOf (by gear id, -1 for none), shapes (by square) }.
  */
-export function mesh(L, laid) {
-  const n = L.size, shapes = Array.from({ length: n }, (_, c) => shapeAt(L, laid, c));
+export function mesh(L, laid, state = 0) {
+  const n = L.size, shapes = Array.from({ length: n }, (_, c) => shapeAt(L, laid, c, state));
   const gears = [], idx = new Int32Array(n * SLOTS).fill(-1), edges = [], clash = [];
   shapes.forEach((sh, c) => {
     if (!sh) return;
     const [cx, cy] = xy(L, c), f = L.fixed[c];
     sh.wheels.forEach((w, i) => {
       idx[c * SLOTS + i] = gears.length;
-      gears.push({ id: c * SLOTS + i, c, i, x: cx * CELL + w.x, y: cy * CELL + w.y, n: w.n, m: w.m, layer: w.l, arbor: c * SLOTS + sh.wheels.findIndex(o => o.a === w.a), train: f ? f.train : -1, fixed: f ? f.k : null,
+      gears.push({ id: c * SLOTS + i, c, i, x: cx * CELL + w.x, y: cy * CELL + w.y, n: w.n, m: w.m, layer: w.l, arbor: c * SLOTS + sh.wheels.findIndex(o => o.a === w.a), train: f ? (f.trains ? f.trains[i] : f.train) : -1, fixed: f ? f.k : null,
         ring: sh.ring.some(([, v]) => v === i) });
     });
   });
@@ -252,7 +261,11 @@ export function jams(L, laid) {
 }
 
 // ---------- trains, goals, the whole check ----------
-const comps = (L, M) => {
+/** Whether the crown's position `state` wants this pin (or a train's sink): a clutch level's sink is the winding end (position 0), and a
+ *  pin marked with a state is wanted in that position only. */
+const wantedIn = (x, state) => x.state === null || x.state === undefined || x.state === state;
+const sinkWanted = (L, t, state) => !L.clutch || L.clutch.train !== t.index || state === 0;
+const comps = (L, M, state = 0) => {
   const out = [];
   const add = (c, f, tr, goal) => {
     if (!goal) return;
@@ -263,60 +276,118 @@ const comps = (L, M) => {
     else if (want) { const k = F.cmp(F.abs(has), want); status = k === 0 ? "ok" : k < 0 ? "slow" : "fast"; }
     out.push({ train: tr, c, w: goal.w, type: goal.type, status, has: has ? F.abs(has) : null, want, dir: has ? M.dir[id] : null, wantDir: goal.dir });
   };
-  for (const t of L.trains) add(t.sink.c, L.fixed[t.sink.c], t.index, t.goal);
-  for (const p of L.pins) add(p.c, L.fixed[p.c], p.train, p.goal);
+  for (const t of L.trains) if (sinkWanted(L, t, state)) add(t.sink.c, L.fixed[t.sink.c], t.index, t.goal);
+  for (const p of L.pins) if (wantedIn(p, state)) add(p.c, L.fixed[p.c], p.train, p.goal);
   return out;
 };
 
-/** The path of one train: the squares from its barrel to its sink, every square of the train once, each consecutive pair meshing (a
- *  piece is entered and left by wheels of one component), or null. */
-function trainPath(L, M, t, cells) {
-  const total = cells.size, sink = t.sink.c, seen = new Set(), out = [];
-  const exits = new Map();
+/**
+ * One train's shape: its nodes are the (square, component) pairs its wheels are in, joined where pieces mesh (pieces that mesh beside the
+ * train's line, turning the same way, are allowed). The train must be spanned by a tree whose leaves are its ends (the barrel, the sink
+ * when wanted, its pinned ends wanted in this position): with no pinned ends that is a path from the barrel to the sink through every node.
+ * Returns the squares from the barrel to its main end and the rest in the order the power reaches them, or null.
+ */
+function trainTree(L, M, t, state) {
+  const nodeOf = id => { const g = M.gears[M.idx[id]]; return `${g.c}.${M.shapes[g.c].comp[g.i]}`; };
+  const nodes = new Set(), adj = new Map();
+  for (const g of M.gears) if (M.trainOf[g.id] === t.index) nodes.add(nodeOf(g.id));
   for (const e of M.edges) {
-    if (e.kind !== "mesh") continue;
+    if (e.kind === "rigid") continue;
     const a = M.gears[M.idx[e.u]], b = M.gears[M.idx[e.v]];
-    if (a.c === b.c) continue;
-    for (const [x, y] of [[a, b], [b, a]]) { if (!exits.has(x.c)) exits.set(x.c, []); exits.get(x.c).push({ from: x.i, to: y.c, toI: y.i }); }
+    if (a.c === b.c || M.trainOf[e.u] !== t.index || M.trainOf[e.v] !== t.index) continue;
+    const u = nodeOf(e.u), v = nodeOf(e.v);
+    for (const [x, y] of [[u, v], [v, u]]) { if (!adj.has(x)) adj.set(x, new Set()); adj.get(x).add(y); }
   }
-  const go = (c, entryI) => {
-    seen.add(c); out.push(c);
-    if (c === sink) { if (seen.size === total) return true; seen.delete(c); out.pop(); return false; }
-    const comp = M.shapes[c].comp;
-    for (const e of exits.get(c) || []) {
-      if (!cells.has(e.to) || seen.has(e.to) || comp[e.from] !== comp[entryI] || (c === t.barrel.c && false)) continue;
-      if (go(e.to, e.toI)) return true;
-    }
-    seen.delete(c); out.pop();
-    return false;
-  };
-  return go(t.barrel.c, 0) ? out.slice() : null;
+  const root = `${t.barrel.c}.0`, sinkNode = sinkWanted(L, t, state) ? `${t.sink.c}.0` : null;
+  const ends = new Set([root]);
+  if (sinkNode) ends.add(sinkNode);
+  for (const p of L.pins) if (p.end && wantedIn(p, state) && (p.trains ? p.trains.includes(t.index) : p.train === t.index)) ends.add(`${p.c}.0`);
+  for (const e of ends) if (!nodes.has(e)) return null;
+  const mainEnd = sinkNode || [...ends].find(e => e !== root);
+  const N = nodes.size, nb = v => adj.get(v) || new Set();
+  let parent = null;
+  if (ends.size === 2) {
+    // a path from the barrel to the main end through every node
+    const seen = new Set(), path = [];
+    const go = v => {
+      seen.add(v); path.push(v);
+      if (v === mainEnd) { if (seen.size === N) return true; }
+      else for (const w of nb(v)) if (!seen.has(w) && go(w)) return true;
+      seen.delete(v); path.pop();
+      return false;
+    };
+    if (!go(root)) return null;
+    parent = new Map(path.map((v, i) => [v, i ? path[i - 1] : null]));
+  } else {
+    // a spanning tree whose leaves are ends: grown from the barrel, a node at a time, and judged when it spans
+    const par = new Map([[root, null]]), kids = new Map([[root, 0]]);
+    let budget = 20000;
+    const grow = () => {
+      if (--budget < 0) return false;
+      if (par.size === N) { for (const [v, k] of kids) if (k === 0 && !ends.has(v)) return false; return true; }
+      // the first node outside the tree that touches it, joined in turn to each tree node it touches
+      for (const v of nodes) {
+        if (par.has(v)) continue;
+        const into = [...nb(v)].filter(w => par.has(w));
+        if (!into.length) continue;
+        for (const w of into) {
+          par.set(v, w); kids.set(v, 0); kids.set(w, kids.get(w) + 1);
+          if (grow()) return true;
+          par.delete(v); kids.delete(v); kids.set(w, kids.get(w) - 1);
+        }
+        return false;
+      }
+      return false;
+    };
+    if (!grow()) return null;
+    parent = par;
+  }
+  const main = [];
+  for (let v = mainEnd; v; v = parent.get(v)) main.unshift(Number(v.split(".")[0]));
+  const rest = [];
+  for (const v of nodes) { const c = Number(v.split(".")[0]); if (!main.includes(c) && !rest.includes(c)) rest.push(c); }
+  return { path: main, rest };
 }
-export function trains(L, laid, M = mesh(L, laid)) {
+export function trains(L, laid, M = mesh(L, laid), state = 0) {
   return L.trains.map(t => {
     const cells = new Set();
     for (const g of M.gears) if (M.trainOf[g.id] === t.index) cells.add(g.c);
-    const path = cells.has(t.sink.c) ? trainPath(L, M, t, cells) : null;
-    const cm = comps(L, M).find(x => x.train === t.index && x.c === t.sink.c);
-    return { id: t.id, index: t.index, cells: [...cells], path, order: M.orders[t.index] || [], sink: { status: cm ? cm.status : "off", c: t.sink.c } };
+    const tree = trainTree(L, M, t, state);
+    const cm = comps(L, M, state).find(x => x.train === t.index && x.c === t.sink.c);
+    return { id: t.id, index: t.index, cells: [...cells], path: tree ? tree.path : null, rest: tree ? tree.rest : [], order: M.orders[t.index] || [], sink: { status: cm ? cm.status : "off", c: t.sink.c } };
   });
 }
 export const complications = (L, laid) => comps(L, mesh(L, laid));
-export const walk = (L, laid) => trains(L, laid).flatMap(t => t.path || []);
+export const walk = (L, laid) => trains(L, laid).flatMap(t => (t.path ? [...t.path, ...t.rest] : []));
 
 const speedWord = (f, glyph = true) => `×${F.fmt(f, glyph)}`;
 /**
  * How the level stands. { solved, placed, left, strays (laid squares nothing drives), missed (pinned squares their barrel does not
  * drive), jams (squares), clashes [[u, v]], tangles [[trainA, trainB]], trains, comps, clicks { square: "ok" | "bad" | "" }, clicksOk,
- * messages [string] (what to fix, most urgent first), nearest { c, text } | null, M }.
+ * messages [string] (what to fix, most urgent first), nearest { c, text } | null, M }. A level with a clutch is checked in both of the
+ * crown's positions: `state` picks the one returned (0 when not given), and `solved` wants both.
  */
-export function check(L, laid) {
-  const M = mesh(L, laid), placed = laidCount(laid), left = L.total - placed;
+export function check(L, laid, opts = {}) {
+  if (!L.clutch) return checkIn(L, laid, 0, null);
+  const M0 = mesh(L, laid, 0), M1 = mesh(L, laid, 1);
+  const idle = (A, B) => new Set([...B.driven].filter(c => !A.driven.has(c)));
+  const r = [checkIn(L, laid, 0, idle(M0, M1), M0), checkIn(L, laid, 1, idle(M1, M0), M1)], k = opts.state || 0;
+  const other = r[1 - k], out = { ...r[k], states: r };
+  out.solved = r[0].solved && r[1].solved;
+  if (r[k].solved && !other.solved) out.messages = [`With the crown ${k ? "pushed in" : "pulled out"}: ${other.messages[0] || "not yet"}`];
+  return out;
+}
+function checkIn(L, laid, state, idle, M = mesh(L, laid, state)) {
+  const placed = laidCount(laid), left = L.total - placed;
   const strays = [], missed = [];
-  laid.forEach((p, c) => { if (p && !M.shapes[c].wheels.some((_, i) => M.omega[c * SLOTS + i])) strays.push(c); });
-  for (const p of L.pins) if (!M.driven.has(p.c) || M.trainOf[p.c * SLOTS] !== p.train) missed.push(p.c);
+  laid.forEach((p, c) => { if (p && !(idle && idle.has(c)) && !M.shapes[c].wheels.some((_, i) => M.omega[c * SLOTS + i])) strays.push(c); });
+  for (const p of L.pins) {
+    if (!wantedIn(p, state)) continue;
+    if (p.trains) { if (p.trains.some((t, i) => M.trainOf[p.c * SLOTS + i] !== t)) missed.push(p.c); }
+    else if (!M.driven.has(p.c) || M.trainOf[p.c * SLOTS] !== p.train) missed.push(p.c);
+  }
   const jamSquares = [...new Set([...M.jam].map(g => Math.floor(g / SLOTS)))];
-  const cm = comps(L, M), tr = trains(L, laid, M);
+  const cm = comps(L, M, state), tr = trains(L, laid, M, state);
   const clicks = {};
   let clicksOk = true;
   for (const k of L.clicks) {
@@ -341,14 +412,15 @@ export function check(L, laid) {
     else if (x.status === "fast") say(`${name} is ${speedWord(x.has)} and wants ${speedWord(x.want)}: too fast`, x.c);
     else if (x.status === "slow") say(`${name} is ${speedWord(x.has)} and wants ${speedWord(x.want)}: too slow`, x.c);
   }
-  if (!left) {
+  const done = !left || L.spare;
+  if (done) {
     if (strays.length) say(`${strays.length} piece${strays.length > 1 ? "s" : ""} no barrel drives`, strays[0]);
     if (missed.length) say("The train misses a pinned piece", missed[0]);
-    for (const t of tr) if (!t.path && !messages.length) say(`Every piece must sit on one train, from barrel ${t.id} to its sink`, null);
+    for (const t of tr) if (!t.path && !messages.length) say(L.spare ? `Every piece laid must sit on one train, from barrel ${t.id} to its ends` : `Every piece must sit on one train, from barrel ${t.id} to its sink`, null);
   }
   const clean = !M.clash.length && !M.tangle.length && !M.loops.length;
-  const solved = !left && clean && !strays.length && !missed.length && tr.every(t => t.path) && cm.every(x => x.status === "ok") && clicksOk;
-  return { solved, placed, left, strays, missed, jams: jamSquares, clashes: M.clash, tangles: M.tangle, trains: tr, comps: cm, clicks, clicksOk, messages, nearest, M };
+  const solved = done && placed > 0 && clean && !strays.length && !missed.length && tr.every(t => t.path) && cm.every(x => x.status === "ok") && clicksOk;
+  return { solved, placed, left, strays, missed, jams: jamSquares, clashes: M.clash, tangles: M.tangle, trains: tr, comps: cm, clicks, clicksOk, messages, nearest, M, state };
 }
 
 // ---------- hint, stars ----------
@@ -419,17 +491,17 @@ export function tempo(L, M) {
 /** The level as the views draw it once: the plate and its trains. */
 export function planOf(L, theme = null) {
   return {
-    id: L.id, name: L.name, cols: L.cols, rows: L.rows, rotate: L.rotate, theme,
+    id: L.id, name: L.name, cols: L.cols, rows: L.rows, rotate: L.rotate, theme, power: L.power || "quartz", spare: L.spare, clutch: L.clutch ? { ...L.clutch } : null,
     terrain: Array.from({ length: L.size }, (_, c) => (L.void[c] ? "void" : L.cap[c] === 0 ? "pillar" : L.cap[c] < 3 ? `bridge${L.cap[c]}` : "ground")),
     cap: Array.from(L.cap),
     trains: L.trains.map(t => ({ id: t.id, index: t.index, barrel: { ...t.barrel }, sink: { ...t.sink, goal: t.goal } })),
-    pins: L.pins.map(p => ({ c: p.c, kind: p.kind, rot: p.rot, train: p.train, goal: p.goal })),
+    pins: L.pins.map(p => ({ c: p.c, kind: p.kind, rot: p.rot, train: p.train, goal: p.goal, end: p.end, state: p.state, look: p.look, trains: p.trains })),
     clicks: L.clicks.map(k => ({ ...k })),
   };
 }
 /** The frame a view draws (docs/pipes-contract.md): everything dynamic. */
 export function frameOf(L, laid, extra = {}) {
-  const res = check(L, laid), M = res.M;
+  const res = check(L, laid, { state: extra.state || 0 }), M = res.M;
   return { laid: laid.slice(), M, res, T0: tempo(L, M), phase: phasesOf(L, M), held: null, ghost: null, hint: null, focus: null, solved: res.solved, look: false, ...extra };
 }
 

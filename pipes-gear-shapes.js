@@ -9,6 +9,8 @@
 //   T5.1:5-4-5 T5.1:4-5-4e trio: port, idler, port (straight or elbow): keeps the turn, ratio a:c
 //   K[5.1>5.2]:8/8>4     stack: port wheel n1 (m.l) rigid with a pinion np (m.l) that meshes the out wheel n2 (m.l): changes layer or module
 //   R[5.1,4.3]           riser: one arbor through the middle, a full wheel on each of two layers, ports on every side of both
+//   X[5.1,5.2]           crossing: two full wheels on one axis that turn apart (the upper on a hollow arbor, as an hour wheel rides the
+//                        cannon pinion), ports on every side of both: two trains, or one train twice, pass each other on two layers
 // rot is the number of quarter turns clockwise. The end pieces (barrel, sink) are made by endShape, not named.
 export const CELL = 60;
 export const MODS = [4, 5, 6];
@@ -35,6 +37,7 @@ const KIND_RE = [
   [/^T(\d)\.(\d):(\d+)-(\d+)-(\d+)e$/, m => ({ f: "T", m: +m[1], l: +m[2], a: +m[3], b: +m[4], c: +m[5], elbow: true })],
   [/^K\[(\d)\.(\d)>(\d)\.(\d)\]:(\d+)\/(\d+)>(\d+)$/, m => ({ f: "K", m1: +m[1], l1: +m[2], m2: +m[3], l2: +m[4], n1: +m[5], np: +m[6], n2: +m[7] })],
   [/^R\[(\d)\.(\d),(\d)\.(\d)\]$/, m => ({ f: "R", m1: +m[1], l1: +m[2], m2: +m[3], l2: +m[4] })],
+  [/^X\[(\d)\.(\d),(\d)\.(\d)\]$/, m => ({ f: "X", m1: +m[1], l1: +m[2], m2: +m[3], l2: +m[4] })],
 ];
 export function parseKind(kind) {
   for (const [re, f] of KIND_RE) { const m = re.exec(kind); if (m) return f(m); }
@@ -46,6 +49,7 @@ export const kindId = {
   T: (m, l, a, b, c, elbow) => `T${m}.${l}:${a}-${b}-${c}${elbow ? "e" : ""}`,
   K: (m1, l1, m2, l2, n1, np, n2) => `K[${m1}.${l1}>${m2}.${l2}]:${n1}/${np}>${n2}`,
   R: (m1, l1, m2, l2) => `R[${m1}.${l1},${m2}.${l2}]`,
+  X: (m1, l1, m2, l2) => `X[${m1}.${l1},${m2}.${l2}]`,
 };
 
 // ---------- geometry of each family, at rotation 0 ----------
@@ -86,6 +90,10 @@ function base(p) {
   if (p.f === "R") {
     return { wheels: [W(30, 30, fullTeeth(p.m1), p.m1, p.l1, 0), W(30, 30, fullTeeth(p.m2), p.m2, p.l2, 0)], ports: [0, 1, 2, 3].flatMap(s => [{ s, w: 0 }, { s, w: 1 }]), mesh: [] };
   }
+  if (p.f === "X") {
+    if (p.l1 >= p.l2) return null;
+    return { wheels: [W(30, 30, fullTeeth(p.m1), p.m1, p.l1, 0), W(30, 30, fullTeeth(p.m2), p.m2, p.l2, 1)], ports: [0, 1, 2, 3].flatMap(s => [{ s, w: 0 }, { s, w: 1 }]), mesh: [], hollow: true };
+  }
   return null;
 }
 
@@ -98,7 +106,7 @@ export function shapeOf(kind, rot = 0) {
   if (cache.has(key)) return cache.get(key);
   let sh = null;
   const p = parseKind(kind), b = p && base(p);
-  if (b) sh = finish(kind, rot, p.f, b.wheels, b.ports, b.mesh, [], b.gap);
+  if (b) { sh = finish(kind, rot, p.f, b.wheels, b.ports, b.mesh, [], b.gap); if (b.hollow) sh.hollow = true; }
   cache.set(key, sh);
   return sh;
 }
@@ -224,8 +232,8 @@ export function problems(sh) {
     if (a.l !== b.l || meshed) continue;
     if (Math.hypot(a.x - b.x, a.y - b.y) < tipR(a.m, a.n) + tipR(b.m, b.n) - 0.01) P(`wheels ${i} and ${j} touch`);
   }
-  // arbor clearance: no wheel on a layer at or below an arbor's top wheel covers its axis
-  const arbors = [...new Set(sh.wheels.map(w => w.a))];
+  // arbor clearance: no wheel on a layer at or below an arbor's top wheel covers its axis (a crossing's lower wheel is hollow)
+  const arbors = sh.hollow ? [] : [...new Set(sh.wheels.map(w => w.a))];
   for (const a of arbors) {
     const own = sh.wheels.filter(w => w.a === a), top = Math.max(...own.map(w => w.l)), ax = own[0].x, ay = own[0].y;
     sh.wheels.forEach((w, i) => {
@@ -240,7 +248,7 @@ export function problems(sh) {
 const sortUniq = a => [...new Set(a)];
 /** Every legal kind, by family. Built once from the constraints (`problems` on rotation 0). */
 function build() {
-  const all = { S: [], D: [], T: [], K: [], R: [] };
+  const all = { S: [], D: [], T: [], K: [], R: [], X: [] };
   const ok = id => { const p = parseKind(id), b = base(p); if (!b) return false; return !problems(finish(id, 0, p.f, b.wheels, b.ports, b.mesh, [], b.gap)).length; };
   // a piece's geometry does not depend on its layer, so the layer-1 pieces are checked and the other layers copied
   for (const m of MODS) {
@@ -257,14 +265,14 @@ function build() {
       if (m1 * n1 + m2 * np + 2 * m2 * n2 === 120 && m2 * np <= m1 * n1 && ok(kindId.K(m1, l1, m2, l2, n1, np, n2))) all.K.push(kindId.K(m1, l1, m2, l2, n1, np, n2));
     }
   }
-  for (const m1 of MODS) for (const m2 of MODS) for (let l1 = 1; l1 <= 3; l1++) for (let l2 = l1 + 1; l2 <= 3; l2++) all.R.push(kindId.R(m1, l1, m2, l2));
+  for (const m1 of MODS) for (const m2 of MODS) for (let l1 = 1; l1 <= 3; l1++) for (let l2 = l1 + 1; l2 <= 3; l2++) { all.R.push(kindId.R(m1, l1, m2, l2)); all.X.push(kindId.X(m1, l1, m2, l2)); }
   for (const f of Object.keys(all)) all[f] = sortUniq(all[f]);
   return all;
 }
 let catalog = null;
 export const CATALOG = () => (catalog ??= build());
 
-const FAMILY_NAME = { S: "single", D: "duo", T: "trio", K: "stack", R: "riser" };
+const FAMILY_NAME = { S: "single", D: "duo", T: "trio", K: "stack", R: "riser", X: "crossing" };
 const SIDE_WORD = ["north", "east", "south", "west"];
 /** What a kind is called (for labels and the tiles' aria): "duo 4+8, module 5, layer 1". */
 export function kindName(kind) {
@@ -272,6 +280,7 @@ export function kindName(kind) {
   if (!p) return kind;
   if (p.f === "K") return `stack ${p.n1}/${p.np} to ${p.n2}, module ${p.m1} layer ${p.l1} to module ${p.m2} layer ${p.l2}`;
   if (p.f === "R") return `riser, module ${p.m1} layer ${p.l1} and module ${p.m2} layer ${p.l2}`;
+  if (p.f === "X") return `crossing, module ${p.m1} layer ${p.l1} under module ${p.m2} layer ${p.l2}`;
   const sizes = p.f === "S" ? "" : p.f === "D" ? ` ${p.a}${p.elbow ? "-" : "+"}${p.b}` : ` ${p.a}-${p.b}-${p.c}`;
   return `${FAMILY_NAME[p.f]}${sizes}, module ${p.m}, layer ${p.l}`;
 }

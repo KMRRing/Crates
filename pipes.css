@@ -157,6 +157,9 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 :is(.pi-board, .pi-queue) .gear.barrel .g-body { fill: color-mix(in srgb, var(--gr-steel-dark) 65%, var(--pi-ground)); }
 :is(.pi-board, .pi-queue) .gear.barrel .g-tooth { fill: var(--gr-steel); stroke: var(--gr-steel-dark); }
 :is(.pi-board, .pi-queue) .g-spring { fill: none; stroke: var(--pi-pipe); stroke-width: 2.2; stroke-linejoin: round; }
+/* 11 Nov 2026: a quartz movement's motor (a coil and its crystal) in place of the barrel */
+:is(.pi-board, .pi-queue) .g-coil { fill: none; stroke: var(--brass); stroke-width: 2.4; stroke-dasharray: 1.2 1.4; }
+:is(.pi-board, .pi-queue) .g-crystal { fill: var(--sheet); stroke: var(--pi-pipe); stroke-width: 1.2; }
 :is(.pi-board, .pi-queue) .g-steel { fill: var(--gr-steel); }
 :is(.pi-board, .pi-queue) .g-steel-edge { fill: var(--gr-steel-dark); }
 :is(.pi-board, .pi-queue) .g-arrow { fill: var(--pi-ground); }
@@ -298,11 +301,11 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-q .pi-turn { position: absolute; right: 0; top: 0; padding: .02rem .16rem; background: var(--pi-ground); font-size: .7rem; font-weight: 800; font-style: normal; line-height: 1.1; color: var(--pi-in); pointer-events: none; }
 .pi-layers-row .pi-turns { margin-left: auto; margin-right: .5rem; white-space: nowrap; }
 .pi-layers-row .pi-turns + .pi-look { margin-left: 0; }
-.pi-layers-row .pi-wind { width: auto; padding: 0 .6rem; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; }
+.pi-layers-row :is(.pi-wind, .pi-crown) { width: auto; padding: 0 .6rem; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; }
 .pi-layers-row .pi-layer, .pi-layers-row .pi-look { flex: none; }
 .pi-layers-row { gap: .25rem; }
 .pi-layers-row .pi-turns { margin: 0 auto 0 .1rem; font-size: .56rem; letter-spacing: .04em; }
-.pi-layers-row .pi-wind { padding: 0 .45rem; }
+.pi-layers-row :is(.pi-wind, .pi-crown) { padding: 0 .45rem; }
 .pi-layers-row .pi-look { padding: 0 .55rem; margin-left: 0; }
 .pi-board:not(.show-chips) .pi-chips { display: none; }
 
@@ -314,7 +317,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-layers-row .pi-layer { border: 0; background: transparent; width: auto; min-width: 1.7rem; height: 1.7rem; padding: 0 .35rem; color: var(--ink-soft); }
 .pi-layers-row .pi-layer.now { background: var(--pi-in); color: #fff; }
 .pi-layers-row .pi-layer:first-of-type { padding: 0 .45rem; }
-.pi-layers-row .pi-wind, .pi-layers-row .pi-look { border: 0; box-shadow: none; background: transparent; color: var(--ink); min-height: 1.7rem; padding: 0 .4rem; }
+.pi-layers-row .pi-wind, .pi-layers-row .pi-crown, .pi-layers-row .pi-look { border: 0; box-shadow: none; background: transparent; color: var(--ink); min-height: 1.7rem; padding: 0 .4rem; }
 .pi-layers-row .pi-wind { margin-left: auto; }
 .pi-layers-row .pi-wind + .pi-look { margin-left: 0; }
 .pi-layers-row .pi-look { margin-left: auto; }
