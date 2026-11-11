@@ -1,15 +1,22 @@
-// Gears, the hundred levels of the campaign (pipes-gear-campaign.mjs): each is parsed, each listed answer is solved by the full check, the
-// solver finds exactly the listed answers and no others, and each level carries what its themes say (a mechanical one its escape wheel, a
-// tray its spares, a crown its clutch...). Ids are unique and every chapter has a name. Run: node tests/pipes-gear-levels.mjs
+// Gears, the levels played (pipes-gear-book.js) and the campaign being rebuilt (pipes-gear-campaign.mjs): each is parsed, each listed answer
+// is solved by the full check, the solver finds exactly the listed answers and no others, and each campaign level carries what its themes say
+// (a mechanical one its escape wheel, a tray its spares, a crown its clutch...). Ids are unique and every chapter has a name.
+// Run: node tests/pipes-gear-levels.mjs
 import { parseLevel, check, emptyLaid } from "../pipes-gear-engine.js";
 import { solve } from "../pipes-gear-solve.js";
-import { LEVELS, CHAPTERS, BOOKS, sigOf } from "../pipes-gear-book.js";
+import { LEVELS as PLAYED, CHAPTERS as PLAYED_CHAPTERS, BOOKS as PLAYED_BOOKS } from "../pipes-gear-book.js";
+import { LEVELS, CHAPTERS, BOOKS } from "../pipes-gear-levels.js";
+import { sigOf } from "../pipes-gear-book.js";
 import { POOL } from "../pipes-gear-pool.js";
 import { transformLevel } from "../pipes-gear-legacy.js";
 import { dailySpec, randomSpec, bandOf } from "../pipes-gear-daily.js";
 
 let bad = 0;
 const ok = (c, what) => { console.log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) bad++; };
+// played until the campaign's chapters are rebuilt and passed (12 Nov 2026): Book I's kept levels, each in its chapter
+ok(PLAYED.length === 36 && new Set(PLAYED.map(l => l.id)).size === 36 && PLAYED.every(l => PLAYED_CHAPTERS.some(c => c.key === l.chapter)) && PLAYED_CHAPTERS.every(c => PLAYED_BOOKS.some(b => b.key === c.book)),
+  `${PLAYED.length} levels played, Book I's, every one in its chapter`);
+ok(PLAYED.every(l => LEVELS.some(k => k.id === l.id)), "every level played is in the campaign too, so its stars carry over");
 const ids = new Set(LEVELS.map(l => l.id));
 ok(ids.size === LEVELS.length, `${LEVELS.length} levels with unique ids`);
 ok(LEVELS.every(l => CHAPTERS.some(c => c.key === l.chapter)) && CHAPTERS.every(c => BOOKS.some(b => b.key === c.book)), "every level has its chapter and every chapter its book");

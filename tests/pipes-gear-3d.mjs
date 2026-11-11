@@ -168,7 +168,8 @@ if (have("pipes-3d-geo.js")) {
 
 // ---------- the real levels: where each instrument goes, and the page's wiring ----------
 {
-  const { LEVELS } = await import("../pipes-gear-book.js");
+  // the levels played and the campaign being rebuilt, which holds more kinds of instrument
+  const LEVELS = [...(await import("../pipes-gear-book.js")).LEVELS, ...(await import("../pipes-gear-levels.js")).LEVELS];
   const E = await import("../pipes-gear-engine.js");
   let full = 0, compact = 0, bad3 = 0;
   for (const spec of LEVELS) {
