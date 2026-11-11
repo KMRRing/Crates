@@ -29,7 +29,7 @@ export function createPuzzle(deps) {
   const indexOf = id => LEVELS.findIndex(l => l.id === id);
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
   let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
-  let windMode = null, windTimer = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
+  let windMode = null, windTimer = 0, beatTimer = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
   let running = false, jamKey = "", kind = "2d", mod3d = null, crown = 0;
 
   // ---------- keeping ----------
@@ -58,7 +58,7 @@ export function createPuzzle(deps) {
     if (!r || r.sig !== sigOf(spec) || fresh) r = saved.runs[spec.id] = { sig: sigOf(spec), laid: {}, sel: null, selRot: null, lifts: 0, hints: 0, solved: 0 };
     run = r;
     laid = E.unpackLaid(L, run.laid);
-    clearTimeout(windTimer); windMode = null; crown = 0;
+    clearTimeout(windTimer); clearInterval(beatTimer); windMode = null; crown = 0;
     undoStack = []; hint = null; jamKey = ""; focus = null; looking = false; liftMode = false;
     persist();
   }
@@ -108,7 +108,7 @@ export function createPuzzle(deps) {
     // 9 Nov 2026, Korbi: "if the watch isn't wound and mechanical, it shouldn't move. When wound, it should spin out, unless it's connected to an escapement, in which case the escapement
     // should start visibly working and the whole gear train jumps one second at a time." A mechanical level rests until Wind is pressed (`still`).
     // 11 Nov 2026, Korbi: in a mechanical movement no wheel shows its turn until it is wound (`blind`): the parity is reasoned, not watched
-    if (mechanical()) { f.still = !windMode; f.solved = !!windMode; f.blind = !windMode; }
+    if (mechanical()) { f.still = !windMode; f.solved = !!windMode; f.blind = !windMode; f.beat = windMode === "tick" ? E.beatOf(f) : 0; }
     if (windMode) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
     last = f;
     view.draw(f);
@@ -213,11 +213,14 @@ export function createPuzzle(deps) {
     if (frame || running || !last) return;
     const ok = !!run.solved || (last.res.comps || []).some(c => c.type === "escape" && c.status === "ok") || (last.res.comps || []).some(c => c.type === "tourbillon" && c.status === "ok");
     windMode = ok ? "tick" : "unwind";
-    clearTimeout(windTimer);
+    clearTimeout(windTimer); clearInterval(beatTimer);
     render();
     view.runNow?.();
     if (!ok) for (let i = 0; i < 6; i++) setTimeout(() => sound(0.5 - i * 0.05), i * 110);
-    windTimer = setTimeout(() => { windMode = null; render(); }, ok ? 9000 : 1700);
+    // held by the escapement it ticks and tocks, a beat at a time with the wheels
+    const beat = last.beat || 0;
+    if (beat) { let k = 0; beatTimer = setInterval(() => sound(k++ % 2 ? 0.78 : 1), beat); }
+    windTimer = setTimeout(() => { windMode = null; clearInterval(beatTimer); render(); }, ok ? 9000 : 1700);
   }
   function drawLayers() {
     const box = $("layers"), on = !!spec.v;

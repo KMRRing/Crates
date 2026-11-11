@@ -499,6 +499,16 @@ export function planOf(L, theme = null) {
     clicks: L.clicks.map(k => ({ ...k })),
   };
 }
+/**
+ * How long a beat of the escapement lasts (ms) in a frame whose train ends in an escape wheel: half a tooth of it a beat, as a lever
+ * escapement lets it go, gathered into beats no quicker than 170 ms so the eye and ear can follow them. 0 when nothing ends in one.
+ */
+export function beatOf(f) {
+  const g = f.M.gears.find(x => x.fixed === "sink" && f.M.omega[x.id]);
+  if (!g) return 0;
+  const half = f.T0 / F.num(F.abs(f.M.omega[g.id])) / (2 * g.n);
+  return half * Math.max(1, Math.ceil(170 / half));
+}
 /** The frame a view draws (docs/pipes-contract.md): everything dynamic. */
 export function frameOf(L, laid, extra = {}) {
   const res = check(L, laid, { state: extra.state || 0 }), M = res.M;

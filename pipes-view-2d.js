@@ -309,10 +309,14 @@ export function createView({ board, onGesture, onLost } = {}) {
     if (!epoch) epoch = performance.now();
     const M = frame.M, T0 = frame.T0, now = performance.now();
     const squareOn = c => { const k = M.order.indexOf(c); return k >= 0 && k < runUpTo; };
+    // 12 Nov 2026, Korbi: "mechanical movements do not move smoothly, they tick, if they are connected to the escapement". A wound train held
+    // by its escape wheel jumps a beat at a time, every wheel together; a turn lasts a whole number of beats so they stay in step.
+    const beat = frame.beat || 0;
+    const pace = ms => { const k = Math.max(1, Math.round(ms / beat)); return beat ? { duration: k * beat, easing: `steps(${k}, end)` } : { duration: ms }; };
     for (const sp of gWheels.querySelectorAll(".spin.cw, .spin.ccw")) {
       const id = Number(sp.dataset.id), c = Math.floor(id / SLOTS), w = M.omega[id];
       if (!w || !squareOn(c) || M.locked?.has(id)) continue;            // a wheel a jam locks does not turn
-      const turnMs = T0 / F.num(F.abs(w)), a = sp.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${sp.classList.contains("ccw") ? -360 : 360}deg)` }], { duration: turnMs, iterations: Infinity });
+      const turnMs = T0 / F.num(F.abs(w)), a = sp.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${sp.classList.contains("ccw") ? -360 : 360}deg)` }], { ...pace(turnMs), iterations: Infinity });
       a.currentTime = now - epoch;
     }
     for (const art of gWheels.querySelectorAll("[data-id]:not(.spin)")) {
@@ -324,12 +328,12 @@ export function createView({ board, onGesture, onLost } = {}) {
       if (art.dataset.hand === "second") ms = turnMs / 2;
       if (art.dataset.art === "cage") n = 1;
       void g; void n;
-      const a = art.animate([{ transform: `rotate(${from}deg)` }, { transform: `rotate(${sign * 360 + from}deg)` }], { duration: ms, iterations: Infinity });
+      const a = art.animate([{ transform: `rotate(${from}deg)` }, { transform: `rotate(${sign * 360 + from}deg)` }], { ...pace(ms), iterations: Infinity });
       a.currentTime = now - epoch;
     }
     for (const sw of gWheels.querySelectorAll(".swing")) {
       const id = M.gears.find(g => g.fixed === "sink")?.id, w = id !== undefined ? M.omega[id] : null;
-      if (w && squareOn(Math.floor(id / SLOTS))) sw.animate([{ transform: "rotate(-70deg)" }, { transform: "rotate(70deg)" }], { duration: Math.max(260, T0 / F.num(F.abs(w)) / 8), direction: "alternate", iterations: Infinity, easing: "ease-in-out" });
+      if (w && squareOn(Math.floor(id / SLOTS))) sw.animate([{ transform: "rotate(-70deg)" }, { transform: "rotate(70deg)" }], { duration: beat || Math.max(260, T0 / F.num(F.abs(w)) / 8), direction: "alternate", iterations: Infinity, easing: "ease-in-out" });
     }
   }
   function wake() {
