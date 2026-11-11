@@ -33,6 +33,28 @@ export const LEVELS = [
   { id: "s6", name: "Rail", n: 3, maxSize: 15, gauge: { 0: 15, 1: 15, 3: 15, 7: 15, 12: 3, 13: 3, 16: 15, 17: 15, 18: 9, 22: 9, 25: 9, 26: 9 }, census: { plank: 1, bar: 1, knot: 1 }, tools: ["chisel", "saw", "bore"], sol: letters("CCCCCCCCCCCCBBBCCCAAAAAAAAA") },
   { id: "s5", name: "Post", n: 3, maxSize: 16, gauge: { 0: 9, 1: 9, 3: 9, 4: 9, 8: 9, 9: 2, 10: 16, 18: 2, 19: 16, 25: 16, 26: 16 }, census: { plank: 1, bar: 1, knot: 1 },
     rule: "Glue mends one cut: the first it meets, going in from the face you tap.", sol: letters("AAAAAAAAABCCCCCCCCBCCCCCCCC") },
+  // (11 Nov 2026, Korbi: Offcuts straight after Post was far too steep, census and numbers at once. Now a ramp leads to it: more
+  // pieces and fewer numbers a step at a time, two by two first, the census mattering more as it goes; Offcuts comes last.)
+  { id: "s9", name: "Quarters", n: 2, maxSize: 3, gauge: { 0: 3, 3: 2, 4: 3, 6: 2, 7: 1 }, census: { cube: 1, bar: 2, bend: 1 },
+    sol: letters("ABCBAACD") },
+  { id: "s10", name: "Knee", n: 2, maxSize: 4, gauge: { 0: 4, 4: 2, 5: 4, 7: 2 }, census: { bar: 2, knot: 1 },
+    sol: letters("AAABCACB") },
+  { id: "s11", name: "Deck", n: 3, maxSize: 9, gauge: { 0: 9, 1: 9, 5: 9, 9: 6, 11: 4, 14: 4, 17: 4, 18: 8, 19: 8, 22: 8, 23: 8, 25: 8, 26: 8 }, census: { plank: 2, bend: 2 },
+    sol: rows("AAA AAA AAA", "BBC BBC BBC", "DDC DDD DDD") },
+  { id: "s12", name: "Keel", n: 3, maxSize: 9, gauge: { 1: 6, 4: 6, 5: 8, 8: 4, 9: 9, 10: 6, 18: 9, 20: 8, 23: 8, 24: 9, 25: 6, 26: 8 }, census: { plank: 1, bend: 2, knot: 1 },
+    sol: rows("ABC ABC ADD", "ABC ADC ADC", "ABC ABC ABC") },
+  { id: "s13", name: "Strakes", n: 3, maxSize: 7, gauge: { 0: 5, 1: 5, 2: 7, 5: 5, 9: 4, 10: 4, 14: 5, 17: 7, 18: 4, 19: 4, 21: 5, 24: 6, 25: 7 }, census: { plank: 1, bend: 3, knot: 1 },
+    sol: rows("AAB AAA CCC", "DDB EEE CCB", "DDB EEB CBB") },
+  { id: "s14", name: "Frames", n: 3, maxSize: 6, gauge: { 0: 5, 1: 3, 2: 5, 5: 5, 11: 4, 14: 6, 16: 4, 20: 4, 22: 4, 23: 4, 25: 5 }, census: { bar: 1, bend: 4, knot: 1 },
+    sol: rows("ABA AAA CCC", "DBE DDD DCD", "FBE FEE FFF") },
+  { id: "s15", name: "Scarf", n: 3, maxSize: 5, gauge: { 2: 3, 5: 4, 6: 4, 9: 5, 11: 2, 14: 5, 15: 4, 17: 4, 19: 4, 20: 5, 22: 5, 25: 4, 26: 4 }, census: { bar: 2, bend: 3, knot: 2 },
+    sol: rows("AAA BBC DBC", "BEE BFF DDC", "GGF GFF GDC") },
+  { id: "s16", name: "Trenails", n: 3, maxSize: 5, gauge: { 1: 4, 4: 3, 5: 4, 7: 3, 9: 3, 14: 4, 15: 4, 16: 4, 18: 3, 21: 3, 22: 5, 23: 2, 26: 3 }, census: { bar: 4, bend: 3, knot: 1 },
+    sol: rows("ABB CDB DDB", "AEE CEF FFF", "AEG CEG HHH") },
+  { id: "s17", name: "Mortise", n: 3, maxSize: 5, gauge: { 5: 4, 10: 4, 11: 5, 14: 4, 17: 2, 18: 4, 21: 5, 22: 3, 24: 5, 25: 4, 26: 4 }, census: { bar: 2, bend: 3, knot: 2 },
+    sol: rows("AAA ABC CCC", "DEA DBF DGG", "EEE DBF DFF") },
+  { id: "s18", name: "Tenon", n: 3, maxSize: 5, gauge: { 1: 4, 7: 2, 8: 4, 9: 5, 18: 5, 19: 4, 21: 5, 22: 4, 24: 4, 25: 5, 26: 3 }, census: { bar: 2, bend: 2, knot: 3 },
+    sol: rows("ABB CDB CDB", "AAE FFE CEE", "AFG AFG CEG") },
   { id: "s1", name: "Offcuts", n: 3, maxSize: 6, gauge: { 0: 6, 1: 6, 2: 3, 5: 5, 6: 5, 8: 5, 13: 4, 15: 6, 17: 1, 19: 4, 21: 2 },
     census: { cube: 1, bar: 1, bend: 3, knot: 3 },
     sol: rows("AAB AAC CCC", "DDB AEB ACF", "DEE GEH GHH") },
@@ -139,13 +161,14 @@ export function useTool(n, tool, axis, dir, k, cuts) {
  * Every way to cut the level's block (up to `limit`, giving up after `cap` steps): pieces are found one at a time, each from the
  * first cube not yet in one, over every connected run of free cubes that has it, a cube's number fixing the run's size.
  * `aborted` when the cap was hit, so a count of one is only proof when it is not. `fixed`: pieces (lists of cubes) that are already cut.
+ * `census` null leaves the census out, to see whether the numbers alone decide.
  */
-export function solutions(level, limit = 2, cap = 3e6, fixed = []) {
-  const { n, gauge, census, maxSize } = level, N = n ** 3, nb = neighbours(n), asg = new Int8Array(N).fill(-1), pieces = [], sols = [];
+export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = level.census) {
+  const { n, gauge, maxSize } = level, N = n ** 3, nb = neighbours(n), asg = new Int8Array(N).fill(-1), pieces = [], sols = [];
   let nodes = 0, aborted = false;
   function done() {
     const c = censusOf(n, pieces);
-    for (const k of Object.keys(KIND_NAMES)) if ((c[k] || 0) !== (census[k] || 0)) return;
+    if (census) for (const k of Object.keys(KIND_NAMES)) if ((c[k] || 0) !== (census[k] || 0)) return;
     sols.push(Array.from(asg));
   }
   // every pocket of cubes left must hold the biggest number in it, or a piece there could never be finished
