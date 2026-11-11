@@ -31,10 +31,17 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 .sw-sq.dark { background: color-mix(in srgb, var(--sw-wood) 82%, #000); }
 .sw-sq.gone { background: transparent; border-style: dashed; cursor: default; color: var(--ink-soft); opacity: .55; }
 .sw-sq.hint { outline: 3px solid var(--sw-hint); outline-offset: -3px; }
+/* cut from the cube below: a dashed square inside; just changed: a short glow */
+.sw-sq.below::after { content: ""; position: absolute; inset: 24%; border: 2px dashed rgba(28, 42, 52, .6); border-radius: 2px; pointer-events: none; }
+.sw-sq.fresh { animation: sw-fresh .9s ease-out; }
+@keyframes sw-fresh { from { filter: brightness(1.45) saturate(1.3); } to { filter: none; } }
 .sw-sq.slip { outline: 3px solid var(--sw-bad); outline-offset: -3px; background: color-mix(in srgb, var(--sw-bad) 55%, var(--sw-wood)); }
 
-.sw-tools { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin-top: .45rem; }
-.sw-tools .btn { padding: 0 .3rem; font-size: .84rem; }
+/* the tools this level offers, each with what it cuts underneath its name */
+.sw-tools { flex: none; display: grid; grid-template-columns: repeat(var(--tools, 4), minmax(0, 1fr)); gap: .4rem; margin-top: .45rem; }
+.sw-tools .btn { padding: .25rem .3rem; font-size: .84rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; line-height: 1.1; min-height: 3rem; }
+.sw-tool small { font-size: .68rem; font-weight: 500; letter-spacing: 0; text-transform: none; opacity: .8; white-space: nowrap; }
+.sw-tool[hidden] { display: none; }
 .sw-tool.on { background: var(--ink); color: var(--sheet); }
 .sw-bar { flex: none; display: flex; gap: .6rem; margin-top: .45rem; }
 .sw-bar .btn { flex: 1 1 0; }
@@ -58,6 +65,7 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 }
 
 .sw-lead { margin: 0 0 .35rem; font-size: .88rem; line-height: 1.3; }
+.sw-rule { font-weight: 650; }
 .sw-census { margin: 0 0 .1rem; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .3rem .5rem; font-size: .88rem; font-weight: 600; }
 .sw-census li { border: 1px solid var(--tile-edge); border-radius: 3px; padding: .1rem .4rem; display: flex; gap: .4rem; align-items: baseline; }
 .sw-census small { font-weight: 400; color: var(--ink-soft); font-size: .72rem; }
@@ -65,7 +73,6 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 .sw-census li.over { border-color: var(--sw-bad); }
 .sw-sq { color: #1C2A34; font-size: .95rem; font-weight: 700; }
 .sw-sq span { text-shadow: 0 0 3px rgba(255, 255, 255, .9); }
-.sw-tools { grid-template-columns: repeat(4, 1fr); }
 .sw-hint { margin: 0 0 .4rem; padding: .4rem .5rem; border: 1px solid var(--sw-hint); border-radius: 4px; background: color-mix(in srgb, var(--sw-hint) 14%, transparent); font-size: .86rem; line-height: 1.3; display: grid; gap: .35rem; }
 .sw-hint p { margin: 0; }
 .sw-hint .btn { justify-self: start; min-height: 2rem; padding: 0 .7rem; font-size: .8rem; }

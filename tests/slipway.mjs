@@ -37,6 +37,26 @@ for (const lv of R.LEVELS) {
   const glue = R.useTool(n, "glue", 2, 1, top, new Set(chisel.add));
   check(glue.remove[0] === chisel.add[0] && R.useTool(n, "glue", 2, 1, top, none) === null, "tools: glue mends a broken joint, and does nothing where none is broken");
 }
+// the tools come one at a time (11 Nov 2026, Korbi): each level has the tools met so far and at most one more (or, as a first
+// lesson, only the new one), and a level that brings one in says what it does in its rule
+{
+  let met = new Set();
+  for (const lv of R.LEVELS) {
+    const offered = R.toolsOf(lv), fresh = offered.filter(t => !met.has(t));
+    check(offered.length > 0 && (!lv.tools || lv.tools.every(t => R.TOOLS.includes(t))), `${lv.id}: offers known tools (${offered.join(", ")})`);
+    check(fresh.length <= 1 && ([...met].every(t => offered.includes(t)) || offered.join() === fresh.join()), `${lv.id}: keeps the tools met so far, or has only its new one, and brings in at most one`);
+    check(R.newTool(lv) === (fresh[0] ?? null) && (!fresh.length || new RegExp(fresh[0], "i").test(lv.rule || "")), `${lv.id}: a new tool is picked and its rule names it`);
+    met = new Set([...met, ...offered]);
+  }
+  check(R.toolsOf(R.LEVELS[0]).length === 1, "the first level has one tool");
+  check(met.size === R.TOOLS.length, "every tool is met");
+  // the first two are cut with their one tool in a tap or three
+  const [top, corner] = R.LEVELS, n3 = top.n, saw = R.useTool(n3, "saw", 2, 1, R.at(n3, 1, 1, 2), new Set());
+  check(top.tools.join() === "saw" && R.judge(top, new Set(saw.add)).done, `${top.id}: one saw from the top cuts it`);
+  let c = new Set();
+  for (const [axis, dir] of [[2, 1], [1, -1], [0, 1]]) for (const k of R.useTool(corner.n, "chisel", axis, dir, R.at(2, 1, 0, 1), c).add) c.add(k);
+  check(corner.tools.join() === "chisel" && R.judge(corner, c).done, `${corner.id}: three chisels into the 1's three faces cut it`);
+}
 // hints: doing what they say cuts the block; a cut through a piece is glued back first
 for (const lv of R.LEVELS) {
   let now = new Set(), steps = 0; const texts = [];

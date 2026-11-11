@@ -3,27 +3,49 @@
 // counts of a row: `gauge` (a cube's number is how many cubes its piece has), `census` (how many pieces of each kind: a single cube,
 // a bar (a straight line), a plank (a flat rectangle), a block (a box), a bend (flat, not a rectangle), a knot (anything else)) and
 // `maxSize` (no piece is bigger). Each level has exactly one answer (tests/slipway.mjs proves it with `solutions`).
-// The player cuts the block with a chisel, a saw and a bore. Cubes are numbered x + n * (y + n * z): left to right, front to back, bottom to top.
+// The player cuts the block with a chisel, a saw and a bore, and mends it with glue. Cubes are numbered x + n * (y + n * z): left to right, front to back, bottom to top.
 
 export const at = (n, x, y, z) => x + n * (y + n * z);
 export const xyz = (n, k) => [k % n, ((k / n) | 0) % n, (k / (n * n)) | 0];
 
 /**
- * The levels. `sol` is the answer as a piece number for each cube (layers bottom to top, each layer's rows front to back, as written).
- * A level is its own identity (bests are kept by id), so a level once published is never changed.
+ * The levels, in the order they are played. `sol` is the answer as a piece number for each cube (layers bottom to top, each layer's
+ * rows front to back, as written). A level is its own identity (bests are kept by id), so its clues and answer, once published, never
+ * change. What it offers and says may: `tools` (all four when absent) and `rule`, the one line that brings in a new tool.
+ * (11 Nov 2026, Korbi: the four tools are right but unclear, the chisel above all, and the first levels must ease you in. So the
+ * tools come one at a time: the saw, then the chisel on its own, then the two together, the bore, and glue last; each level has
+ * the tools met so far (the chisel's first, only the chisel), and the one it brings in is picked to start.)
  */
 const rows = (...layers) => layers.flatMap(l => l.split(/\s+/).join("").split("")).map(c => c.charCodeAt(0) - 65);
 const letters = text => [...text].map(c => c.charCodeAt(0) - 65);
+export const TOOLS = ["chisel", "saw", "bore", "glue"];
 export const LEVELS = [
-  { id: "s2", name: "Slice", n: 2, maxSize: 4, gauge: { 0: 4, 2: 4, 4: 3, 7: 1 }, census: { plank: 1, bend: 1, cube: 1 }, sol: letters("AAAABBBC") },
-  { id: "s3", name: "First bore", n: 2, maxSize: 6, gauge: { 0: 2, 1: 6, 2: 6, 5: 6 }, census: { bar: 1, knot: 1 }, sol: letters("ABBBABBB") },
-  { id: "s4", name: "Core", n: 3, maxSize: 24, gauge: { 0: 24, 1: 24, 3: 24, 4: 3, 14: 24, 26: 24 }, census: { bar: 1, knot: 1 }, sol: letters("BBBBABBBBBBBBABBBBBBBBABBBB") },
-  { id: "s5", name: "Post", n: 3, maxSize: 16, gauge: { 0: 9, 1: 9, 3: 9, 4: 9, 8: 9, 9: 2, 10: 16, 18: 2, 19: 16, 25: 16, 26: 16 }, census: { plank: 1, bar: 1, knot: 1 }, sol: letters("AAAAAAAAABCCCCCCCCBCCCCCCCC") },
-  { id: "s6", name: "Rail", n: 3, maxSize: 15, gauge: { 0: 15, 1: 15, 3: 15, 7: 15, 12: 3, 13: 3, 16: 15, 17: 15, 18: 9, 22: 9, 25: 9, 26: 9 }, census: { plank: 1, bar: 1, knot: 1 }, sol: letters("CCCCCCCCCCCCBBBCCCAAAAAAAAA") },
+  { id: "s7", name: "Top cut", n: 3, maxSize: 18, gauge: { 19: 9, 10: 18 }, census: { plank: 1, block: 1 }, tools: ["saw"],
+    rule: "The block is cubes glued together. The saw cuts right through it, just behind the face you tap.",
+    sol: rows("BBB BBB BBB", "BBB BBB BBB", "AAA AAA AAA") },
+  { id: "s8", name: "Corner", n: 2, maxSize: 7, gauge: { 4: 7, 5: 1 }, census: { cube: 1, knot: 1 }, tools: ["chisel"],
+    rule: "The chisel splits one joint: the first glued one it meets, going in from the face you tap.",
+    sol: letters("AAAAABAA") },
+  { id: "s2", name: "Slice", n: 2, maxSize: 4, gauge: { 0: 4, 2: 4, 4: 3, 7: 1 }, census: { plank: 1, bend: 1, cube: 1 }, tools: ["chisel", "saw"], sol: letters("AAAABBBC") },
+  { id: "s3", name: "First bore", n: 2, maxSize: 6, gauge: { 0: 2, 1: 6, 2: 6, 5: 6 }, census: { bar: 1, knot: 1 }, tools: ["chisel", "saw", "bore"],
+    rule: "The bore frees the whole row of cubes through the one you tap.", sol: letters("ABBBABBB") },
+  { id: "s4", name: "Core", n: 3, maxSize: 24, gauge: { 0: 24, 1: 24, 3: 24, 4: 3, 14: 24, 26: 24 }, census: { bar: 1, knot: 1 }, tools: ["chisel", "saw", "bore"], sol: letters("BBBBABBBBBBBBABBBBBBBBABBBB") },
+  { id: "s6", name: "Rail", n: 3, maxSize: 15, gauge: { 0: 15, 1: 15, 3: 15, 7: 15, 12: 3, 13: 3, 16: 15, 17: 15, 18: 9, 22: 9, 25: 9, 26: 9 }, census: { plank: 1, bar: 1, knot: 1 }, tools: ["chisel", "saw", "bore"], sol: letters("CCCCCCCCCCCCBBBCCCAAAAAAAAA") },
+  { id: "s5", name: "Post", n: 3, maxSize: 16, gauge: { 0: 9, 1: 9, 3: 9, 4: 9, 8: 9, 9: 2, 10: 16, 18: 2, 19: 16, 25: 16, 26: 16 }, census: { plank: 1, bar: 1, knot: 1 },
+    rule: "Glue mends one cut: the first it meets, going in from the face you tap.", sol: letters("AAAAAAAAABCCCCCCCCBCCCCCCCC") },
   { id: "s1", name: "Offcuts", n: 3, maxSize: 6, gauge: { 0: 6, 1: 6, 2: 3, 5: 5, 6: 5, 8: 5, 13: 4, 15: 6, 17: 1, 19: 4, 21: 2 },
     census: { cube: 1, bar: 1, bend: 3, knot: 3 },
     sol: rows("AAB AAC CCC", "DDB AEB ACF", "DEE GEH GHH") },
 ];
+/** The tools a level offers, in the bar's order. */
+export const toolsOf = level => TOOLS.filter(t => !level.tools || level.tools.includes(t));
+/** The tool a level brings in (picked when it starts): one no earlier level had, or null. */
+export function newTool(level) {
+  const before = new Set(LEVELS.slice(0, Math.max(0, LEVELS.indexOf(level))).flatMap(toolsOf));
+  return toolsOf(level).find(t => !before.has(t)) ?? null;
+}
+/** The two cubes of a joint "a-b". */
+export const jointCubes = key => key.split("-").map(Number);
 
 /** What kind of piece a set of cubes is. */
 export function kindOf(n, cells) {
