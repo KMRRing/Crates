@@ -18,7 +18,7 @@ const RAMPED = {
   kakuro: ["Size", "Level", "Its pace", "Show the ways a run can be", "Clear pencil marks as you write"],
   delta: ["Level"], slate: ["Level"], survey: ["Size", "Readings"], bridges: ["Size", "Level", "Twist"],
   asterism: ["Size", "Level", "Stars a row"], ladder: ["Level", "Letters", "Themes", "Rules", "Its level"], bulls: ["Codemaker", "Computer", "Help", "Pieces"],
-  lode: ["Level", "Board", "Clues"], lots: ["Level"], shunt: ["Difficulty", "Coach lines (levels 1 to 8)"],
+  lode: ["Level", "Board", "Clues"], lots: ["Level"],
   rack: ["Computer players"], 
   quest: ["Roles", "The computer", "The computer players talk"], speedmaths: ["Sprint range"],
   nurikabe: ["Size", "Level"], slitherlink: ["Size", "Level", "Clues"], yield: ["Puzzle", "Level", "Clock", "Race clock"],
@@ -34,7 +34,9 @@ for (const [g, gone] of Object.entries(RAMPED)) {
 const PLAIN = { 
   punt: ["Difficulty", "Name it"], 
   cue: ["The kind over the word"], rush: ["Coordinates on the board"],
-  slipway: ["The part's ghost", "Show what a tool would take"], landfall: ["Help"], drift: ["Quay"], stow: ["Cargo"] };
+  slipway: ["The part's ghost", "Show what a tool would take"], landfall: ["Help"], drift: ["Quay"], stow: ["Cargo"],
+  // (shunt, Jam on screen: its levels are a campaign, campaign.js, since 10 Nov 2026, not the hidden ramp)
+  shunt: ["Difficulty", "Coach lines (levels 1 to 8)"] };
 for (const [g, gone] of Object.entries(PLAIN)) {
   const left = gone.filter(l => rowOf(src(g), l));
   check(!left.length, `${g}: none of the cut rows is built${left.length ? ` (still: ${left.join(", ")})` : ""}`);
