@@ -126,6 +126,19 @@ function finish(kind, rot, fam, wheels0, ports0, mesh, ring, gap) {
 }
 
 /**
+ * The movement's turning arbor as a train's power (12 Nov 2026, Korbi: "powered from a turning arbor", off the movement's arbor): one
+ * wheel of n teeth on the square's middle, meshing every side, so the train may leave it any way (and must leave it only one way).
+ */
+export function arborShape({ n, m, l }) {
+  const key = `A.${n}.${m}.${l}`;
+  if (cache.has(key)) return cache.get(key);
+  const sh = finish("A", 0, "E", [W(30, 30, n, m, l, 0)], [0, 1, 2, 3].map(s => ({ s, w: 0 })), [], []);
+  sh.kind = key;
+  cache.set(key, sh);
+  return sh;
+}
+
+/**
  * An end piece: the barrel (the mainspring's wheel) or a sink: one wheel of n teeth reaching side `side`, or with ring: a small
  * pinion at the port inside a ring wheel (internal teeth, n = 60/m, on the layer above or below) that it turns the same way.
  */

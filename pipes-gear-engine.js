@@ -10,7 +10,7 @@
 // Wheels of one layer and two modules that face each other CLASH; two trains whose wheels mesh are TANGLED. A gear id is c * 8 + i
 // (square c, wheel i of its piece). Squares are numbered c = y * cols + x; sides 0 N, 1 E, 2 S, 3 W.
 import * as F from "./pipes-gear-frac.js";
-import { CELL, SIDE, DIRS, back, shapeOf, endShape, orientations, canonRot, topLayer, parseKind, radius } from "./pipes-gear-shapes.js";
+import { CELL, SIDE, DIRS, back, shapeOf, endShape, arborShape, orientations, canonRot, topLayer, parseKind, radius } from "./pipes-gear-shapes.js";
 
 export { SIDE, DIRS, back, F };
 export const STAR_LIFTS = 2;      // corrections the third star allows (and one more for every six pieces)
@@ -59,11 +59,12 @@ export function parseLevel(spec) {
   const fix = (c, f) => { if (!(c >= 0 && c < size)) bad(`square ${c} is off the plate`); if (L.cap[c] === 0 || L.fixed[c]) bad(`square ${c} is not free`); L.fixed[c] = f; };
   (spec.trains || []).forEach((t, index) => {
     const b = t.barrel, s = t.sink;
-    const barrel = { c: b.c, side: sideOf(b.side), m: b.m, l: b.l, n: b.n || Math.round(45 / b.m) };
+    // an arbor has no side: it meshes every neighbour, a full wheel (60/m teeth) like a single's
+    const barrel = { c: b.c, side: b.arbor ? -1 : sideOf(b.side), m: b.m, l: b.l, n: b.n || Math.round((b.arbor ? 60 : 45) / b.m), arbor: !!b.arbor };
     const sink = { c: s.c, side: sideOf(s.side), m: s.m, l: s.l, n: s.n || Math.round(45 / s.m), ring: !!s.goal?.ring || !!s.ring, pinion: s.pinion || 4 };
     const shapeOfEnd = e => endShape({ side: e.side, n: e.n, m: e.m, l: e.l, ring: e.ring, pinion: e.pinion });
     const tr = { id: t.id || "ABC"[index], index, barrel, sink, goal: goalOf(s.goal, sink.ring ? 1 : 0) };
-    fix(barrel.c, { k: "barrel", train: index, shape: shapeOfEnd({ ...barrel, ring: false }) });
+    fix(barrel.c, { k: "barrel", train: index, shape: barrel.arbor ? arborShape(barrel) : shapeOfEnd({ ...barrel, ring: false }) });
     fix(sink.c, { k: "sink", train: index, shape: shapeOfEnd(sink), goal: tr.goal });
     L.trains.push(tr);
   });
@@ -183,7 +184,7 @@ export function mesh(L, laid, state = 0) {
     sh.wheels.forEach((w, i) => {
       idx[c * SLOTS + i] = gears.length;
       gears.push({ id: c * SLOTS + i, c, i, x: cx * CELL + w.x, y: cy * CELL + w.y, n: w.n, m: w.m, layer: w.l, arbor: c * SLOTS + sh.wheels.findIndex(o => o.a === w.a), train: f ? (f.trains ? f.trains[i] : f.train) : -1, fixed: f ? f.k : null,
-        ring: sh.ring.some(([, v]) => v === i) });
+        ring: sh.ring.some(([, v]) => v === i), ...(f?.k === "barrel" && sh.kind.startsWith("A.") ? { source: "arbor" } : {}) });
     });
   });
   const G = id => gears[idx[id]], adj = new Map();

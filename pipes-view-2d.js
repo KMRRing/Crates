@@ -55,7 +55,7 @@ export function shapePhases(sh) {
 
 /**
  * One wheel at (x, y) in the group g. opts: dir (0 cw, 1 ccw, null unknown), phase, id (gear id, for the board's animation), skin ("", "barrel",
- * "sink", "pin"), jam, locked (joined to a jam: strains, not red), clash, driven, shadow (layer offset), faded, showN, ring.
+ * "motor", "arbor", "sink", "pin"), jam, locked (joined to a jam: strains, not red), clash, driven, shadow (layer offset), faded, showN, ring.
  */
 export function drawWheel(g, w, o = {}) {
   const { x, y, n, m, layer: l } = w, r = radius(m, n), root = rootR(m, n);
@@ -76,6 +76,7 @@ export function drawWheel(g, w, o = {}) {
   } else if (!o.ring && n >= 6) {
     const rim = root - Math.max(2.6, m * 0.9);
     el("circle", { r: rim.toFixed(2), class: "g-rim" }, body);
+    if (o.skin === "arbor") el("circle", { r: (root * 0.36).toFixed(2), class: "g-arbor" }, body);
     const holes = n > 8 ? 5 : 3, hr = Math.max(1.6, rim * 0.2), at = rim * 0.6;
     for (let k = 0; k < holes; k++) el("circle", { cx: (at * Math.cos(rad(k * 360 / holes - 90))).toFixed(2), cy: (at * Math.sin(rad(k * 360 / holes - 90))).toFixed(2), r: hr.toFixed(2), class: "g-hole" }, body);
   }
@@ -224,7 +225,8 @@ export function createView({ board, onGesture, onLost } = {}) {
     // 11 Nov 2026, Korbi: "until then quartz": a quartz movement is driven by a motor, a mechanical one by its barrel; a second barrel is an end pinned on a branch
     const endPin = gear.fixed === "pin" ? plan.pins.find(p => p.c === gear.c) : null;
     const sinkOf = gear.fixed === "sink" ? plan.trains.find(t => t.sink.c === gear.c) : null;
-    const skin = gear.fixed === "barrel" ? (plan.power === "mech" ? "barrel" : "motor") : endPin?.look === "barrel" || sinkOf?.sink.goal?.type === "barrel" ? "barrel" : gear.fixed === "sink" ? "sink" : gear.fixed === "pin" ? "pin" : "";
+    // 12 Nov 2026: a train taken off the movement's turning arbor shows that arbor, a full wheel on a steel pinion
+    const skin = gear.fixed === "barrel" ? (gear.source === "arbor" ? "arbor" : plan.power === "mech" ? "barrel" : "motor") : endPin?.look === "barrel" || sinkOf?.sink.goal?.type === "barrel" ? "barrel" : gear.fixed === "sink" ? "sink" : gear.fixed === "pin" ? "pin" : "";
     // a mechanical movement shows no wheel's turn until it is wound (frame.blind)
     return { id, dir: M.dir[id] >= 0 && !(frame.blind && gear.fixed !== "barrel") ? M.dir[id] : null, phase: frame.phase[id] || 0, skin, jam: M.jam.has(id), locked: !M.jam.has(id) && !!M.locked?.has(id), clash: clashSet.has(id), driven: M.dir[id] >= 0, faded: dim, showN, pips: layered, ring: gear.ring };
   };

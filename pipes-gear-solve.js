@@ -66,8 +66,9 @@ export function solve(L, cap = 2, limit = 4e6, opts = {}) {
   const pinsLeft = L.trains.map(t => units.filter(u => u.train === t.index && live0(u)).length);
   let pinsAll = units.filter(live0).length;
   const dist = (a, b) => Math.abs((a % L.cols) - (b % L.cols)) + Math.abs(Math.floor(a / L.cols) - Math.floor(b / L.cols));
-  const firsts = L.trains.map(t => beyond(L, t.barrel.c, t.barrel.side));
-  if (firsts.some(f => f < 0)) return { sols, nodes: 0, capped: false, aborted: false };
+  // where each train starts: beyond its barrel's side, or beyond any side of an arbor
+  const firsts = L.trains.map(t => (t.barrel.arbor ? [0, 1, 2, 3] : [t.barrel.side]).map(s => ({ c: beyond(L, t.barrel.c, s), s })).filter(f => f.c >= 0));
+  if (firsts.some(f => !f.length)) return { sols, nodes: 0, capped: false, aborted: false };
   const trainOfWheel = (f, i) => (f.trains ? f.trains[i] : f.train);
   for (const t of L.trains) { const sh = L.fixed[t.barrel.c].shape; at[t.barrel.c] = { shape: sh, spd: [F.ONE], tr: [t.index], live: true }; }
   const shapeFixed = f => (f.shapes ? f.shapes[state] : f.shape);
@@ -138,7 +139,7 @@ export function solve(L, cap = 2, limit = 4e6, opts = {}) {
   const canKeys = L.trains.map(t => keys.filter(k => users[k].includes(t.index)));
   const mustKeys = L.trains.map(t => canKeys[t.index].filter(k => !users[k].some(u => u > t.index)));
   const lastKeys = L.trains.map(t => keys.filter(k => !users[k].some(u => u > t.index)));
-  const sinkDist = L.trains.map(t => dist(firsts[t.index], t.sink.c));
+  const sinkDist = L.trains.map(t => Math.min(...firsts[t.index].map(f => dist(f.c, t.sink.c))));
   const tailNeed = L.trains.map((_, t) => { let s = 0; for (let u = t + 1; u < L.trains.length; u++) s += sinkDist[u]; return s; });
   const bound = (c, t, w) => {
     if (w.back) return true;
@@ -295,7 +296,7 @@ export function solve(L, cap = 2, limit = 4e6, opts = {}) {
     if (aborted || sols.length >= cap) return;
     if (t === L.trains.length) { if (L.clutch) crownOut(); else if (!pinsAll) record(); return; }
     const tr = L.trains[t];
-    step({ t, back: false, done: () => afterSink(t) }, firsts[t], back(tr.barrel.side), tr.barrel.m, tr.barrel.l, tr.barrel.n, F.ONE);
+    for (const f of firsts[t]) step({ t, back: false, done: () => afterSink(t) }, f.c, back(f.s), tr.barrel.m, tr.barrel.l, tr.barrel.n, F.ONE);
   }
   next(0);
   return { sols, nodes, capped: sols.length >= cap || aborted, aborted };

@@ -263,7 +263,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     for (const g of Mf.gears) {
       const [wx, wz] = P.worldOf(g.x, g.y, cols, rows);
       const r = { ...g, role: g.role || g.fixed, wx, wz, rate: P.rateOf(Mf, g.id), jam: !!Mf.jam?.has?.(g.id), locked: !!Mf.locked?.has?.(g.id), tip: P.tipR(g.n, g.m) };
-      if (g.role === "barrel") r.skip = true;
+      if (g.role === "barrel" && g.source !== "arbor") r.skip = true;          // a barrel is drawn as its drum; an arbor turns like a wheel
       byId.set(g.id, r); G_.push(r);
       const a = arbMax.get(g.arbor) || []; a.push(r); arbMax.set(g.arbor, a);
     }

@@ -191,7 +191,7 @@ export function createParts(env) {
       clear();
       let bi = 0;
       for (const r of byId.values()) {
-        if (r.role === "barrel") barrel(r, bi++);
+        if (r.role === "barrel" && r.source !== "arbor") barrel(r, bi++);
       }
       const sinkOf = new Map();
       (p.trains || []).forEach((t, k) => { const ring = !!t.sink?.goal?.ring, s = [...byId.values()].find(r => r.train === k && r.role === "sink" && (!ring || r.ring)); if (s) sinkOf.set(k, [s, t.sink?.goal?.type, t.sink?.goal]); });

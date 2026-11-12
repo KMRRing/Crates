@@ -158,6 +158,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 :is(.pi-board, .pi-queue) .gear.barrel .g-tooth { fill: var(--gr-steel); stroke: var(--gr-steel-dark); }
 :is(.pi-board, .pi-queue) .g-spring { fill: none; stroke: var(--pi-pipe); stroke-width: 2.2; stroke-linejoin: round; }
 /* 11 Nov 2026: a quartz movement's motor (a coil and its crystal) in place of the barrel */
+:is(.pi-board, .pi-queue) .g-arbor { fill: var(--gr-steel); stroke: var(--gr-steel-dark); stroke-width: 2.4; stroke-dasharray: 1.4 1.1; }
 :is(.pi-board, .pi-queue) .g-coil { fill: none; stroke: var(--brass); stroke-width: 2.4; stroke-dasharray: 1.2 1.4; }
 :is(.pi-board, .pi-queue) .g-crystal { fill: var(--sheet); stroke: var(--pi-pipe); stroke-width: 1.2; }
 :is(.pi-board, .pi-queue) .g-steel { fill: var(--gr-steel); }
