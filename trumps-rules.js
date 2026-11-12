@@ -10,6 +10,10 @@ export const HAND_MS = 3400;           // a hand's score, shown before the next 
 const next = s => (s + 1) % 4;
 const same = (a, b) => Object.keys({ ...a, ...b }).every(k => a[k] === b[k]);
 const gameOf = s => GAMES[s.game];
+// 12 Nov 2026, Korbi (Schafkopf): "cards shouldn't be taken off the table until all the players have approved": a trick taken stays
+// until every seat has seen it (`seen`), the computer players at once (toMoveAll), each person with a tap ({ t: "seen" }, in any order)
+const shown = s => s.step === "trick" && s.game === "schafkopf";
+const SEATS = [0, 1, 2, 3];
 
 function newHand(s, rng) {
   const g = gameOf(s);
@@ -35,10 +39,19 @@ export const rules = {
     return s;
   },
 
-  toMove: s => (s.step === "bid" || s.step === "play" ? s.turn : null),
+  toMove: s => (s.step === "bid" || s.step === "play" ? s.turn : shown(s) ? SEATS.find(k => !s.seen?.[k]) ?? null : null),
+  toMoveAll: s => (shown(s) ? SEATS.filter(k => !s.seen?.[k]) : []),
+  anytime: m => m?.t === "seen",
 
   act(s, seat, m, { rng, now }) {
     const g = gameOf(s);
+    if (m?.t === "seen") {
+      if (!shown(s)) return "Not now";
+      s.seen ||= SEATS.map(() => false);                        // (a trick left on the table before the wait, by its clock)
+      if (s.seen[seat]) return "Waiting for the others";
+      s.seen[seat] = true;
+      return s.seen.every(Boolean) ? rules.wake(s, { rng, now }) : s;
+    }
     if (rules.toMove(s) !== seat) return "It isn't your turn";
     if (s.step === "bid") {
       if (!m || !g.bids(s, seat).some(b => same(b, m))) return "That can't be bid now";
@@ -64,17 +77,19 @@ export const rules = {
     s.tricks.push({ cards: s.trick.slice(), winner: w, pts });
     s.step = "trick";
     s.turn = w;
-    s.until = now + TRICK_MS;
+    if (s.game === "schafkopf") s.seen = SEATS.map(() => false);
+    else s.until = now + TRICK_MS;
     return s;
   },
 
-  bot: (s, seat, { level, rng }) => botMove(s, seat, level, rng),
+  bot: (s, seat, { level, rng }) => (shown(s) ? { t: "seen" } : botMove(s, seat, level, rng)),
   over: s => s.step === "over",
   wakeAt: s => (s.step === "trick" || s.step === "scored" ? s.until : null),
 
   wake(s, { rng, now }) {
     const g = gameOf(s);
     if (s.step === "trick") {
+      delete s.seen;
       if (s.hands.some(h => h.length)) {
         s.trick = [];
         s.leader = s.turn;
@@ -127,6 +142,7 @@ export const rules = {
     if (s.weis) s.weis = [0, 1, 2, 3].map(i => list(s.weis[i]));
     if (s.stock) s.stock = list(s.stock);
     if (s.winners) s.winners = list(s.winners);
+    if (s.seen) s.seen = SEATS.map(k => !!s.seen[k]);
     if (s.result) for (const k of ["pts", "weis", "stoeck", "delta", "tricks", "bel", "side"]) if (s.result[k] !== undefined) s.result[k] = list(s.result[k]).map(x => x ?? 0);
     return s;
   },

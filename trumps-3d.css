@@ -59,13 +59,14 @@
    the same day, "as big as the cards in hand", in the middle of the table between the players at the sides ("too close to the player"
    at its foot), and "slight tasteful overlap" in place of the gaps. The cards lie as a cross: yours at the foot, the one across at the
    head with yours over its foot, those at your sides a little lower, their edges under the middle pair. trumps.js's fitTrick3d sets
-   --sk-line, the size at which a card in it stands as wide as one in your hand, smaller only where it would cover a player. */
+   --sk-line, the size at which a card in it stands as wide as one in your hand did, and 5% more (the same day: the hand grew), smaller
+   only where it would cover a player; the cross a little tighter for it, so a short screen's table holds the larger cards. */
 #app.trumps.tr-sk .tr-table.tr3c { margin-inline: -.6rem; }
 #app.trumps.tr-sk .tr3c .tk-mat { left: .3rem; right: .3rem; }
 #app.trumps.tr-sk .tr3c .tk-centre:not(.res) { --cd-line: var(--sk-line, 2rem); display: block; left: 50%; right: auto; top: 60%; bottom: auto;
-  width: 6.9em; height: 6em; translate: -50% -50%; font-size: var(--cd-line); }
+  width: 6.6em; height: 5.7em; translate: -50% -50%; font-size: var(--cd-line); }
 #app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane { position: absolute; width: 2.5em; height: 3.5em; min-height: 0; }
 #app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane.s2 { left: 50%; top: 0; translate: -50% 0 1px; }
 #app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane.s0 { left: 50%; bottom: 0; translate: -50% 0 2px; }
-#app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane.s1 { left: 0; top: 2.2em; }
-#app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane.s3 { right: 0; top: 2.2em; }
+#app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane.s1 { left: 0; top: 2em; }
+#app.trumps.tr-sk .tr3c .tk-centre:not(.res) .tr3-lane.s3 { right: 0; top: 2em; }

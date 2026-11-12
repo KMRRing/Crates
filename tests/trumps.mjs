@@ -79,6 +79,24 @@ for (const game of ["jass", "belote", "schafkopf"]) {
   check(ok && G.state.step === "over" && G.state.winners.length >= 1, `${game}: a whole game of computer players, every move legal, the state whole through the database (${G.state.handNo} hands)`);
 }
 check(rules.seats.min === 4 && rules.seats.max === 4 && typeof trumpsBot === "function", "four at the table");
+// Schafkopf: a trick taken stays on the table until all four have seen it, in any order (Korbi, 12 Nov 2026), and the wait
+// survives the database; Jass's still goes by the clock
+{
+  let G = newRecord(rules, { seats: 4, options: { game: "schafkopf", deals: 2 }, seed: 5, now: T }), i = 0;
+  while (G.state.step !== "trick" && i++ < 400) { const seat = rules.toMove(G.state); G = applyMove(rules, G, seat, botMove(rules, G, seat, "easy"), T).G; }
+  const waits = rules.wakeAt(G.state) == null && rules.toMoveAll(G.state).length === 4;
+  const early = applyMove(rules, G, 2, { t: "seen" }, T).G, back = rules.restore(roundTrip(structuredClone(early.state)));
+  const twice = applyMove(rules, early, 2, { t: "seen" }, T);
+  let H = early;
+  for (const k of [3, 0]) H = applyMove(rules, H, k, { t: "seen" }, T).G;
+  const held = H.state.step === "trick" && H.state.trick.length === 4 && rules.toMoveAll(H.state).join() === "1";
+  H = applyMove(rules, H, 1, botMove(rules, H, 1, "easy"), T).G;
+  check(waits && back.seen.join() === "false,false,true,false" && !!twice.error && held && H.state.step === "play" && !H.state.trick.length && H.state.seen === undefined,
+    "schafkopf: a trick taken waits for all four to have seen it, in any order, a computer player as one of them, through the database");
+  let J = newRecord(rules, { seats: 4, options: { game: "jass", target: 501 }, seed: 5, now: T });
+  for (let k = 0; J.state.step !== "trick" && k < 400; k++) { const at = rules.wakeAt(J.state); if (at != null) { J = applyWake(rules, J, at) || J; continue; } const seat = rules.toMove(J.state); J = applyMove(rules, J, seat, botMove(rules, J, seat, "easy"), T).G; }
+  check(rules.wakeAt(J.state) != null && !rules.toMoveAll(J.state).length, "jass: a trick taken still goes by the clock");
+}
 
 console.log(bad ? `trumps: ${bad} failed` : "trumps: every check passed");
 process.exit(bad ? 1 : 0);

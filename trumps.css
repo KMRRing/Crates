@@ -167,6 +167,8 @@ html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4p
 .tr-coach.miss { background: #A8382B; }
 .tr-coachgo { display: grid; gap: .2rem; justify-items: center; }
 .tr-hint { min-height: 2.2rem; padding: .2rem .8rem; }
+/* Schafkopf's trick taken waits for you to have seen it: its button keeps its room, unseen, through the play */
+.tr-see.idle { visibility: hidden; }
 .tr-why-btn { font-size: .78rem; }
 .tr-wait { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .35rem; vertical-align: -.2em; }
 .cr-hand .cd.coach { box-shadow: 0 0 0 2.5px var(--tr-in), 0 0 0 5px color-mix(in srgb, var(--tr-in) 30%, transparent); }
@@ -199,3 +201,7 @@ html[data-mode="night"] .tr-coach.miss { background: #E8806F; }
 #app.trumps .cr-hand { margin-bottom: 1.2rem; }
 .tr-info { min-height: 0; padding: 0; border: 0; }
 .tr-table { margin-top: .8rem; }
+/* Schafkopf's hand reaches the screen's edges, the end cards' tilted corners a hair past them (Korbi, 12 Nov 2026; its size is
+   trumps.js's skHand); a tablet held sideways keeps it in its column, beside your move */
+#app.trumps.tr-sk #hand { margin-inline: calc((100% - 100vw) / 2); }
+@media (orientation: landscape) and (min-width: 700px) { #app.trumps.tr-sk #hand { margin-inline: 0; } }

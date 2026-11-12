@@ -251,23 +251,27 @@ function fitTable() {
     }
   }
 }
-// Korbi, 12 Nov 2026: Schafkopf's trick on the 3D table "as big as the cards in hand": the size (--sk-line, trumps-3d.css) at which
-// the trick's middle pair stands as wide on the screen as a card in your hand, smaller only where a card would come within a hair
-// of a player's medallion, name, badges or backs, or leave the table. Worked out again only when the table or your cards change
-// size (the bidding's buttons take the table's room, the play gives it back), so the cards never change size while they lie there.
+// Korbi, 12 Nov 2026: Schafkopf's trick on the 3D table "as big as the cards in hand", then, the hand grown to the screen's width,
+// "increase the size of cards that are played by another 5%": the size (--sk-line, trumps-3d.css) at which the trick's middle pair
+// stands 5% wider on the screen than the hand's cards did (cardroom.js's `big` 2.1; 1.15 on a short screen held sideways), smaller
+// only where a card would come within a hair of a player's medallion, name, badges or backs, or leave the table. Worked out again
+// only when the table changes size (the bidding's buttons take the table's room, the play gives it back), so the cards never change
+// size while they lie there.
+const skTrick = rem => 1.05 * 2.25 * rem * (matchMedia("(max-height: 520px)").matches ? 1.15 : 2.1 * (tall() ? 1.3 : 1));
 let trickFit = "";
 function fitTrick3d() {
-  const table = $("table"), centre = table.querySelector(".tk-centre"), field = table.querySelector(".tk-field"), held = $("hand").querySelector(".cd");
-  if (tileNow() !== "schafkopf" || !centre || !field || !held || centre.classList.contains("res")) return;
-  const key = `${field.clientWidth}x${field.clientHeight}:${held.offsetWidth}`;
+  const table = $("table"), centre = table.querySelector(".tk-centre"), field = table.querySelector(".tk-field");
+  if (tileNow() !== "schafkopf" || !centre || !field || centre.classList.contains("res")) return;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, wide = skTrick(rem);
+  const key = `${field.clientWidth}x${field.clientHeight}:${wide}`;
   if (key === trickFit && centre.style.getPropertyValue("--sk-line")) return;     // (a new cloth, from a change of view, is fitted afresh)
   trickFit = key;
   const lanes = [...centre.querySelectorAll(".tr3-lane")], mat = table.querySelector(".tk-mat").getBoundingClientRect();
   const parts = [...table.querySelectorAll(".tk-plate :is(.tk-med, .tk-name, .tk-fan, .tk-meta, .tr3-role, .tr3-deal)")].map(p => p.getBoundingClientRect()).filter(q => q.width);
-  const gap = 0.35 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);   // (a little air round each player's things)
+  const gap = 0.35 * rem;                                                              // (a little air round each player's things)
   const apart = (r, q) => r.right <= q.left - gap || q.right <= r.left - gap || r.bottom <= q.top - gap || q.bottom <= r.top - gap;
   const at = px => { centre.style.setProperty("--sk-line", `${px}px`); return lanes.map(l => l.getBoundingClientRect()); };
-  const fits = rs => (rs[0].width + rs[2].width) / 2 <= held.offsetWidth && rs.every(r => r.left >= mat.left && r.right <= mat.right && parts.every(q => apart(r, q)));
+  const fits = rs => (rs[0].width + rs[2].width) / 2 <= wide && rs.every(r => r.left >= mat.left && r.right <= mat.right && parts.every(q => apart(r, q)));
   let lo = 8, hi = 160;
   while (hi - lo > 0.5) { const mid = (lo + hi) / 2; if (fits(at(mid))) lo = mid; else hi = mid; }
   at(Math.floor(lo * 4) / 4);
@@ -282,7 +286,7 @@ function playProbe(s) {
     probe.setAttribute("aria-hidden", "true");
     $("controls").after(probe);
   }
-  const html = coaching() ? coachBar(s, "Your card", false) : "";
+  const html = coaching() ? coachBar(s, "Your card", false) : s.game === "schafkopf" ? playBar(s, "Your card") : "";
   if (probe.dataset.html !== html) { probe.innerHTML = html; probe.dataset.html = html; }
   return probe.offsetHeight;
 }
@@ -428,10 +432,21 @@ function drawHand(s) {
   // Guandan's fan (cardroom.js), in the game's own pack: a run to a suit, the cards you may play lifted on your turn
   const cols = [];
   for (const id of hand) { const last = cols.at(-1); if (last && suitOf(last[0]) === suitOf(id)) last.push(id); else cols.push([id]); }
-  drawHandBox(box, { cols, fan: true, big: s.game === "jass" ? 1.8 : 2.1, html: (id, o) => card(id, s, o), label: id => id, classes: id => (mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "") });
+  drawHandBox(box, { cols, fan: true, big: s.game === "jass" ? 1.8 : s.game === "schafkopf" ? skHand(box) : 2.1, html: (id, o) => card(id, s, o), label: id => id, classes: id => (mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "") });
 }
-// a tap on a hand's score puts it away too, and deals the next
-$("table").addEventListener("click", () => { if (awaitingDeal()) nextHand(); });
+// Korbi, 12 Nov 2026: Schafkopf's hand "as big as is possible, possibly having them overlapping a bit more and getting right to the edge,
+// even touching the screen horizontally a bit": eight cards across the screen's whole width (trumps.css), a third of each showing, and
+// no taller than the table can spare and still hold its trick 5% larger (fitTrick3d): under a fifth of the screen's height (less held
+// sideways, where the table is shortest). The same size all the hand long (worked out for eight), as `big`, cardroom.js's measure (a
+// card 2.25 rem wide, a tablet sideways's a third larger).
+const SK_SHOWS = 0.34;
+function skHand(box) {
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, tallest = sideways() ? 0.175 : 0.185;
+  const byWidth = (box.clientWidth - 3 * 0.22 * rem) / (1 + 7 * SK_SHOWS), byHeight = innerHeight * tallest / (3.2 / 2.25);
+  return Math.min(byWidth, byHeight) / (2.25 * rem) / (tall() ? 1.3 : 1);
+}
+// a tap on a hand's score puts it away too, and deals the next; on a Schafkopf trick taken, says you've seen it
+$("table").addEventListener("click", () => { if (awaitingDeal()) nextHand(); else see(); });
 $("hand").addEventListener("click", async e => {
   const el = e.target.closest("[data-id]");
   const s = V?.state;
@@ -517,10 +532,21 @@ function coachLine(s, status) {
 }
 function coachBar(s, status, next = awaitingDeal()) {
   const { text, why } = coachLine(s, status), turn = myTurn(s) && s.step === "play";
-  // Always marks its card unasked: no Hint to ask with; between hands, solo, the next hand is dealt from here
+  // Always marks its card unasked: no Hint to ask with; between hands, solo, the next hand is dealt from here; a trick taken
+  // waits here for you to have seen it (its button kept, unseen, through the play, so the table never changes size for it)
   const hint = next ? `<button class="btn primary tr-hint" type="button" data-act="next">${nextLabel(s)}</button>`
-    : coach() === "on" ? "" : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
+    : toSee(s) ? seeButton(s, true) : coach() === "on" ? seeButton(s, false) : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
   return `<div class="tr-coachbar"><p class="tr-say">${text}</p><span class="tr-coachgo">${hint}${why ? `<button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : ""}</span></div>`;
+}
+/** Schafkopf's trick taken, still waiting for you to have seen it (trumps-rules.js). */
+const toSee = s => !!s && s.step === "trick" && !!s.seen && V?.seat != null && !s.seen[V.seat];
+const seeButton = (s, on) => `<button class="btn primary tr-hint tr-see${on ? "" : " idle"}" type="button" data-act="seen"${on ? "" : ' tabindex="-1" aria-hidden="true"'}>${s.hands.some(h => h.length) ? "Next trick" : "The score"}</button>`;
+/** Schafkopf's line under your hand with the coach off: whose card it is, and the trick taken's button. */
+const playBar = (s, status) => `<div class="tr-coachbar"><p class="tr-say">${esc(status)}</p><span class="tr-coachgo">${seeButton(s, toSee(s))}</span></div>`;
+async function see() {
+  if (!toSee(V?.state)) return;
+  const why = await page.move({ t: "seen" });
+  if (why) toast(why);
 }
 /** The coach's reasons, in a sheet: each card (or game) it weighed, what it wins and comes to, what it does. */
 function showWhy() {
@@ -566,8 +592,10 @@ function drawControls(s) {
     return;
   }
   if (s.step !== "bid") {
-    const who = s.step === "play" ? (isMe(s.turn) ? "Your card" : `${nameOf(s.turn)}…`) : s.step === "trick" ? `${isMe(s.tricks.at(-1).winner) ? "You take" : `${nameOf(s.tricks.at(-1).winner)} takes`} it` : "";
-    box.innerHTML = coaching() ? coachBar(s, who) : "";
+    // (a Schafkopf trick you've seen waits on whoever at the table hasn't: the computer players see it at once)
+    const late = s.step === "trick" && s.seen?.[seat] ? [0, 1, 2, 3].filter(k => !s.seen[k] && !V.seats[k]?.bot).map(nameOf) : [];
+    const who = s.step === "play" ? (isMe(s.turn) ? "Your card" : `${nameOf(s.turn)}…`) : s.step === "trick" ? `${isMe(s.tricks.at(-1).winner) ? "You take" : `${nameOf(s.tricks.at(-1).winner)} takes`} it${late.length ? `: waiting for ${late.join(" and ")}` : ""}` : "";
+    box.innerHTML = coaching() ? coachBar(s, who) : s.game === "schafkopf" ? playBar(s, who) : "";
     box.querySelector(".tr-wait")?.append(waitMark());
     return;
   }
@@ -606,6 +634,7 @@ $("controls").addEventListener("click", async e => {
   if (!b || b.disabled || !V?.G) return;
   if (b.dataset.act === "new") { newGame(); return; }
   if (b.dataset.act === "next") { nextHand(); return; }
+  if (b.dataset.act === "seen") { see(); return; }
   if (b.dataset.act === "result") { showEnd(V); return; }
   if (b.dataset.act === "hint") { showHint(); return; }
   if (b.dataset.act === "why") { showWhy(); return; }
