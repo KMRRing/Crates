@@ -244,7 +244,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
   font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.25; }
 .pi-chip.ok { color: var(--pi-good); box-shadow: 0 0 0 1px var(--pi-good); }
 :is(.pi-chip, .pi-w):is(.slow, .fast, .wrong) { color: var(--pi-bad); box-shadow: 0 0 0 1px var(--pi-bad); }
-.pi-chip.off { color: var(--ink-soft); }
+.pi-chip:is(.off, .blind) { color: var(--ink-soft); }
 .pi-queue .pi-h { overflow: visible; }
 .pi-queue .pi-h svg { overflow: hidden; border-radius: 4px; }
 .pi-queue .pi-h { touch-action: none; }
@@ -260,7 +260,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
   font-size: .72rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; touch-action: manipulation; }
 .pi-w.ok { color: var(--pi-good); box-shadow: inset 0 0 0 1px var(--pi-good); }
 .pi-w:is(.slow, .fast, .wrong) { box-shadow: inset 0 0 0 1px var(--pi-bad); }
-.pi-w.off { color: var(--ink-soft); }
+.pi-w:is(.off, .blind) { color: var(--ink-soft); }
 .pi-layers-row { display: flex; align-items: center; gap: .3rem; margin-top: .35rem; min-height: 1.9rem; }
 .pi-layers-row small { font-size: .62rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); margin-right: .15rem; }
 .pi-layers-row .pi-layer { width: 1.9rem; height: 1.9rem; font-size: .8rem; }

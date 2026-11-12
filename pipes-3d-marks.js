@@ -77,7 +77,7 @@ export function createMarks({ THREE, G, P, look, root, host }) {
   }
 
   // ---------- the goals' chips: DOM over the canvas ----------
-  const text = cm => (cm.status === "ok" ? `×${F.fmt(cm.want, true)}` : cm.status === "off" ? `wants ×${F.fmt(cm.want, true)}` : cm.status === "wrong" ? "wrong way" : `×${F.fmt(cm.has, true)} → ×${F.fmt(cm.want, true)}`);
+  const text = cm => (cm.status === "ok" ? `×${F.fmt(cm.want, true)}` : ["off", "blind"].includes(cm.status) ? `wants ×${F.fmt(cm.want, true)}` : cm.status === "wrong" ? "wrong way" : `×${F.fmt(cm.has, true)} → ×${F.fmt(cm.want, true)}`);
   function setChips(frame, byId) {
     if (!chipBox) { chipBox = document.createElement("div"); chipBox.className = "pi-chips"; host.append(chipBox); }
     chipList = [];

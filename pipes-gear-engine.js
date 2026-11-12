@@ -365,7 +365,8 @@ const speedWord = (f, glyph = true) => `×${F.fmt(f, glyph)}`;
 /**
  * How the level stands. { solved, placed, left, strays (laid squares nothing drives), missed (pinned squares their barrel does not
  * drive), jams (squares), clashes [[u, v]], tangles [[trainA, trainB]], trains, comps, clicks { square: "ok" | "bad" | "" }, clicksOk,
- * messages [string] (what to fix, most urgent first), nearest { c, text } | null, M }. A level with a clutch is checked in both of the
+ * messages [string] (what to fix, most urgent first), kinds ["" | "jam" | "turn"] (what each message gives away: a jam, or a wheel's turn),
+ * nearest { c, text } | null, M }. A level with a clutch is checked in both of the
  * crown's positions: `state` picks the one returned (0 when not given), and `solved` wants both.
  */
 export function check(L, laid, opts = {}) {
@@ -375,7 +376,7 @@ export function check(L, laid, opts = {}) {
   const r = [checkIn(L, laid, 0, idle(M0, M1), M0), checkIn(L, laid, 1, idle(M1, M0), M1)], k = opts.state || 0;
   const other = r[1 - k], out = { ...r[k], states: r };
   out.solved = r[0].solved && r[1].solved;
-  if (r[k].solved && !other.solved) out.messages = [`With the crown ${k ? "pushed in" : "pulled out"}: ${other.messages[0] || "not yet"}`];
+  if (r[k].solved && !other.solved) { out.messages = [`With the crown ${k ? "pushed in" : "pulled out"}: ${other.messages[0] || "not yet"}`]; out.kinds = [other.kinds[0] || ""]; }
   return out;
 }
 function checkIn(L, laid, state, idle, M = mesh(L, laid, state)) {
@@ -396,22 +397,22 @@ function checkIn(L, laid, state, idle, M = mesh(L, laid, state)) {
     clicks[k.c] = !laid[k.c] || has < 0 ? "" : has === k.dir ? "ok" : "bad";
     if (clicks[k.c] !== "ok") clicksOk = false;
   }
-  const messages = [];
+  const messages = [], kinds = [];
   let nearest = null;
-  const say = (text, c) => { messages.push(text); if (!nearest) nearest = { c: c ?? null, text }; };
+  const say = (text, c, kind = "") => { messages.push(text); kinds.push(kind); if (!nearest) nearest = { c: c ?? null, text }; };
   const sqOf = id => Math.floor(id / SLOTS);
   if (M.clash.length) say("These wheels clash: teeth of two sizes on one layer. Change a piece or leave a gap", sqOf(M.clash[0][0]));
   for (const [a, b] of M.tangle) say(`${L.trains[a].id} touches ${L.trains[b].id}: two trains must not mesh, even at the same pitch. Leave a gap`, null);
   if (M.loops.length) {
     const l = M.loops[0];
-    say(l.why === "bind" ? "These gears bind: the tooth ratios round this loop do not multiply to 1" : "Jam: these gears would have to turn both ways", sqOf(l.gears[0]));
+    say(l.why === "bind" ? "These gears bind: the tooth ratios round this loop do not multiply to 1" : "Jam: these gears would have to turn both ways", sqOf(l.gears[0]), "jam");
   }
-  for (const k of L.clicks) if (clicks[k.c] === "bad") say(`The click on this gear bites: it turns ${WAYS[M.dir[k.c * SLOTS]]} and must turn ${WAYS[k.dir]}`, k.c);
+  for (const k of L.clicks) if (clicks[k.c] === "bad") say(`The click on this gear bites: it turns ${WAYS[M.dir[k.c * SLOTS]]} and must turn ${WAYS[k.dir]}`, k.c, "turn");
   for (const x of cm) {
     const name = L.trains[x.train].id;
-    if (x.status === "wrong") say(`${name} turns ${WAYS[x.dir]} and wants ${WAYS[x.wantDir]}: add or drop a duo`, x.c);
-    else if (x.status === "fast") say(`${name} is ${speedWord(x.has)} and wants ${speedWord(x.want)}: too fast`, x.c);
-    else if (x.status === "slow") say(`${name} is ${speedWord(x.has)} and wants ${speedWord(x.want)}: too slow`, x.c);
+    if (x.status === "wrong") say(`${name} turns ${WAYS[x.dir]} and wants ${WAYS[x.wantDir]}: add or drop a duo`, x.c, "turn");
+    else if (x.status === "fast") say(`${name} is ${speedWord(x.has)} and wants ${speedWord(x.want)}: too fast`, x.c, "turn");
+    else if (x.status === "slow") say(`${name} is ${speedWord(x.has)} and wants ${speedWord(x.want)}: too slow`, x.c, "turn");
   }
   const done = !left || L.spare;
   if (done) {
@@ -421,7 +422,7 @@ function checkIn(L, laid, state, idle, M = mesh(L, laid, state)) {
   }
   const clean = !M.clash.length && !M.tangle.length && !M.loops.length;
   const solved = done && placed > 0 && clean && !strays.length && !missed.length && tr.every(t => t.path) && cm.every(x => x.status === "ok") && clicksOk;
-  return { solved, placed, left, strays, missed, jams: jamSquares, clashes: M.clash, tangles: M.tangle, trains: tr, comps: cm, clicks, clicksOk, messages, nearest, M, state };
+  return { solved, placed, left, strays, missed, jams: jamSquares, clashes: M.clash, tangles: M.tangle, trains: tr, comps: cm, clicks, clicksOk, messages, kinds, nearest, M, state };
 }
 
 // ---------- hint, stars ----------

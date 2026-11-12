@@ -111,8 +111,11 @@ export function createPuzzle(deps) {
     // 9 Nov 2026, Korbi: "if the watch isn't wound and mechanical, it shouldn't move. When wound, it should spin out, unless it's connected to an escapement, in which case the escapement
     // should start visibly working and the whole gear train jumps one second at a time." A mechanical level rests until Wind is pressed (`still`).
     // 11 Nov 2026, Korbi: in a mechanical movement no wheel shows its turn until it is wound (`blind`): the parity is reasoned, not watched
-    if (mechanical()) { f.still = !windMode; f.solved = !!windMode; f.blind = !windMode; }
-    if (windMode) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
+    // 12 Nov 2026, Korbi: "jammed windings shouldn't be indicated until the user winds the mainspring": until a wind finds the train stuck,
+    // a mechanical movement shows no jam, and no goal's verdict on its turn (hush)
+    const truth = f.res, wound = windMode === "tick" || windMode === "unwind";
+    if (mechanical()) { f.still = !wound; f.solved = wound; f.blind = !wound; if (!windMode) hush(f); }
+    if (wound) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
     // 12 Nov 2026, Korbi: "only quartz watches should go smoothly": the arbor (turned from the other side) and a wound train held by its
     // escapement tick, a jump a second (the engine's tickTempo), the escapement beating six times a jump, and both are heard. The arbor
     // ticks from the moment the level opens ("the ticking should be there immediately ... discrete turns all the time"), every wheel it
@@ -120,9 +123,18 @@ export function createPuzzle(deps) {
     const ticks = windMode === "tick" ? !!f.solved : spec.power === "arbor" && !mechanical();
     if (ticks) { f.T0 = tickT0 || E.tickTempo(f.M); f.beat = E.SECOND; f.beats = E.BEATS; }
     ticking(ticks, !!f.solved);
+    f.truth = truth;
     last = f;
     view.draw(f);
     return f;
+  }
+  /** A frame that gives away nothing a wind would show first: no jam (nor the strain of the wheels it locks), and no goal's verdict on its turn
+   *  or its speed, only that the train reaches it (status "blind"). */
+  function hush(f) {
+    const M = { ...f.M, jam: new Set(), locked: new Set(), loops: [] }, keep = f.res.messages.map((_, i) => !f.res.kinds?.[i]);
+    const comps = f.res.comps.map(c => (c.status === "off" ? c : { ...c, status: "blind" }));
+    f.M = M;
+    f.res = { ...f.res, M, jams: [], comps, messages: f.res.messages.filter((_, i) => keep[i]), kinds: (f.res.kinds || []).filter((_, i) => keep[i]) };
   }
   function render() {
     const f = draw();
@@ -206,7 +218,7 @@ export function createPuzzle(deps) {
         else if (it.type === "step") chip.textContent = `×${F.fmt(it.factor, true)}`;
         else {
           const cm = it.comp, w = cm?.want ? `×${F.fmt(cm.want, true)}` : "turn";
-          chip.textContent = !cm ? "●" : cm.status === "ok" ? `✓ ${w}` : cm.status === "wrong" ? "wrong way" : cm.status === "off" || !cm.has ? `wants ${w}` : `×${F.fmt(cm.has, true)} → ${w}`;
+          chip.textContent = !cm ? "●" : cm.status === "ok" ? `✓ ${w}` : cm.status === "wrong" ? "wrong way" : cm.status === "off" || cm.status === "blind" || !cm.has ? `wants ${w}` : `×${F.fmt(cm.has, true)} → ${w}`;
           if (it.type === "station" && it.factor) chip.textContent = `×${F.fmt(it.factor, true)} · ${chip.textContent}`;
         }
         if (it.c !== undefined) chip.addEventListener("click", () => view.pulse?.(it.c));
@@ -218,19 +230,31 @@ export function createPuzzle(deps) {
     box.replaceChildren(...rows);
   }
   const mechanical = () => spec.power === "mech" || (!!spec.v && !spec.power && (L.trains.some(t => ["escape", "tourbillon"].includes(t.sink.goal?.type)) || spec.pins?.some(p => p.goal?.type === "escape")));
-  /** The Wind button of a mechanical movement. */
-  function wind() {
-    if (frame || running || !last) return;
-    const ok = !!run.solved || last.res.solved || (last.res.comps || []).some(c => ["escape", "tourbillon"].includes(c.type) && c.status === "ok");
-    windMode = ok ? "tick" : "unwind";
+  /** What a wound spring does with the train as it stands. 12 Nov 2026, Korbi: "the user then shouldn't unwind automatically, now it shows
+   *  that it's stuck. and then if the user takes out a piece that blocks the main spring or causes the jamming, it should spin out (unless
+   *  connected to the escapement)": a jam that holds a barrel keeps its spring wound, stuck and shown, until a piece is lifted; a train that
+   *  reaches its escape wheel ticks; any other runs straight down. */
+  function springOf(res) {
+    if (L.trains.some(t => res.M.locked?.has(t.barrel.c * E.SLOTS))) return "stuck";
+    return run.solved || res.solved || (res.comps || []).some(c => ["escape", "tourbillon"].includes(c.type) && c.status === "ok") ? "tick" : "unwind";
+  }
+  /** Sets the wound spring going: stuck it stays wound (and is heard to jam); ticking it runs 9 s; running down, 1.7 s. */
+  function letGo(res, mode) {
+    windMode = mode;
     clearTimeout(windTimer);
     ticking(false);                                  // (a wind starts the ticking afresh, in step with the wheels' first jump)
     // 12 Nov 2026, Korbi: "for mechanical levels, the level shouldn't be won (and no gear should be turning!) until the mainspring is wound":
-    // laying the last piece wins nothing; the wind that sets the finished train ticking does
-    if (ok && last.res.solved && !run.solved) solved(last.res);
+    // laying the last piece wins nothing; the wind that sets the finished train ticking does (or the piece laid while a wound train ticks)
+    if (mode === "tick" && res.solved && !run.solved) solved(res);
     else { render(); view.runNow?.(); }
-    if (!ok) for (let i = 0; i < 6; i++) setTimeout(() => sound(0.5 - i * 0.05), i * 110);
-    windTimer = setTimeout(() => { windMode = null; render(); }, ok ? 9000 : 1700);
+    if (mode === "unwind") for (let i = 0; i < 6; i++) setTimeout(() => sound(0.5 - i * 0.05), i * 110);
+    if (mode === "stuck") { jamKey = res.jams.join(",") + "|" + res.clashes.length; sound(0.42); setTimeout(() => sound(0.34), 90); }
+    else windTimer = setTimeout(() => { windMode = null; render(); }, mode === "tick" ? 9000 : 1700);
+  }
+  /** The Wind button of a mechanical movement. */
+  function wind() {
+    if (frame || running || !last) return;
+    letGo(last.truth, springOf(last.truth));
   }
   function drawLayers() {
     const box = $("layers"), on = !!spec.v;
@@ -268,8 +292,8 @@ export function createPuzzle(deps) {
     if (mechanical()) {
       const w = document.createElement("button");
       w.type = "button";
-      w.className = "pi-layer pi-wind";
-      w.textContent = "Wind";
+      w.className = `pi-layer pi-wind${windMode === "stuck" ? " now" : ""}`;
+      w.textContent = windMode === "stuck" ? "Wound" : "Wind";
       w.setAttribute("aria-label", "Wind the mainspring");
       w.addEventListener("click", wind);
       chips.push(w);
@@ -286,6 +310,7 @@ export function createPuzzle(deps) {
     const left = res.left;
     if (run.solved) return `${spec.name} runs · ${STAR.repeat(run.solved)}${HOLLOW.repeat(3 - run.solved)}`;
     if (windMode === "unwind") return "The spring runs straight down: the train doesn't hold it at the escape wheel";
+    if (windMode === "stuck") return `Wound, and stuck: ${res.M.loops[0]?.why === "bind" ? "these gears bind, their tooth ratios round the loop not multiplying to 1" : "these gears would have to turn both ways"}. Lift the piece that jams it`;
     if (mechanical() && res.placed && !res.left && !res.jams.length && !res.clashes.length) return "Every piece is laid: wind it to try it";
     if (hint?.wrong?.length) return "The red squares aren't in an answer: lift those pieces";
     if (hint) return hint.done ? "Hint: nothing is left to lay" : "Hint: this piece goes in the dashed square, as drawn";
@@ -364,6 +389,11 @@ export function createPuzzle(deps) {
   }
   function afterMove() {
     store();
+    // a wound spring answers every piece laid or lifted: freed from its jam it ticks or spins out; a piece that jams a ticking train sticks it
+    if (windMode === "stuck" || windMode === "tick") {
+      const now = E.check(L, laid, { state: crown }), mode = springOf(now);
+      if (mode !== windMode || (mode === "tick" && now.solved && !run.solved)) return void letGo(now, mode);
+    }
     const res = render();
     const key = res.jams.join(",") + "|" + res.clashes.length;
     if (key !== "|0" && key !== jamKey) { sound(0.42); setTimeout(() => sound(0.34), 90); }
@@ -414,15 +444,13 @@ export function createPuzzle(deps) {
     if (frame || run.solved || !undoStack.length) return;
     const s = undoStack.pop();
     laid = s.laid; run.lifts = s.lifts; run.sel = s.sel; run.selRot = s.selRot; hint = null;
-    store();
-    render();
+    afterMove();
   }
   function clearAll() {
     if (frame || run.solved || !laid.some(Boolean)) return;
     snap();
     laid = E.emptyLaid(L); run.sel = null; run.selRot = null; hint = null;
-    store();
-    render();
+    afterMove();
   }
   function solved(res) {
     run.solved = E.starsFor(L, run);

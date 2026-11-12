@@ -301,7 +301,7 @@ export function createView({ board, onGesture, onLost } = {}) {
       const chip = document.createElement("span");
       chip.className = `pi-chip ${cm.status}`;
       chip.style.left = `clamp(1.7rem, ${lx}%, calc(100% - 1.7rem))`; chip.style.top = `max(1.2rem, ${ly}%)`;
-      chip.textContent = cm.status === "ok" ? `×${F.fmt(cm.want, true)}` : cm.status === "off" ? `wants ×${F.fmt(cm.want, true)}` : cm.status === "wrong" ? `wrong way` : `×${F.fmt(cm.has, true)} → ×${F.fmt(cm.want, true)}`;
+      chip.textContent = cm.status === "ok" ? `×${F.fmt(cm.want, true)}` : ["off", "blind"].includes(cm.status) ? `wants ×${F.fmt(cm.want, true)}` : cm.status === "wrong" ? `wrong way` : `×${F.fmt(cm.has, true)} → ×${F.fmt(cm.want, true)}`;
       chips.append(chip);
     }
   }
