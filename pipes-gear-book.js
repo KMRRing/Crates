@@ -4,14 +4,17 @@
 // the next: Mainspring first, after Trios. The rest of the campaign waits in pipes-gear-levels.js; stars are kept by id, so none is lost.)
 import { LEGACY, LEGACY_CHAPTERS } from "./pipes-gear-legacy.js";
 import { CHAPTERS as PLAN_CHAPTERS, LEVELS as PLAN_LEVELS } from "./pipes-gear-levels.js";
+import { BOOKS as NEW_BOOKS, CHAPTERS as NEW_CHAPTERS, LEVELS as NEW_LEVELS } from "./pipes-gear-designs.js";
 
 const quartz = PLAN_CHAPTERS.find(c => c.key === "a").rule;          // the first plates are driven by a quartz motor, not a spring
 const after = LEGACY_CHAPTERS.findIndex(c => c.key === "d"), at = LEGACY.findIndex(l => l.chapter === "d");
 const mainspring = { ...PLAN_CHAPTERS.find(c => c.key === "w"), book: "I" };
 
-export const BOOKS = [{ key: "I", name: "The bench", rule: "Whole gears, parity and jams." }];
-export const CHAPTERS = [...LEGACY_CHAPTERS.slice(0, after), mainspring, ...LEGACY_CHAPTERS.slice(after)].map(c => (c.key === "a" ? { ...c, rule: quartz } : c));
-export const LEVELS = [...LEGACY.slice(0, at), ...PLAN_LEVELS.filter(l => l.chapter === "w"), ...LEGACY.slice(at)];
+// 12 Nov 2026, Korbi: "let me playtest them, just put them in front of all the levels": the levels designed to the new plan (pipes-gear-plan.mjs)
+// come first, as their own book, then everything that played before
+export const BOOKS = [...NEW_BOOKS, { key: "I", name: "The bench", rule: "Whole gears, parity and jams." }];
+export const CHAPTERS = [...NEW_CHAPTERS, ...[...LEGACY_CHAPTERS.slice(0, after), mainspring, ...LEGACY_CHAPTERS.slice(after)].map(c => (c.key === "a" ? { ...c, rule: quartz } : c))];
+export const LEVELS = [...NEW_LEVELS, ...LEGACY.slice(0, at), ...PLAN_LEVELS.filter(l => l.chapter === "w"), ...LEGACY.slice(at)];
 export const indexOf = id => LEVELS.findIndex(l => l.id === id);
 
 /** What a run was kept for: a level whose plate, hand or goals changed starts over. */

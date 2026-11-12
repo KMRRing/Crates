@@ -88,16 +88,18 @@ export function picture(spec) {
 export function make(row, seed) {
   const res = forgeLevel(mixSeed(row[0], seed, 77), recipeOf(row));
   if (!res) throw new Error(`level ${row[0]} ${row[1]}: seed ${seed} makes nothing`);
-  return { ...res.spec, id: `g-${row[1].toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name: row[1], chapter: chapterOf(row[0]), themes: row[3], aha: row[8] || "", nodes: res.nodes };
+  return { ...res.spec, id: `g-${row[1].toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name: row[1], chapter: chapterOf(row[0]), themes: row[3], aha: row[8] || "", nodes: res.nodes,
+    ...(row[7].sym ? { sym: true } : {}) };
 }
 
 export const CHAPTERS = [
-  { key: "a", book: "I", name: "Gears", from: 1, rule: "Mesh gears from the motor to the dial: each mesh turns the next wheel the other way." },
-  { key: "b", book: "I", name: "Duos and trios", from: 4, rule: "Duos and trios mesh only at their ends. A duo turns the next wheel the way a single would not; a trio turns it as a single does." },
-  { key: "c", book: "I", name: "Mechanical", from: 8, rule: "Wind it to try it: no wheel shows its turn until it runs, and it ticks only once it reaches the escape wheel." },
-  { key: "d", book: "I", name: "The arbor", from: 13, rule: "The movement's arbor turns, smooth and unwound: it meshes every wheel beside it." },
+  { key: "na", book: "N", name: "Gears", from: 1, rule: "Mesh gears from the motor to the dial: each mesh turns the next wheel the other way." },
+  { key: "nb", book: "N", name: "Duos and trios", from: 4, rule: "Duos and trios mesh only at their ends. A duo turns the next wheel the way a single would not; a trio turns it as a single does." },
+  { key: "nc", book: "N", name: "Mechanical", from: 8, rule: "Wind it to try it: no wheel shows its turn until it runs, and it ticks only once it reaches the escape wheel." },
+  { key: "nd", book: "N", name: "The arbor", from: 13, rule: "The movement's arbor turns, smooth and unwound: it meshes every wheel beside it." },
 ];
-export const BOOKS = [{ key: "I", name: "The bench", rule: "Gears, duos and trios, and the three powers." }];
+// the new levels are their own book while Korbi plays them ahead of Book I (12 Nov 2026: "put them in front of all the levels")
+export const BOOKS = [{ key: "N", name: "The new bench", rule: "Gears, duos and trios, and the three powers." }];
 export const chapterOf = n => [...CHAPTERS].reverse().find(c => n >= c.from).key;
 
 const [mode, ...args] = process.argv[1]?.endsWith("pipes-gear-plan.mjs") ? process.argv.slice(2) : [];
