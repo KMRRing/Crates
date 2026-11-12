@@ -312,7 +312,9 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     }
     // the run: a new solve starts the clock and the power wave; a solved movement runs RUN_MS and then eases to rest
     const wasSolved = lastFrameRef?.solved;
-    if (f.solved && !wasSolved) { runStart = tMs; runEnd = tMs + RUN_MS; wake0 = tMs; } else if (!f.solved) { runEnd = Infinity; }
+    // (Korbi, 12 Nov 2026: "in 3d the main spring and gears connected to it turn before the gear is wound": a still movement was set going
+    // again by the next frame drawn, a piece laid; it stays still until it is wound)
+    if (f.solved && !wasSolved) { runStart = tMs; runEnd = tMs + RUN_MS; wake0 = tMs; } else if (!f.solved && !f.still) { runEnd = Infinity; }
     // a ticking run starts on a jump's edge, so the wheels' first jump comes a second in, with the loud tick the page plays
     if (jump && !lastFrameRef?.beat) turns[0] = Math.round((turns[0] || 0) / jump) * jump;
     if (!lastFrameRef) wake0 = tMs;

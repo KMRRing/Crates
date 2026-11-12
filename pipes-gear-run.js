@@ -221,12 +221,14 @@ export function createPuzzle(deps) {
   /** The Wind button of a mechanical movement. */
   function wind() {
     if (frame || running || !last) return;
-    const ok = !!run.solved || (last.res.comps || []).some(c => c.type === "escape" && c.status === "ok") || (last.res.comps || []).some(c => c.type === "tourbillon" && c.status === "ok");
+    const ok = !!run.solved || last.res.solved || (last.res.comps || []).some(c => ["escape", "tourbillon"].includes(c.type) && c.status === "ok");
     windMode = ok ? "tick" : "unwind";
     clearTimeout(windTimer);
     ticking(false);                                  // (a wind starts the ticking afresh, in step with the wheels' first jump)
-    render();
-    view.runNow?.();
+    // 12 Nov 2026, Korbi: "for mechanical levels, the level shouldn't be won (and no gear should be turning!) until the mainspring is wound":
+    // laying the last piece wins nothing; the wind that sets the finished train ticking does
+    if (ok && last.res.solved && !run.solved) solved(last.res);
+    else { render(); view.runNow?.(); }
     if (!ok) for (let i = 0; i < 6; i++) setTimeout(() => sound(0.5 - i * 0.05), i * 110);
     windTimer = setTimeout(() => { windMode = null; render(); }, ok ? 9000 : 1700);
   }
@@ -283,6 +285,8 @@ export function createPuzzle(deps) {
   function textOf(res) {
     const left = res.left;
     if (run.solved) return `${spec.name} runs · ${STAR.repeat(run.solved)}${HOLLOW.repeat(3 - run.solved)}`;
+    if (windMode === "unwind") return "The spring runs straight down: the train doesn't hold it at the escape wheel";
+    if (mechanical() && res.placed && !res.left && !res.jams.length && !res.clashes.length) return "Every piece is laid: wind it to try it";
     if (hint?.wrong?.length) return "The red squares aren't in an answer: lift those pieces";
     if (hint) return hint.done ? "Hint: nothing is left to lay" : "Hint: this piece goes in the dashed square, as drawn";
     if (res.messages.length && res.placed) return res.messages[0];
@@ -364,7 +368,7 @@ export function createPuzzle(deps) {
     const key = res.jams.join(",") + "|" + res.clashes.length;
     if (key !== "|0" && key !== jamKey) { sound(0.42); setTimeout(() => sound(0.34), 90); }
     jamKey = key;
-    if (res.solved) solved(res);
+    if (res.solved && !mechanical()) solved(res);       // a mechanical movement is won by winding it (wind)
   }
   function tap(c) {
     if (frame || run.solved || running) return;
