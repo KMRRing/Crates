@@ -15,7 +15,7 @@ import { createView, drawShape } from "./pipes-view-2d.js";
 import * as F from "./pipes-gear-frac.js";
 import { dailySpec, randomSpec } from "./pipes-gear-daily.js";
 import { sure } from "./sure.js";
-import { tick as tickSound } from "./pipes-sound.js";
+import { tick as tickSound, jam as jamSound } from "./pipes-sound.js";
 import { load3d } from "./loading.js";
 
 const STAR = "★", HOLLOW = "☆";
@@ -29,7 +29,7 @@ export function createPuzzle(deps) {
   const indexOf = id => LEVELS.findIndex(l => l.id === id);
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
   let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
-  let windMode = null, windTimer = 0, tickTimer = 0, tickStop = 0, tickT0 = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
+  let windMode = null, windTimer = 0, tickTimer = 0, tickStop = 0, tickMode = "", tickT0 = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
   let running = false, jamKey = "", kind = "2d", mod3d = null, crown = 0;
 
   // ---------- keeping ----------
@@ -58,7 +58,7 @@ export function createPuzzle(deps) {
     if (!r || r.sig !== sigOf(spec) || fresh) r = saved.runs[spec.id] = { sig: sigOf(spec), laid: {}, sel: null, selRot: null, lifts: 0, hints: 0, solved: 0 };
     run = r;
     laid = E.unpackLaid(L, run.laid);
-    clearTimeout(windTimer); ticking(false); windMode = null; crown = 0;
+    clearTimeout(windTimer); ticking(""); windMode = null; crown = 0;
     // a ticking movement keeps one tempo all level, its answer's (a tooth of its quickest wheel a second), however much of the train is laid
     const answer = spec.sols?.[0];
     if (answer) { const a = E.emptyLaid(L); for (const [c, p] of Object.entries(answer)) a[c] = p; tickT0 = E.tickTempo(E.check(L, a).M); } else tickT0 = 0;
@@ -120,9 +120,11 @@ export function createPuzzle(deps) {
     // escapement tick, a jump a second (the engine's tickTempo), the escapement beating six times a jump, and both are heard. The arbor
     // ticks from the moment the level opens ("the ticking should be there immediately ... discrete turns all the time"), every wheel it
     // drives jumping with it while the train is laid; a mechanical train only once it is wound and reaches its escape wheel.
-    const ticks = windMode === "tick" ? !!f.solved : spec.power === "arbor" && !mechanical();
-    if (ticks) { f.T0 = tickT0 || E.tickTempo(f.M); f.beat = E.SECOND; f.beats = E.BEATS; }
-    ticking(ticks, !!f.solved);
+    // 12 Nov 2026, Korbi: "when jammed, the ticking should stop. there should be a 'jamming sound' instead": a train a jam holds fast
+    // (the arbor's, or a wound spring stuck) grinds once a second where it would have jumped
+    const ticks = windMode === "tick" ? !!f.solved : spec.power === "arbor" && !mechanical(), held = heldFast(truth);
+    if (ticks && !held) { f.T0 = tickT0 || E.tickTempo(f.M); f.beat = E.SECOND; f.beats = E.BEATS; }
+    ticking(windMode === "stuck" || (ticks && held) ? "jam" : ticks ? "tick" : "", !!f.solved);
     f.truth = truth;
     last = f;
     view.draw(f);
@@ -234,21 +236,22 @@ export function createPuzzle(deps) {
    *  that it's stuck. and then if the user takes out a piece that blocks the main spring or causes the jamming, it should spin out (unless
    *  connected to the escapement)": a jam that holds a barrel keeps its spring wound, stuck and shown, until a piece is lifted; a train that
    *  reaches its escape wheel ticks; any other runs straight down. */
+  const heldFast = res => L.trains.some(t => res.M.locked?.has(t.barrel.c * E.SLOTS));
   function springOf(res) {
-    if (L.trains.some(t => res.M.locked?.has(t.barrel.c * E.SLOTS))) return "stuck";
+    if (heldFast(res)) return "stuck";
     return run.solved || res.solved || (res.comps || []).some(c => ["escape", "tourbillon"].includes(c.type) && c.status === "ok") ? "tick" : "unwind";
   }
   /** Sets the wound spring going: stuck it stays wound (and is heard to jam); ticking it runs 9 s; running down, 1.7 s. */
   function letGo(res, mode) {
     windMode = mode;
     clearTimeout(windTimer);
-    ticking(false);                                  // (a wind starts the ticking afresh, in step with the wheels' first jump)
+    ticking("");                                  // (a wind starts the ticking afresh, in step with the wheels' first jump)
     // 12 Nov 2026, Korbi: "for mechanical levels, the level shouldn't be won (and no gear should be turning!) until the mainspring is wound":
     // laying the last piece wins nothing; the wind that sets the finished train ticking does (or the piece laid while a wound train ticks)
     if (mode === "tick" && res.solved && !run.solved) solved(res);
     else { render(); view.runNow?.(); }
     if (mode === "unwind") for (let i = 0; i < 6; i++) setTimeout(() => sound(0.5 - i * 0.05), i * 110);
-    if (mode === "stuck") { jamKey = res.jams.join(",") + "|" + res.clashes.length; sound(0.42); setTimeout(() => sound(0.34), 90); }
+    if (mode === "stuck") { jamKey = res.jams.join(",") + "|" + res.clashes.length; grind(1); }
     else windTimer = setTimeout(() => { windMode = null; render(); }, mode === "tick" ? 9000 : 1700);
   }
   /** The Wind button of a mechanical movement. */
@@ -345,16 +348,21 @@ export function createPuzzle(deps) {
   // ---------- playing ----------
   const snap = () => { undoStack.push({ laid: laid.slice(), lifts: run.lifts, sel: run.sel, selRot: run.selRot }); if (undoStack.length > 300) undoStack.shift(); };
   const sound = (pitch, loud) => { if (deps.sound?.()) tickSound(pitch, loud); };
+  const grind = loud => { if (deps.sound?.()) jamSound(loud); };
   /** The ticking heard while a ticking movement runs: the escapement's tick-tock, quiet, six times a second, and each second's jump loud, from
    *  the moment it starts (the wheels' first jump comes a second in). It goes on while the level is played; once the movement is finished
-   *  (`settle`), for as long as the views turn it (20 s), and a touch that wakes them starts it again. */
-  function ticking(on, settle = false) {
-    if (!on) { clearInterval(tickTimer); clearTimeout(tickStop); tickTimer = tickStop = 0; return; }
+   *  (`settle`), for as long as the views turn it (20 s), and a touch that wakes them starts it again. `mode`: "tick", "jam" (a grind a
+   *  second, where a train held fast would have jumped) or "" (silence). */
+  function ticking(mode, settle = false) {
+    if (mode !== tickMode) { clearInterval(tickTimer); clearTimeout(tickStop); tickTimer = tickStop = 0; }
+    tickMode = mode || "";
+    if (!mode) return;
+    if (!tickTimer && mode === "jam") tickTimer = setInterval(() => grind(0.6), E.SECOND);
     if (!tickTimer) {
       let k = 0;
       tickTimer = setInterval(() => { k++; if (k % E.BEATS === 0) sound(0.62, 2.2); else sound(k % 2 ? 1 : 0.82, 0.45); }, E.SECOND / E.BEATS);
     }
-    if (settle && !tickStop) tickStop = setTimeout(() => ticking(false), 20000);
+    if (settle && !tickStop) tickStop = setTimeout(() => ticking(""), 20000);
   }
   function choose(k) {
     if (frame || run.solved) return;
@@ -396,7 +404,7 @@ export function createPuzzle(deps) {
     }
     const res = render();
     const key = res.jams.join(",") + "|" + res.clashes.length;
-    if (key !== "|0" && key !== jamKey) { sound(0.42); setTimeout(() => sound(0.34), 90); }
+    if (key !== "|0" && key !== jamKey) grind(1);
     jamKey = key;
     if (res.solved && !mechanical()) solved(res);       // a mechanical movement is won by winding it (wind)
   }
@@ -647,8 +655,8 @@ export function createPuzzle(deps) {
   return {
     show() { $("queue").hidden = false; $("board").hidden = false; $("workings").hidden = false; shownFor = ""; view?.dispose(); view = null; go(saved.id); },
     hide() { $("queue").hidden = true; $("board").hidden = true; $("workings").hidden = true; $("layers").hidden = true; view?.stop?.(); },
-    pause() { view?.stop?.(); running = false; ticking(false); },
-    resume() { view?.resume?.(); if (run?.solved && last?.solved) { view?.runNow?.(); ticking(!!last.beat); } },
+    pause() { const was = tickMode; view?.stop?.(); running = false; ticking(""); tickMode = was; },
+    resume() { view?.resume?.(); if (run?.solved && last?.solved) view?.runNow?.(); if (tickMode) { const m = tickMode; tickMode = ""; ticking(m, !!last?.solved); } },
     resize() { if (last) view?.draw(last); },
     useView, get viewKind() { return kind; },
     look, toggleLift, levelList, go, goDaily, goRandom, again, next, undo, clear: clearAll, hint: giveHint, tap,
