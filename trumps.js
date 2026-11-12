@@ -195,6 +195,7 @@ function draw() {
   if (coach() !== coachWas) { coachWas = coach(); advice = said = null; }   // the table's coach changed: its words go
   const v = V;
   $("table").classList.toggle("tk-mahogany", tileNow() === "schafkopf" && view.get() !== "3d");   // the flat table's mahogany frame (table3d.css); the cloth is mahogany itself
+  $("app").classList.toggle("tr-sk", tileNow() === "schafkopf");                                   // Schafkopf's 3D trick, larger and nearer you (trumps-3d.css)
   placeFull();
   wearTile();
   if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight", "centre"]) $(id)?.replaceChildren(); three?.dispose(); three = null; $("table").classList.remove("tr3c"); $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
@@ -224,7 +225,8 @@ const SHOW = 0.9, BACK_SHOW = 0.62, LIFT = 0.45;       // in a card's size: how 
 let cardPx = 0;
 function fitTable() {
   const s = V?.state;
-  if (!s || three) return;                                       // (the cloth's cards are sized by its own CSS)
+  if (!s) return;
+  if (three) { fitTrick3d(); return; }                           // (the cloth's cards are sized by its own CSS, but for Schafkopf's trick)
   const app = $("app"), centre = $("centre"), hand = $("hand"), side = $("side"), n = DEALT[s.game] || 8, beside = sideways() && !tall();   // (a tablet sideways: your hand under the table, as upright)
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const room = Math.min(...["seatTop", "seatLeft", "seatRight"].map(id => $(id).clientWidth * 0.92));
@@ -248,6 +250,27 @@ function fitTable() {
       app.style.setProperty("--tr-card", `${cardPx}px`);
     }
   }
+}
+// Korbi, 12 Nov 2026: Schafkopf's trick on the 3D table "as big as the cards in hand": the size (--sk-line, trumps-3d.css) at which
+// the trick's middle pair stands as wide on the screen as a card in your hand, smaller only where a card would come within a hair
+// of a player's medallion, name, badges or backs, or leave the table. Worked out again only when the table or your cards change
+// size (the bidding's buttons take the table's room, the play gives it back), so the cards never change size while they lie there.
+let trickFit = "";
+function fitTrick3d() {
+  const table = $("table"), centre = table.querySelector(".tk-centre"), field = table.querySelector(".tk-field"), held = $("hand").querySelector(".cd");
+  if (tileNow() !== "schafkopf" || !centre || !field || !held || centre.classList.contains("res")) return;
+  const key = `${field.clientWidth}x${field.clientHeight}:${held.offsetWidth}`;
+  if (key === trickFit && centre.style.getPropertyValue("--sk-line")) return;     // (a new cloth, from a change of view, is fitted afresh)
+  trickFit = key;
+  const lanes = [...centre.querySelectorAll(".tr3-lane")], mat = table.querySelector(".tk-mat").getBoundingClientRect();
+  const parts = [...table.querySelectorAll(".tk-plate :is(.tk-med, .tk-name, .tk-fan, .tk-meta, .tr3-role, .tr3-deal)")].map(p => p.getBoundingClientRect()).filter(q => q.width);
+  const gap = 0.35 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);   // (a little air round each player's things)
+  const apart = (r, q) => r.right <= q.left - gap || q.right <= r.left - gap || r.bottom <= q.top - gap || q.bottom <= r.top - gap;
+  const at = px => { centre.style.setProperty("--sk-line", `${px}px`); return lanes.map(l => l.getBoundingClientRect()); };
+  const fits = rs => (rs[0].width + rs[2].width) / 2 <= held.offsetWidth && rs.every(r => r.left >= mat.left && r.right <= mat.right && parts.every(q => apart(r, q)));
+  let lo = 8, hi = 160;
+  while (hi - lo > 0.5) { const mid = (lo + hi) / 2; if (fits(at(mid))) lo = mid; else hi = mid; }
+  at(Math.floor(lo * 4) / 4);
 }
 /** How tall the controls are in the play (your status, or the coach's line): drawn once, unseen, beside the real ones. */
 function playProbe(s) {
