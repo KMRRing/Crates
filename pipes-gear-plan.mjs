@@ -32,8 +32,11 @@ const TOKEN = Object.fromEntries(Object.entries(PIECE).map(([t, p]) => [p, t]));
 export const CHAPTERS = [
   { key: "na", book: "N", name: "Gears", from: 1, rule: "Mesh gears from the motor to the dial: each mesh turns the next wheel the other way." },
   { key: "nb", book: "N", name: "Duos and trios", from: 4, rule: "Duos and trios mesh only at their ends. A duo turns the next wheel the way a single would not; a trio turns it as a single does." },
-  { key: "nc", book: "N", name: "Mechanical", from: 8, rule: "Wind it to try it: no wheel shows its turn until it runs, and it ticks only once it reaches the escape wheel." },
-  { key: "nd", book: "N", name: "The arbor", from: 13, rule: "The movement's arbor turns, smooth and unwound: it meshes every wheel beside it." },
+  // Korbi, 12 Nov 2026: quartz turns smoothly; then "mechanical early levels: it's an arbor coming from the other side ... discrete 1 per second",
+  // then "mechanical late: mainspring must be connected to the escapement before wound, otherwise it just unwinds"; "late chapter 1 should
+  // introduce the escapement" (read as: the escapement comes at the end of this first set of chapters)
+  { key: "nc", book: "N", name: "The arbor", from: 8, rule: "The arbor turns from the other side of the movement, a step a second: it meshes every wheel beside it." },
+  { key: "nd", book: "N", name: "Mechanical", from: 12, rule: "Wind it to try it: no wheel shows its turn until it runs, and the spring runs straight down unless the train reaches the escape wheel, which lets it tick." },
 ];
 // the new levels are their own book while Korbi plays them ahead of Book I (12 Nov 2026: "put them in front of all the levels")
 export const BOOKS = [{ key: "N", name: "The new bench", rule: "Gears, duos and trios, and the three powers." }];
@@ -84,70 +87,70 @@ export const PLAN = [
     "o  o  #  o  o",
     "_  o  -  o  _"],
     aha: "Every duo and trio in the hand is straight, and the ring round the diamond has one straight run on each side for them. The two duos undo each other's turn." },
-  { n: 8, name: "Mainspring", power: "M", themes: ["Mechanical", "Duos"], draw: [
-    "_  o  o  o  _",
-    ".  o  GE o  .",
-    ".  o  #  b  PW",
-    "_  o  o  o  _"],
-    aha: "Two wheels reach the escape wheel, and wound they run it backwards. The duo at the barrel sets it right and sends the train down; it goes all the way round and comes home just above the duo, which meshes only the barrel and the wheel below it." },
-  { n: 9, name: "Escape wheel", power: "M", themes: ["Mechanical", "Duos"], draw: [
-    "_  .  o  o  _",
-    "o  o  |  o  o",
-    "GN o  o  PE o",
-    "_  .  .  .  _"],
-    aha: "Singles alone run the escape wheel backwards. The straight duo sets it right, and it goes in the middle: the train climbs the right, crosses the top and comes down through it, the wheels either side passing its blind sides." },
-  { n: 10, name: "Click", power: "M", themes: ["Mechanical", "Duos"], draw: [
-    ".  .  o  PW",
-    ".  .  o  #",
-    "o  o  a  o",
-    "GN o  o  o"],
-    aha: "Singles alone run the escape wheel backwards. The duo sets it right, and it must be the hub the train winds round: down into it from the barrel, out to the right, then back round under it and past its left to the escape wheel." },
-  { n: 11, name: "Ratchet", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
-    "b  o  o  .",
-    "o  PS o  .",
-    "o  !  o  GW",
-    "o  o  #  ."],
-    aha: "Two wheels run the escape wheel backwards. The duo sets it right but turns only the top-left corner, so the train goes down, round and up the left; the barrel's first wheel must be the straight trio, which the train passes on both sides." },
-  { n: 12, name: "Escapement", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
-    "_  o  o  c  _",
-    ".  o  #  A  c",
-    ".  A  PW #  o",
-    ".  #  o  o  o",
-    "_  GE o  #  _"],
-    aha: "The escape wheel is just below the barrel's first wheel, but the way down is shut: the trio at the barrel turns the train up, and a duo, a trio and a duo, a corner each, step it down the right-hand side." },
-  { n: 13, name: "Cannon pinion", power: "A", themes: ["Arbor", "Duos"], draw: [
+  { n: 8, name: "Cannon pinion", power: "A", themes: ["Arbor", "Duos"], draw: [
     "o  o  o",
     "o  #  o",
     "o  *  |",
     ".  GE o"],
     aha: "Two singles from the arbor's right reach the dial, but turn it backwards. The straight duo puts it right, and it works only beside the arbor, which it doesn't mesh: so the train leaves on the left, goes all the way round, and comes down through the duo." },
-  { n: 14, name: "Centre wheel", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
+  { n: 9, name: "Centre wheel", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
     ".  GS .  .",
     "o  D  *  o",
     "o  o  c  o",
     ".  #  o  o"],
     aha: "The arbor turns every wheel beside it, so the train winds once round it, out on the right and back in from the left: under it and beside it only a duo and a trio can sit, each meshing away from it, and the duo is the one the dial's turn needs." },
-  { n: 15, name: "Hour wheel", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
+  { n: 10, name: "Hour wheel", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
     "_  o  o  o  _",
     "o  o  #  o  .",
     "o  #  *  o  .",
     "a  o  C  .  .",
     "_  .  GN .  _"],
     aha: "The dial is one wheel below the arbor, but that wheel turns it backwards. The duo puts it right and turns only the bottom-left corner, so the train goes all the way round, and comes home beside the arbor: only the trio can sit there, meshing the train and the dial but not the arbor." },
-  { n: 16, name: "Barrel in the middle", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
-    "_  GE o  #  _",
-    ".  #  o  -  o",
-    ".  B  PW #  o",
-    ".  o  #  B  o",
-    "_  o  -  o  _"],
-    aha: "The escape wheel's square is two above the barrel, but the barrel faces left and nothing beside it meshes: the train spirals once right round the barrel to get there." },
-  { n: 17, name: "Motion works", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
+  { n: 11, name: "Motion works", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
     ".  o  o  o  c",
     ".  o  #  #  o",
     ".  o  *  #  o",
     "GS .  .  o  D",
     "o  o  o  D  ."],
     aha: "Four singles from under the arbor reach the dial, but turn it backwards. The duo that puts it right turns only the top-right corner, so the train leaves the arbor on the left and goes the long way round, the two trios stepping it round the bottom-right corner and under the arbor to the dial." },
+  { n: 12, name: "Mainspring", power: "M", themes: ["Mechanical", "Duos"], draw: [
+    "_  o  o  o  _",
+    ".  o  GE o  .",
+    ".  o  #  b  PW",
+    "_  o  o  o  _"],
+    aha: "Two wheels reach the escape wheel, and wound they run it backwards. The duo at the barrel sets it right and sends the train down; it goes all the way round and comes home just above the duo, which meshes only the barrel and the wheel below it." },
+  { n: 13, name: "Escape wheel", power: "M", themes: ["Mechanical", "Duos"], draw: [
+    "_  .  o  o  _",
+    "o  o  |  o  o",
+    "GN o  o  PE o",
+    "_  .  .  .  _"],
+    aha: "Singles alone run the escape wheel backwards. The straight duo sets it right, and it goes in the middle: the train climbs the right, crosses the top and comes down through it, the wheels either side passing its blind sides." },
+  { n: 14, name: "Click", power: "M", themes: ["Mechanical", "Duos"], draw: [
+    ".  .  o  PW",
+    ".  .  o  #",
+    "o  o  a  o",
+    "GN o  o  o"],
+    aha: "Singles alone run the escape wheel backwards. The duo sets it right, and it must be the hub the train winds round: down into it from the barrel, out to the right, then back round under it and past its left to the escape wheel." },
+  { n: 15, name: "Ratchet", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
+    "b  o  o  .",
+    "o  PS o  .",
+    "o  !  o  GW",
+    "o  o  #  ."],
+    aha: "Two wheels run the escape wheel backwards. The duo sets it right but turns only the top-left corner, so the train goes down, round and up the left; the barrel's first wheel must be the straight trio, which the train passes on both sides." },
+  { n: 16, name: "Escapement", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
+    "_  o  o  c  _",
+    ".  o  #  A  c",
+    ".  A  PW #  o",
+    ".  #  o  o  o",
+    "_  GE o  #  _"],
+    aha: "The escape wheel is just below the barrel's first wheel, but the way down is shut: the trio at the barrel turns the train up, and a duo, a trio and a duo, a corner each, step it down the right-hand side." },
+  { n: 17, name: "Barrel in the middle", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
+    "_  GE o  #  _",
+    ".  #  o  -  o",
+    ".  B  PW #  o",
+    ".  o  #  B  o",
+    "_  o  -  o  _"],
+    aha: "The escape wheel's square is two above the barrel, but the barrel faces left and nothing beside it meshes: the train spirals once right round the barrel to get there." },
 ];
 
 /** A drawn level as level data. */

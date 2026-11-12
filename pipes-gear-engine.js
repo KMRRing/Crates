@@ -500,15 +500,17 @@ export function planOf(L, theme = null) {
     clicks: L.clicks.map(k => ({ ...k })),
   };
 }
-/**
- * How long a beat of the escapement lasts (ms) in a frame whose train ends in an escape wheel: half a tooth of it a beat, as a lever
- * escapement lets it go, gathered into beats no quicker than 170 ms so the eye and ear can follow them. 0 when nothing ends in one.
- */
-export function beatOf(f) {
-  const g = f.M.gears.find(x => x.fixed === "sink" && f.M.omega[x.id]);
-  if (!g) return 0;
-  const half = f.T0 / F.num(F.abs(f.M.omega[g.id])) / (2 * g.n);
-  return half * Math.max(1, Math.ceil(170 / half));
+// ---------- the tick ----------
+// Korbi, 12 Nov 2026: "only quartz watches should go smoothly. generally, watches should tick tock once a second exactly, and there should be a
+// ticking noise ... a tick tock sound that's 4x-6x faster than the loud tick sound that moves the gears one section". A ticking movement (the
+// arbor turned from the other side, or a wound train held by its escapement) jumps once a second, the jump a tooth of its quickest wheel so
+// none skips a tooth, and stands between jumps; its escapement beats six times a jump (21,600 an hour). Quartz turns smoothly.
+export const SECOND = 1000, BEATS = 6;
+/** The tempo (ms a barrel turn takes) at which a ticking movement's quickest wheel moves one tooth a second. */
+export function tickTempo(M) {
+  let t = 0;
+  for (const g of M.gears) { const w = M.omega[g.id]; if (w && g.n) t = Math.max(t, SECOND * g.n * F.num(F.abs(w))); }
+  return t || 6000;
 }
 /** The frame a view draws (docs/pipes-contract.md): everything dynamic. */
 export function frameOf(L, laid, extra = {}) {

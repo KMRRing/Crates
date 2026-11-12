@@ -3,8 +3,8 @@
 // failure is silent. Whether to play at all is the page's choice (the menu's Sound, off in a watching frame).
 let ctx = null;
 
-/** One tick; `pitch` around 1 (0.7 is a duller one, the load's). */
-export function tick(pitch = 1) {
+/** One tick; `pitch` around 1 (0.7 is a duller one, the load's), `loud` around 1 (the escapement's beat is quiet, a second's jump loud). */
+export function tick(pitch = 1, loud = 1) {
   try {
     ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === "suspended") ctx.resume();
@@ -14,7 +14,7 @@ export function tick(pitch = 1) {
     const src = ctx.createBufferSource(), band = ctx.createBiquadFilter(), gain = ctx.createGain();
     src.buffer = buf;
     band.type = "bandpass"; band.frequency.value = 2400 * pitch; band.Q.value = 2.5;
-    gain.gain.setValueAtTime(0.16, t); gain.gain.exponentialRampToValueAtTime(0.001, t + len + 0.02);
+    gain.gain.setValueAtTime(0.16 * loud, t); gain.gain.exponentialRampToValueAtTime(0.001, t + len + 0.02);
     src.connect(band).connect(gain).connect(ctx.destination);
     src.start(t);
   } catch { /* no audio here */ }

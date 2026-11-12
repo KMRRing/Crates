@@ -66,9 +66,10 @@ export function drawWheel(g, w, o = {}) {
   el("path", { d: outline(n, m, !!o.ring), class: "g-body", "fill-rule": "evenodd" }, body);
   const hub = Math.max(2.4, Math.min(6, r * 0.26));
   if (/\bmotor\b/.test(o.skin || "")) {
-    // a quartz movement's motor: a coil round the stator and the crystal beside it
-    el("circle", { r: (root * 0.62).toFixed(2), class: "g-coil" }, body);
-    el("rect", { x: (-root * 0.18).toFixed(2), y: (-root * 0.5).toFixed(2), width: (root * 0.36).toFixed(2), height: (root * 0.7).toFixed(2), rx: (root * 0.12).toFixed(2), class: "g-crystal" }, body);
+    // a quartz movement's motor: a coil round the stator and the crystal beside it, standing still while the wheel they drive turns under
+    // them (Korbi, 12 Nov 2026: "quartz crystal mechanism is turning the first gear, not a spring")
+    el("circle", { r: (root * 0.62).toFixed(2), class: "g-coil" }, out);
+    el("rect", { x: (-root * 0.18).toFixed(2), y: (-root * 0.5).toFixed(2), width: (root * 0.36).toFixed(2), height: (root * 0.7).toFixed(2), rx: (root * 0.12).toFixed(2), class: "g-crystal" }, out);
   } else if (o.skin === "barrel") {
     let d = "M0 0";
     for (let t = 0; t <= 5.2 * Math.PI; t += 0.25) d += `L${((root * 0.1 + t * root * 0.075) * Math.cos(t)).toFixed(2)} ${((root * 0.1 + t * root * 0.075) * Math.sin(t)).toFixed(2)}`;
@@ -311,8 +312,8 @@ export function createView({ board, onGesture, onLost } = {}) {
     if (!epoch) epoch = performance.now();
     const M = frame.M, T0 = frame.T0, now = performance.now();
     const squareOn = c => { const k = M.order.indexOf(c); return k >= 0 && k < runUpTo; };
-    // 12 Nov 2026, Korbi: "mechanical movements do not move smoothly, they tick, if they are connected to the escapement". A wound train held
-    // by its escape wheel jumps a beat at a time, every wheel together; a turn lasts a whole number of beats so they stay in step.
+    // 12 Nov 2026, Korbi: "only quartz watches should go smoothly". A ticking movement (frame.beat: the arbor, or a wound train held by its
+    // escapement) jumps once a second, every wheel together; a turn lasts a whole number of seconds so they stay in step.
     const beat = frame.beat || 0;
     const pace = ms => { const k = Math.max(1, Math.round(ms / beat)); return beat ? { duration: k * beat, easing: `steps(${k}, end)` } : { duration: ms }; };
     for (const sp of gWheels.querySelectorAll(".spin.cw, .spin.ccw")) {
@@ -335,7 +336,7 @@ export function createView({ board, onGesture, onLost } = {}) {
     }
     for (const sw of gWheels.querySelectorAll(".swing")) {
       const id = M.gears.find(g => g.fixed === "sink")?.id, w = id !== undefined ? M.omega[id] : null;
-      if (w && squareOn(Math.floor(id / SLOTS))) sw.animate([{ transform: "rotate(-70deg)" }, { transform: "rotate(70deg)" }], { duration: beat || Math.max(260, T0 / F.num(F.abs(w)) / 8), direction: "alternate", iterations: Infinity, easing: "ease-in-out" });
+      if (w && squareOn(Math.floor(id / SLOTS))) sw.animate([{ transform: "rotate(-70deg)" }, { transform: "rotate(70deg)" }], { duration: beat ? beat / (frame.beats || 1) : Math.max(260, T0 / F.num(F.abs(w)) / 8), direction: "alternate", iterations: Infinity, easing: "ease-in-out" });
     }
   }
   function wake() {

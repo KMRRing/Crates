@@ -293,23 +293,10 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const order = new Map((Mf.order || []).map((c, i) => [c, i]));
     for (const a of arbors) a.rank = order.get(a.sq) ?? 0;
     for (const r of G_) r.rank = order.get(r.c) ?? 0;
-    // the escapement's stepped clock: a train with an escape sink ticks
+    // the stepped clock (Korbi, 12 Nov 2026: "only quartz watches should go smoothly"): a ticking movement (frame.beat: the arbor, or a wound
+    // train held by its escapement) jumps once a second, every train together, by the barrel turns a second holds at its tempo
     stepTrains = new Map();
-    (plan?.trains || []).forEach((t, k) => {
-      if (t.sink?.goal?.type !== "escape" && t.sink?.goal?.type !== "tourbillon") return;
-      const sink = G_.find(r => r.train === k && r.role === "sink");
-      if (!sink || !sink.rate) return;
-      const beat = 1 / (2 * sink.n * Math.abs(sink.rate)), ms = beat * (f.T0 || 6000), kk = Math.max(1, Math.ceil(170 / ms));
-      stepTrains.set(k, beat * kk);
-    });
-    // an escapement station: the whole train it sits in jumps one second at a time, the balance beating once a jump
-    for (const pin of plan?.pins || []) {
-      if (pin.goal?.type !== "escape") continue;
-      const r = G_.find(x => x.c === pin.c && x.id === pin.c * 8 + (pin.goal.w ?? 0)) || G_.find(x => x.c === pin.c);
-      if (!r || !r.rate) continue;
-      const beat = 1 / (2 * r.n * Math.abs(r.rate)), ms = beat * (f.T0 || 6000);
-      stepTrains.set(pin.train ?? r.train ?? 0, beat * Math.max(1, Math.ceil(1000 / ms)));
-    }
+    if (f.beat) (plan?.trains || []).forEach((_, k) => stepTrains.set(k, f.beat / (f.T0 || 6000)));
     // ghost: the piece held over a square, translucent
     for (const e of ghostSets.values()) e.mesh.count = 0;
     // a hint names its piece "kind@rot"; a ghost its kind and rot
@@ -326,6 +313,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     // the run: a new solve starts the clock and the power wave; a solved movement runs RUN_MS and then eases to rest
     const wasSolved = lastFrameRef?.solved;
     if (f.solved && !wasSolved) { runStart = tMs; runEnd = tMs + RUN_MS; wake0 = tMs; } else if (!f.solved) { runEnd = Infinity; }
+    // a ticking run starts on a jump's edge, so the wheels' first jump comes a second in, with the loud tick the page plays
+    if (f.beat && !lastFrameRef?.beat) { const jump = f.beat / (f.T0 || 6000); turns[0] = Math.round((turns[0] || 0) / jump) * jump; }
     if (!lastFrameRef) wake0 = tMs;
     if (f.unwind && !lastFrameRef?.unwind) runEnd = tMs + 1500;                    // a spring let go with nothing to hold it: it spins out in a moment
     if (f.still && !stillWas) runEnd = lastFrameRef ? tMs : -1e9;                   // a mechanical movement that is not wound rests (it eases to a stop if it was turning)
@@ -346,7 +335,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const turnsFor = k => {
     const g = turns[0] ?? 0;
     const beat = stepTrains.get(k);
-    return beat && awakeOf(k) ? P.stepClock(g, beat) : g;
+    return beat && awakeOf(k) ? P.stepClock(g, beat, 0.14) : g;
   };
   /** The current angle (degrees, clockwise) of gear r. */
   function angleOf(r) {
@@ -405,7 +394,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     }
     _s.set(1, 1, 1);
     sparks.count = ns; sparks.instanceMatrix.needsUpdate = true;
-    parts?.update({ tMs, g: turns[0] || 0, beat: k => stepTrains.get(k), phase: id => phases.get(id) || 0, turns: turnsFor, angle: id => { const r = byId.get(id); return r ? angleOf(r) : 0; }, ex, awake: awakeOf, wake0, focus, layerY: l => P.layerY(l, ex) });
+    parts?.update({ tMs, g: turns[0] || 0, beat: k => (stepTrains.get(k) || 0) / (frame?.beats || 1), phase: id => phases.get(id) || 0, turns: turnsFor, angle: id => { const r = byId.get(id); return r ? angleOf(r) : 0; }, ex, awake: awakeOf, wake0, focus, layerY: l => P.layerY(l, ex) });
     placeBridges();
     marks.placeChips(screenOf, pxPer(), w, l => P.layerY(l, ex), id => parts?.lifts?.get(id) || 0);
   }
@@ -477,7 +466,8 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       tMs += dt * 1000;
       if (frame) {
         const ramp = clamp((tMs - wake0) / 900, 0, 1), fade = tMs > runEnd ? clamp(1 - (tMs - runEnd) / 700, 0, 1) : 1, T0 = frame.T0 || 6000;
-        turns[0] = (turns[0] || 0) + dt * 1000 / T0 * (0.05 + 0.95 * ease(ramp)) * ease(fade) * (frame.speedUp || 1);
+        const r = frame.beat ? 1 : 0.05 + 0.95 * ease(ramp);                         // (a ticking movement keeps the seconds from the start)
+        turns[0] = (turns[0] || 0) + dt * 1000 / T0 * r * ease(fade) * (frame.speedUp || 1);
       }
     }
     stepTilt(dt);

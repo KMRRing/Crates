@@ -37,27 +37,39 @@ export function createParts(env) {
     // the drum: a toothed ring (solid, with the module's metal), a lid with a window on the spring, a snail of fine lines on the lid by vertex shades
     const drum = G.wheelGeometry({ n: r.n, m: r.m, detail: env.detail, solid: true, pinion: false });
     const drumM = mk(drum, gearMat[r.m] || gearMat[5], turn); drumM.position.y = y0;
-    const lidR = root_ * 0.92, win0 = 0.4 + k * 1.1, win1 = win0 + 1.35;
-    const lid = G.slab(G.shapeOf(G.circle(lidR, 48), [[...G.arc(lidR * 0.86, win0, win1, 14), ...G.arc(lidR * 0.34, win1, win0, 8)]]), 0.022, 0.006, 1);
+    const quartz = plan?.power !== "mech", lidR = root_ * 0.92, win0 = 0.4 + k * 1.1, win1 = win0 + 1.35;
+    const lid = G.slab(G.shapeOf(G.circle(lidR, 48), quartz ? [] : [[...G.arc(lidR * 0.86, win0, win1, 14), ...G.arc(lidR * 0.34, win1, win0, 8)]]), 0.022, 0.006, 1);
     G.polish(lid);
     // sunray: alternate bands of light on the lid (vertex shades by angle), and the spring coiled in the window
     const p = lid.attributes.position, col = new Float32Array(p.count * 3);
     for (let i = 0; i < p.count; i++) { const a = Math.atan2(p.getZ(i), p.getX(i)), band = Math.floor((a + Math.PI) / TAU * 48) % 2 ? 0.9 : 1; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = band; }
     lid.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
     lid.translate(0, H - 0.022, 0);
-    // 11 Nov 2026, Korbi: "until then quartz": a quartz movement's drum is its motor, the blued spring a copper coil under a dark lid
-    const quartz = plan?.power !== "mech";
-    const spring = G.tint(G.spiralGeometry(lidR * 0.2, lidR * 0.84, quartz ? 9 : 5, quartz ? 0.02 : 0.014, 0.05, 14), quartz ? 0xb8733a : 0x2b4f9c);
-    G.polish(spring); spring.translate(0, 0.02, 0);
+    // 11 Nov 2026, Korbi: "until then quartz"; 12 Nov: "quartz crystal mechanism is turning the first gear, not a spring". A quartz movement's
+    // first wheel is turned by its stepping motor: no spring and no ratchet, a dark plate on the wheel and, standing still over it, the
+    // motor's coil on its stator and the crystal in its silver can. A mechanical barrel shows its blued mainspring, its ratchet and click.
     const floor = G.tint(G.slab(G.shapeOf(G.circle(lidR * 0.9, 40)), 0.014, 0.003), 0x6a6e78); G.polish(floor); floor.translate(0, 0.012, 0);
-    const lidAll = G.merge([G.tint(lid, quartz ? 0x3a3f48 : 0xcfd3d9), spring, floor]);
+    const spring = quartz ? null : G.tint(G.spiralGeometry(lidR * 0.2, lidR * 0.84, 5, 0.014, 0.05, 14), 0x2b4f9c);
+    if (spring) { G.polish(spring); spring.translate(0, 0.02, 0); }
+    const lidAll = G.merge([G.tint(lid, quartz ? 0x3a3f48 : 0xcfd3d9), floor, ...(spring ? [spring] : [])]);
     const lidM = mk(lidAll, M.parts, turn); lidM.position.y = y0;
-    // the arbor of the barrel is fixed; on it the ratchet wheel (it only turns when winding) with its click
-    const rat = G.slab(G.shapeOf(G.ratchetOutline(14, root_ * 0.2, root_ * 0.3), [G.circle(0.02, 8)]), 0.035, 0.005, 1);
-    rat.translate(0, H, 0); G.polish(rat, 2); G.tint(rat, 0xc9ced6);
-    const click = G.slab(G.shapeOf([[0, 0], [0.09, 0.012], [0.11, 0.036], [0.085, 0.04], [0.02, 0.016], [-0.03, 0.03], [-0.03, 0.006]]), 0.03, 0.004, 1);
-    click.translate(root_ * 0.3 - 0.02, H, 0.02); G.polish(click, 2); G.tint(click, 0xe3b84e);
-    const stat = mk(G.merge([rat, click]), M.parts, g); stat.position.y = y0;
+    let fixed;
+    if (quartz) {
+      const L = root_ * 0.95, rc = root_ * 0.17, top = H + 0.03 + rc;          // (either side of the wheel's jewel, which stays in view)
+      const stator = G.tint(new THREE.BoxGeometry(L * 1.2, 0.03, rc * 1.6), 0xc9ced6); stator.translate(0, H + 0.03, -root_ * 0.52);
+      const coil = G.tint(new THREE.CylinderGeometry(rc, rc, L, 20, 1), 0xb8733a); coil.rotateZ(Math.PI / 2); coil.translate(0, top, -root_ * 0.52);
+      const can = G.tint(new THREE.CylinderGeometry(rc * 0.55, rc * 0.55, L * 0.6, 16, 1), 0xdfe3e8); can.rotateZ(Math.PI / 2); can.translate(-L * 0.08, H + 0.03 + rc * 0.55, root_ * 0.54);
+      for (const x of [stator, coil, can]) G.polish(x, 2);
+      fixed = [stator, coil, can];
+    } else {
+      // the arbor of the barrel is fixed; on it the ratchet wheel (it only turns when winding) with its click
+      const rat = G.slab(G.shapeOf(G.ratchetOutline(14, root_ * 0.2, root_ * 0.3), [G.circle(0.02, 8)]), 0.035, 0.005, 1);
+      rat.translate(0, H, 0); G.polish(rat, 2); G.tint(rat, 0xc9ced6);
+      const click = G.slab(G.shapeOf([[0, 0], [0.09, 0.012], [0.11, 0.036], [0.085, 0.04], [0.02, 0.016], [-0.03, 0.03], [-0.03, 0.006]]), 0.03, 0.004, 1);
+      click.translate(root_ * 0.3 - 0.02, H, 0.02); G.polish(click, 2); G.tint(click, 0xe3b84e);
+      fixed = [rat, click];
+    }
+    const stat = mk(G.merge(fixed), M.parts, g); stat.position.y = y0;
     const pivot = mk(G.chatonGeometry(0.15, 0.1), M.gold, g, { cast: false }); pivot.position.y = y0 + H + 0.035;
     const stone = mk(G.cabochonGeometry(0.1, 0.075, 0.024), M.rubyLit, g, { cast: false }); stone.position.y = y0 + H + 0.047;
     items.push({ g, update: c => { turn.rotation.y = -c.angle(r.id) * P.DEG; g.position.y = c.layerY(r.layer) - P.LAYER_Y[r.layer]; } });
