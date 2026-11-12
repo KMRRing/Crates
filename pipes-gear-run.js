@@ -29,7 +29,7 @@ export function createPuzzle(deps) {
   const indexOf = id => LEVELS.findIndex(l => l.id === id);
   let saved = { v: 2, id: LEVELS[0].id, runs: {} }, stars = {};
   let L = null, laid = [], run = null, index = 0, view = null, spec = null, extra = null;      // extra: today's plate or a random one, in hand instead of a level
-  let windMode = null, windTimer = 0, tickTimer = 0, tickStop = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
+  let windMode = null, windTimer = 0, tickTimer = 0, tickStop = 0, tickT0 = 0, undoStack = [], hint = null, focus = null, looking = false, liftMode = false, drag = null, press = null, last = null, shownFor = "";
   let running = false, jamKey = "", kind = "2d", mod3d = null, crown = 0;
 
   // ---------- keeping ----------
@@ -59,6 +59,9 @@ export function createPuzzle(deps) {
     run = r;
     laid = E.unpackLaid(L, run.laid);
     clearTimeout(windTimer); ticking(false); windMode = null; crown = 0;
+    // a ticking movement keeps one tempo all level, its answer's (a tooth of its quickest wheel a second), however much of the train is laid
+    const answer = spec.sols?.[0];
+    if (answer) { const a = E.emptyLaid(L); for (const [c, p] of Object.entries(answer)) a[c] = p; tickT0 = E.tickTempo(E.check(L, a).M); } else tickT0 = 0;
     undoStack = []; hint = null; jamKey = ""; focus = null; looking = false; liftMode = false;
     persist();
   }
@@ -111,10 +114,12 @@ export function createPuzzle(deps) {
     if (mechanical()) { f.still = !windMode; f.solved = !!windMode; f.blind = !windMode; }
     if (windMode) { f.solved = true; if (windMode === "unwind") { f.unwind = true; f.T0 /= 10; } }
     // 12 Nov 2026, Korbi: "only quartz watches should go smoothly": the arbor (turned from the other side) and a wound train held by its
-    // escapement tick, a jump a second (the engine's tickTempo), the escapement beating six times a jump, and both are heard
-    const ticks = !!f.solved && (windMode === "tick" || (spec.power === "arbor" && !mechanical()));
-    if (ticks) { f.T0 = E.tickTempo(f.M); f.beat = E.SECOND; f.beats = E.BEATS; }
-    ticking(ticks);
+    // escapement tick, a jump a second (the engine's tickTempo), the escapement beating six times a jump, and both are heard. The arbor
+    // ticks from the moment the level opens ("the ticking should be there immediately ... discrete turns all the time"), every wheel it
+    // drives jumping with it while the train is laid; a mechanical train only once it is wound and reaches its escape wheel.
+    const ticks = windMode === "tick" ? !!f.solved : spec.power === "arbor" && !mechanical();
+    if (ticks) { f.T0 = tickT0 || E.tickTempo(f.M); f.beat = E.SECOND; f.beats = E.BEATS; }
+    ticking(ticks, !!f.solved);
     last = f;
     view.draw(f);
     return f;
@@ -312,14 +317,15 @@ export function createPuzzle(deps) {
   const snap = () => { undoStack.push({ laid: laid.slice(), lifts: run.lifts, sel: run.sel, selRot: run.selRot }); if (undoStack.length > 300) undoStack.shift(); };
   const sound = (pitch, loud) => { if (deps.sound?.()) tickSound(pitch, loud); };
   /** The ticking heard while a ticking movement runs: the escapement's tick-tock, quiet, six times a second, and each second's jump loud, from
-   *  the moment it starts (the wheels' first jump comes a second in), for as long as the views turn it (20 s) or until it stops. */
-  function ticking(on) {
-    if (on === !!tickTimer) return;
-    clearInterval(tickTimer); clearTimeout(tickStop); tickTimer = 0;
-    if (!on) return;
-    let k = 0;
-    tickTimer = setInterval(() => { k++; if (k % E.BEATS === 0) sound(0.62, 2.2); else sound(k % 2 ? 1 : 0.82, 0.45); }, E.SECOND / E.BEATS);
-    tickStop = setTimeout(() => { clearInterval(tickTimer); tickTimer = 0; }, 20000);
+   *  the moment it starts (the wheels' first jump comes a second in). It goes on while the level is played; once the movement is finished
+   *  (`settle`), for as long as the views turn it (20 s), and a touch that wakes them starts it again. */
+  function ticking(on, settle = false) {
+    if (!on) { clearInterval(tickTimer); clearTimeout(tickStop); tickTimer = tickStop = 0; return; }
+    if (!tickTimer) {
+      let k = 0;
+      tickTimer = setInterval(() => { k++; if (k % E.BEATS === 0) sound(0.62, 2.2); else sound(k % 2 ? 1 : 0.82, 0.45); }, E.SECOND / E.BEATS);
+    }
+    if (settle && !tickStop) tickStop = setTimeout(() => ticking(false), 20000);
   }
   function choose(k) {
     if (frame || run.solved) return;

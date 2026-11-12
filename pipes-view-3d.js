@@ -335,7 +335,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const turnsFor = k => {
     const g = turns[0] ?? 0;
     const beat = stepTrains.get(k);
-    return beat && awakeOf(k) ? P.stepClock(g, beat, 0.14) : g;
+    return beat ? P.stepClock(g, beat, 0.14) : g;                                 // (a ticking movement steps even while its train is laid)
   };
   /** The current angle (degrees, clockwise) of gear r. */
   function angleOf(r) {

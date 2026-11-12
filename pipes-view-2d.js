@@ -308,10 +308,11 @@ export function createView({ board, onGesture, onLost } = {}) {
 
   // ---------- motion ----------
   function applyMotion(frame) {
-    if (!frame.solved || !motion || asleep) return;
+    // a ticking movement (the arbor) turns from the moment the level opens, every wheel it drives stepping with it while the train is laid
+    if ((!frame.solved && !frame.beat) || !motion || asleep) return;
     if (!epoch) epoch = performance.now();
     const M = frame.M, T0 = frame.T0, now = performance.now();
-    const squareOn = c => { const k = M.order.indexOf(c); return k >= 0 && k < runUpTo; };
+    const squareOn = c => { if (!frame.solved) return true; const k = M.order.indexOf(c); return k >= 0 && k < runUpTo; };
     // 12 Nov 2026, Korbi: "only quartz watches should go smoothly". A ticking movement (frame.beat: the arbor, or a wound train held by its
     // escapement) jumps once a second, every wheel together; a turn lasts a whole number of seconds so they stay in step.
     const beat = frame.beat || 0;
@@ -349,7 +350,7 @@ export function createView({ board, onGesture, onLost } = {}) {
   /** Plays an event, then draws and calls done: "run" starts the solved train turning gear by gear from the barrels. */
   view.animate = (ev, done) => {
     if (ev.type === "run" && last) {
-      clearTimeout(runTimer); epoch = performance.now(); runUpTo = 0; asleep = false;
+      clearTimeout(runTimer); if (!last.beat || !epoch) epoch = performance.now(); runUpTo = 0; asleep = false;   // (a ticking movement keeps its seconds)
       const total = last.M.order.length + 2;
       if (!motion) { runUpTo = Infinity; view.draw(last); return done?.(); }
       const tick = () => {
