@@ -89,7 +89,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   let orbitMemo = { az: 22 * P.DEG, el: P.LOOK_EL, zoom: 1 };
   let stillWas = false, turns = [], tMs = 0, runStart = -1, runEnd = Infinity, wake0 = 0, driveOn = false;
   let G_ = [], byId = new Map(), phases = new Map(), sets = new Map(), ghostSets = new Map(), arbors = [], staffs = null, chatB = null, rubyD = null, rubyL = null;
-  let jamHeat = null, sparks = null, parts = null, geoCache = new Map(), litSq = new Set(), stepTrains = new Map(), lastFrameRef = null;
+  let jamHeat = null, sparks = null, parts = null, geoCache = new Map(), litSq = new Set(), jump = 0, lastFrameRef = null;
   let bridgesDyn = [], posts = null, bscrews = null;
   const wheelGeo = (n, m, pinion, ring) => {
     const k = `${ring ? "r" : pinion ? "p" : "w"}${n}/${m}/${detail}`;
@@ -293,10 +293,10 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const order = new Map((Mf.order || []).map((c, i) => [c, i]));
     for (const a of arbors) a.rank = order.get(a.sq) ?? 0;
     for (const r of G_) r.rank = order.get(r.c) ?? 0;
-    // the stepped clock (Korbi, 12 Nov 2026: "only quartz watches should go smoothly"): a ticking movement (frame.beat: the arbor, or a wound
-    // train held by its escapement) jumps once a second, every train together, by the barrel turns a second holds at its tempo
-    stepTrains = new Map();
-    if (f.beat) (plan?.trains || []).forEach((_, k) => stepTrains.set(k, f.beat / (f.T0 || 6000)));
+    // the stepped clock (Korbi, 12 Nov 2026: "only quartz watches should go smoothly ... all the placed gears should also move in discrete
+    // steps"): a ticking movement (frame.beat: the arbor, or a wound train held by its escapement) jumps once a second, every wheel on the
+    // plate together (the laid ones belong to no train of their own), by the barrel turns a second holds at its tempo
+    jump = f.beat ? f.beat / (f.T0 || 6000) : 0;
     // ghost: the piece held over a square, translucent
     for (const e of ghostSets.values()) e.mesh.count = 0;
     // a hint names its piece "kind@rot"; a ghost its kind and rot
@@ -314,7 +314,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     const wasSolved = lastFrameRef?.solved;
     if (f.solved && !wasSolved) { runStart = tMs; runEnd = tMs + RUN_MS; wake0 = tMs; } else if (!f.solved) { runEnd = Infinity; }
     // a ticking run starts on a jump's edge, so the wheels' first jump comes a second in, with the loud tick the page plays
-    if (f.beat && !lastFrameRef?.beat) { const jump = f.beat / (f.T0 || 6000); turns[0] = Math.round((turns[0] || 0) / jump) * jump; }
+    if (jump && !lastFrameRef?.beat) turns[0] = Math.round((turns[0] || 0) / jump) * jump;
     if (!lastFrameRef) wake0 = tMs;
     if (f.unwind && !lastFrameRef?.unwind) runEnd = tMs + 1500;                    // a spring let go with nothing to hold it: it spins out in a moment
     if (f.still && !stillWas) runEnd = lastFrameRef ? tMs : -1e9;                   // a mechanical movement that is not wound rests (it eases to a stop if it was turning)
@@ -332,16 +332,15 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   }
 
   // ---------- one frame's pose: every angle from one clock ----------
-  const turnsFor = k => {
+  const turnsFor = () => {
     const g = turns[0] ?? 0;
-    const beat = stepTrains.get(k);
-    return beat ? P.stepClock(g, beat, 0.14) : g;                                 // (a ticking movement steps even while its train is laid)
+    return jump ? P.stepClock(g, jump, 0.14) : g;                                 // (a ticking movement steps even while its train is laid)
   };
   /** The current angle (degrees, clockwise) of gear r. */
   function angleOf(r) {
     // a jam, a clash, and every wheel a jam locks (before and after it: Korbi, 11 Nov 2026) strain where they stand; only the jam and the clash glow red
     if (r.jam || r.locked || (frame.M.clash || []).some(([u, v]) => u === r.id || v === r.id)) return (phases.get(r.id) || 0) + Math.sin(tMs / 1000 * 52) * 2.4;
-    return P.angleOf(phases.get(r.id) || 0, r.rate, turnsFor(r.train));
+    return P.angleOf(phases.get(r.id) || 0, r.rate, turnsFor());
   }
   const layerDim = r => focus != null && r.layer !== focus;
   function layout() {
@@ -394,7 +393,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     }
     _s.set(1, 1, 1);
     sparks.count = ns; sparks.instanceMatrix.needsUpdate = true;
-    parts?.update({ tMs, g: turns[0] || 0, beat: k => (stepTrains.get(k) || 0) / (frame?.beats || 1), phase: id => phases.get(id) || 0, turns: turnsFor, angle: id => { const r = byId.get(id); return r ? angleOf(r) : 0; }, ex, awake: awakeOf, wake0, focus, layerY: l => P.layerY(l, ex) });
+    parts?.update({ tMs, g: turns[0] || 0, beat: () => jump / (frame?.beats || 1), phase: id => phases.get(id) || 0, turns: turnsFor, angle: id => { const r = byId.get(id); return r ? angleOf(r) : 0; }, ex, awake: awakeOf, wake0, focus, layerY: l => P.layerY(l, ex) });
     placeBridges();
     marks.placeChips(screenOf, pxPer(), w, l => P.layerY(l, ex), id => parts?.lifts?.get(id) || 0);
   }
