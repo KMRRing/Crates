@@ -84,31 +84,30 @@ export const PLAN = [
     "o  o  #  o  o",
     "_  o  -  o  _"],
     aha: "Every duo and trio in the hand is straight, and the ring round the diamond has one straight run on each side for them. The two duos undo each other's turn." },
-  { n: 8, name: "Mainspring", power: "M", themes: ["Mechanical"], draw: [
-    ".  o  o  o",
-    ".  PN #  o",
-    ".  #  GS o",
-    "#  .  o  o"],
-    aha: "Barrel and escape wheel sit corner to corner in the middle, facing out, and the corner pillar shuts the way round the left: wind it to find the train round the right." },
-  { n: 9, name: "Escape wheel", power: "M", themes: ["Mechanical"], draw: [
+  { n: 8, name: "Mainspring", power: "M", themes: ["Mechanical", "Duos"], draw: [
     "_  o  o  o  _",
-    "#  o  #  o  o",
-    "o  o  #  #  o",
-    "PN #  o  o  o",
-    "_  .  GN .  _"],
-    aha: "The escape wheel faces up from the bottom edge, a square from the barrel: the train goes up the left, over the top and down the right to reach it from above." },
+    ".  o  GE o  .",
+    ".  o  #  b  PW",
+    "_  o  o  o  _"],
+    aha: "Two wheels reach the escape wheel, and wound they run it backwards. The duo at the barrel sets it right and sends the train down; it goes all the way round and comes home just above the duo, which meshes only the barrel and the wheel below it." },
+  { n: 9, name: "Escape wheel", power: "M", themes: ["Mechanical", "Duos"], draw: [
+    "_  .  o  o  _",
+    "o  o  |  o  o",
+    "GN o  o  PE o",
+    "_  .  .  .  _"],
+    aha: "Singles alone run the escape wheel backwards. The straight duo sets it right, and it goes in the middle: the train climbs the right, crosses the top and comes down through it, the wheels either side passing its blind sides." },
   { n: 10, name: "Click", power: "M", themes: ["Mechanical", "Duos"], draw: [
-    "#  o  o  o  GW",
-    "o  o  #  #  .",
-    "|  #  o  o  c",
-    "o  o  o  #  PN"],
-    aha: "The escape wheel is two squares above the barrel, but it meshes only on its left: the duo at the barrel turns the train left at once, and it goes the whole way round to come in from the left." },
-  { n: 11, name: "Ratchet", power: "M", themes: ["Mechanical", "Trios"], draw: [
-    "_  o  o  o  _",
-    "o  o  #  o  .",
-    "GN PS #  o  .",
-    "_  A  o  o  _"],
-    aha: "Barrel and escape wheel sit side by side, facing opposite ways. The trio under the barrel turns the train east; it climbs round the pillars and comes down onto the escape wheel from above." },
+    ".  .  o  PW",
+    ".  .  o  #",
+    "o  o  a  o",
+    "GN o  o  o"],
+    aha: "Singles alone run the escape wheel backwards. The duo sets it right, and it must be the hub the train winds round: down into it from the barrel, out to the right, then back round under it and past its left to the escape wheel." },
+  { n: 11, name: "Ratchet", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
+    "b  o  o  .",
+    "o  PS o  .",
+    "o  !  o  GW",
+    "o  o  #  ."],
+    aha: "Two wheels run the escape wheel backwards. The duo sets it right but turns only the top-left corner, so the train goes down, round and up the left; the barrel's first wheel must be the straight trio, which the train passes on both sides." },
   { n: 12, name: "Escapement", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
     "_  o  o  c  _",
     ".  o  #  A  c",
@@ -116,18 +115,18 @@ export const PLAN = [
     ".  #  o  o  o",
     "_  GE o  #  _"],
     aha: "The escape wheel is just below the barrel's first wheel, but the way down is shut: the trio at the barrel turns the train up, and a duo, a trio and a duo, a corner each, step it down the right-hand side." },
-  { n: 13, name: "Centre wheel", power: "A", themes: ["Arbor"], draw: [
-    "o  *  .  .",
-    "o  #  .  .",
-    "o  #  .  .",
-    "o  o  GW ."],
-    aha: "The arbor turns every wheel beside it, so the train may leave on any side. The dial looks nearer on the right, but it meshes only from its left: leave the arbor on the left." },
-  { n: 14, name: "Cannon pinion", power: "A", themes: ["Arbor", "Duos"], draw: [
+  { n: 13, name: "Cannon pinion", power: "A", themes: ["Arbor", "Duos"], draw: [
     "o  o  o",
     "o  #  o",
     "o  *  |",
     ".  GE o"],
     aha: "Two singles from the arbor's right reach the dial, but turn it backwards. The straight duo puts it right, and it works only beside the arbor, which it doesn't mesh: so the train leaves on the left, goes all the way round, and comes down through the duo." },
+  { n: 14, name: "Centre wheel", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
+    ".  GS .  .",
+    "o  D  *  o",
+    "o  o  c  o",
+    ".  #  o  o"],
+    aha: "The arbor turns every wheel beside it, so the train winds once round it, out on the right and back in from the left: under it and beside it only a duo and a trio can sit, each meshing away from it, and the duo is the one the dial's turn needs." },
   { n: 15, name: "Hour wheel", power: "A", themes: ["Arbor", "Duos", "Trios"], draw: [
     "_  o  o  o  _",
     "o  o  #  o  .",
@@ -212,6 +211,23 @@ export function faults(spec, loose) {
   return { out, nodes: whole.nodes };
 }
 
+/** What makes a level worth solving (Korbi's ratings, 12 Nov 2026: the levels he liked have both): `trap`, the length of the
+ *  shortest train of singles that reaches the dial turning it backwards (0: none); `touch`, how often the answer runs beside
+ *  itself (or beside the arbor) on a side that doesn't mesh. */
+export function trickOf(spec) {
+  const L = parseLevel(spec), laid = emptyLaid(L), t = spec.trains[0], cols = spec.cols;
+  for (const [c, p] of Object.entries(spec.sols[0])) laid[c] = p;
+  const path = check(L, laid).trains?.[0]?.path || [], at = new Map(path.map((c, i) => [c, i]));
+  let touch = 0;
+  for (const [c, i] of at) {
+    if (c === t.sink.c || (c === t.barrel.c && !t.barrel.arbor)) continue;
+    for (const n of [c + 1, c + cols]) if ((n !== c + 1 || n % cols) && at.has(n) && n !== t.sink.c && (n !== t.barrel.c || t.barrel.arbor) && Math.abs(at.get(n) - i) > 1) touch++;
+  }
+  const back = { ...spec, hand: "S5.1@0:30", spare: true, trains: [{ ...t, sink: { ...t.sink, goal: { ...t.sink.goal, dir: t.sink.goal.dir === "cw" ? "ccw" : "cw" } } }] };
+  const s = solve(parseLevel(back), 6, 2e5);
+  return { trap: s.sols.length ? Math.min(...s.sols.map(x => x.laid.filter(Boolean).length)) : 0, touch };
+}
+
 const [mode, ...args] = process.argv[1]?.endsWith("pipes-gear-plan.mjs") ? process.argv.slice(2) : [];
 if (mode === "check") {
   for (const row of PLAN.filter(r => !args[0] || r.n === Number(args[0]))) {
@@ -233,10 +249,12 @@ if (mode === "sketch") {
   const got = [];
   for (let k = Number(args[5] || 0), t0 = Date.now(); k < Number(args[5] || 0) + tries && Date.now() - t0 < 280000; k++) {
     const res = forgeLevel(mixSeed(1, k, 77), recipe);
-    if (res) { const pic = picture(res.spec); got.push({ k, nodes: res.nodes, pic, idle: pic.join(" ").split(/\s+/).filter(t => t === ".").length }); }
+    if (!res) continue;
+    const pic = picture(res.spec), g = { k, nodes: res.nodes, pic, idle: pic.join(" ").split(/\s+/).filter(t => t === ".").length, ...trickOf(res.spec) };
+    if (!process.env.TRICK || (g.trap && g.touch)) got.push(g);
   }
   got.sort((a, b) => (process.env.HARD ? b.nodes - a.nodes : a.idle - b.idle || b.nodes - a.nodes));   // the fewest squares left idle first, or the hardest
   console.log(`${got.length} of ${tries}`);
   const seen = new Set();
-  for (const g of got) { const key = g.pic.join("|"); if (seen.has(key) || seen.size >= Number(process.env.SHOW || 6)) continue; seen.add(key); console.log(`seed ${g.k}, nodes ${g.nodes}, ${g.idle} idle\n` + g.pic.map(l => "   " + l).join("\n")); }
+  for (const g of got) { const key = g.pic.join("|"); if (seen.has(key) || seen.size >= Number(process.env.SHOW || 6)) continue; seen.add(key); console.log(`seed ${g.k}, nodes ${g.nodes}, ${g.idle} idle${g.trap ? `, singles reach it backwards in ${g.trap}` : ""}${g.touch ? `, comes home beside itself ${g.touch}x` : ""}\n` + g.pic.map(l => "   " + l).join("\n")); }
 }
