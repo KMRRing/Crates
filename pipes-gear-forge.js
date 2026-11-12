@@ -163,13 +163,16 @@ const fmt = w => F.fmt(F.abs(w));
  *   trains: [{ m, l, pieces, bends, fams, mods, layers, adapt, end { m, l }, goal { type, ring }, stations, stationType, self (crosses itself),
  *            ends: [{ len, look: "hands" | "barrel", type }], clutch { len }, hands (a pinned hands station on the way),
  *            kinds (only these kinds), mix (exactly these pieces besides singles: a family "D" or a kind each) }],
- *   minimal (every pillar left is needed for the one answer, however hard that makes it), far (the barrel at least this far from the sink)
+ *   minimal (every pillar left is needed for the one answer, however hard that makes it), far (the barrel at least this far from the sink),
+ *   face (rows with " " off the face, in place of disc), arbor (the power is the movement's turning arbor, on square `at` or anywhere),
+ *   loads, fixed (that many loads on the answer's singles and pieces fixed in place, laid before the pillars come out, each needed),
+ *   sym (the pillars come out in mirror pairs across the face's upright middle)
  *   cross: [[a, b]] (train b crosses train a once at a pinned crossing)
  * }
  */
 export function forgeLevel(seed, o) {
   const r = rng(mix(seed, 911)), L0 = { cols: o.cols, rows: o.rows, size: o.cols * o.rows };
-  const gone = o.disc ? discVoid(o.cols) : new Set();
+  const gone = o.face ? new Set(o.face.flatMap((row, y) => [...row].map((ch, x) => (ch === " " ? y * o.cols + x : -1)).filter(c => c >= 0))) : o.disc ? discVoid(o.cols) : new Set();
   const blocked = new Set(gone), keep = new Set(), routes = [];
   const cat = CATALOG();
   // ---- routes: each train's main line, then what its themes add
@@ -178,7 +181,7 @@ export function forgeLevel(seed, o) {
     const crossWith = (o.cross || []).find(([, b]) => b === ti);
     let R = null;
     for (let k = 0; k < (t.pieces > 14 ? 200 : 80) && !R; k++) {
-      const s = Math.floor(r() * L0.size), d0 = Math.floor(r() * 4), first = beyond(L0, s, d0);
+      const s = o.arbor && o.at !== undefined ? o.at : Math.floor(r() * L0.size), d0 = Math.floor(r() * 4), first = beyond(L0, s, d0);
       if (blocked.has(s) || keep.has(s) || first < 0) continue;
       const cross = new Map();
       if (crossWith) for (const p of routes[crossWith[0]].main.passes) if (!p.cross && p.b === back(p.a)) cross.set(p.c, p.b % 2 ? "h" : "v");
@@ -342,7 +345,7 @@ export function forgeLevel(seed, o) {
       sinkN = opts[0].n; wSink = opts[0].w;
     }
     const type = t.goal?.type || (o.power === "mech" ? "escape" : compound ? "wheel" : "dial");
-    spec.trains.push({ id: "ABC"[ti], barrel: { c: R.barrel.c, side: SIDE[R.barrel.side], m: t.m, l: t.l, n: barrelN },
+    spec.trains.push({ id: "ABC"[ti], barrel: o.arbor ? { c: R.barrel.c, arbor: true, m: t.m, l: t.l } : { c: R.barrel.c, side: SIDE[R.barrel.side], m: t.m, l: t.l, n: barrelN },
       sink: { c: R.sink.c, side: SIDE[R.sink.side], m: ex.m, l: ex.l, n: sinkN, goal: { type, ...(compound ? { speed: fmt(wSink) } : {}), dir: dirOf(wSink), ...(ring ? { ring: true } : {}) } } });
   }
   const wanted = {}, pinned = new Set();
@@ -394,6 +397,20 @@ export function forgeLevel(seed, o) {
   const freeSq = [];
   for (let c = 0; c < L.size; c++) if (!routeSq.has(c) && !gone.has(c)) { setMap(c, "#"); freeSq.push(c); }
   L = build();
+  // the clues the design asks for come first, so they do the work the pillars would
+  const designed = { loads: [], fixed: [] };
+  if (o.loads || o.fixed) {
+    const res = check(L, laidNow()), free = Object.entries(wanted).filter(([c]) => !pinned.has(Number(c))).map(([c, w]) => [Number(c), w]);
+    for (const [c, w] of shuffled(free.filter(([, w]) => pieceOf(w).kind.startsWith("S")), r).slice(0, o.loads || 0)) {
+      spec.clicks.push({ c, dir: res.M.dir[c * SLOTS] ? "ccw" : "cw" }); designed.loads.push(c);
+    }
+    for (const [c, w] of shuffled(free.filter(([c]) => !designed.loads.includes(c)), r).slice(0, o.fixed || 0)) {
+      const { kind, rot } = pieceOf(w);
+      addPin({ c, kind, rot, train: trainAt.get(c) ?? 0 }); designed.fixed.push(c);
+    }
+    if (designed.loads.length < (o.loads || 0) || designed.fixed.length < (o.fixed || 0)) return no("room for clues");
+    L = build();
+  }
   for (let guard = 0; guard < 40; guard++) {
     const s = solveL();
     if (s.aborted) return no("abort 1");
@@ -428,10 +445,14 @@ export function forgeLevel(seed, o) {
   if (!settled(fin) || !fin.sols.some(x => key(x.laid) === mine())) return no("not one");
   // the pillars come out while the answer stays one and the work stays under the target (a filled plate keeps them)
   let pillars = freeSq.slice();
-  if (!o.full) for (const c of shuffled(freeSq, r)) {
-    setMap(c, ".");
+  // on a symmetric face the pillars come out in mirror pairs, so those left are symmetric too
+  const mirror = c => Math.floor(c / o.cols) * o.cols + (o.cols - 1 - (c % o.cols));
+  const groups = [];
+  for (const c of shuffled(freeSq, r)) if (!groups.some(g => g.includes(c))) groups.push(o.sym && freeSq.includes(mirror(c)) && mirror(c) !== c ? [c, mirror(c)] : [c]);
+  if (!o.full) for (const g of groups) {
+    g.forEach(c => setMap(c, "."));
     const t = build(), s = solve(t, maxSols + 1, Math.max(limit, target * 3));
-    if (settled(s) && (o.minimal || s.nodes <= target)) { pillars.splice(pillars.indexOf(c), 1); L = t; fin = s; } else setMap(c, "#");
+    if (settled(s) && (o.minimal || s.nodes <= target)) { g.forEach(c => pillars.splice(pillars.indexOf(c), 1)); L = t; fin = s; } else g.forEach(c => setMap(c, "#"));
   }
   // whatever the answer doesn't need goes again
   const tryDrop = (list, take) => {
@@ -443,6 +464,19 @@ export function forgeLevel(seed, o) {
   tryDrop(added.bridges, c => { const was = spec.map[Math.floor(c / o.cols)][c % o.cols]; setMap(c, "."); return () => setMap(c, was); });
   tryDrop(added.pins, c => { const i = spec.pins.findIndex(p => p.c === c), pin = spec.pins.splice(i, 1)[0]; pinned.delete(c); return () => { spec.pins.splice(i, 0, pin); pinned.add(c); }; });
   tryDrop(added.clicks, c => { const i = spec.clicks.findIndex(p => p.c === c), k = spec.clicks.splice(i, 1)[0]; return () => spec.clicks.splice(i, 0, k); });
+  // each designed clue must count: without it a second answer opens
+  for (const c of designed.loads) {
+    const i = spec.clicks.findIndex(p => p.c === c), k = spec.clicks.splice(i, 1)[0], idle = settled(solve(build(), maxSols + 1, limit));
+    spec.clicks.splice(i, 0, k);
+    if (idle) return no("idle load");
+  }
+  for (const c of designed.fixed) {
+    const i = spec.pins.findIndex(p => p.c === c), pin = spec.pins.splice(i, 1)[0]; pinned.delete(c);
+    const idle = settled(solve(build(), maxSols + 1, limit));
+    spec.pins.splice(i, 0, pin); pinned.add(c);
+    if (idle) return no("idle fixed gear");
+  }
+  L = build();
   // ---- spares: pieces of the trains' channels the answer does not need, added while the answer stays one
   if (o.spares) {
     const used = Object.entries(wanted).filter(([c]) => !pinned.has(Number(c))).map(([, p]) => pieceOf(p));
