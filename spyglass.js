@@ -64,11 +64,16 @@ const answered = () => S.scores[S.index] != null;
 
 // ---------- the picture ----------
 let source = null;                                 // { img (an Image or canvas), w, h } for the open picture
-let phase = "loading";                             // loading, look (the clock runs), shown (answered or passed)
+let phase = "loading";                             // loading, dawn (the picture fades in), look (the clock runs), shown (answered or passed)
+// 13 Nov 2026, Korbi: "while the image is loading ... the countdown doesn't start and the spyglass is black, then fades in, then countdown
+// starts": the glass stays dark until the picture is fetched, decoded and stretched; it fades in (DAWN s) and only then does the clock run
+const DAWN = 0.7;
+let dawnAt = 0, dawn = 0;
 let reveal = { from: 0, at: 0 };                   // after an answer the focus runs on to sharp
 let token = 0;
 
-const load = url => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+// (decoded before it is drawn: a phone can draw a picture it has only just fetched as nothing)
+const load = url => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; }).then(i => (i.decode ? i.decode().then(() => i, () => i) : i));
 /** The flag as its own SVG (spyglass-flags.js), drawn at twice the lens's size, so a crest or a star is still sharp zoomed in. The emoji is no use here:
  *  where the device has no flag emoji (Windows) it is two letters. */
 async function flagSource(it) {
@@ -229,7 +234,7 @@ async function begin() {
     const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
   }
-  phase = "look"; render();
+  phase = "dawn"; dawnAt = 0; dawn = 0; render();
 }
 // The focus on show: the clock's, or the player's own if they have pushed the slider ahead of it. The clock runs on underneath and the push
 // does not grow when they let go, so the picture stands still until the clock has caught up with it (Korbi, 10 Nov 2026).
@@ -253,7 +258,9 @@ function draw() {
   if (!source || phase === "loading") return;
   // the answer draws back until the whole picture sits inside the round glass
   const t = 1 - (1 - unveil) ** 3;
+  ctx.globalAlpha = phase === "dawn" ? dawn * dawn : 1;
   paint(ctx, cw, ch, source, t);
+  ctx.globalAlpha = 1;
   // in black and white or ink the answer brings the colour back: the same view of the colour picture, faded in over the grey
   if (source.full && tint > 0) { ctx.globalAlpha = tint; paint(ctx, cw, ch, source.full, t); ctx.globalAlpha = 1; }
 }
@@ -318,7 +325,11 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - last) / 1000); last = now;
   if (!S) return;
-  if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
+  if (phase === "dawn") {                             // (timed from its first frame: stretching the picture can hold up the one before)
+    dawnAt ||= now;
+    dawn = Math.min(1, (now - dawnAt) / 1000 / DAWN);
+    if (dawn === 1) { phase = "look"; render(); }
+  } else if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
     S.elapsed += dt;
     if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
     $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: worth(owed(), S.wrong) }));
@@ -390,7 +401,7 @@ function render() {
   $("where").textContent = S.over ? `Run over · ${S.level}` : `Picture ${Math.min(S.index + 1, S.items.length)} of ${S.items.length}${S.daily ? " · today's" : ""} · ${S.level}`;
   $("score").textContent = `Score ${S.scores.reduce((a, b) => a + (b || 0), 0)}`;
   $("ask").textContent = ASK[item().kind];
-  if (phase === "look" || phase === "loading") $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "look" ? worth(owed(), S.wrong) : "–" }));
+  if (["loading", "dawn", "look"].includes(phase)) $("worth").replaceChildren("Worth ", Object.assign(el("b"), { textContent: phase === "loading" ? "–" : worth(owed(), S.wrong) }));
   const dial = $("focus"); dial.disabled = phase !== "look"; dial.value = Math.round(u() * 1000);
   $("passBtn").hidden = phase === "shown";
   $("nextBtn").hidden = phase !== "shown" || S.over;
@@ -401,7 +412,7 @@ function render() {
     for (const o of it.options) {
       const b = el("button", "sg-opt", o); b.type = "button";
       const tried = S.tried.includes(norm(o));
-      b.disabled = over || phase === "loading" || tried;
+      b.disabled = over || phase === "loading" || phase === "dawn" || tried;
       if (tried) b.classList.add("wrong");
       if (over && matches(it, o)) b.classList.add("right");
       b.addEventListener("click", () => { guess(o); });
@@ -410,7 +421,7 @@ function render() {
   } else {
     const row = el("form", "sg-type"), input = el("input"), go = el("button", "btn", "Guess");
     input.autocomplete = "off"; input.autocapitalize = "off"; input.spellcheck = false; input.enterKeyHint = "go";
-    input.placeholder = it.kind === "painting" ? "The painter" : "The country"; input.disabled = over || phase === "loading";
+    input.placeholder = it.kind === "painting" ? "The painter" : "The country"; input.disabled = over || phase === "loading" || phase === "dawn";
     go.type = "submit"; go.disabled = input.disabled;
     row.addEventListener("submit", e => { e.preventDefault(); const text = input.value; if (!text.trim()) return; const ok = guess(text); if (ok === false) { input.value = ""; input.classList.add("wrong"); setTimeout(() => input.classList.remove("wrong"), 500); } });
     row.append(input, go); opts.append(row);
