@@ -13,6 +13,7 @@ const SAVE_EVERY = 30000;
 const RATED_SECTIONS = new Set(["minigames", "puzzle"]);
 const SHOW_FOR = 9000;         // the rating strip goes by itself after this
 
+const afterLoad = fn => (document.readyState === "complete" ? setTimeout(fn) : addEventListener("load", () => setTimeout(fn), { once: true }));
 const page = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
 const watching = new URLSearchParams(location.search).has("watch");
 const fresh = () => ({ v: 1, games: {}, levels: {} });
@@ -56,7 +57,7 @@ export function levelOn(game, id, name = String(id)) {
   level = { game, id: String(id), name };
 }
 /** A round is over: its time stays with its level, a play is counted, and the strip asks for a rating. */
-async function roundEnded(app) {
+function roundEnded(app) {
   if (watching) return;
   tick(); flush();
   const game = app === "glyph" ? "slate" : app;
@@ -65,10 +66,8 @@ async function roundEnded(app) {
   const rec = log.levels[levelKey(game, id)] ??= { game, id, name, ms: 0, plays: 0 };
   rec.plays += 1; rec.at = Date.now();
   try { localStorage.setItem(KEY, JSON.stringify(log)); } catch { /* private mode */ }
-  try {
-    const { APPS } = await import("./apps.js");
-    if (RATED_SECTIONS.has(APPS.find(a => a.id === game)?.sec)) askRating(game, id, rec.rating);
-  } catch (e) { console.error(e); }
+  // (apps.js loads this module, so its import waits for the page's load: Safari otherwise runs a page before APPS exists, tests/import-cycles.mjs)
+  afterLoad(() => import("./apps.js").then(({ APPS }) => { if (RATED_SECTIONS.has(APPS.find(a => a.id === game)?.sec)) askRating(game, id, rec.rating); }).catch(e => console.error(e)));
 }
 /** One tap, 1 to 5, kept with the level (the last tap stands). */
 export function rate(game, id, n) {
