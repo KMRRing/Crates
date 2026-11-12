@@ -8,6 +8,7 @@ import { LEVELS as PLAYED, CHAPTERS as PLAYED_CHAPTERS, BOOKS as PLAYED_BOOKS } 
 import { LEVELS, CHAPTERS, BOOKS } from "../pipes-gear-levels.js";
 import { PLAN, rulesBroken } from "../pipes-gear-campaign.mjs";
 import { LEVELS as DESIGNED } from "../pipes-gear-designs.js";
+import { faults } from "../pipes-gear-plan.mjs";
 import { sigOf } from "../pipes-gear-book.js";
 import { POOL } from "../pipes-gear-pool.js";
 import { transformLevel } from "../pipes-gear-legacy.js";
@@ -19,26 +20,20 @@ const ok = (c, what) => { console.log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c)
 ok(PLAYED.length === 59 && new Set(PLAYED.map(l => l.id)).size === 59 && PLAYED.every(l => PLAYED_CHAPTERS.some(c => c.key === l.chapter)) && PLAYED_CHAPTERS.every(c => PLAYED_BOOKS.some(b => b.key === c.book)),
   `${PLAYED.length} levels played, the new ones first, then Book I's and Mainspring's, every one in its chapter`);
 ok(PLAYED.filter(l => !l.id.startsWith("g-")).every(l => LEVELS.some(k => k.id === l.id)), "every older level played is in the campaign too, so its stars carry over");
-// the levels designed to the plan of 12 November (pipes-gear-designs.js): one answer, at least two thirds filled, at most three pillars
-// and each needed (on a symmetric face, each mirror pair), at least half the pieces singles
+// the levels drawn to the plan of 12 November (pipes-gear-designs.js): one answer, and no shorter train that reaches the dial (Korbi,
+// 12 Nov 2026: "it should not be possible, in 90% of cases, to solve the problem by using fewer gears than given"; a `loose` level is let
+// off, at most one in ten and never the first), each pillar needed (on a symmetric face, each mirror pair), half the pieces singles, an aha
 {
   const w = [];
   for (const l of DESIGNED) {
-    const s = solve(parseLevel(l), 2, 4e5), laid = Object.values(l.sols[0]), open = l.map.join("").split("").filter(c => c !== " " && c !== "#").length;
-    const pillars = l.map.join("").split("#").length - 1;
-    if (s.aborted || s.sols.length !== 1) w.push(`${l.id}: ${s.sols.length}${s.aborted ? "+" : ""} answers`);
-    if ((laid.length + l.pins.length) / open < 2 / 3) w.push(`${l.id}: ${Math.round(100 * laid.length / open)}% filled`);
-    if (pillars > 3) w.push(`${l.id}: ${pillars} pillars`);
+    const laid = Object.values(l.sols[0]);
+    w.push(...faults(l, l.loose).out.map(m => `${l.id}: ${m.split("\n")[0]}`));
     if (laid.filter(p => p.startsWith("S")).length < laid.length / 2) w.push(`${l.id}: too few singles`);
     if (!l.aha) w.push(`${l.id}: no aha written`);
-    l.map.forEach((row, y) => [...row].forEach((ch, x) => {
-      if (ch !== "#" || (l.sym && x > l.cols - 1 - x && l.map[y][l.cols - 1 - x] === "#")) return;
-      const open1 = (r, k) => (k !== y ? r : [...r].map((c, i) => (i === x || (l.sym && i === l.cols - 1 - x && c === "#") ? "." : c)).join(""));
-      const t = solve(parseLevel({ ...l, map: l.map.map(open1) }), 2, 4e5);
-      if (!t.aborted && t.sols.length < 2) w.push(`${l.id}: the pillar at ${y * l.cols + x} is not needed`);
-    }));
   }
-  ok(!w.length, `the ${DESIGNED.length} designed levels meet the plan's rules${w.length ? `: ${w.slice(0, 4).join("; ")}` : ""}`);
+  const loose = DESIGNED.filter(l => l.loose);
+  if (loose.length > DESIGNED.length / 10 || DESIGNED[0]?.loose) w.push(`${loose.length} loose levels${DESIGNED[0]?.loose ? ", the first among them" : ""}`);
+  ok(!w.length, `the ${DESIGNED.length} drawn levels have one answer and no shorter train${w.length ? `: ${w.slice(0, 4).join("; ")}` : ""}`);
 }
 // a rebuilt level meets the plan's rules, and each of its pillars is needed: without it there is a second answer
 {

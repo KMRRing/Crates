@@ -164,9 +164,10 @@ const fmt = w => F.fmt(F.abs(w));
  *            ends: [{ len, look: "hands" | "barrel", type }], clutch { len }, hands (a pinned hands station on the way),
  *            kinds (only these kinds), mix (exactly these pieces besides singles: a family "D" or a kind each) }],
  *   minimal (every pillar left is needed for the one answer, however hard that makes it), far (the barrel at least this far from the sink),
- *   face (rows with " " off the face, in place of disc), arbor (the power is the movement's turning arbor, on square `at` or anywhere),
+ *   face (rows with " " off the face, in place of disc), arbor (the power is the movement's turning arbor), at (the power's square),
  *   loads, fixed (that many loads on the answer's singles and pieces fixed in place, laid before the pillars come out, each needed),
- *   sym (the pillars come out in mirror pairs across the face's upright middle)
+ *   sym (the pillars come out in mirror pairs across the face's upright middle),
+ *   strict (no shorter train works: with the hand free to be left over, the only answer still lays every piece)
  *   cross: [[a, b]] (train b crosses train a once at a pinned crossing)
  * }
  */
@@ -181,7 +182,7 @@ export function forgeLevel(seed, o) {
     const crossWith = (o.cross || []).find(([, b]) => b === ti);
     let R = null;
     for (let k = 0; k < (t.pieces > 14 ? 200 : 80) && !R; k++) {
-      const s = o.arbor && o.at !== undefined ? o.at : Math.floor(r() * L0.size), d0 = Math.floor(r() * 4), first = beyond(L0, s, d0);
+      const s = o.at !== undefined ? o.at : Math.floor(r() * L0.size), d0 = Math.floor(r() * 4), first = beyond(L0, s, d0);
       if (blocked.has(s) || keep.has(s) || first < 0) continue;
       const cross = new Map();
       if (crossWith) for (const p of routes[crossWith[0]].main.passes) if (!p.cross && p.b === back(p.a)) cross.set(p.c, p.b % 2 ? "h" : "v");
@@ -443,6 +444,9 @@ export function forgeLevel(seed, o) {
   }
   let fin = solveL();
   if (!settled(fin) || !fin.sols.some(x => key(x.laid) === mine())) return no("not one");
+  // 12 Nov 2026, Korbi: "it should not be possible, in 90% of cases, to solve the problem by using fewer gears than given"
+  const full = () => { const s = solve(parseLevel({ ...spec, hand: counts(), spare: true }), 2, limit); return !s.aborted && s.sols.length === 1; };
+  if (o.strict && !full()) return no("a shorter train");
   // the pillars come out while the answer stays one and the work stays under the target (a filled plate keeps them)
   let pillars = freeSq.slice();
   // on a symmetric face the pillars come out in mirror pairs, so those left are symmetric too
@@ -452,7 +456,7 @@ export function forgeLevel(seed, o) {
   if (!o.full) for (const g of groups) {
     g.forEach(c => setMap(c, "."));
     const t = build(), s = solve(t, maxSols + 1, Math.max(limit, target * 3));
-    if (settled(s) && (o.minimal || s.nodes <= target)) { g.forEach(c => pillars.splice(pillars.indexOf(c), 1)); L = t; fin = s; } else g.forEach(c => setMap(c, "#"));
+    if (settled(s) && (o.minimal || s.nodes <= target) && (!o.strict || full())) { g.forEach(c => pillars.splice(pillars.indexOf(c), 1)); L = t; fin = s; } else g.forEach(c => setMap(c, "#"));
   }
   // whatever the answer doesn't need goes again
   const tryDrop = (list, take) => {
