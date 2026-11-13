@@ -16,6 +16,8 @@ import "./pwa.js";
 import { part, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { IN_FRAME, today } from "./suite.js";
 import { roundOver } from "./random.js";
+import { levelOn } from "./playlog.js";
+import { PROOFS } from "./columbiad-proofs.js";
 
 const $ = id => document.getElementById(id);
 // CAMP: { at (the level being played, 0 on), stars (the most won in each), bull (whether the ring's inner third was struck) }.
@@ -100,8 +102,22 @@ function loadRun() {
   phase = S.status === "won" ? "done" : "aim";
   stopWind();
 }
+// 13 Nov 2026, Korbi: "the easier the shot, the less aim assist the user should get. especially in the first chapter, aim assist should go
+// down, then later when you have more complex orbit stuff, it's ok to put it back". The preview's length (Earth radii) follows how hard the
+// level's stored winning shot is to find: the window of angle by power it sits in (a moving world's narrowed by how few seconds it may
+// drift). A wide window, an easy shot, shows little of the way; a narrow one up to the old full length. A level with no stored shot (the
+// daily) keeps its own length.
+const ASSIST = { min: 2.5, max: 12, k: 50 };
+function assist(l) {
+  const p = PROOFS[l.id]?.[0];
+  if (!p?.win) return l.cone?.len ?? 4;
+  const room = p.win.da * p.win.dc * (p.tw ? Math.min(p.tw, 3) / 3 : 1);
+  return Math.min(ASSIST.max, ASSIST.min + ASSIST.k / Math.max(room, 1e-3));
+}
 function setupLevel() {
   lvl = levelNow();
+  // each level its own line in the play log, so it can be rated (Korbi, 13 Nov 2026: until now all of Columbiad was one line, "Rounds")
+  levelOn("columbiad", daily ? `d${daily}` : lvl.id, daily ? `Daily ${daily}` : `${lvl.id} · ${lvl.name}`);
   view.setLevel(lvl);
   buildGauge();
   loadRun();
@@ -204,7 +220,7 @@ const view = createView($("scene"), {
   before() {
     if (!coneDirty) return;
     coneDirty = false;
-    view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, stamp()) : null);
+    view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, stamp(), assist(lvl)) : null);
   },
   onHit() { sound.play("chime"); },
   onEnter(en) {                                          // a gate passed, or a ring entered that does not count (and why, while it is still on the screen)
