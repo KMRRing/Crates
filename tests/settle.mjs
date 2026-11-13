@@ -1,7 +1,8 @@
 // Settle's rules (settle-engine.js): the deal from a seed, metals settling by real density, blocks cast when the parcels in
 // them are exactly an order's recipe (in any arrangement, a chain dropping what stood above), zinc on top aging to dross,
-// skimming, the end, a game saved as JSON, and whole melts played out by the bot (settle-solve.js) to a win.
-import { newGame, draw, parcelAt, mixFor, valid, settles, poured, isRecipe, findBlock, ship, moves, skims, pour, skim, preview, worth, BURN, BURN_COST } from "../settle-engine.js";
+// skimming, the end, a game saved as JSON, the five chapters' mechanics (the pot and decanting, solid copper and firing, stirring
+// bronze, charcoal over zinc, liquation), a level's fixed deal and its turns, and whole melts played out by the bot (settle-solve.js).
+import { newGame, draw, parcelAt, mixFor, valid, settles, poured, isRecipe, findBlock, ship, moves, skims, pour, skim, preview, worth, BURN, BURN_COST, decant, fire, stir, act, options, decants, fires, stirs } from "../settle-engine.js";
 import { METALS, RECIPES, heavier } from "../settle-alloys.js";
 import { playOut } from "../settle-solve.js";
 
@@ -9,7 +10,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const P = (...ms) => ms.map(m => ({ m, a: 0 }));
 /** A melt laid out by hand: crucibles as metal lists, bottom up. */
-const melt = (tanks, hand = ["Sn", "Sn"], extra = {}) => Object.assign(newGame({ cols: tanks.length, height: 7, orders: ["plumber"], goal: 4 }, 1), { tanks: tanks.map(t => P(...t)), hand }, extra);
+const melt = (tanks, hand = ["Sn", "Sn"], extra = {}) => { const g = Object.assign(newGame({ cols: tanks.length, height: 7, orders: ["plumber"], goal: 4 }, 1), { tanks: tanks.map(t => P(...t)), hand }, extra); g.hot = Array(g.cols).fill(false); if (g.burn) g.feats = { ...g.feats, skim: true }; return g; };
 
 // ---------- the deal ----------
 {
@@ -96,8 +97,8 @@ const melt = (tanks, hand = ["Sn", "Sn"], extra = {}) => Object.assign(newGame({
   const covered = melt([["Zn", "Cu"], []], ["Cu", "Cu"], { orders: ["brass"], burn: true });
   const c2 = pour(pour(pour(pour(pour(pour(covered, 0, 1).state, 0, 1).state, 0, 1).state, 0, 1).state, 0, 1).state, 0, 1).state;
   check(c2.tanks[0].every(p => p.m !== "X"), "zinc under another metal does not age");
-  const fresh = pour(melt([["Cu"], []], ["Zn", "Cu"], { orders: ["brass"], burn: true }), 0, 0);
-  check(fresh.state.tanks[0].find(p => p.m === "Zn").a === 0, "the parcel just poured does not age on the pour that places it");
+  const fresh = pour(melt([["Cu", "C"], []], ["Zn", "Cu"], { orders: ["brass"], burn: true }), 0, 0);
+  check(fresh.state.tanks[0].map(p => p.m).join() === "Cu,Zn,C" && fresh.state.tanks[0][1].a === 0, "zinc poured under charcoal sinks below it, and does not age");
 }
 
 // ---------- the end ----------
@@ -122,10 +123,41 @@ const melt = (tanks, hand = ["Sn", "Sn"], extra = {}) => Object.assign(newGame({
 // ---------- the bot plays whole melts ----------
 {
   let won = 0, total = 0;
-  for (const orders of [["plumber"], ["fine"], ["brass"], ["prince"], ["plumber", "fine"], ["brass", "prince"]]) for (const seed of [1, 2, 3]) {
+  for (const orders of [["plumber"], ["fine"], ["plumber", "fine"], ["hard"], ["finepewter"]]) for (const seed of [1, 2, 3]) {
     const s = playOut(newGame({ cols: 4, height: 7, orders, goal: 3 }, seed), 120);
     total++; if (s.won) won++;
   }
   check(won === total, `the bot wins ${won} of ${total} melts`);
+}
+// ---------- the chapters' mechanics (13 November 2026) ----------
+{
+  // Solder: every pour into the pot, the top of any crucible tipped into another
+  const pot = melt([["Pb", "Sn"], [], []], ["Sn", "Pb"], { feats: { pot: true, decant: true } });
+  check(moves(pot).every(m => m.c === 0) && decants(pot).some(([a, b]) => a === 0 && b === 2), "with the pot every parcel goes into the first crucible, and the top of one can be tipped into another");
+  const d = decant(pot, 0, 1);
+  check(d.casts.length === 1 && d.casts[0].id === "plumber" && d.state.tanks.every(t => !t.length) && d.state.pours === 1 && d.state.n === pot.n, "tipping the pot's tin beside its lead casts plumber's solder: a turn, no parcel used");
+  // Pewter: copper solid in a cold crucible, a floor, cast in nothing; firing melts it and keeps the crucible hot
+  const pw = melt([["Sn"], ["Sn"], ["Sn"]], ["Cu", "Cu"], { orders: ["hard"], solid: true, fuel: 1, feats: { fire: true } });
+  const cold = pour(pw, 0, 2).state;
+  check(cold.tanks[2].map(p => p.m + (p.s ? "!" : "")).join() === "Sn,Cu!" && !findBlock(cold.tanks, ["hard"]), "copper poured into a cold crucible stays solid on top, and casts in nothing");
+  const lit = fire(cold, 2);
+  check(lit.casts.length === 1 && lit.casts[0].id === "hard" && lit.state.tanks[2].map(p => p.m).join() === "Sn" && lit.state.hot[2] && lit.state.fuel === 0, "firing melts it under the tin, beside the other two tins: hard metal is cast; the crucible stays hot and the fuel is used");
+  check(!fires(lit.state).length && pour({ ...lit.state, hand: ["Cu", "Sn"] }, 0, 2).state.tanks[2][0].m === "Cu" && !pour({ ...lit.state, hand: ["Cu", "Sn"] }, 0, 2).state.tanks[2].some(p => p.s), "with no fuel there is no fire, and copper poured into a hot crucible melts at once");
+  // Bronze: three copper to one tin stirred is bronze; any other measure spoils
+  const br = melt([["Cu", "Cu", "Cu", "Sn"], ["Cu", "Sn"]], ["Cu", "Cu"], { orders: ["bar"], feats: { stir: true, skim: true } });
+  const good = stir(br, 0), spoilt = stir(br, 1);
+  check(good.state.tanks[0].every(p => p.m === "Bz") && !good.spoiled && spoilt.spoiled && spoilt.state.tanks[1].every(p => p.m === "X") && stirs(br).join() === "0,1", "three copper to one tin stirred turns to bronze; two to one spoils to dross");
+  check(skims(spoilt.state).join() === "1", "spoiled dross can be skimmed");
+  // Brass: zinc with no charcoal over it boils off at once
+  const bz = pour(melt([["Cu"], ["Cu", "C"]], ["Zn", "Zn"], { orders: ["brass"], burn: true }), 0, 0);
+  check(bz.burnt.length === 1 && bz.state.tanks[0].map(p => p.m).join() === "Cu,X", "zinc poured where there is no charcoal boils off to dross");
+  // Silver: lead sinking through black copper takes its silver
+  const sv = pour(melt([["Bk", "Bk"], []], ["Pb", "Pb"], { orders: ["saiger"] }), 0, 0);
+  check(sv.state.tanks[0].map(p => p.m).join() === "Pr,Cu,Cu" && sv.leached.length === 2, "lead sinking through black copper takes its silver: rich lead under plain copper");
+  // a level: its fixed deal, then none; its turns
+  const lv = newGame({ cols: 2, height: 4, orders: ["plumber"], goal: 1, deal: ["Pb", "Sn", "Sn"], limit: 2 });
+  check(lv.hand.join() === "Pb,Sn" && pour(lv, 0, 0).state.hand.join() === "Sn,Sn" && pour(pour(lv, 0, 0).state, 0, 0).state.hand[0] === null, "a level deals its own parcels, then none");
+  check(pour(pour(lv, 0, 0).state, 0, 0).state.over && !pour(pour(lv, 0, 0).state, 0, 0).state.won, "and gives so many turns: the fire goes out");
+  check(options(pot).every(mv => act(pot, mv).state.pours === 1), "every move listed can be made");
 }
 if (bad) { console.log(`${bad} failed`); process.exit(1); }

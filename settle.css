@@ -41,6 +41,7 @@ html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
 .st-tray { display: grid; grid-template-columns: 1fr 1fr 5rem; gap: .5rem; height: 4.4rem; }
 .st-tray[hidden] { display: none; }
 .st-tray.noskim { grid-template-columns: 1fr 1fr; }
+.st-tray.acts2 { grid-template-columns: 1fr 1fr 4.6rem 4.6rem; }
 .st-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: .5rem; align-content: center; align-items: center; min-width: 0;
   padding: .4rem .5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--st-soft); color: var(--ink); font: inherit; text-align: left;
   touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
@@ -76,7 +77,7 @@ html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .st-toast.show { opacity: 1; }
 
-/* the menu: the levels as a grid by tier, and the alloy cards of About */
+/* the menu: the levels as a grid by chapter, and the alloy cards of About */
 .st-tier { margin: .55rem 0 .15rem; font-size: .72rem; font-weight: 800; letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .st-tier small { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-soft); }
 .st-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .2rem 0; }
@@ -99,6 +100,8 @@ html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
   #app.settle .st-line { height: 4rem; }
   #app.settle .st-tray { grid-template-columns: 1fr; grid-template-rows: repeat(2, 4.4rem) 3.4rem; height: auto; }
   #app.settle .st-tray.noskim { grid-template-rows: repeat(2, 4.4rem); }
+  #app.settle .st-tray.acts2 { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(2, 4.4rem) 3.4rem; }
+  #app.settle .st-tray.acts2 .st-card[data-slot="0"], #app.settle .st-tray.acts2 .st-card[data-slot="1"] { grid-column: 1 / -1; }
   #app.settle .st-card.st-skim { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; justify-items: start; column-gap: .6rem; padding: .3rem .7rem; text-align: left; }
   #app.settle .st-card.st-skim .st-ladle { grid-row: 1 / span 2; }
   #app.settle .st-result { grid-template-columns: 1fr; height: auto; }
@@ -108,3 +111,6 @@ html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
   #app.settle .st-strip { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: .9rem; margin-top: .5rem; }
   #app.settle .st-line { height: 2.4rem; }
 }
+/* the next parcels of a level's deal, in the score line */
+.st-next { display: inline-grid; place-items: center; width: .95rem; height: .95rem; margin-left: .15rem; vertical-align: -.18rem; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .35); }
+.st-next svg { width: 80%; height: 80%; fill: none; stroke: rgba(20, 16, 10, .72); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }

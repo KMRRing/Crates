@@ -17,10 +17,18 @@ export const METALS = {
   Sn: { name: "Tin", dens: 7.3, planet: "Jupiter", glyph: "M4 8c0-4 6-5 7-1c1 3-4 6-7 9h13M15 3v18", shine: .95, base: "#bfc7d0", hi: "#ffffff" },
   Zn: { name: "Zinc", dens: 7.1, planet: null, glyph: "M6 6h12L6 18h12M9 12h6", shine: .5, base: "#5a9f97", hi: "#a6dcd2" },
   X: { name: "Dross", dens: 0, planet: null, glyph: "M6 17h12M8 12h8M10 7h4", shine: .05, base: "#6b6258", hi: "#9a8f83" },
+  // 13 November 2026 (Korbi: five chapters, each a metal combination with its own mechanic): bronze, what a stirred crucible of three
+  // copper to one tin becomes (8.8: tin bronze runs 8.7 to 8.9); charcoal, the cover that keeps zinc from boiling off (it floats on
+  // everything); black copper, copper with silver in it, as it came from the Saxon and Tyrolean mines (as dense as copper); rich lead,
+  // the lead that has drawn the silver out of it in the liquation (the Saigerprozess), as dense as lead
+  Bz: { name: "Bronze", dens: 8.8, planet: null, glyph: "M7 4v16M7 4h6a4 4 0 0 1 0 8H7M7 12h7a4 4 0 0 1 0 8H7", shine: .6, base: "#9a6a2c", hi: "#e0b066" },
+  C: { name: "Charcoal", dens: 0.5, planet: null, glyph: "M5 15c2-6 6-9 14-10M8 18c2-4 5-6 10-7", shine: .02, base: "#2c2622", hi: "#5a504a" },
+  Bk: { name: "Black copper", dens: 9.0, planet: "Venus", glyph: "M12 3a5 5 0 1 0 0 10a5 5 0 1 0 0-10M12 13v9M8 18h8M9 8h6", shine: .35, base: "#5a3424", hi: "#a8705a" },
+  Pr: { name: "Rich lead", dens: 11.3, planet: "Saturn", glyph: "M8 3v11M5 6h6M8 10c3-3 8-2 7 3c-.6 3-3 4-3 8M17 4a3 3 0 1 0 0 .1", shine: .55, base: "#7d86a0", hi: "#e4e8f2" },
 };
-export const DROSS = "X";
-/** The metals a player is ever dealt (dross only comes from zinc burning). */
-export const DEALT = ["Pb", "Cu", "Sn", "Zn"];
+export const DROSS = "X", CHAR = "C";
+/** The metals a player is ever dealt (dross comes from zinc burning or a spoiled stir, bronze from a stir, rich lead from liquation). */
+export const DEALT = ["Pb", "Cu", "Sn", "Zn", "C", "Bk"];
 /** Heavier first: where a parcel of each settles among the rest. */
 export const heavier = (a, b) => METALS[a].dens >= METALS[b].dens;
 
@@ -39,7 +47,22 @@ export const heavier = (a, b) => METALS[a].dens >= METALS[b].dens;
  *  - Prince's metal, 3:1 (75 % copper): Ure, 1856, gives "3 parts copper and 1 part zinc" (Wikipedia, Tombac);
  *  - tombac, 5:1 (83 % copper): a high-copper brass with 5–20 % zinc; Ure's gilting tombac is 82 % copper, 18 % zinc.
  */
+// 13 November 2026, the chapters' new orders:
+//  - hard metal, two tin to one copper: the pewterers' "hard metal" was tin hardened with copper (and antimony); the ratio is stylised
+//    (real hard metal held far less copper: Wikipedia, Pewter; Hornsby, "Pewter of the Western World");
+//  - fine pewter, three tin to one copper: stylised the same way (the Pewterers' "fine metal" was tin with a little copper);
+//  - bronze and bell metal: bronze is what three copper to one tin becomes when stirred; bell metal is about 78 % copper and 22 % tin,
+//    near enough three to one (Wikipedia, Bell metal); a bar is three parcels of it, a bell four;
+//  - the liquation: argentiferous ("black") copper was melted with lead, which took the silver; the rich lead was drawn off and
+//    cupelled, the copper left was refined (Wikipedia, Liquation; Saigerhütte Grünthal). Saigerblei is the rich lead, Garkupfer
+//    the refined copper.
 export const RECIPES = {
+  hard: { name: "Hard metal", parts: { Sn: 2, Cu: 1 }, w: 3, k: 1, real: "tin hardened with copper (stylised: real hard metal held far less)" },
+  finepewter: { name: "Fine pewter", parts: { Sn: 3, Cu: 1 }, w: 2, k: 2, real: "tin with a little copper (stylised)" },
+  bar: { name: "Bronze bar", parts: { Bz: 3 }, w: 3, k: 1, real: "bronze, about three copper to one tin" },
+  bell: { name: "Bell", parts: { Bz: 4 }, w: 2, k: 2, real: "bell metal, about 78 % copper and 22 % tin" },
+  saiger: { name: "Saigerblei", parts: { Pr: 2 }, w: 2, k: 1, real: "the rich lead of the liquation, cupelled for its silver" },
+  gar: { name: "Garkupfer", parts: { Cu: 3 }, w: 3, k: 1, real: "the copper left once the lead has taken its silver, refined" },
   plumber: { name: "Plumber's solder", parts: { Sn: 1, Pb: 1 }, w: 2, k: 1, real: "50/50 tin and lead, the old plumbing solder" },
   fine: { name: "Fine solder", parts: { Sn: 2, Pb: 1 }, w: 3, k: 1, real: "about two parts tin to one of lead" },
   solder: { name: "Soft solder", parts: { Sn: 5, Pb: 3 }, w: 4, k: 2, real: "about 63 % tin, the 63/37 solder" },
@@ -55,16 +78,22 @@ for (const [id, r] of Object.entries(RECIPES)) {
 }
 
 /**
- * The tiers, one guild each: cols the crucibles (the shorter a row, the taller each); orders its recipes; idea the one new
- * thing. German names with the English beside (Korbi's default, not vetoed). Zinngießer, Rotgießer and Glockengießer are
- * the real trades; the Nuremberg trade lists give Zinngießer and Kandelgießer (jug pewterers) together, and Rotgießer
- * beside Gelbgießer and Rotschmied (Epilog, Schmiedekunst und Glockenguss; Heidelberg, Germanisches Nationalmuseum
- * Mitteilungen). The plan's "Lötmeister" could not be found as a guild, so the second tier takes Kandelgießer.
+ * The chapters, one metal combination and one mechanic each (13 November 2026, Korbi: "settle is more like topple... maybe 5
+ * different chapters and they each have different mechanics (these are the different metal combinations)"). feats: what the
+ * player may do besides pouring: pot (every pour goes into the first crucible), decant (the top of a crucible into another), fire (melt the solid copper in a crucible, with
+ * fuel), stir (make bronze), skim (the dross or charcoal off a top); solid: copper is poured solid; burn: zinc on top burns.
  */
-export const TIERS = [
-  { id: 1, guild: "Zinngießer", en: "Pewterers", cols: 3, height: 8, orders: ["plumber", "fine"], idea: "A recipe lined up across the crucibles at one level is drawn off." },
-  { id: 2, guild: "Kandelgießer", en: "Jug pewterers", cols: 4, height: 7, orders: ["solder", "lay"], idea: "Orders two levels tall: both rows of the block must be the recipe." },
-  { id: 3, guild: "Rotgießer", en: "Brass founders", cols: 4, height: 7, orders: ["brass", "prince", "tombac"], idea: "Zinc left on top burns to dross: skim it off.", zinc: true },
+export const CHAPTERS = [
+  { id: 1, name: "Solder", metals: ["Pb", "Sn"], feats: { pot: true, decant: true }, orders: ["plumber", "fine", "solder"],
+    idea: "Everything is poured into the melting pot, where tin floats on lead: tip the top into the moulds.", how: "Drag the top of a crucible onto another to tip it in. Every tip is a turn." },
+  { id: 2, name: "Pewter", metals: ["Sn", "Cu"], feats: { fire: true }, solid: true, orders: ["hard", "finepewter"],
+    idea: "Copper goes into a cold crucible solid: it stays where it lands and casts in nothing, until the crucible is fired.", how: "Fire a crucible to melt its copper (it sinks under the tin) and keep it hot. The fuel is short." },
+  { id: 3, name: "Bronze", metals: ["Cu", "Sn"], feats: { stir: true, skim: true }, orders: ["bar", "bell"],
+    idea: "Stir three copper to one tin and the crucible turns to bronze; any other measure spoils it.", how: "Stir a crucible that holds exactly three copper to each tin. Skim spoiled dross off." },
+  { id: 4, name: "Brass", metals: ["Cu", "Zn", "C"], feats: { skim: true }, burn: true, burnAt: 2, orders: ["brass", "prince", "tombac"],
+    idea: "Zinc left on top boils off in two turns: keep it under charcoal, which floats on everything.", how: "Zinc on top burns to dross after two turns. Skim dross or charcoal off a top." },
+  { id: 5, name: "Silver", metals: ["Pb", "Bk", "Cu"], feats: { decant: true }, orders: ["saiger", "gar"],
+    idea: "Lead sinking through black copper draws its silver out: the copper is clean, the lead rich.", how: "Pour or decant lead into a crucible of black copper. Decanting costs a turn." },
 ];
 export const BURN = 6;       // pours zinc may stand on top before it burns
 export const SKIM_NOTE = "Skim takes the dross off a crucible's top. It costs a turn.";
