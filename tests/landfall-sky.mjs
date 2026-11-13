@@ -167,5 +167,13 @@ const ref = JSON.parse(readFileSync(new URL("./landfall-sky-reference.json", imp
   check(near(S.longitudeFromNoon(S.julianDate(1853, 3, 1, 11), 0), 15, 1e-6), "…and the sun crossing an hour early is 15° east");
 }
 
+// ---------- the moon, for the scene (13 November 2026) ----------
+{
+  // the full moon of 25 January 2024 at 17:54 UT, the new moon of 11 January at 11:57 and the first quarter of 18 January at 03:53
+  const full = S.moonAltAz(S.julianDate(2024, 1, 25, 17, 54), 50, 0), dark = S.moonAltAz(S.julianDate(2024, 1, 11, 11, 57), 50, 0), half = S.moonAltAz(S.julianDate(2024, 1, 18, 3, 53), 50, 0);
+  check(full.elong > 174 && full.lit > 0.99 && dark.elong < 6 && dark.lit < 0.01 && Math.abs(half.elong - 90) < 2 && half.waxing && !S.moonAltAz(S.julianDate(2024, 2, 2, 23, 18), 50, 0).waxing,
+    "the moon is full, new and at its first quarter when the almanac says so, waxing after new and waning after full");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("landfall-sky: time, the sky against astronomy-engine, Polaris, the sun, the zenith, dip and refraction, the intercept, the chart's plane");

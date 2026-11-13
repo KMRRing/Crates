@@ -9,7 +9,7 @@ import {
 import { LEVELS, SECTIONS } from "./landfall-levels.js";
 import { STARS } from "./landfall-stars.js";
 import { FIGURES } from "./landfall-figures.js";
-import { starAltAz, sunAltAz, sextantReading, sunReading, sunSemidiameter } from "./landfall-sky.js";
+import { starAltAz, sunAltAz, moonAltAz, sextantReading, sunReading, sunSemidiameter } from "./landfall-sky.js";
 import { bearing, vec, norm180 } from "./landfall-model.js";
 import { makeView, project, unproject, degPx, pick, drawSky } from "./landfall-skyview.js";
 import * as sx from "./landfall-sextant.js";
@@ -160,7 +160,7 @@ function skyData() {
     });
     stars.push({ hr: s[0], az: a.az, alt: a.alt, mag: s[5], vis: a.alt > 0.5 && s[5] <= c.limMag && !hidden });
   }
-  skyCache = { key, stars, sun: sunAltAz(jd, p.lat, p.lon), lim: c.limMag, clouds };
+  skyCache = { key, stars, sun: sunAltAz(jd, p.lat, p.lon), moon: moonAltAz(jd, p.lat, p.lon), lim: c.limMag, clouds };
   return skyCache;
 }
 const isDay = () => S.watch.kind === "noon";
@@ -933,7 +933,7 @@ function pushWorld(now) {
   Object.assign(sc, {
     headingTo: S.leg ? S.leg.course : 0, sunAlt: sun.alt, sunAz: sun.az, limMag: d.lim, lamp: !!S.ui.lamp || isDay(), day: isDay(), stars: d.stars, clouds,
     weather: wx, swell: L.swell * (wx === "swell" ? 2 : wx === "storm" ? 2.4 : 1), storm: wx === "storm" ? 1 : 0, picked, pickedName: name, figure: fig, ring: h?.ring ?? null,
-    sunHidden: isDay() && lookSun(S).cloud,
+    sunHidden: isDay() && lookSun(S).cloud, moon: d.moon ? { alt: d.moon.alt, az: d.moon.az, lit: d.moon.lit, waxing: d.moon.waxing } : null,
     light: !isDay() && L.light && W.light?.seen ? { az: bearing([L.light.x - S.T[0], L.light.y - S.T[1]]) } : null,
   });
   const c = calendar(sceneJd(S)), sec = c.h * 3600 + c.mi * 60 + c.s;

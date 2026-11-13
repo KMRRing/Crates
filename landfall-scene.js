@@ -66,6 +66,21 @@ const woodTex = () => canvasTex(256, 256, (ctx, w, h) => {
   for (let y = 0; y < h; y += 3) { ctx.fillStyle = `rgba(${20 + Math.random() * 40},${10 + Math.random() * 20},4,${Math.random() * 0.2})`; ctx.fillRect(0, y, w, 2); }
   noise(ctx, w, h, 400, 0.1, false);
 });
+// the bulwarks' inner face: varnished strakes a fifth of a metre deep, butted end to end at staggered joints, with a paler grain
+const strakeTex = () => canvasTex(256, 256, (ctx, w, h) => {
+  ctx.fillStyle = "#5a3c22"; ctx.fillRect(0, 0, w, h);
+  const n = 6, sh = h / n;
+  for (let i = 0; i < n; i++) {
+    const y = i * sh, g = ctx.createLinearGradient(0, y, 0, y + sh);
+    g.addColorStop(0, "rgba(255,220,170,.10)"); g.addColorStop(0.5, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.22)");
+    ctx.fillStyle = `rgba(${70 + Math.random() * 25},${44 + Math.random() * 16},${22 + Math.random() * 8},.5)`; ctx.fillRect(0, y, w, sh);
+    ctx.fillStyle = g; ctx.fillRect(0, y, w, sh);
+    for (let k = 0; k < 14; k++) { ctx.fillStyle = `rgba(${Math.random() < 0.5 ? "20,10,4" : "230,190,140"},${0.05 + Math.random() * 0.08})`; ctx.fillRect(0, y + 3 + Math.random() * (sh - 6), w, 1 + Math.random()); }
+    ctx.fillStyle = "rgba(18,10,4,.8)"; ctx.fillRect(0, y, w, 2);
+    const jx = ((i * 97) % 5) / 5 * w; ctx.fillRect(jx, y, 2, sh);
+  }
+  noise(ctx, w, h, 300, 0.08);
+});
 const bookTex = () => canvasTex(128, 128, (ctx, w, h) => {
   ctx.fillStyle = "#f1e6c6"; ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = "rgba(60,40,20,.5)"; ctx.lineWidth = 1;
@@ -170,6 +185,38 @@ export function createScene(host, { reduced = () => false } = {}) {
   // a lighthouse on the horizon: a warm flash at the bearing of the light, as the sea shows it, and a steady glow for those who ask for less motion
   const beacon = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 }));
   beacon.renderOrder = 2; beacon.frustumCulled = false; beacon.visible = false; skyRoot.add(beacon);
+  // 13 November 2026 (Korbi: "beauty and sound are top priorities"): the lantern's beams, two rays turning about the light and seen in the
+  // haze over the sea, brightest as one swings towards the ship
+  const rayTex = canvasTex(32, 256, (ctx, w, h) => { const g = ctx.createLinearGradient(0, h, 0, 0); g.addColorStop(0, "rgba(255,255,255,.9)"); g.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(w / 2 - 2, h); ctx.lineTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w / 2 + 2, h); ctx.fill(); }, false);
+  const rays = [0, 1].map(() => { const m = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: rayTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 })); m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); return m; });
+  // the moon: her disc lit as the sun lights her (the lit side towards the sun), a glow about her, and her light on the water (setSea)
+  const moonCanvas = document.createElement("canvas"); moonCanvas.width = moonCanvas.height = 128;
+  const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
+  const moonDisc = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: moonTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  const moonGlow = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0x9fb2d8 }));
+  for (const m of [moonGlow, moonDisc]) { m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); }
+  let moonDrawn = "";
+  /** The moon's face for how much of her is lit: the lit limb on the right (setMoon turns the disc so the right faces the sun), the
+   *  terminator an ellipse, a few dark seas on her. */
+  function drawMoon(lit, waxing = true) {
+    const key = `${Math.round(lit * 40)}|${waxing}`;
+    if (key === moonDrawn) return;
+    moonDrawn = key;
+    const ctx = moonCanvas.getContext("2d"), c = 64, r = 56;
+    ctx.clearRect(0, 0, 128, 128);
+    ctx.save(); ctx.beginPath(); ctx.arc(c, c, r, 0, 6.2832); ctx.clip();
+    ctx.fillStyle = "rgba(40,48,66,.35)"; ctx.fillRect(0, 0, 128, 128);                         // earthshine on the dark part
+    ctx.beginPath();
+    const side = waxing ? 1 : -1, k = 1 - 2 * lit;                                              // the terminator's half-width, as a share of r
+    ctx.ellipse(c, c, r, r, 0, -Math.PI / 2, Math.PI / 2, side < 0);
+    ctx.ellipse(c, c, Math.abs(k) * r, r, 0, Math.PI / 2, -Math.PI / 2, (k > 0) === (side > 0));
+    const g = ctx.createRadialGradient(c - 14 * side, c - 12, 4, c, c, r); g.addColorStop(0, "#fbf6e6"); g.addColorStop(1, "#cfc8b4");
+    ctx.fillStyle = g; ctx.fill();
+    ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "rgba(150,146,140,.55)";
+    for (const [x, y, rr] of [[52, 44, 13], [72, 54, 10], [60, 74, 15], [82, 76, 8], [44, 64, 7]]) { ctx.beginPath(); ctx.arc(x, y, rr, 0, 6.2832); ctx.fill(); }
+    ctx.restore();
+    moonTex.needsUpdate = true;
+  }
 
   const NPUFF = 160;
   const puffMat = new THREE.MeshBasicMaterial({ map: puffTex(1), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
@@ -212,18 +259,88 @@ export function createScene(host, { reduced = () => false } = {}) {
   const figLabel = label(), pickLabel = label();
 
   // ---------- the sea ----------
-  const RINGS = 42, SEGS = 72, R0 = 4, GROW = 1.16;
-  const sp = [], si = [], seaR = [];
-  for (let r = 0; r <= RINGS; r++) for (let k = 0; k <= SEGS; k++) { const rad = R0 * Math.pow(GROW, r), a = k / SEGS * 6.2832; sp.push(rad * Math.cos(a), 0, rad * Math.sin(a)); seaR.push(rad); }
-  for (let r = 0; r < RINGS; r++) for (let k = 0; k < SEGS; k++) { const a = r * (SEGS + 1) + k, b = a + SEGS + 1; si.push(a, b, a + 1, a + 1, b, b + 1); }
+  // 13 November 2026 (Korbi: "beauty and sound are top priorities"): the sea is drawn on the GPU. The grid only carries the long swell
+  // (the vertex shader lifts it); every pixel then works out its own ripples, reflects the sky by the Fresnel law (water mirrors the sky
+  // at a glancing look and shows its own dark body when looked into), and takes the sun's or the moon's glitter, the lighthouse's flash
+  // and the whitecaps. The ripples fade as a pixel covers more than they can show, and the glitter widens to keep their light.
+  const RINGS = 46, SEGS = 96, R0 = 3, GROW = 1.155;
+  const sp = [], si = [];
+  for (let r = 0; r <= RINGS; r++) for (let k = 0; k <= SEGS; k++) { const rad = R0 * Math.pow(GROW, r), a = k / SEGS * 6.2832; sp.push(rad * Math.cos(a), 0, rad * Math.sin(a)); }
+  for (let r = 0; r < RINGS; r++) for (let k = 0; k < SEGS; k++) { const a = r * (SEGS + 1) + k, b = a + SEGS + 1; si.push(a, a + 1, b, a + 1, b + 1, b); }
   const seaGeo = new THREE.BufferGeometry();
   seaGeo.setAttribute("position", new THREE.Float32BufferAttribute(sp, 3));
-  seaGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(sp.length), 3));
   seaGeo.setIndex(si);
-  const sea = new THREE.Mesh(seaGeo, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }));
+  const SEA = {
+    uT: { value: 0 }, uA: { value: 0.3 }, uWind: { value: 0.5 }, uFoam: { value: 0 }, uDrift: { value: { x: 0, y: 0 } },
+    uHor: { value: new THREE.Vector3(0.1, 0.15, 0.2) }, uTop: { value: new THREE.Vector3(0.02, 0.03, 0.06) }, uGlow: { value: new THREE.Vector3() },
+    uDeep: { value: new THREE.Vector3(0.01, 0.02, 0.03) },
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Vector3() }, uMoonDir: { value: new THREE.Vector3(0, 1, 0) }, uMoonCol: { value: new THREE.Vector3() },
+    uBeaconDir: { value: new THREE.Vector3(1, 0, 0) }, uBeacon: { value: 0 },
+  };
+  const seaMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: true });
+  seaMat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, SEA);
+    // the swell: four long waves, the same in both shaders, flatter far off so the horizon stays a line
+    const swell = `
+      uniform float uT; uniform float uA; uniform vec2 uDrift;
+      const vec3 SW[4] = vec3[4](vec3(0.45, 0.2, 1.0), vec3(-0.3, 0.5, 0.55), vec3(0.9, -0.6, 0.25), vec3(0.16, 0.31, 0.6));
+      const float SP[4] = float[4](1.9, 2.5, 3.4, 1.2);
+      vec3 swellAt(vec2 w) {                      // height, and its slope in x and z
+        float f = uA / (1.0 + length(w) / 260.0); vec2 p = w + uDrift; vec3 o = vec3(0.0);
+        for (int i = 0; i < 4; i++) { float ph = dot(SW[i].xy, p) - uT * SP[i]; o += SW[i].z * f * vec3(sin(ph), SW[i].xy * cos(ph)); }
+        return o;
+      }`;
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", `#include <common>\n${swell}\nvarying vec3 vSW; varying float vH;`)
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+        vec2 w0 = (modelMatrix * vec4(transformed, 1.0)).xz; vec3 sw0 = swellAt(w0); transformed.y += sw0.x; vH = sw0.x / max(uA, 0.02);`)
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvSW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", `#include <common>\n${swell}
+        uniform float uWind; uniform float uFoam; uniform vec3 uHor; uniform vec3 uTop; uniform vec3 uGlow; uniform vec3 uDeep;
+        uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uMoonDir; uniform vec3 uMoonCol; uniform vec3 uBeaconDir; uniform float uBeacon;
+        varying vec3 vSW; varying float vH;
+        vec3 skyIn(vec3 r) {                      // the dome's colour along a ray: as paintDome mixes it, in the same light
+          float a = clamp(asin(clamp(r.y, 0.0, 1.0)) / 1.309, 0.0, 1.0);
+          float g = acos(clamp(dot(r, normalize(vec3(uSunDir.x, max(uSunDir.y, -0.2), uSunDir.z))), -1.0, 1.0)) * 57.2958;
+          vec3 c = mix(uHor, uTop, pow(a, 0.55)) + uGlow * exp(-g * g / 1800.0);
+          return pow(c, vec3(2.2));
+        }
+        // a light's glitter: tilted ripples swing the reflected ray up and down freely but sideways only by the sine of how low we look
+        // (at a glancing look a facet must tilt far to send light aside), so a low light makes a narrow road towards the eye
+        float lobe(vec3 r, vec3 l, float m, float an) {
+          float dv = r.y - l.y, dh = r.x * l.z - r.z * l.x;
+          return exp(-(dv * dv + dh * dh / (an * an)) / (2.0 * m)) * 0.0035 / (m * an);
+        }`)
+      .replace("vec4 diffuseColor = vec4( diffuse, opacity );", `
+        vec2 w = vSW.xz; vec3 sw = swellAt(w); vec2 pd = w + uDrift;
+        float fp = max(length(fwidth(w)), 1e-4);                   // how much sea one pixel covers, in metres
+        vec2 g = sw.yz; float rough = 0.0003; float sl = 0.035 + 0.09 * uWind;
+        for (int i = 0; i < 7; i++) {                                // ripples: shorter, steeper and quicker each time, turned each time
+          float fi = float(i), k = 1.1 * pow(1.62, fi), a = 2.399 * fi + 0.7;
+          vec2 d = vec2(cos(a), sin(a)); float ph = k * dot(d, pd) - uT * sqrt(9.8 * k) + fi * 1.7;
+          float fade = clamp(1.4 - fp * k * 0.45, 0.0, 1.0), s = sl * (1.0 - 0.07 * fi);
+          g += d * (s * fade * cos(ph)); rough += 0.5 * s * s * (1.0 - fade);
+        }
+        vec3 n = normalize(vec3(-g.x, 1.0, -g.y));
+        vec3 v = normalize(cameraPosition - vSW), r = reflect(-v, n); r.y = abs(r.y);
+        float F = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
+        vec3 body = uDeep * (0.75 + 0.5 * clamp(vH * 0.5 + 0.5, 0.0, 1.0));
+        vec3 sun2 = normalize(vec3(uSunDir.x, 0.0, uSunDir.z));
+        body += uDeep * 2.5 * pow(max(dot(-v, sun2), 0.0), 4.0) * clamp(vH, 0.0, 1.0) * clamp(uSunDir.y * 8.0 + 0.5, 0.0, 1.0);   // light through the crests
+        vec3 col = mix(body, skyIn(r), F);
+        float m = rough + 0.0004 * uWind;
+        float an = clamp(v.y * 3.0 + 0.1, 0.1, 1.0);
+        col += uSunCol * lobe(r, uSunDir, m, an) + uMoonCol * lobe(r, uMoonDir, m * 1.5, an) + vec3(1.0, 0.8, 0.5) * uBeacon * lobe(r, uBeaconDir, m * 2.0, an);
+        float crest = vH + 0.35 * sin(pd.x * 1.9 + pd.y * 0.7 + uT * 0.8) * sin(pd.y * 2.6 - pd.x * 0.4 - uT * 0.6);
+        float foam = uFoam * smoothstep(1.05, 1.6, crest) * clamp(1.2 - fp * 0.6, 0.0, 1.0);
+        col = mix(col, pow(mix(uHor, uTop, 0.35), vec3(2.2)) * 1.6 + 0.02, foam * 0.85);
+        vec4 diffuseColor = vec4(col, 1.0);`);
+  };
+  seaMat.customProgramCacheKey = () => "lf-sea";
+  const sea = new THREE.Mesh(seaGeo, seaMat);
   sea.frustumCulled = false;
   scene.add(sea);
-  const seaBase = sp.slice();
 
   // ---------- the ship ----------
   const deckMat = M(0xffffff, { map: plankTex() }), woodMat = M(0xffffff, { map: woodTex() }), darkMat = M(0x2a1d12), brassMat = M(0xc9a24a), ironMat = M(0x2b2b2e);
@@ -231,17 +348,19 @@ export function createScene(host, { reduced = () => false } = {}) {
   const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
   const cyl = (r, h, n = 8, r2 = r) => new THREE.CylinderGeometry(r2, r, h, n);
   add(box(6, 0.3, 24), deckMat, 0, -0.15, -2);
-  const rail = M(0x3a2a1b);
+  const strakes = strakeTex(), railOf = n => { const t = strakes.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(n, 1); t.needsUpdate = true; return M(0xffffff, { map: t }); };
+  const rail = railOf(20), capMat = M(0xffffff, { map: woodTex() });
   for (const s of [-1, 1]) {                                                               // bulwarks, hull sides
     add(box(0.16, 1.2, 24), rail, s * 3, 0.55, -2);
-    add(box(0.3, 0.12, 24), darkMat, s * 3, 1.2, -2);
+    add(box(0.3, 0.12, 24), capMat, s * 3, 1.2, -2);
     add(box(0.14, 4.5, 24), darkMat, s * 3.06, -1.9, -2);
   }
-  add(box(6.2, 1.2, 0.16), rail, 0, 0.55, 10);                                              // the taffrail
-  add(box(6.2, 0.12, 0.3), darkMat, 0, 1.2, 10);
+  add(box(6.2, 1.2, 0.16), railOf(5), 0, 0.55, 10);                                         // the taffrail
+  add(box(6.2, 0.12, 0.3), capMat, 0, 1.2, 10);
   add(box(6.2, 4.5, 0.14), darkMat, 0, -1.9, 10.05);
-  add(box(5, 1.2, 0.16), rail, 0, 0.55, -14.2);
-  add(box(6, 0.8, 0.12), rail, 0, 0.2, -13.9);
+  const fore = railOf(4);
+  add(box(5, 1.2, 0.16), fore, 0, 0.55, -14.2);
+  add(box(6, 0.8, 0.12), fore, 0, 0.2, -13.9);
   add(box(5.6, 0.16, 4), deckMat, 0, 0.5, 8).scale.set(1, 1, 0.6);                          // a raised quarterdeck
   // the masts, yards and sails
   const masts = [{ z: 2.0, h: 15, yards: [[6.5, 6.8], [11, 5.2], [14.2, 3.6]] }, { z: -4.0, h: 21, yards: [[7.5, 9.5], [13, 7.2], [17.4, 5], [20, 3]] }, { z: -9.6, h: 17.5, yards: [[6.6, 8], [11.2, 6], [14.6, 4]] }];
@@ -367,10 +486,10 @@ export function createScene(host, { reduced = () => false } = {}) {
   // ---------- state the page sets ----------
   const S = {
     heading: 0, headingTo: 0, swell: 0.6, weather: "clear", storm: 0, sunAlt: -10, sunAz: 270, limMag: 5, lamp: true, lampLevel: 1, day: false,
-    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null,
+    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, moon: null,
     chartDirty: false, ratio: cap, aspect: 1, hfov: 64,
   };
-  let skyKey = "", lampFlick = 0, lastSeaT = -1, sextLevel = 0;
+  let skyKey = "", lampFlick = 0, sextLevel = 0;
 
   // ---------- setters ----------
   function paintDome() {
@@ -388,7 +507,9 @@ export function createScene(host, { reduced = () => false } = {}) {
     const far = col.hor.map(x => x * 0.7 + 4);
     scene.fog.color.setRGB(lin(far[0]), lin(far[1]), lin(far[2]));
     renderer.setClearColor(scene.fog.color, 1);
-    seaCol = { dark: col.hor.map(x => x * 0.2 + 3), hor: far };
+    SEA.uHor.value.set(...col.hor.map(x => x / 255)); SEA.uTop.value.set(...col.top.map(x => x / 255)); SEA.uGlow.value.set(...col.hor.map(x => x / 255 * glow * 0.7));
+    const dl0 = dayLight(S.sunAlt);                                       // the water's own body: a deep green-blue by day, nearly black at night
+    SEA.uDeep.value.set(lerp(0.0014, 0.007, dl0), lerp(0.0024, 0.03, dl0), lerp(0.004, 0.06, dl0));
     // the deck's own light: starlight, then twilight, then day
     const dl = dayLight(S.sunAlt);
     LIT.uAmb.value.set(lerp(0.1, 0.95, dl) + 0.04 * (1 - dl) * 0, lerp(0.135, 0.95, dl), lerp(0.21, 0.92, dl));
@@ -397,7 +518,6 @@ export function createScene(host, { reduced = () => false } = {}) {
     sailMat.opacity = lerp(0.46, 0.8, dl);
     sunGlow.visible = sunDisc.visible = S.sunAlt > -4;
   }
-  let seaCol = { dark: [10, 20, 26], hor: [30, 40, 50] };
 
   function placeBillboard(obj, az, alt, sizeDeg, r = SKY_R - 60) {
     const d = dirOf(az, alt);
@@ -421,7 +541,9 @@ export function createScene(host, { reduced = () => false } = {}) {
       dummy.updateMatrix();
       stars.setMatrixAt(n, dummy.matrix);
       const warm = (s.hr === 2061 || s.hr === 6134 || s.hr === 1457 || s.hr === 5340) ? [1, 0.72, 0.5] : (s.hr === 1713 || s.hr === 7001 || s.hr === 2491 || s.hr === 5056) ? [0.8, 0.88, 1] : [1, 0.95, 0.86];
-      stars.setColorAt(n, tmpC.setRGB(warm[0] * look.a, warm[1] * look.a, warm[2] * look.a));
+      // low down the air splits the light as it flickers: a red, then a blue flash (13 November 2026)
+      const deep = reduced() ? 0 : clamp((22 - s.alt) / 20, 0, 1) * 0.35, ch = Math.sin(world.t * 7.3 + s.hr * 2.1);
+      stars.setColorAt(n, tmpC.setRGB(warm[0] * look.a * (1 + deep * ch), warm[1] * look.a, warm[2] * look.a * (1 - deep * ch)));
       s._i = n; n++;
     }
     stars.count = Math.max(n, 1);
@@ -459,7 +581,22 @@ export function createScene(host, { reduced = () => false } = {}) {
     pickRing.visible = !!p; if (p) placeBillboard(pickRing, p.az, p.alt, 1.7, SKY_R - 30);
     if (p && S.pickedName) { setLabel(pickLabel, S.pickedName); placeBillboard(pickLabel, p.az, p.alt - 2.2, 7); pickLabel.scale.y = pickLabel.scale.x / 4; pickLabel.visible = true; } else pickLabel.visible = false;
   }
+  function setMoon() {
+    const m = S.moon, up = !!m && m.alt > -1 && m.lit > 0.03;
+    moonDisc.visible = moonGlow.visible = up;
+    if (!up) return;
+    drawMoon(m.lit);
+    const dim = clamp(1 - (S.sunAlt + 6) / 10, 0.25, 1);                                         // pale by day, bright at night
+    placeBillboard(moonGlow, m.az, m.alt, 9 + 10 * m.lit, SKY_R - 30);
+    placeBillboard(moonDisc, m.az, m.alt, 1.5, SKY_R - 35);
+    // turn the disc so its lit side faces the sun, whatever the hemisphere and the hour
+    const md = new THREE.Vector3(...dirOf(m.az, m.alt)), sd = new THREE.Vector3(...dirOf(S.sunAz, S.sunAlt)), pr = sd.addScaledVector(md, -sd.dot(md));
+    const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(moonDisc.quaternion), ay = new THREE.Vector3(0, 1, 0).applyQuaternion(moonDisc.quaternion);
+    moonDisc.rotateZ(Math.atan2(pr.dot(ay), pr.dot(ax)));
+    moonGlow.material.opacity = 0.35 * m.lit * dim; moonDisc.material.opacity = 0.35 + 0.65 * dim;
+  }
   function setSun() {
+    setMoon();
     if (!(S.sunAlt > -4)) return;
     const k = clamp((S.sunAlt + 4) / 6, 0, 1);
     placeBillboard(sunGlow, S.sunAz, S.sunAlt, 34, SKY_R - 20);
@@ -497,21 +634,23 @@ export function createScene(host, { reduced = () => false } = {}) {
     puffs.count = n; puffs.instanceMatrix.needsUpdate = true; if (puffs.instanceColor) puffs.instanceColor.needsUpdate = true;
   }
 
+  /** The sea's state for its shader: the time, the swell and the wind, and what lights the water. */
   function setSea(t) {
-    const pos = seaGeo.attributes.position.array, col = seaGeo.attributes.color.array;
-    const A = (0.1 + 0.3 * S.swell) * (1 + 0.8 * S.storm) * (reduced() ? 0.5 : 1), ts = reduced() ? 0 : t;
-    const sl = dirOf(S.sunAz, 0), lx = sl[0], lz = sl[2];
-    const dk = seaCol.dark, hr = seaCol.hor;
-    for (let i = 0; i < seaR.length; i++) {
-      const x = seaBase[i * 3], z = seaBase[i * 3 + 2], r = seaR[i], f = A / (1 + r / 260);
-      const p1 = 0.45 * x + 0.2 * z - ts * 1.9, p2 = -0.3 * x + 0.5 * z - ts * 2.5, p3 = 0.9 * x - 0.6 * z - ts * 3.4;
-      const h = f * (Math.sin(p1) + 0.55 * Math.sin(p2) + 0.25 * Math.sin(p3));
-      const gx = f * (0.45 * Math.cos(p1) - 0.165 * Math.cos(p2) + 0.225 * Math.cos(p3)), gz = f * (0.2 * Math.cos(p1) + 0.275 * Math.cos(p2) - 0.15 * Math.cos(p3));
-      pos[i * 3 + 1] = h;
-      const shade = clamp(1 + 3.2 * (gx * lx + gz * lz) / (0.4 + f * 0.6), 0.35, 2.2), far = clamp(r / 1400, 0, 1) * 0.35;
-      for (let j = 0; j < 3; j++) col[i * 3 + j] = lin(lerp(dk[j] * shade, hr[j], far));
-    }
-    seaGeo.attributes.position.needsUpdate = true; seaGeo.attributes.color.needsUpdate = true;
+    const wind = windOf(S.swell, S.weather), still = reduced();
+    SEA.uT.value = still ? 0 : t;
+    SEA.uA.value = (0.1 + 0.3 * S.swell) * (1 + 0.8 * S.storm) * (still ? 0.5 : 1);
+    SEA.uWind.value = clamp(wind + 0.4 * S.storm, 0, 1.4);
+    SEA.uFoam.value = clamp((wind - 0.45) * 1.6 + S.storm * 0.6, 0, 1) * (still ? 0.5 : 1);
+    // the water runs aft past her at some five knots: the pattern is drawn where the ship has come to
+    const h = S.heading * D2R, run = still ? 0 : t * 2.6;
+    SEA.uDrift.value.x = Math.sin(h) * run; SEA.uDrift.value.y = -Math.cos(h) * run;   // a plain pair: the bundle has no Vector2
+    const sunUp = S.sunAlt > -1.5 && !S.sunHidden, sk = clamp((S.sunAlt + 1.5) / 3, 0, 1);
+    SEA.uSunDir.value.set(...dirOf(S.sunAz, Math.max(S.sunAlt, 0.3)));
+    const warm = clamp(S.sunAlt / 20, 0, 1);
+    SEA.uSunCol.value.set(1, lerp(0.62, 0.95, warm), lerp(0.32, 0.85, warm)).multiplyScalar(sunUp ? 9 * sk : 0);
+    const m = S.moon, moonUp = !!m && m.alt > 0 && S.sunAlt < -3;
+    if (moonUp) SEA.uMoonDir.value.set(...dirOf(m.az, m.alt));
+    SEA.uMoonCol.value.set(0.78, 0.84, 0.95).multiplyScalar(moonUp ? 1.1 * m.lit * clamp((-3 - S.sunAlt) / 6, 0, 1) : 0);
   }
 
   function stepSpray(dt, t) {
@@ -623,12 +762,27 @@ export function createScene(host, { reduced = () => false } = {}) {
     lamp.getWorldPosition(LIT.uLampPos.value); LIT.uLampPos.value.y += 0.16;
     // the light: on for a moment in every five seconds (a group-flashing light is told by its pattern), steady and dim when motion is reduced
     beacon.visible = !!S.light;
+    // its beams: the optic turns once in five seconds and carries two panels a second apart, so each beam sweeps along the horizon and
+    // flashes as it points at the ship; the group of two flashes is the two beams going by
+    const ph = S.light ? (t + S.light.az * 0.013) % 5 : 0;
+    for (const [k, ray] of rays.entries()) {
+      ray.visible = !!S.light && !reduced();
+      if (!ray.visible) continue;
+      const th = 2 * Math.PI * (ph - 0.25 - k) / 5, s = Math.sin(th), c = Math.cos(th);
+      placeBillboard(ray, S.light.az, 0.75, 1, SKY_R - 45);
+      const len = ray.scale.y * (1.5 + 14 * Math.abs(s));
+      ray.rotateZ(s > 0 ? -Math.PI / 2 + 0.06 : Math.PI / 2 - 0.06);
+      ray.scale.set(ray.scale.x * 0.9, len, 1); ray.translateY(len * 0.5);
+      ray.material.opacity = 0.04 + 0.36 * Math.pow(Math.max(c, 0), 3);
+    }
+    SEA.uBeacon.value = 0;
     if (S.light) {
-      const ph = (t + S.light.az * 0.013) % 5, on = reduced() ? 0.55 : ph < 0.5 ? Math.sin(ph / 0.5 * Math.PI) : ph > 1.0 && ph < 1.5 ? Math.sin((ph - 1.0) / 0.5 * Math.PI) * 0.8 : 0.06;
+      const on = reduced() ? 0.55 : ph < 0.5 ? Math.sin(ph / 0.5 * Math.PI) : ph > 1.0 && ph < 1.5 ? Math.sin((ph - 1.0) / 0.5 * Math.PI) * 0.8 : 0.06;
       placeBillboard(beacon, S.light.az, 0.6 + 0.3 * Math.sin(t * 0.7), 0.9 + 1.6 * on, SKY_R - 40); beacon.material.opacity = clamp(0.15 + on, 0, 1);
+      SEA.uBeaconDir.value.set(...dirOf(S.light.az, 0.6)); SEA.uBeacon.value = 1.4 * on;
     }
     // the sea, the flag, the spray
-    if (t - lastSeaT > (reduced() ? 1e9 : 1 / 30)) { setSea(t); lastSeaT = t; }
+    setSea(t);
     if (!reduced()) {
       const fp = flag.geometry.attributes.position, wind = windOf(S.swell, S.weather);
       for (let i = 0; i < fp.count; i++) { const x = flagBase[i * 3] + 0.8, w = Math.sin(t * (5 + 6 * wind) - x * 4) * 0.12 * x * (0.5 + wind); fp.setZ(i, w); }

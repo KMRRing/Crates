@@ -85,6 +85,24 @@ export function sunPlace(jd) {
 }
 export const sunAltAz = (jd, lat, lon) => { const s = sunPlace(jd); return { ...altAz(s.ra, s.dec, lat, lst(jd, lon)), ra: s.ra, dec: s.dec }; };
 
+// ---------- the moon (for the scene only, 13 November 2026: "the moon with its glitter path on the water") ----------
+// The Astronomical Almanac's low-precision series (good to a few tenths of a degree, plenty for a picture; no sight is taken of it).
+export function moonPlace(jd) {
+  const T = (jd - J2000) / 36525;
+  const lam = norm360(218.32 + 481267.881 * T + 6.29 * sin(134.9 + 477198.85 * T) - 1.27 * sin(259.2 - 413335.38 * T) + 0.66 * sin(235.7 + 890534.23 * T)
+    + 0.21 * sin(269.9 + 954397.70 * T) - 0.19 * sin(357.5 + 35999.05 * T) - 0.11 * sin(186.6 + 966404.05 * T));
+  const bet = 5.13 * sin(93.3 + 483202.03 * T) + 0.28 * sin(228.2 + 960400.87 * T) - 0.28 * sin(318.3 + 6003.18 * T) - 0.17 * sin(217.6 - 407332.20 * T);
+  const eps = 23.439 - 0.013 * T;
+  const x = cos(bet) * cos(lam), y = cos(eps) * cos(bet) * sin(lam) - sin(eps) * sin(bet), z = sin(eps) * cos(bet) * sin(lam) + cos(eps) * sin(bet);
+  return { ra: norm360(Math.atan2(y, x) / RAD), dec: asin(z), lam, bet };
+}
+/** The moon seen from a place at a time, and how much of it is lit: { alt, az, lit (0 new to 1 full), waxing, elong (degrees from the sun) }. */
+export function moonAltAz(jd, lat, lon) {
+  const m = moonPlace(jd), s = sunPlace(jd);
+  const elong = Math.acos(Math.max(-1, Math.min(1, sin(m.dec) * sin(s.dec) + cos(m.dec) * cos(s.dec) * cos(m.ra - s.ra)))) / RAD;
+  return { ...altAz(m.ra, m.dec, lat, lst(jd, lon)), ra: m.ra, dec: m.dec, elong, lit: (1 - cos(elong)) / 2, waxing: norm360(m.ra - s.ra) < 180 };
+}
+
 // ---------- the sun's disc, and noon ----------
 
 /** The sun's distance in astronomical units (low precision, good to 0.0002). */

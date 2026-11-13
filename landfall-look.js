@@ -75,7 +75,9 @@ export function starLook(mag, alt, lim, lamp, t = 0, hr = 0) {
   const ext = 0.3 / Math.max(0.12, Math.sin(Math.max(0.5, alt) * D2R)) - 0.3, m = mag + ext, limit = lim - (lamp ? 0.8 : 0);
   let a = clamp((limit - m) / 1.1 + 0.1, 0, 1);
   if (a <= 0.01) return { a: 0, size: 0 };
-  const tw = 1 + (0.1 + (alt < 25 ? 0.2 : 0)) * Math.sin(t * (2.1 + (hr % 7) * 0.37) + hr);
+  // scintillation (13 November 2026): quick and irregular, three beats that never line up, more the more air the light comes through
+  const deep = clamp((30 - alt) / 26, 0, 1), f = 2.1 + (hr % 7) * 0.37;
+  const tw = 1 + (0.07 + 0.3 * deep) * (0.55 * Math.sin(t * f + hr) + 0.3 * Math.sin(t * f * 2.71 + hr * 1.3) + 0.15 * Math.sin(t * f * 5.13 + hr * 0.7));
   a = clamp(a * tw, 0, 1);
   return { a, size: clamp(0.5 + 0.2 * (2.6 - m), 0.45, 1.5) };
 }
