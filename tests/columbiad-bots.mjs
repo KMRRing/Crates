@@ -11,7 +11,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 const rows = [];
-for (const lvl of LEVELS.slice(0, 12)) {
+for (const lvl of SECTIONS.slice(0, 3).flatMap(s => s.levels)) {
   const sw = sweep(lvl, 4, 0.75), frac = fraction(sw), fams = families(sw).filter(f => f.size >= 3);
   rows.push({ lvl, sw, frac, fams: fams.length });
 }
@@ -22,7 +22,7 @@ check(rows.filter(r => r.fams >= 1).length >= 10 && rows.filter(r => r.fams >= 2
 
 // robustness of the stored shots, and the blind bot against them
 const gap = [];
-for (const lvl of LEVELS.slice(0, 12)) {
+for (const lvl of SECTIONS.slice(0, 3).flatMap(s => s.levels)) {
   const best = PROOFS[lvl.id][0], rob = robustness(lvl, best, 20, 5), blind = blindRate(lvl, 200, 17);
   gap.push({ id: lvl.id, rob, blind });
 }

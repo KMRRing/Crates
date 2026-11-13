@@ -25,8 +25,11 @@ const $ = id => document.getElementById(id);
 // BEST: the stars won in all, the number the games screen shows. SEEN: set by the first shot, the hint is told once.
 // DAILY: the stars won on each day's level, by the day (YYYYMMDD); DRUN is the daily's own run, so the camp's is left as it was.
 // The keys with a 3 are the world of 4 November 2026 (a big Earth and Moon, rings behind the Moon): the levels were all made again, so what the old
-// keys hold (levels with other rings and other dials) is not read and is left where it is.
-const CAMP = "columbiad:camp3", RUN = "columbiad:run3", AIMS = "columbiad:aims3", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun3";
+// keys hold (levels with other rings and other dials) is not read and is left where it is. CAMP is 4 since 13 November 2026, when 32 levels went
+// in among the 68 (twelve chapters of eight or nine): the camp is kept by level id, and the camp3 it replaces (kept by place) is read once.
+const CAMP = "columbiad:camp4", CAMP3 = "columbiad:camp3", RUN = "columbiad:run3", AIMS = "columbiad:aims3", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun3";
+// the 68 levels in the order camp3 kept them by: each chapter's in its number order
+const OLD_ORDER = [4, 5, 3, 7, 6, 6, 6, 6, 5, 8, 7, 5].flatMap((n, c) => Array.from({ length: n }, (_, k) => `${c + 1}-${k + 1}`));
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const noted = new Set();       // the levels whose note has been said this visit
@@ -61,14 +64,23 @@ function isOpen(n) {
   const L = LEVELS[n], sec = SECTIONS.find(x => x.levels.includes(L)), k = sec.levels.indexOf(L);
   return k === 0 || camp.stars[n - 1] > 0 || camp.stars[n] > 0;
 }
-function readCamp() {
+/** The camp kept by id ({ at, stars, bull }, by level id), or camp3's (kept by place) turned into it. */
+function keptCamp() {
   const c = read(CAMP, null);
-  const stars = LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
-  const bull = LEVELS.map((_, k) => !!c?.bull?.[k]);
-  return { at: Number.isInteger(c?.at) && c.at >= 0 && c.at < LEVELS.length ? c.at : 0, stars, bull };
+  if (c && typeof c === "object" && !Array.isArray(c) && c.stars && typeof c.stars === "object" && !Array.isArray(c.stars)) return c;
+  const o = read(CAMP3, null), byId = a => Object.fromEntries(OLD_ORDER.map((id, k) => [id, Array.isArray(a) ? a[k] : undefined]));
+  return o ? { at: OLD_ORDER[o.at], stars: byId(o.stars), bull: byId(o.bull) } : null;
+}
+/** The camp in play, by place in today's LEVELS: at (the level being played), stars and bull (each level's). */
+function readCamp() {
+  const c = keptCamp(), at = LEVELS.findIndex(l => l.id === c?.at);
+  const stars = LEVELS.map(l => (Number.isInteger(c?.stars?.[l.id]) ? Math.max(0, Math.min(3, c.stars[l.id])) : 0));
+  const bull = LEVELS.map(l => !!c?.bull?.[l.id]);
+  return { at: at >= 0 ? at : 0, stars, bull };
 }
 function keepCamp() {
-  write(CAMP, camp);
+  const byId = a => Object.fromEntries(LEVELS.map((l, k) => [l.id, a[k]]).filter(([, v]) => v));
+  write(CAMP, { at: LEVELS[camp.at].id, stars: byId(camp.stars), bull: byId(camp.bull) });
   write(BEST, camp.stars.reduce((a, b) => a + b, 0));
 }
 const goodTrail = g => g && Array.isArray(g.pts) && g.pts.length >= 4 && g.pts.length <= 200 && g.pts.length % 2 === 0 && g.pts.every(Number.isFinite);
@@ -117,7 +129,7 @@ function assist(l) {
 function setupLevel() {
   lvl = levelNow();
   // each level its own line in the play log, so it can be rated (Korbi, 13 Nov 2026: until now all of Columbiad was one line, "Rounds")
-  levelOn("columbiad", daily ? `d${daily}` : lvl.id, daily ? `Daily ${daily}` : `${lvl.id} · ${lvl.name}`);
+  levelOn("columbiad", daily ? `d${daily}` : lvl.id, daily ? `Daily ${daily}` : `${lvl.label} · ${lvl.name}`);
   view.setLevel(lvl);
   buildGauge();
   loadRun();
@@ -180,7 +192,7 @@ function flashCell(from, to) {
 }
 function render() {
   const won = S.status === "won", k = won ? S.shots : S.shots + 1, earn = starsOf(lvl, { status: "won", shots: k, log: [{ c: aim.charge }] });   // a gentle level counts the power of the shot, so the shot now aimed
-  $("lvId").textContent = daily ? `Daily ${lvl.id}` : lvl.id;
+  $("lvId").textContent = daily ? `Daily ${lvl.label}` : lvl.label;
   $("lvName").textContent = lvl.name;
   const gw = goalWords(lvl);
   $("goal").textContent = gw;
@@ -288,7 +300,7 @@ const dateWords = d => `${String(d % 100).padStart(2, "0")}/${String(Math.floor(
 /** The result as a few words to paste: the day, the level, the stars and the shots. */
 async function share() {
   const earn = starsOf(lvl, S);
-  const text = `Columbiad · today's level, ${dateWords(daily)}\n${lvl.id} ${lvl.name} · ${starsWords(earn)} · ${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}`;
+  const text = `Columbiad · today's level, ${dateWords(daily)}\n${lvl.label} ${lvl.name} · ${starsWords(earn)} · ${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}`;
   try { await navigator.clipboard.writeText(text); say("Result copied"); } catch { say("Couldn't copy the result"); }
 }
 
@@ -526,8 +538,8 @@ function levelList(sec) {
     b.disabled = !open;
     b.className = won ? "done" : "";
     if (n === camp.at) b.setAttribute("aria-current", "true");
-    b.setAttribute("aria-label", `Level ${L.id}, ${L.name}${open ? "" : ", locked: strike the one before it"}${won ? `, ${plural(won, "star")}${camp.bull[n] ? ", bullseye" : ""}` : ""}`);
-    b.innerHTML = `<div class="cb-lmap">${mapSvg(L)}</div><div class="cb-lrow"><b>${L.id}</b><span>${open ? `${starsWords(won)}${camp.bull[n] ? " ◎" : ""}` : "locked"}</span></div><div class="cb-lnamed"></div>`;
+    b.setAttribute("aria-label", `Level ${L.label}, ${L.name}${open ? "" : ", locked: strike the one before it"}${won ? `, ${plural(won, "star")}${camp.bull[n] ? ", bullseye" : ""}` : ""}`);
+    b.innerHTML = `<div class="cb-lmap">${mapSvg(L)}</div><div class="cb-lrow"><b>${L.label}</b><span>${open ? `${starsWords(won)}${camp.bull[n] ? " ◎" : ""}` : "locked"}</span></div><div class="cb-lnamed"></div>`;
     b.querySelector(".cb-lnamed").textContent = L.name;
     b.addEventListener("click", () => { $("menuDlg").close(); if (n !== camp.at || daily) playLevel(n); });
     list.append(b);
@@ -541,8 +553,8 @@ function openMenu() {
   const content = part(body, "content");
   const due = dailyLevel(today()), got = read(DAILY, {})[today()];
   todayPart(body, {
-    done: !!got, result: got ? `${due.id} ${due.name}, ${starsWords(got)}` : "", play: playDaily, playing: !!daily,
-    back: daily ? { text: `Back to level ${LEVELS[camp.at].id}`, fn: () => playLevel(camp.at) } : null,
+    done: !!got, result: got ? `${due.label} ${due.name}, ${starsWords(got)}` : "", play: playDaily, playing: !!daily,
+    back: daily ? { text: `Back to level ${LEVELS[camp.at].label}`, fn: () => playLevel(camp.at) } : null,
   });
   for (const sec of SECTIONS) {
     const head = document.createElement("p");

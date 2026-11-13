@@ -146,9 +146,15 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
 
 // ---------- the levels ----------
 {
-  const CORE = LEVELS.slice(0, 12), ids = LEVELS.map(l => l.id), bearingOf = (l, t = 0) => { const pad = E.padAt(l, t), p = E.ringAt(l, (l.gates || [l.target])[0], t); return Math.atan2(p[1] - pad[1], p[0] - pad[0]) * 180 / Math.PI; };
-  check(SECTIONS.length === 12 && LEVELS.length >= 60 && new Set(ids).size === LEVELS.length && SECTIONS.every(sec => sec.levels.length >= 3 && sec.levels.every((l, n) => l.id === `${sec.id}-${n + 1}`)), `${SECTIONS.length} chapters, ${LEVELS.length} levels, each id its chapter and place`);
-  check(SECTIONS.slice(0, 3).map(s => s.levels.length).join() === "4,5,3" && CORE.every(l => l.bodies[0].id === "earth" && l.bodies[1].id === "moon"), "the first three chapters are the game's first twelve levels, in their old order (saved stars keep their places)");
+  const CORE = SECTIONS.slice(0, 3).flatMap(s => s.levels), ids = LEVELS.map(l => l.id), bearingOf = (l, t = 0) => { const pad = E.padAt(l, t), p = E.ringAt(l, (l.gates || [l.target])[0], t); return Math.atan2(p[1] - pad[1], p[0] - pad[0]) * 180 / Math.PI; };
+  // Korbi, 13 November 2026: twelve chapters of eight or nine, a hundred levels; the 68 from before keep their ids (stars, aims and the
+  // play log are kept by id) and their order within their chapter, the 32 new ones (numbered on from them) going where the ramp needed them
+  const OLD = [4, 5, 3, 7, 6, 6, 6, 6, 5, 8, 7, 5], num = id => +id.split("-")[1];
+  check(SECTIONS.length === 12 && LEVELS.length === 100 && new Set(ids).size === LEVELS.length && SECTIONS.every(sec => sec.levels.length >= 8 && sec.levels.length <= 9 && sec.levels.every((l, n) => l.id.startsWith(`${sec.id}-`) && l.label === `${sec.id}-${n + 1}`)),
+    `${SECTIONS.length} chapters of eight or nine, ${LEVELS.length} levels, each id of its chapter and each label its chapter and place`);
+  check(SECTIONS.every((sec, c) => { const old = sec.levels.map(l => num(l.id)).filter(k => k <= OLD[c]); return old.length === OLD[c] && old.every((k, i) => k === i + 1) && sec.levels.every(l => num(l.id) <= sec.levels.length); }),
+    "the 68 levels from before are all there, each chapter's in its old order, and the new ones are numbered on from them");
+  check(SECTIONS.slice(0, 3).flatMap(s => s.levels).every(l => l.bodies[0].id === "earth" && l.bodies[1].id === "moon"), "the first three chapters are the Earth and its Moon");
   check(LEVELS.every(l => E.validate(l).length === 0), `every level is valid${LEVELS.map(l => E.validate(l).map(m => `${l.id}: ${m}`)).flat().join("; ")}`);
   const mov = LEVELS.filter(l => E.isMoving(l));
   check(E.MOVERS_ON === true && mov.length >= 15 && CORE.every(l => !E.isMoving(l)) && mov.every(l => l.bodies.some(b => b.rail) || [l.target, ...(l.gates || [])].some(t => t.rail || t.body != null)), `movers are on: ${mov.length} levels have a body or a ring that moves, and only they have the launch countdown`);
