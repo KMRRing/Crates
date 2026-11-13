@@ -15,8 +15,9 @@ import { makeView, project, unproject, degPx, pick, drawSky } from "./landfall-s
 import * as sx from "./landfall-sextant.js";
 import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart } from "./landfall-chart.js";
 import { sound } from "./landfall-sound.js";
+import { lightOn, lightColour, charWords } from "./landfall-lights.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
-import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
   sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable, soundWords,
@@ -35,7 +36,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -427,6 +428,7 @@ function arrive(prev) {
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
   if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
   else if (L.bed && prev === "ritual" && !read(KEY.seenLead, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lead"); }, 350);
+  else if (L.lights && prev === "ritual" && !read(KEY.seenLights, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lights"); }, 350);
   if (S.phase === "ritual" && prev !== "ritual") { if (L.origin.lat < 0) learn("south"); if (S.watch.weather === "storm") learn("gale"); }
   sound.place(L.origin.lat); sound.conditions(S.watch.weather);
   sound.day(day && S.phase !== "end");
@@ -724,11 +726,12 @@ function renderTools() {
     return [button(W.sound ? "Lead ✓" : "Lead", () => go({ t: "sound" }), "lf-btn", { disabled: !can("sound"), label: "Heave to and cast the lead" })];
   }
   function auxFixed() {
-    const L = levelOf(S), lit = !isDay() && L.light && S.phase === "find";
+    const L = levelOf(S), lit = !isDay() && (L.light || L.lights) && S.phase === "find";
+    const allDone = L.lights ? !!W.lights?.some(l => l.seen) && W.lights.every(l => !l.seen || l.done) : W.light?.done;
     aux.append(
       button("Almanac", openAlmanac, "lf-mini"), button("Log", openLog, "lf-mini"),
-      // on a coast with a light the Codex gives way to the light's bearing, once it is in sight
-      lit ? button(W.light?.done ? "Light ✓" : "Light", () => go({ t: "light" }), "lf-mini", { disabled: !can("light"), label: "Take the bearing of the lighthouse" }) : button("Codex", openCodex, "lf-mini"),
+      // on a coast with a light the Codex gives way to the light's bearing, once it is in sight; on a coast of several, to the lights' sheet
+      lit ? button(allDone ? "Light ✓" : "Light", () => (L.lights ? openLights() : go({ t: "light" })), "lf-mini", { disabled: !can("light"), label: L.lights ? "The lights in sight: tell them by their flashes" : "Take the bearing of the lighthouse" }) : button("Codex", openCodex, "lf-mini"),
     );
     // by day there is no lamp to put out: the fourth button gives up the sight that is next
     const lamp = isDay() ? button("Skip", () => go({ t: "skipstage" }), "lf-mini", { disabled: S.phase !== "find" || !can("skipstage"), label: "Give up this sight of the sun" })
@@ -901,13 +904,53 @@ function openNotes() {
 }
 /** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
 function openHelp(sun = false) {
-  const rows = sun === true ? HOW_SUN : sun === "star" ? HOW_STAR : sun === "lead" ? HOW_LEAD : HOW;
-  $("helpTitle").textContent = sun === true ? "How the sun is taken" : sun === "star" ? "Any star, and the intercept" : sun === "lead" ? "The lead" : "How a sight works";
-  $("helpBody").replaceChildren(...rows.map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
-  write(sun === true ? KEY.seenSun : sun === "star" ? KEY.seenStar : sun === "lead" ? KEY.seenLead : KEY.seen, 1);
+  const kind = sun === true ? "sun" : sun || "how", T = { sun: [HOW_SUN, "How the sun is taken", KEY.seenSun], star: [HOW_STAR, "Any star, and the intercept", KEY.seenStar],
+    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], how: [HOW, "How a sight works", KEY.seen] }[kind];
+  $("helpTitle").textContent = T[1];
+  $("helpBody").replaceChildren(...T[0].map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
+  write(T[2], 1);
   $("helpDlg").showModal();
 }
 for (const [btn, dlg] of [["notesClose", "notesDlg"], ["almanacClose", "almanacDlg"], ["logClose", "logDlg"], ["codexClose", "codexDlg"], ["helpClose", "helpDlg"], ["helpOk", "helpDlg"]]) $(btn).addEventListener("click", () => $(dlg).close());
+
+// ---------- the lights in sight ----------
+// Each light in sight is shown as a lamp flashing in its own character, in real seconds, with its compass bearing to the nearest five
+// degrees; the navigator names it from the chart's list and takes its bearing. The twilight runs on while the flashes are counted.
+let lightsRaf = 0;
+function openLights() {
+  const L = levelOf(S), W = S.watch, body = $("lightsBody"), lamps = [], est = estPlace(S);
+  learn("lights");
+  const rows = [];
+  for (const [at, l] of (W.lights || []).entries()) {
+    if (!l.seen) continue;
+    const g = L.lights[at], az = (bearing([g.x - S.T[0], g.y - S.T[1]]) + S.compass.err + 360) % 360, row = el("div", "lf-seen");
+    const lamp = el("span", "lf-lamp"); lamp.style.setProperty("--lamp", lightColour(g.ch).join(", ")); lamps.push([lamp, g.ch, at * 3.7]);
+    const what = el("p", "lf-note-p", l.done ? `A light bearing ${fmtCourse(l.bearing)}, taken for ${L.lights[l.as].name}${l.off ? ": its line was not plotted" : ""}.` : `A light bearing about ${fmtCourse(Math.round(az / 5) * 5)}. Count its flashes; which is it?`);
+    row.append(lamp, what);
+    if (!l.done) {
+      let as = null;
+      const names = el("div", "lf-names"), take = button("Take its bearing", () => { $("lightsDlg").close(); go({ t: "light", at, as }); }, "btn primary lf-take", { disabled: true });
+      for (const [i, c] of L.lights.entries()) {
+        const b = button(`${c.name} · ${c.ch}`, () => { as = i; for (const x of names.children) x.setAttribute("aria-pressed", String(x === b)); take.disabled = false; }, "lf-mini");
+        b.setAttribute("aria-pressed", "false"); names.append(b);
+      }
+      row.append(names, take);
+    }
+    rows.push(row);
+  }
+  const list = el("table", "lf-alm");
+  list.innerHTML = "<thead><tr><th>Light</th><th>Character</th><th>Range</th></tr></thead>";
+  const tb = el("tbody");
+  for (const g of L.lights) { const tr = el("tr"); tr.append(el("td", null, g.name), el("td", null, charWords(g.ch)), el("td", null, `${g.range} nm`)); tb.append(tr); }
+  list.append(tb);
+  body.replaceChildren(el("p", "lf-note-p", rows.length ? "A light is told by its character: how many flashes, how long, how often." : "No light is in sight yet."), ...rows, list);
+  cancelAnimationFrame(lightsRaf);
+  const tick = now => { for (const [lamp, ch, off] of lamps) lamp.style.opacity = String(0.06 + 0.94 * lightOn(ch, now / 1000 + off)); if ($("lightsDlg").open) lightsRaf = requestAnimationFrame(tick); };
+  lightsRaf = requestAnimationFrame(tick);
+  if (!$("lightsDlg").open) $("lightsDlg").showModal();
+  void est;
+}
+$("lightsClose").addEventListener("click", () => $("lightsDlg").close());
 
 // ---------- the menu ----------
 function inProgress() { return S && S.phase !== "end" && (S.w > 1 || S.phase !== "ritual" || S.watch.min > 0); }
@@ -927,7 +970,7 @@ function openMenu() {
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
-  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"));
+  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -949,6 +992,7 @@ function pushWorld(now) {
     weather: wx, swell: L.swell * (wx === "swell" ? 2 : wx === "storm" ? 2.4 : 1), storm: wx === "storm" ? 1 : 0, picked, pickedName: name, figure: fig, ring: h?.ring ?? null,
     sunHidden: isDay() && lookSun(S).cloud, moon: d.moon ? { alt: d.moon.alt, az: d.moon.az, lit: d.moon.lit, waxing: d.moon.waxing } : null,
     light: !isDay() && L.light && W.light?.seen ? { az: bearing([L.light.x - S.T[0], L.light.y - S.T[1]]) } : null,
+    lights: !isDay() && L.lights ? L.lights.map((g, i) => ({ az: bearing([g.x - S.T[0], g.y - S.T[1]]), ch: g.ch, off: i * 3.7, seen: !!W.lights?.[i]?.seen })).filter(g => g.seen) : null,
   });
   const c = calendar(sceneJd(S)), sec = c.h * 3600 + c.mi * 60 + c.s;
   if (sec !== dialSec) { dialSec = sec; sc.gmt = `${c.h}:${c.mi}:${c.s}`; }

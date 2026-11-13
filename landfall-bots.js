@@ -2,7 +2,7 @@
 // reading, to see whether a level is winnable and decided by skill (tests/landfall-bots.mjs).
 //   careful   steps the dividers exactly, waits for the star and the horizon together, takes three marks, checks the compass,
 //             retakes a sight the reckoning rejects, and steers for the harbour from every fix
-//   sloppy    a wide step-off, one rushed mark, no compass check, and sometimes takes the wrong star
+//   sloppy    a wide step-off, one rushed mark, no compass check, sometimes takes the wrong star and names a light wrongly
 //   confused  careful, but takes another star for Polaris a third of the time
 //   nightowl  careful by night and never takes a sight of the sun: what section 1 taught, and no more
 //   blind     never looks at the sky: dead reckoning only, the floor
@@ -20,8 +20,8 @@ import { STARS } from "./landfall-stars.js";
 
 export const BOTS = {
   careful:  { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0,    retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, lead: true },
-  sloppy:   { step: 1.6,  centre: 4,   marks: 1, sweet: false, bearing: false, wrong: 0.12, retakes: 0, late: 0.2, lateSd: 0.35, swing: 1 },
-  confused: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0.33, retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, lead: true },
+  sloppy:   { step: 1.6,  centre: 4,   marks: 1, sweet: false, bearing: false, wrong: 0.12, retakes: 0, late: 0.2, lateSd: 0.35, swing: 1, misname: 0.35 },
+  confused: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0.33, retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, lead: true, misname: 0.33 },
   nightowl: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0,    retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, noSun: true, lead: true },
   blind:    { blind: true },
 };
@@ -49,7 +49,7 @@ export const driftOf = S => {
 /** Real seconds the sky takes for `min` game minutes: the first ten at the clock's pace, the rest fast-forwarded (a "wait" button, 60 times). */
 export const skySeconds = min => Math.min(min, 10) * 60 / CLOCK + Math.max(0, min - 10);
 /** Seconds a person is assumed to need for each desk action; the sky's own clock is the engine's (CLOCK game seconds per second). */
-export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12 };
+export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12, light: 15 };
 
 /** The three sights of a noon watch, as a bot takes them. Ends with the watch in the book, or in steering if nothing could be taken. */
 function sunWatch(S, bot, g, take, cur) {
@@ -97,9 +97,16 @@ function sunWatch(S, bot, g, take, cur) {
  * One step of a night watch on an any-star level: the lighthouse if it shows, else the next star the sky suggests that can be seen (or the
  * brightest that can), the compass, and the sextant. When nothing can be taken before the light is gone, the watch's sights are over.
  */
-function lopFind(S, bot, take, wait, out, gaveUp) {
-  const W = S.watch;
+function lopFind(S, bot, take, wait, out, gaveUp, u) {
+  const W = S.watch, L = levelOf(S);
   if (W.light?.seen && !W.light.done && !bot.noLight) { take({ t: "light" }, SECONDS.bearing); return; }
+  const at = W.lights ? W.lights.findIndex(l => l.seen && !l.done) : -1;
+  if (at >= 0 && !bot.noLight) {                                  // a light in sight, named by its character (or, now and then, not)
+    const others = L.lights.map((_, i) => i).filter(i => i !== at), wrong = others.length && u() < (bot.misname ?? 0);
+    if (wrong) out.wrongTaken++;
+    take({ t: "light", at, as: wrong ? others[Math.floor(u() * others.length)] : at }, SECONDS.bearing + SECONDS.light);
+    return;
+  }
   if (gaveUp || W.lops.length >= levelOf(S).lop) { take({ t: "skipsight" }, 0); return; }
   let sweet = bot.sweet;                                          // wait for the dark and a steady horizon, but not for ever
   const ok = hr => look(S, BY_HR.get(hr)).visible && (!sweet || (conditions(S).sun < -5.8 && conditions(S).horizonFactor <= 1.3)) && !W.lops.includes(hr);
@@ -141,7 +148,7 @@ export function play(levelId, seed, botName) {
       case "find": {
         if (bot.blind) { take({ t: "skipsight" }, 0); break; }
         if (S.watch.kind === "noon") { if (bot.noSun) take({ t: "skipsight" }, 0); else sunWatch(S, bot, g, take, cur); break; }
-        if (L.lop) { lopFind(S, bot, take, wait, out, gaveUp); break; }
+        if (L.lop) { lopFind(S, bot, take, wait, out, gaveUp, u); break; }
         const ready = () => look(S, POLARIS).visible && (!bot.sweet || (conditions(S).sun < -5.8 && conditions(S).horizonFactor <= 1.3));
         while (!ready() && S.watch.min < MAX_WAIT - 10) wait();
         const wrong = u() < bot.wrong;

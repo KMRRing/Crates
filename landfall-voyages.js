@@ -5,6 +5,7 @@
 //   pool    the stars the watch may suggest (Yale numbers); the player may take any star that shows
 //   clock   the chronometer: `err` [least, most] seconds it is wrong by (sign drawn), `sd` what the reckoning trusts it to, `rate` the sd of its drift in seconds a day
 //   light   a lighthouse (made by `sea`): seen only from within `range` nm (less in haze or a gale), it gives a bearing
+//   lights  a coast of several, each with its character (`ch`, landfall-lights.js): the one in sight must be told from the others
 //   gale    `legs`: the legs (0 is the first) a storm sets the ship off on by `push` nm sd, which the log cannot show
 //   bed     a charted bottom the lead can be cast on (landfall-bed.js): the shelf off the coast, banks and pits
 // The sea is invented (see landfall-levels.js); the latitudes and longitudes are real so the sky is.
@@ -12,7 +13,7 @@
 /** The chapters, by `section`. */
 export const SECTIONS = {
   1: "Polaris and the log", 2: "The noon sun", 3: "Two lines", 4: "The chronometer", 5: "The Southern Cross", 6: "Cloud and weather",
-  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead",
+  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character",
 };
 
 const R = Math.round;
@@ -20,7 +21,7 @@ const R = Math.round;
  * A landfall `nm` from the departure fix on `course`: the harbour dead ahead, two shoals either side of the approach, a coast across it
  * (perpendicular to the course, 14 nm beyond) and, if `light` is given, a lighthouse on the coast beside the harbour.
  */
-function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = null, coast = "the coast" } = {}) {
+function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = null, lights = null, coast = "the coast" } = {}) {
   const a = course * Math.PI / 180, f = [Math.sin(a), Math.cos(a)], rt = [Math.cos(a), -Math.sin(a)];
   const at = (u, v) => [R(10 * (u * f[0] + v * rt[0])) / 10, R(10 * (u * f[1] + v * rt[1])) / 10];
   const h = at(nm, 0), s1 = at(nm - 3, r + 11), s2 = at(nm + 1, -(r + 12));
@@ -31,6 +32,8 @@ function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = 
   return {
     harbour: { name: coast, x: h[0], y: h[1], r }, shoals: [{ name: names[0], x: s1[0], y: s1[1], r: 4.5 }, { name: names[1], x: s2[0], y: s2[1], r: 4.5 }], land,
     ...(light ? { light: { name: light.name, range: light.range, x: lp[0], y: lp[1] } } : {}),
+    // a coast of several lights: each `v` nm along the coast from the harbour (to starboard of the approach is positive), `u` on from it
+    ...(lights ? { lights: lights.map(g => { const q = at(nm + (g.u ?? 10), g.v); return { name: g.name, ch: g.ch, range: g.range, x: q[0], y: q[1] }; }) } : {}),
   };
 }
 /** A point `u` nm along `course` from the departure fix and `v` nm to starboard of it, as sea() places things. */
@@ -220,4 +223,24 @@ export const VOYAGES = [
     speed: 5, course0: 70, leg0: 6, hint: 2, swell: 0.7, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, compass: [1.5, 3.0], sd: 2, current: 0.35 },
     ...sea(70, 165, { r: 7, names: ["Dogger Tail", "Swarte Bank"], coast: "Westerhaven" }),
     bed: shelf(70, { deep: 70, width: 30, banks: [[85, 0, 46, 13, "the Dogger"], [96, 4, 9, 46, "the Silver Pit"]] }) },
+  // ---------- section 11: lights by their character ----------
+  // A coast with more than one light: each is told by its character, the pattern of its flashes, which the chart prints beside it.
+  { id: "which-light", section: 11, n: 38, name: "Which Light?", place: GREY,
+    blurb: "Two lights guard the harbour, one each side. When one rises, count its flashes against the chart before you trust its bearing.",
+    lesson: "A light is only a line through the tower you name: count its flashes and time them, and the chart tells you which tower it is.",
+    origin: { lat: 57.0, lon: 1.0 }, year: 1856, window: [[10, 1], [11, 5]], watches: 3, kinds: "dusk,dawn,dusk", lop: 1, pool: NAV,
+    speed: 5, course0: 80, leg0: 6, hint: 1, swell: 0.5, weather: { clear: 3, haze: 1 }, errors: { ...standard, compass: [1.0, 2.0], sd: 1.5 },
+    ...sea(80, 165, { names: ["North Brann", "South Brann"], coast: "Brannhavn", lights: [{ name: "Brann Ness", ch: "Fl(2) 10s", range: 24, v: -22 }, { name: "Holm", ch: "Oc 6s", range: 22, v: 24 }] }) },
+  { id: "cross-bearings", section: 11, n: 39, name: "Cross Bearings", place: GREY,
+    blurb: "Three lights on a long coast, and cloud over the stars. Two lights in sight at once are a fix with no sky at all.",
+    lesson: "Two bearings cross like two stars: lights well apart make a fix, and a third shows whether you named them right.",
+    origin: { lat: 58.0, lon: 3.5 }, year: 1856, window: [[11, 1], [12, 5]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV,
+    speed: 5, course0: 110, leg0: 6, hint: 2, swell: 0.6, weather: { thick: 3, haze: 1, clear: 2 }, errors: { ...standard, log: 0.08, current: 0.55 },
+    ...sea(110, 165, { r: 6.5, names: ["The Scaur", "Kettle Rock"], coast: "Lindvik", lights: [{ name: "Lind Head", ch: "Fl 5s", range: 24, v: -30 }, { name: "Kettle", ch: "Iso 4s", range: 16, v: 9, u: 6 }, { name: "Varde", ch: "Fl(3) 15s", range: 26, v: 34 }] }) },
+  { id: "count-the-flashes", section: 11, n: 40, name: "Count the Flashes", place: GREY,
+    blurb: "A coast of lights that look alike, a current setting along it, and a log you cannot trust. Time each light before you name it.",
+    lesson: "Lights that look alike differ in their count and their period: two flashes in ten seconds is not three in fifteen.",
+    origin: { lat: 56.0, lon: 6.0 }, year: 1856, window: [[10, 15], [11, 20]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV, clock: clk(10, 25, 18),
+    speed: 5, course0: 250, leg0: 6, hint: 2, swell: 0.7, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, compass: [1.5, 3.0], sd: 2, current: 0.5 },
+    ...sea(250, 170, { r: 6.5, names: ["The Graves", "Old Pen"], coast: "Westerhaven", lights: [{ name: "Graves", ch: "Fl(2) 10s", range: 24, v: -9 }, { name: "Pen Head", ch: "Fl(3) 15s", range: 24, v: 10 }, { name: "Westerhaven", ch: "Fl R 5s", range: 14, v: 2, u: 4 }] }) },
 ];

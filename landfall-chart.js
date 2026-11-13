@@ -179,16 +179,17 @@ export function drawChart(ctx, w, h, sc) {
     ctx.beginPath(); ctx.arc(0, -u * 1.25, u * 0.28, 0, 6.283); ctx.stroke(); ctx.restore();
     label(ctx, H.name, x, y - Math.max(r, 16 * k) - 8 * k, 12.5 * k, pal, { italic: true });
   }
-  // a lighthouse: a tower with its flash, and the range it is charted to show at
-  if (L.light) {
-    const G = L.light, [x, y] = S([G.x, G.y]), u = 6 * k;
+  // a lighthouse: a tower with its flash, the range it is charted to show at, and on a coast of several its character
+  for (const G of L.lights || (L.light ? [L.light] : [])) {
+    const [x, y] = S([G.x, G.y]), u = 6 * k;
     ctx.save(); ctx.strokeStyle = pal.brass; ctx.lineWidth = 1; ctx.setLineDash([2 * k, 5 * k]); ctx.globalAlpha = 0.55;
     ctx.beginPath(); ctx.arc(x, y, G.range * cam.s, 0, 6.283); ctx.stroke(); ctx.restore();
     ctx.save(); ctx.translate(x, y); ctx.strokeStyle = pal.ink; ctx.fillStyle = pal.paper; ctx.lineWidth = 1.5 * k; ctx.lineCap = "round";
     ctx.beginPath(); ctx.moveTo(-u * 0.45, u); ctx.lineTo(-u * 0.25, -u * 0.6); ctx.lineTo(u * 0.25, -u * 0.6); ctx.lineTo(u * 0.45, u); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = pal.blood; for (const a of [-2.6, -1.57, -0.54]) { ctx.beginPath(); ctx.moveTo(Math.cos(a) * u * 0.9, -u * 0.9 + Math.sin(a) * u * 0.9); ctx.lineTo(Math.cos(a) * u * 1.7, -u * 0.9 + Math.sin(a) * u * 1.7); ctx.stroke(); }
+    ctx.strokeStyle = /\bR\b/.test(G.ch || "") ? "#c0392b" : /\bG\b/.test(G.ch || "") ? "#2e8b57" : pal.blood;
+    for (const a of [-2.6, -1.57, -0.54]) { ctx.beginPath(); ctx.moveTo(Math.cos(a) * u * 0.9, -u * 0.9 + Math.sin(a) * u * 0.9); ctx.lineTo(Math.cos(a) * u * 1.7, -u * 0.9 + Math.sin(a) * u * 1.7); ctx.stroke(); }
     ctx.restore();
-    label(ctx, `${G.name}, ${G.range} nm`, x, y + 17 * k, 10.5 * k, pal, { italic: true });
+    label(ctx, G.ch ? `${G.name}, ${G.ch} ${G.range}M` : `${G.name}, ${G.range} nm`, x, y + 17 * k, 10.5 * k, pal, { italic: true });
   }
   // the scales, on the edges: minutes of latitude down the side, minutes of longitude along the foot
   ctx.save(); ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink; ctx.lineWidth = 1; ctx.font = `${9.5 * k}px ${pal.mono}`;

@@ -11,6 +11,7 @@
 import * as THREE from "./vendor/three-run.js";
 import { dirOf, D2R, clamp, lerp, smooth, shipMotion, windOf, starLook, dayLight, vfovOf } from "./landfall-look.js";
 import { skyColours } from "./landfall-skyview.js";
+import { parseChar, lightOn, flashTimes, lightColour } from "./landfall-lights.js";
 
 const SKY_R = 1800, EYE_Y = 2.0;                     // metres: the dome, and how high the deck stands above the sea
 export const TABLE = { x: 0, y: 0.94, z: 5.1 };      // the chart table's top, in the ship's frame (the bow is -z, the navigator stands at +z)
@@ -182,13 +183,16 @@ export function createScene(host, { reduced = () => false } = {}) {
   const sunGlow = new THREE.Mesh(quad, sunMat), sunDisc = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, color: 0xfffbe8 }));
   for (const m of [sunGlow, sunDisc]) { m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); }
 
-  // a lighthouse on the horizon: a warm flash at the bearing of the light, as the sea shows it, and a steady glow for those who ask for less motion
-  const beacon = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 }));
-  beacon.renderOrder = 2; beacon.frustumCulled = false; beacon.visible = false; skyRoot.add(beacon);
-  // 13 November 2026 (Korbi: "beauty and sound are top priorities"): the lantern's beams, two rays turning about the light and seen in the
-  // haze over the sea, brightest as one swings towards the ship
+  // the lighthouses on the horizon (up to three): each a flash at its bearing in its own character (landfall-lights.js), and a steady
+  // glow for those who ask for less motion. 13 November 2026 (Korbi: "beauty and sound are top priorities"): a flashing light's beams,
+  // one for each flash of its group, sweep the haze over the sea and flash as they point at the ship.
   const rayTex = canvasTex(32, 256, (ctx, w, h) => { const g = ctx.createLinearGradient(0, h, 0, 0); g.addColorStop(0, "rgba(255,255,255,.9)"); g.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(w / 2 - 2, h); ctx.lineTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w / 2 + 2, h); ctx.fill(); }, false);
-  const rays = [0, 1].map(() => { const m = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: rayTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 })); m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); return m; });
+  const glowMap = glowTex(), towers = [0, 1, 2].map(() => {
+    const beacon = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glowMap, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 }));
+    beacon.renderOrder = 2; beacon.frustumCulled = false; beacon.visible = false; skyRoot.add(beacon);
+    const rays = [0, 1, 2].map(() => { const m = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: rayTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 })); m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); return m; });
+    return { beacon, rays, ch: "" };
+  });
   // the moon: her disc lit as the sun lights her (the lit side towards the sun), a glow about her, and her light on the water (setSea)
   const moonCanvas = document.createElement("canvas"); moonCanvas.width = moonCanvas.height = 128;
   const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
@@ -486,7 +490,7 @@ export function createScene(host, { reduced = () => false } = {}) {
   // ---------- state the page sets ----------
   const S = {
     heading: 0, headingTo: 0, swell: 0.6, weather: "clear", storm: 0, sunAlt: -10, sunAz: 270, limMag: 5, lamp: true, lampLevel: 1, day: false,
-    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, moon: null,
+    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, lights: null, moon: null,
     chartDirty: false, ratio: cap, aspect: 1, hfov: 64,
   };
   let skyKey = "", lampFlick = 0, sextLevel = 0;
@@ -760,27 +764,31 @@ export function createScene(host, { reduced = () => false } = {}) {
     halo.material.opacity = clamp(S.lampLevel, 0, 1) * 0.8;
     lamp.updateMatrixWorld(true);
     lamp.getWorldPosition(LIT.uLampPos.value); LIT.uLampPos.value.y += 0.16;
-    // the light: on for a moment in every five seconds (a group-flashing light is told by its pattern), steady and dim when motion is reduced
-    beacon.visible = !!S.light;
-    // its beams: the optic turns once in five seconds and carries two panels a second apart, so each beam sweeps along the horizon and
-    // flashes as it points at the ship; the group of two flashes is the two beams going by
-    const ph = S.light ? (t + S.light.az * 0.013) % 5 : 0;
-    for (const [k, ray] of rays.entries()) {
-      ray.visible = !!S.light && !reduced();
-      if (!ray.visible) continue;
-      const th = 2 * Math.PI * (ph - 0.25 - k) / 5, s = Math.sin(th), c = Math.cos(th);
-      placeBillboard(ray, S.light.az, 0.75, 1, SKY_R - 45);
-      const len = ray.scale.y * (1.5 + 14 * Math.abs(s));
-      ray.rotateZ(s > 0 ? -Math.PI / 2 + 0.06 : Math.PI / 2 - 0.06);
-      ray.scale.set(ray.scale.x * 0.9, len, 1); ray.translateY(len * 0.5);
-      ray.material.opacity = 0.04 + 0.36 * Math.pow(Math.max(c, 0), 3);
+    // the lights: each flashes in its own character; a single light of the old levels shows two flashes in five seconds
+    const shown = S.lights ?? (S.light ? [{ az: S.light.az, ch: "Fl(2) 5s", off: S.light.az * 0.013 }] : []);
+    let brightest = 0;
+    for (const [k, T] of towers.entries()) {
+      const g = shown[k];
+      T.beacon.visible = !!g;
+      if (!g) { for (const ray of T.rays) ray.visible = false; continue; }
+      if (T.ch !== g.ch) { T.ch = g.ch; const c = lightColour(g.ch).map(x => x / 255); T.beacon.material.color.setRGB(...c); for (const ray of T.rays) ray.material.color.setRGB(...c); }
+      const P = parseChar(g.ch), u = t + g.off, on = reduced() ? 0.55 : lightOn(P, u), ph = P.period ? ((u % P.period) + P.period) % P.period : 0, beams = reduced() ? [] : flashTimes(P);
+      placeBillboard(T.beacon, g.az, 0.6 + 0.3 * Math.sin(t * 0.7 + k), 0.9 + 1.6 * on, SKY_R - 40 - k);
+      T.beacon.material.opacity = clamp(0.15 + on, 0, 1);
+      // the optic turns once a period, a panel for each flash: a beam sweeps along the horizon and flashes as it points at the ship
+      for (const [j, ray] of T.rays.entries()) {
+        ray.visible = j < beams.length;
+        if (!ray.visible) continue;
+        const th = 2 * Math.PI * (ph - beams[j]) / P.period, sn = Math.sin(th), cs = Math.cos(th);
+        placeBillboard(ray, g.az, 0.75, 1, SKY_R - 45 - k);
+        const len = ray.scale.y * (1.5 + 14 * Math.abs(sn));
+        ray.rotateZ(sn > 0 ? -Math.PI / 2 + 0.06 : Math.PI / 2 - 0.06);
+        ray.scale.set(ray.scale.x * 0.9, len, 1); ray.translateY(len * 0.5);
+        ray.material.opacity = 0.04 + 0.36 * Math.pow(Math.max(cs, 0), 3);
+      }
+      if (on > brightest) { brightest = on; SEA.uBeaconDir.value.set(...dirOf(g.az, 0.6)); }
     }
-    SEA.uBeacon.value = 0;
-    if (S.light) {
-      const on = reduced() ? 0.55 : ph < 0.5 ? Math.sin(ph / 0.5 * Math.PI) : ph > 1.0 && ph < 1.5 ? Math.sin((ph - 1.0) / 0.5 * Math.PI) * 0.8 : 0.06;
-      placeBillboard(beacon, S.light.az, 0.6 + 0.3 * Math.sin(t * 0.7), 0.9 + 1.6 * on, SKY_R - 40); beacon.material.opacity = clamp(0.15 + on, 0, 1);
-      SEA.uBeaconDir.value.set(...dirOf(S.light.az, 0.6)); SEA.uBeacon.value = 1.4 * on;
-    }
+    SEA.uBeacon.value = 1.4 * brightest;
     // the sea, the flag, the spray
     setSea(t);
     if (!reduced()) {

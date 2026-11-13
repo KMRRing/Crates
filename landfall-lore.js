@@ -50,6 +50,13 @@ export const HOW_LEAD = [
   ["Read it against a fix", "A flat bottom says nothing, and a bank has the same depth on both its sides. Take your stars first and sound after: a depth far from the reckoning is not plotted."],
   ["The bottom", "Tallow in the lead's foot brings up the bottom: rock on a ledge, sand and shell on a bank, mud in a hole, gravel close to the land. The chart prints the same words beside its soundings."],
 ];
+/** How lights are told apart, for the first voyage of their chapter and the menu. */
+export const HOW_LIGHTS = [
+  ["A coast of lights", "Here more than one lighthouse stands on the coast, and each shows from a range the chart prints. When one rises, Light opens the lights in sight."],
+  ["Count the flashes", "Each light keeps its own character: one flash, a group of two or three, a long steady light broken by an eclipse, light and dark in equal turns. The chart's list gives each one's; watch the lamp and count."],
+  ["Name it, then take its bearing", "Say which light it is and take its compass bearing. The line runs through the tower you name: name the wrong one, and the line is wrong too."],
+  ["Two lights are a fix", "Two lights well apart cross like two stars. A third shows whether you named them right."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

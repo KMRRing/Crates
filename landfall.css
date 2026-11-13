@@ -200,3 +200,12 @@
   #app.lf-3d .lf-note { right: 12rem; }
   .lf-look { display: block; }
 }
+
+/* the lights in sight: a lamp flashing in its own character, its bearing, and the tower it is named as */
+.lf-lights .lf-seen { display: grid; grid-template-columns: 2.4rem 1fr; gap: .45rem .7rem; align-items: center; padding: .7rem 0; border-bottom: 1px solid var(--rule); }
+.lf-lamp { width: 1.6rem; height: 1.6rem; border-radius: 50%; justify-self: center; background: rgb(var(--lamp, 255, 226, 160)); box-shadow: 0 0 .9rem .25rem rgba(var(--lamp, 255, 226, 160), .55); opacity: .06; }
+.lf-lights .lf-names { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .3rem; }
+.lf-lights .lf-names .lf-mini { flex: 1 1 6rem; padding-inline: .4rem; color: var(--ink); background: var(--sheet); border-color: var(--rule); }
+.lf-lights .lf-names .lf-mini[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); font-weight: 800; }
+.lf-lights .lf-take { grid-column: 1 / -1; }
+.lf-lights .lf-alm td:last-child { white-space: nowrap; }
