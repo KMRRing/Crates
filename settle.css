@@ -114,3 +114,7 @@ html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
 /* the next parcels of a level's deal, in the score line */
 .st-next { display: inline-grid; place-items: center; width: .95rem; height: .95rem; margin-left: .15rem; vertical-align: -.18rem; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .35); }
 .st-next svg { width: 80%; height: 80%; fill: none; stroke: rgba(20, 16, 10, .72); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* the foundry in 3D (settle-3d.js) fills the farm under the 2D canvas, which then draws only the sparks and figures over it */
+.st-farm { position: relative; }
+.st-gl { position: absolute; inset: 0; display: block; }
+#app.settle.view3d .st-board { position: relative; z-index: 1; }

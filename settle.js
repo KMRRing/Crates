@@ -17,6 +17,7 @@ import { part, action, line, toggle, onPause, todayPart } from "./menu.js";
 import { roundOver } from "./random.js";
 import { noteStars, IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { ramp } from "./ramp.js";
+import { defaultIs3D } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
 const MODE = "settle:mode", CAMP = "settle:camp", LRUN = "settle:lrun", RRUN = "settle:rrun", DRUN = "settle:drun", DAILY = "settle:daily", BEST = "settle:best", SOUND = "settle:sound", VER = "settle:ver";
@@ -93,9 +94,15 @@ function readTheme() {
   const cs = getComputedStyle(document.documentElement), v = (n, d) => cs.getPropertyValue(n).trim() || d;
   theme = { ink: v("--ink", "#222"), brass: v("--brass", "#a8802a"), vat: v("--st-vat", "#2a2630"), rule: v("--rule", "#888"), danger: v("--st-danger", "#a8382b") };
 }
+// the foundry in 3D (settle-3d.js), where WebGL and the suite's setting allow it; the 2D canvas then draws only the sparks and figures over it
+let F = null;
+if (defaultIs3D()) import("./settle-3d.js").then(({ createFoundry }) => { try { F = createFoundry($("farm")); $("app").classList.add("view3d"); if (S) render(); } catch { F = null; } }).catch(() => {});
+/** A parcel's place on the screen (CSS pixels, relative to the board): { x, y, w, h }. */
+const rectOf = (c, l) => { if (F) return F.cellRect(c, l); const g = geo(); return { x: colX(g, c), y: cellY(g, l), w: g.cw, h: g.ch }; };
 function fit() {
   const farm = $("farm"), w = farm.clientWidth, h = farm.clientHeight;
   if (!w || !h) return;
+  if (F) { F.layout(S.cols, S.height); F.resize(); }
   dpr = Math.min(2, devicePixelRatio || 1);
   board.width = Math.round(w * dpr); board.height = Math.round(h * dpr);
   board.style.width = `${w}px`; board.style.height = `${h}px`;
@@ -113,6 +120,7 @@ function crucibleAt(px, py) {
   if (!S) return -1;
   const r = board.getBoundingClientRect(), g = geo(), x = px - r.left, y = py - r.top;
   if (y < -8 || y > r.height + 8) return -1;
+  if (F) return F.crucibleAt(x);
   for (let c = 0; c < S.cols; c++) if (x >= colX(g, c) - g.gap / 2 && x <= colX(g, c) + g.cw + g.gap / 2) return c;
   return -1;
 }
@@ -161,6 +169,13 @@ function paint(now) {
   const g = geo();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, g.W, g.H);
+  if (F) {
+    F.layout(S.cols, S.height);
+    F.draw({ tanks: view.tanks, ghost: view.ghost, ring: view.ring, flash: view.flash, stream: view.stream, target: view.target, hot: S.hot, pot: !!S.feats.pot }, now);
+    if (S.feats.pot) { const r = rectOf(0, S.height - 1); ctx.fillStyle = "#f3d9a4"; ctx.font = "800 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText("POT", r.x + r.w / 2, r.y - 10); }
+    overlay(now);
+    return;
+  }
   for (let c = 0; c < S.cols; c++) {
     const x = colX(g, c), top = cellY(g, S.height - 1);
     ctx.fillStyle = theme.vat; ctx.globalAlpha = view.target === c ? .75 : 1;
@@ -188,6 +203,11 @@ function paint(now) {
     const to = cellY(g, view.tanks[c].length) ;
     ctx.fillStyle = METALS[m].base; ctx.fillRect(x - 4, top, 8, Math.max(0, (to - top) * k));
   }
+  overlay(now);
+}
+/** What is drawn over the crucibles in either view: the parcel held, the sparks and figures, the tag. */
+function overlay(now) {
+  const g = geo();
   if (view.held) { const { m, x, y } = view.held, s = Math.min(g.cw, g.ch) * .9; ctx.save(); ctx.globalAlpha = .9; ctx.fillStyle = METALS[m].base; ctx.fillRect(x - s / 2, y - s / 2, s, s); ctx.restore(); ctx.save(); ctx.translate(x - s * .3, y - s * .3); ctx.scale(s * .6 / 24, s * .6 / 24); ctx.strokeStyle = "rgba(20,16,10,.7)"; ctx.lineWidth = 2.4; ctx.stroke(glyphs[m]); ctx.restore(); }
   fx = fx.filter(f => now - f.t0 < f.life);
   for (const f of fx) {
@@ -205,10 +225,10 @@ function loop(now) {
 }
 function start() { if (!looping) { looping = true; requestAnimationFrame(loop); } }
 onPause(() => { paused = true; }, () => { paused = false; start(); });
-const pop = (c, level, text) => { const g = geo(); fx.push({ kind: "pop", text, x: colX(g, c) + g.cw / 2, y: cellY(g, level), t0: performance.now(), life: 1000 }); };
+const pop = (c, level, text) => { const r = rectOf(c, level); fx.push({ kind: "pop", text, x: r.x + r.w / 2, y: r.y, t0: performance.now(), life: 1000 }); };
 function sparks(c, level) {
-  const g = geo(), now = performance.now();
-  for (let i = 0; i < 12; i++) fx.push({ kind: "spark", x: colX(g, c) + Math.random() * g.cw, y: cellY(g, level) + g.ch / 2, vx: (Math.random() - .5) * 3, vy: -Math.random() * 4, color: i % 2 ? "#ffd27a" : "#fff3c4", t0: now, life: 700 });
+  const r = rectOf(c, level), now = performance.now();
+  for (let i = 0; i < 12; i++) fx.push({ kind: "spark", x: r.x + Math.random() * r.w, y: r.y + r.h / 2, vx: (Math.random() - .5) * 3, vy: -Math.random() * 4, color: i % 2 ? "#ffd27a" : "#fff3c4", t0: now, life: 700 });
 }
 
 // ---------- the page around the board ----------
@@ -319,7 +339,7 @@ function show(slot, c, from = drag?.from) {
   try { r = act(S, mv); } catch { view = { tanks: S.tanks, target: c }; $("line").textContent = slot >= 0 ? (S.feats.pot && c ? "Every parcel goes into the pot" : "That crucible is full") : slot === TIPPING ? "It can't be tipped there" : "Nothing to do there"; return; }
   const tanks = before(mv), g = geo();
   view = { tanks, target: c, ghost: mv[0] >= 0 || mv[0] === DECANT ? { c, level: r.level, m: tanks[c][r.level]?.m ?? "X", s: tanks[c][r.level]?.s } : null, ring: r.casts[0]?.cells.map(([x, y]) => [x, y]) ?? null };
-  if (r.gain) view.tag = { text: `+${fmt(r.gain)}`, x: colX(g, c) + g.cw / 2, y: cellY(g, S.height - 1) - 4 };
+  if (r.gain) { const t = rectOf(c, S.height - 1); view.tag = { text: `+${fmt(r.gain)}`, x: t.x + t.w / 2, y: t.y - 4 }; }
   $("line").textContent = describe(r, mv);
 }
 function startDrag(e, slot) {
