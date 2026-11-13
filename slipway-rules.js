@@ -5,6 +5,8 @@
 // `maxSize` (no piece is bigger). Each level has exactly one answer (tests/slipway.mjs proves it with `solutions`).
 // The player cuts the block with a chisel, a saw and a bore, and mends it with glue. Cubes are numbered x + n * (y + n * z): left to right, front to back, bottom to top.
 
+import { BOOK, CHAPTERS as BOOK_CHAPTERS } from "./slipway-book.js";
+
 export const at = (n, x, y, z) => x + n * (y + n * z);
 export const xyz = (n, k) => [k % n, ((k / n) | 0) % n, (k / (n * n)) | 0];
 
@@ -19,7 +21,7 @@ export const xyz = (n, k) => [k % n, ((k / n) | 0) % n, (k / (n * n)) | 0];
 const rows = (...layers) => layers.flatMap(l => l.split(/\s+/).join("").split("")).map(c => c.charCodeAt(0) - 65);
 const letters = text => [...text].map(c => c.charCodeAt(0) - 65);
 export const TOOLS = ["chisel", "saw", "bore", "glue"];
-export const LEVELS = [
+const CUBES = [
   { id: "s7", name: "Top cut", n: 3, maxSize: 18, gauge: { 19: 9, 10: 18 }, census: { plank: 1, block: 1 }, tools: ["saw"],
     rule: "The block is cubes glued together. The saw cuts right through it, just behind the face you tap.",
     sol: rows("BBB BBB BBB", "BBB BBB BBB", "AAA AAA AAA") },
@@ -59,6 +61,16 @@ export const LEVELS = [
     census: { cube: 1, bar: 1, bend: 3, knot: 3 },
     sol: rows("AAB AAC CCC", "DDB AEB ACF", "DEE GEH GHH") },
 ];
+// 13 Nov 2026, Korbi: 100 levels, "the first 50 levels should be easier than the 3x3 cube". The book (slipway-plan.mjs) comes first,
+// shaped blocks chapter by chapter; the cubes made before it follow as the later chapters: the two-by-two ones as Boxes, the three-by-
+// three as The cube. The tools those first met are met earlier now, so only glue keeps its line there (Post brings it in).
+export const CHAPTERS = [...BOOK_CHAPTERS, { n: 9, name: "Boxes", rule: "Whole blocks, two cubes each way." }, { n: 11, name: "The cube", rule: "Three cubes each way: a cube you can't see is still a cube." }];
+// (they offer the three tools met by then, as the book's later levels do; glue comes in at Post, and from there all four)
+const OLD = [...CUBES.filter(l => l.n === 2), ...CUBES.filter(l => l.n === 3)], GLUE = OLD.findIndex(l => l.id === "s5");
+const later = (l, i) => ({ ...l, chapter: l.n === 2 ? 9 : 11, tools: i < GLUE ? ["chisel", "saw", "bore"] : undefined, ...(l.rule && !/Glue/.test(l.rule) ? { rule: undefined } : {}) });
+export const LEVELS = [...BOOK, ...OLD.map(later)];
+/** The chapter a level is in. */
+export const chapterOf = level => CHAPTERS.find(c => c.n === level.chapter) || null;
 /** The tools a level offers, in the bar's order. */
 export const toolsOf = level => TOOLS.filter(t => !level.tools || level.tools.includes(t));
 /** The tool a level brings in (picked when it starts): one no earlier level had, or null. */
@@ -86,9 +98,33 @@ export const KIND_NOTES = {
 /** The census of a painting as { kind: count }. */
 export function censusOf(n, pieces) { const c = {}; for (const p of pieces) { const k = kindOf(n, p); c[k] = (c[k] || 0) + 1; } return c; }
 
-/** The neighbours of each cube in an n-block. */
-const NB = new Map();
-export function neighbours(n) {
+// 13 Nov 2026, Korbi: "cubes are not the only shape! the 3x3 cubes are quite difficult. so better to have some starting shapes that
+// make the solution more intuitive". A level's block is any shape of cubes inside its n×n×n box: a cube whose answer is below zero (a
+// "." in `rows`) is air, not timber. Everything below takes either n (the whole box, the cube of old) or the level itself, whose air it
+// leaves out: no piece, joint or cut ever touches an air cube.
+const SOLID = new WeakMap();
+/** A level's timber: 1 for each cube of its box that is there. */
+export function solidOf(level) {
+  if (!SOLID.has(level)) SOLID.set(level, Uint8Array.from(level.sol, v => (v >= 0 ? 1 : 0)));
+  return SOLID.get(level);
+}
+/** { n, solid (null for the whole box) } from n or a level. */
+export const geo = g => (typeof g === "number" ? { n: g, solid: null } : { n: g.n, solid: g.sol.some(v => v < 0) ? solidOf(g) : null });
+/** The cubes that are there, in order. */
+export function cubesOf(g) { const { n, solid } = geo(g); return Array.from({ length: n ** 3 }, (_, k) => k).filter(k => !solid || solid[k]); }
+/** The size of the shape's own box, [x, y, z] (the box n×n×n for a whole block). */
+export function extent(g) {
+  const { n } = geo(g), P = cubesOf(g).map(k => xyz(n, k));
+  return [0, 1, 2].map(i => Math.max(...P.map(p => p[i])) - Math.min(...P.map(p => p[i])) + 1);
+}
+/** The neighbours of each cube in a block (air has none, and is no one's neighbour). */
+const NB = new Map(), NBS = new WeakMap();
+export function neighbours(g) {
+  const { n, solid } = geo(g);
+  if (solid) {
+    if (!NBS.has(solid)) NBS.set(solid, neighbours(n).map((o, k) => (solid[k] ? o.filter(j => solid[j]) : [])));
+    return NBS.get(solid);
+  }
   if (!NB.has(n)) NB.set(n, Array.from({ length: n ** 3 }, (_, k) => { const [x, y, z] = xyz(n, k), o = []; for (const [a, b, c] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { const X = x + a, Y = y + b, Z = z + c; if (X >= 0 && Y >= 0 && Z >= 0 && X < n && Y < n && Z < n) o.push(at(n, X, Y, Z)); } return o; }));
   return NB.get(n);
 }
@@ -97,10 +133,10 @@ export function neighbours(n) {
 // pieces are the runs of cubes still joined. (Cubes are glued at the start: the whole block is one piece.)
 export const joint = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
 /** The pieces left by a set of cuts: each a sorted list of cubes. */
-export function pieces(n, cuts) {
-  const nb = neighbours(n), seen = new Uint8Array(n ** 3), out = [];
+export function pieces(g, cuts) {
+  const { n, solid } = geo(g), nb = neighbours(g), seen = new Uint8Array(n ** 3), out = [];
   for (let k = 0; k < n ** 3; k++) {
-    if (seen[k]) continue;
+    if (seen[k] || (solid && !solid[k])) continue;
     const cells = [k]; seen[k] = 1;
     for (let i = 0; i < cells.length; i++) for (const j of nb[cells[i]]) if (!seen[j] && !cuts.has(joint(cells[i], j))) { seen[j] = 1; cells.push(j); }
     out.push(cells.sort((x, y) => x - y));
@@ -112,7 +148,7 @@ export function pieces(n, cuts) {
  * pieces over the largest size; `done` when nothing is.
  */
 export function judge(level, cuts) {
-  const { n } = level, ps = pieces(n, cuts), pieceOf = new Map();
+  const { n } = level, ps = pieces(level, cuts), pieceOf = new Map();
   ps.forEach(p => p.forEach(c => pieceOf.set(c, p)));
   const wrong = Object.keys(level.gauge).map(Number).filter(k => pieceOf.get(k).length !== level.gauge[k]);
   const have = censusOf(n, ps), census = Object.keys(KIND_NAMES).filter(k => (have[k] || 0) !== (level.census[k] || 0));
@@ -125,11 +161,11 @@ export function judge(level, cuts) {
  * into the block from that cube; a saw the first plane that still has a whole joint; a bore breaks the sides of the whole line of
  * cubes through k; glue mends the first broken joint going in.
  */
-export function useTool(n, tool, axis, dir, k, cuts) {
-  const step = [0, 0, 0]; step[axis] = -dir;
-  const c = xyz(n, k), inside = p => p.every(v => v >= 0 && v < n), nb = neighbours(n);
-  const along = [];                                // the cubes from k going in
-  for (let p = c.slice(); inside(p); p = p.map((v, i) => v + step[i])) along.push(at(n, ...p));
+export function useTool(g, tool, axis, dir, k, cuts) {
+  const { n, solid } = geo(g), step = [0, 0, 0]; step[axis] = -dir;
+  const there = p => p.every(v => v >= 0 && v < n) && (!solid || solid[at(n, ...p)]), inside = there, c = xyz(n, k), nb = neighbours(g);
+  const along = [];                                // the cubes from k going in, as far as the timber goes
+  for (let p = c.slice(); there(p); p = p.map((v, i) => v + step[i])) along.push(at(n, ...p));
   if (tool === "chisel" || tool === "glue") {
     for (let i = 0; i + 1 < along.length; i++) {
       const key = joint(along[i], along[i + 1]), broken = cuts.has(key);
@@ -142,7 +178,7 @@ export function useTool(n, tool, axis, dir, k, cuts) {
     for (let i = 0; i + 1 < along.length; i++) {
       const layerOf = cell => { const q = xyz(n, cell); return q[axis]; };
       const here = layerOf(along[i]), keys = [];
-      for (let cell = 0; cell < n ** 3; cell++) if (layerOf(cell) === here) { const q = xyz(n, cell); q[axis] -= dir; if (inside(q)) { const key = joint(cell, at(n, ...q)); if (!cuts.has(key)) keys.push(key); } }
+      for (let cell = 0; cell < n ** 3; cell++) if ((!solid || solid[cell]) && layerOf(cell) === here) { const q = xyz(n, cell); q[axis] -= dir; if (inside(q)) { const key = joint(cell, at(n, ...q)); if (!cuts.has(key)) keys.push(key); } }
       if (keys.length) return { add: keys, remove: [] };
     }
     return null;
@@ -151,6 +187,7 @@ export function useTool(n, tool, axis, dir, k, cuts) {
   const add = [];
   for (let i = 0; i < n; i++) {
     const p = c.slice(); p[axis] = i; const cell = at(n, ...p);
+    if (solid && !solid[cell]) continue;
     for (const o of nb[cell]) { const q = xyz(n, o); if (q[axis] === i && !cuts.has(joint(cell, o))) add.push(joint(cell, o)); }
   }
   return add.length ? { add: [...new Set(add)], remove: [] } : null;
@@ -164,20 +201,21 @@ export function useTool(n, tool, axis, dir, k, cuts) {
  * `census` null leaves the census out, to see whether the numbers alone decide.
  */
 export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = level.census) {
-  const { n, gauge, maxSize } = level, N = n ** 3, nb = neighbours(n), asg = new Int8Array(N).fill(-1), pieces = [], sols = [];
+  const { n, gauge, maxSize } = level, N = n ** 3, nb = neighbours(level), asg = new Int8Array(N).fill(-1), pieces = [], sols = [];
+  level.sol.forEach((v, k) => { if (v < 0) asg[k] = -2; });                   // air: never a free cube
   let nodes = 0, aborted = false;
   function done() {
     const c = censusOf(n, pieces);
     if (census) for (const k of Object.keys(KIND_NAMES)) if ((c[k] || 0) !== (census[k] || 0)) return;
-    sols.push(Array.from(asg));
+    sols.push(Array.from(asg, v => (v === -2 ? -1 : v)));
   }
   // every pocket of cubes left must hold the biggest number in it, or a piece there could never be finished
   function roomy() {
     const seen = new Uint8Array(N);
     for (let s = 0; s < N; s++) {
-      if (asg[s] >= 0 || seen[s]) continue;
+      if (asg[s] !== -1 || seen[s]) continue;
       const comp = [s]; seen[s] = 1; let top = 0;
-      for (let i = 0; i < comp.length; i++) { top = Math.max(top, gauge[comp[i]] || 0); for (const y of nb[comp[i]]) if (asg[y] < 0 && !seen[y]) { seen[y] = 1; comp.push(y); } }
+      for (let i = 0; i < comp.length; i++) { top = Math.max(top, gauge[comp[i]] || 0); for (const y of nb[comp[i]]) if (asg[y] === -1 && !seen[y]) { seen[y] = 1; comp.push(y); } }
       if (comp.length < top) return false;
     }
     return true;
@@ -192,7 +230,7 @@ export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = leve
     if (++nodes > cap) { aborted = true; return; }
     // the cube with the smallest number goes first, so the small pieces are placed while the big ones are still a tight fit
     let s = -1;
-    for (let c = 0; c < N; c++) if (asg[c] < 0 && (s < 0 || (gauge[c] != null && (gauge[s] == null || gauge[c] < gauge[s])))) s = c;
+    for (let c = 0; c < N; c++) if (asg[c] === -1 && (s < 0 || (gauge[c] != null && (gauge[s] == null || gauge[c] < gauge[s])))) s = c;
     if (s < 0) return done();
     const want = gauge[s], cells = [s], seen = new Set([s]);
     const grow = frontier => {
@@ -202,14 +240,14 @@ export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = leve
       const f = frontier.slice();
       while (f.length) {
         const x = f.pop(); cells.push(x);
-        const add = []; for (const y of nb[x]) if (asg[y] < 0 && !seen.has(y) && (want == null || gauge[y] == null || gauge[y] === want)) { seen.add(y); add.push(y); }
+        const add = []; for (const y of nb[x]) if (asg[y] === -1 && !seen.has(y) && (want == null || gauge[y] == null || gauge[y] === want)) { seen.add(y); add.push(y); }
         grow(f.concat(add));
         for (const y of add) seen.delete(y);
         cells.pop();
       }
     };
     // a big piece is found by what it leaves out: a few cubes of the free ones (nearly all of them are in)
-    const freeCubes = []; for (let c = 0; c < N; c++) if (asg[c] < 0) freeCubes.push(c);
+    const freeCubes = []; for (let c = 0; c < N; c++) if (asg[c] === -1) freeCubes.push(c);
     const leave = want == null ? -1 : freeCubes.length - want;
     if (want != null && leave >= 0 && leave < want && leave <= 4) {
       const others = freeCubes.filter(c => c !== s), out = [];
@@ -219,7 +257,7 @@ export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = leve
           const gone = new Set(out), cells2 = freeCubes.filter(c => !gone.has(c));
           if (cells2.some(c => gauge[c] != null && gauge[c] !== want)) return;
           const reach = new Set([s]), q = [s];
-          for (let i = 0; i < q.length; i++) for (const y of nb[q[i]]) if (!gone.has(y) && asg[y] < 0 && !reach.has(y)) { reach.add(y); q.push(y); }
+          for (let i = 0; i < q.length; i++) for (const y of nb[q[i]]) if (!gone.has(y) && asg[y] === -1 && !reach.has(y)) { reach.add(y); q.push(y); }
           if (reach.size === cells2.length) place(cells2);
           return;
         }
@@ -228,7 +266,7 @@ export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = leve
       pick(0, leave);
       return;
     }
-    const first = []; for (const y of nb[s]) if (asg[y] < 0 && (want == null || gauge[y] == null || gauge[y] === want)) { seen.add(y); first.push(y); }
+    const first = []; for (const y of nb[s]) if (asg[y] === -1 && (want == null || gauge[y] == null || gauge[y] === want)) { seen.add(y); first.push(y); }
     grow(first);
   }
   for (const cells of fixed) { pieces.push(cells); for (const c of cells) asg[c] = pieces.length - 1; }   // pieces already cut: only the rest is searched
@@ -240,7 +278,7 @@ export function solutions(level, limit = 2, cap = 3e6, fixed = [], census = leve
 export const where = (n, k) => { const [x, y, z] = xyz(n, k); return `layer ${z + 1}, left ${x + 1}, front ${y + 1}`; };
 /** Every connected run of `size` free cubes that holds cube s and takes no cube carrying another number. */
 export function shapes(level, free, s, size, cap = 5000) {
-  const { n, gauge } = level, nb = neighbours(n), out = [], cells = [s], seen = new Set([s]);
+  const { gauge } = level, nb = neighbours(level), out = [], cells = [s], seen = new Set([s]);
   const ok = c => free.has(c) && (gauge[c] == null || gauge[c] === size);
   const grow = frontier => {
     if (out.length >= cap) return;
@@ -259,15 +297,15 @@ export function shapes(level, free, s, size, cap = 5000) {
   return out;
 }
 /** The connected pockets of free cubes. */
-const pockets = (n, free) => {
-  const nb = neighbours(n), seen = new Set(), out = [];
+const pockets = (g, free) => {
+  const nb = neighbours(g), seen = new Set(), out = [];
   for (const s of free) { if (seen.has(s)) continue; const comp = [s]; seen.add(s); for (let i = 0; i < comp.length; i++) for (const y of nb[comp[i]]) if (free.has(y) && !seen.has(y)) { seen.add(y); comp.push(y); } out.push(comp); }
   return out;
 };
 /** Why a shape cannot be: a pocket it would leave is too small for a number in it; null when it is only that nothing can be finished. */
 function whyNot(level, free, shape) {
   const rest = new Set([...free].filter(c => !shape.includes(c)));
-  for (const pocket of pockets(level.n, rest)) {
+  for (const pocket of pockets(level, rest)) {
     const big = pocket.filter(c => level.gauge[c] != null).sort((a, b) => level.gauge[b] - level.gauge[a])[0];
     if (big != null && level.gauge[big] > pocket.length) return `one of the others would cut off the cube at ${where(level.n, big)} (it says ${level.gauge[big]}) in a pocket of only ${pocket.length}`;
   }
@@ -280,21 +318,21 @@ function whyNot(level, free, shape) {
  */
 const ANSWERS = new WeakMap();
 export function hint(level, cuts) {
-  const { n } = level, N = n ** 3, full = (ANSWERS.get(level) || ANSWERS.set(level, solutions(level, 1).sols[0]).get(level)), byPiece = new Map();
-  full.forEach((p, c) => (byPiece.get(p) || byPiece.set(p, []).get(p)).push(c));
-  const answer = [...byPiece.values()], key = a => a.join(","), ps = pieces(n, cuts), pieceId = new Map();
+  const { n } = level, full = (ANSWERS.get(level) || ANSWERS.set(level, solutions(level, 1).sols[0]).get(level)), byPiece = new Map();
+  full.forEach((p, c) => { if (p >= 0) (byPiece.get(p) || byPiece.set(p, []).get(p)).push(c); });
+  const answer = [...byPiece.values()], key = a => a.join(","), ps = pieces(level, cuts), pieceId = new Map();
   ps.forEach((p, i) => p.forEach(c => pieceId.set(c, i)));
   for (const a of answer) {
     if (new Set(a.map(c => pieceId.get(c))).size === 1) continue;
     const num = a.find(c => level.gauge[c] != null), remove = [];
-    for (const c of a) for (const o of neighbours(n)[c]) if (c < o && a.includes(o) && cuts.has(joint(c, o))) remove.push(joint(c, o));
+    for (const c of a) for (const o of neighbours(level)[c]) if (c < o && a.includes(o) && cuts.has(joint(c, o))) remove.push(joint(c, o));
     return { cells: a, op: { add: [], remove }, text: `A cut has split ${num != null ? `the piece holding the cube at ${where(n, num)} (it says ${level.gauge[num]})` : `a piece of ${a.length}`}: the answer needs these ${a.length} cubes together. Glue ${remove.length === 1 ? "that joint" : "those joints"} back.` };
   }
   const answerKeys = new Set(answer.map(key)), lockedSet = new Set(ps.filter(p => answerKeys.has(key(p))).flat());
-  const free = new Set([...Array(N).keys()].filter(c => !lockedSet.has(c)));
+  const free = new Set(cubesOf(level).filter(c => !lockedSet.has(c)));
   const open = answer.filter(a => !ps.some(p => key(p) === key(a)));
   if (!open.length) return null;
-  const roundIt = a => { const add = []; for (const c of a) for (const o of neighbours(n)[c]) if (!a.includes(o) && !cuts.has(joint(c, o))) add.push(joint(c, o)); return { add: [...new Set(add)], remove: [] }; };
+  const roundIt = a => { const add = []; for (const c of a) for (const o of neighbours(level)[c]) if (!a.includes(o) && !cuts.has(joint(c, o))) add.push(joint(c, o)); return { add: [...new Set(add)], remove: [] }; };
   // the shapes are counted for the small pieces only (a big one has far too many to list); with none small, for the smallest
   const known = open.map(a => ({ a, s: a.find(c => level.gauge[c] != null) })).filter(o => o.s != null).map(o => ({ ...o, size: level.gauge[o.s] })).sort((x, y) => x.size - y.size);
   const numbered = known.filter((o, i) => o.size <= 10 || i === 0).map(o => ({ ...o, all: shapes(level, free, o.s, o.size) })).sort((x, y) => x.all.length - y.all.length || x.size - y.size);

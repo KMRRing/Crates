@@ -7,7 +7,7 @@ const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } e
 const same = (a, b) => a.every((v, i) => a.every((w, k) => (v === w) === (b[i] === b[k])));
 
 // the cuts that make an answer: every joint between cubes that are in different pieces of it
-const cutsFor = (lv, sol) => { const s = new Set(); R.neighbours(lv.n).forEach((nb, c) => nb.forEach(o => { if (c < o && sol[c] !== sol[o]) s.add(R.joint(c, o)); })); return s; };
+const cutsFor = (lv, sol) => { const s = new Set(); R.neighbours(lv).forEach((nb, c) => nb.forEach(o => { if (c < o && sol[c] !== sol[o]) s.add(R.joint(c, o)); })); return s; };
 for (const lv of R.LEVELS) {
   check(lv.sol.length === lv.n ** 3, `${lv.id} ${lv.name}: an answer for every cube`);
   check(R.judge(lv, new Set()).done === false, `${lv.id}: the whole block is not the answer`);
@@ -15,6 +15,15 @@ for (const lv of R.LEVELS) {
   const s = R.solutions(lv, 2);
   check(!s.aborted && s.sols.length === 1, `${lv.id}: exactly one answer (${s.nodes} steps)`);
   check(s.sols[0] && same(s.sols[0], lv.sol), `${lv.id}: the solver's answer is the published cut`);
+}
+// a shaped block (13 Nov 2026): air is no cube, so no tool reaches across it and no piece holds it
+{
+  const lv = R.LEVELS.find(l => l.sol.some(v => v < 0)), air = lv.sol.findIndex(v => v < 0), all = R.cubesOf(lv);
+  check(!all.includes(air) && R.pieces(lv, new Set()).length === 1 && R.pieces(lv, new Set())[0].length === all.length, `shapes: ${lv.name}'s air is no cube, and its timber is one piece to start`);
+  check(R.neighbours(lv)[air].length === 0 && R.neighbours(lv).every(o => !o.includes(air)), "shapes: air has no neighbours and is no one's neighbour");
+  const ups = all.map(k => R.useTool(lv, "bore", 2, 1, k, new Set())).filter(Boolean);
+  check(ups.every(op => op.add.every(j => R.jointCubes(j).every(c => all.includes(c)))), "shapes: a tool only ever cuts joints between cubes that are there");
+  check(R.LEVELS.slice(0, 50).every((l, i, a) => !i || l.chapter >= a[i - 1].chapter), "the levels come chapter by chapter");
 }
 {
   const n = 3, k = cells => R.kindOf(n, cells.map(([x, y, z]) => R.at(n, x, y, z)));
@@ -50,12 +59,12 @@ for (const lv of R.LEVELS) {
   }
   check(R.toolsOf(R.LEVELS[0]).length === 1, "the first level has one tool");
   check(met.size === R.TOOLS.length, "every tool is met");
-  // the first two are cut with their one tool in a tap or three
-  const [top, corner] = R.LEVELS, n3 = top.n, saw = R.useTool(n3, "saw", 2, 1, R.at(n3, 1, 1, 2), new Set());
-  check(top.tools.join() === "saw" && R.judge(top, new Set(saw.add)).done, `${top.id}: one saw from the top cuts it`);
+  // the two cube tutorials are still cut with their one tool in a tap or three (since 13 Nov 2026 they come after the shaped book)
+  const top = R.LEVELS.find(l => l.id === "s7"), corner = R.LEVELS.find(l => l.id === "s8"), n3 = top.n, saw = R.useTool(n3, "saw", 2, 1, R.at(n3, 1, 1, 2), new Set());
+  check(R.judge(top, new Set(saw.add)).done, `${top.id}: one saw from the top cuts it`);
   let c = new Set();
   for (const [axis, dir] of [[2, 1], [1, -1], [0, 1]]) for (const k of R.useTool(corner.n, "chisel", axis, dir, R.at(2, 1, 0, 1), c).add) c.add(k);
-  check(corner.tools.join() === "chisel" && R.judge(corner, c).done, `${corner.id}: three chisels into the 1's three faces cut it`);
+  check(R.judge(corner, c).done, `${corner.id}: three chisels into the 1's three faces cut it`);
 }
 // hints: doing what they say cuts the block; a cut through a piece is glued back first
 for (const lv of R.LEVELS) {
@@ -70,8 +79,8 @@ for (const lv of R.LEVELS) {
   check(steps > 0 && R.judge(lv, now).done, `${lv.id}: following the hints cuts the block in ${steps} steps`);
   check(texts.every(t => /says|No number/.test(t)), `${lv.id}: every hint says which clue it uses`);
   // a cut through a piece of the answer: every joint of its first cube broken, so the cube is alone (when its piece has others)
-  const sol = lv.sol, wrong = new Set(R.neighbours(lv.n)[0].map(o => R.joint(0, o)));
-  if (sol.some((v, c) => c && v === sol[0])) { const h = R.hint(lv, wrong); check(h && /split|cut has/.test(h.text) && h.op.remove.length > 0, `${lv.id}: a cut through a piece is named before anything else`); }
+  const sol = lv.sol, c0 = R.cubesOf(lv)[0], wrong = new Set(R.neighbours(lv)[c0].map(o => R.joint(c0, o)));
+  if (sol.some((v, c) => c !== c0 && v === sol[c0])) { const h = R.hint(lv, wrong); check(h && /split|cut has/.test(h.text) && h.op.remove.length > 0, `${lv.id}: a cut through a piece is named before anything else`); }
 }
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log("all ok");

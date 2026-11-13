@@ -78,3 +78,4 @@ html[data-mode="night"] { --sw-bad: #E8806F; --sw-hint: #5FD0C8; }
 .sw-hint .btn { justify-self: start; min-height: 2rem; padding: 0 .7rem; font-size: .8rem; }
 .sw-sq.hint { outline: 3px solid var(--sw-hint); outline-offset: -3px; }
 .sw-bar .btn { min-width: 0; }
+.sw-sq.air { background: transparent; border-color: transparent; cursor: default; }
