@@ -13,14 +13,14 @@ import { starAltAz, sunAltAz, moonAltAz, sextantReading, sunReading, sunSemidiam
 import { bearing, vec, norm180 } from "./landfall-model.js";
 import { makeView, project, unproject, degPx, pick, drawSky, landColour, skyColours } from "./landfall-skyview.js";
 import * as sx from "./landfall-sextant.js";
-import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart } from "./landfall-chart.js";
+import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart, drawBed } from "./landfall-chart.js";
 import { sound } from "./landfall-sound.js";
 import { lightOn, lightColour, charWords } from "./landfall-lights.js";
 import { skyline, AZS, drawSkyline, viewOf, hillLook, SHAPE_WORDS } from "./landfall-land.js";
 import { FIND } from "./landfall-finds.js";
 import { BIRDS, drawBird } from "./landfall-birds.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
-import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, HOW_LAND, HOW_CLOUD, HOW_BIRDS, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, HOW_LAND, HOW_CLOUD, HOW_BIRDS, HOW_KELVIN, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
   sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable, soundWords,
@@ -39,7 +39,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", seenKelvin: "landfall:seen-kelvin", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -411,6 +411,9 @@ function after(m, prev, r) {
     case "birds":
       if (r.accepted) { startReveal(); learn("birdline"); } else note = refusedWords(S);
       break;
+    case "trace":
+      if (r.accepted) startReveal(); else note = refusedWords(S);
+      break;
     case "sound":
       learn("sound");
       note = soundWords(S, r);
@@ -440,6 +443,7 @@ function arrive(prev) {
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
   if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
   else if (L.bed && prev === "ritual" && !read(KEY.seenLead, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lead"); }, 350);
+  else if (L.kelvin && prev === "ritual" && !read(KEY.seenKelvin, 0)) setTimeout(() => { if (S.phase === "find") openHelp("kelvin"); }, 350);
   else if (L.colonies && prev === "ritual" && !read(KEY.seenBirds, 0)) setTimeout(() => { if (S.phase === "find") openHelp("birds"); }, 350);
   else if (L.unnamed && prev === "ritual" && !read(KEY.seenCloud, 0)) setTimeout(() => { if (S.phase === "find") openHelp("cloud"); }, 350);
   else if (L.hills && prev === "ritual" && !read(KEY.seenLand, 0)) setTimeout(() => { if (S.phase === "find") openHelp("land"); }, 350);
@@ -475,7 +479,7 @@ function lookFor(prev) {
 }
 function startReveal() {
   const p = S.watch.plot;
-  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light || p.hill || p.birds || p.sound ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
+  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light || p.hill || p.birds || p.sound || p.trace ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
   retarget();
 }
 
@@ -739,6 +743,7 @@ function renderTools() {
   /** The lead, on a level whose bottom is charted (cast once a watch, ticked once it has been); the land, on a coast with summits. */
   function leadButton() {
     const L = levelOf(S), out = [];
+    if (L.kelvin && W.line) out.push(button(W.traced ? "Line ✓" : "Line", openTrace, "lf-btn", { disabled: !can("trace"), label: "Lay the line of soundings on the chart" }));
     if (L.bed) out.push(button(W.sound ? "Lead ✓" : "Lead", () => go({ t: "sound" }), "lf-btn", { disabled: !can("sound"), label: "Heave to and cast the lead" }));
     if (L.colonies && S.phase === "find") out.push(button(W.colonies?.some(c => c.seen && c.done) ? "Birds ✓" : "Birds", openBirds, "lf-btn", { disabled: !W.colonies?.some(c => c.seen), label: "The birds in sight: which rock are they bound for?" }));
     if (L.hills && S.phase === "find") out.push(button(W.hills?.some(h => h.seen) && W.hills.every(h => !h.seen || h.done) ? "Land ✓" : "Land", openLand, "lf-btn", { disabled: !W.hills?.some(h => h.seen), label: "The land in sight: tell the summits by their shapes" }));
@@ -925,7 +930,7 @@ function openNotes() {
 /** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
 function openHelp(sun = false) {
   const kind = sun === true ? "sun" : sun || "how", T = { sun: [HOW_SUN, "How the sun is taken", KEY.seenSun], star: [HOW_STAR, "Any star, and the intercept", KEY.seenStar],
-    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], land: [HOW_LAND, "The lie of the land", KEY.seenLand], cloud: [HOW_CLOUD, "Stars through cloud", KEY.seenCloud], birds: [HOW_BIRDS, "Birds and the land", KEY.seenBirds],
+    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], land: [HOW_LAND, "The lie of the land", KEY.seenLand], cloud: [HOW_CLOUD, "Stars through cloud", KEY.seenCloud], birds: [HOW_BIRDS, "Birds and the land", KEY.seenBirds], kelvin: [HOW_KELVIN, "Kelvin's machine", KEY.seenKelvin],
     how: [HOW, "How a sight works", KEY.seen] }[kind];
   $("helpTitle").textContent = T[1];
   $("helpBody").replaceChildren(...T[0].map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
@@ -1019,6 +1024,60 @@ function openNaming() {
   if (!$("namingDlg").open) $("namingDlg").showModal();
 }
 $("namingClose").addEventListener("click", () => $("namingDlg").close());
+
+// ---------- Kelvin's machine: the line of soundings ----------
+// The leg's soundings on tracing paper over a piece of the chart round the reckoning: the navigator slides the paper (drag it) until its
+// depths agree with the chart's and lays it down there. The last sounding is the ship now.
+let traceOff = [0, 0];
+function openTrace() {
+  const L = levelOf(S), W = S.watch, body = $("traceBody"), pal = palette($("app")), dpr = Math.min(2, devicePixelRatio || 1);
+  learn("trace");
+  sound.wire();
+  traceOff = [0, 0];
+  const size = 340, cv = el("canvas", "lf-trace"); cv.width = cv.height = size * dpr;
+  const sx = Math.sqrt(S.P[0][0]), sy = Math.sqrt(S.P[1][1]), sounds = W.line.sounds;
+  const pts = [...sounds.map(x => [S.E[0] + x.rel[0], S.E[1] + x.rel[1]]), [S.E[0] - 3 * sx, S.E[1] - 3 * sy], [S.E[0] + 3 * sx, S.E[1] + 3 * sy]];
+  const cam = fitCamera(pts, size, size, 26, 0.5, 40);
+  const draw = () => {
+    const ctx = cv.getContext("2d"), q = cv.width / size; ctx.setTransform(q, 0, 0, q, 0, 0);
+    ctx.fillStyle = pal.paper; ctx.fillRect(0, 0, size, size);
+    drawBed(ctx, L, cam, size, size, 1, pal, true);
+    const Sc = p => toScreen(cam, size, size, p), e = Sc(S.E);
+    // the fog round the reckoning
+    ctx.save(); ctx.strokeStyle = pal.fog; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+    const pp = ellipsePoints(S.E, S.P, 2.45).map(Sc); ctx.beginPath(); pp.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath(); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = pal.ink; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(e[0] - 6, e[1]); ctx.lineTo(e[0] + 6, e[1]); ctx.moveTo(e[0], e[1] - 6); ctx.lineTo(e[0], e[1] + 6); ctx.stroke(); ctx.restore();
+    // the tracing paper: a pale strip along the line, its soundings in red ink, the last one ringed
+    const at = sounds.map(x => Sc([S.E[0] + traceOff[0] + x.rel[0], S.E[1] + traceOff[1] + x.rel[1]])), a = at[0], b = at.at(-1), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    ctx.save(); ctx.translate(a[0], a[1]); ctx.rotate(ang); ctx.fillStyle = "rgba(255,252,240,.55)"; ctx.strokeStyle = "rgba(120,100,70,.5)"; ctx.lineWidth = 1;
+    ctx.fillRect(-14, -16, len + 28, 32); ctx.strokeRect(-14, -16, len + 28, 32); ctx.restore();
+    ctx.save(); ctx.strokeStyle = pal.blood; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.fillStyle = pal.blood; ctx.font = `italic 12px ${pal.serif}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    sounds.forEach((x, i) => { const q = at[i]; ctx.beginPath(); ctx.arc(q[0], q[1], 2.2, 0, 6.283); ctx.fill(); ctx.fillText(x.depth === null ? "no bottom" : String(x.depth), q[0] + 9 * Math.sin(ang), q[1] - 9 * Math.cos(ang)); });
+    ctx.beginPath(); ctx.arc(b[0], b[1], 6, 0, 6.283); ctx.stroke(); ctx.restore();
+  };
+  let drag = null;
+  cv.addEventListener("pointerdown", ev => { drag = [ev.clientX, ev.clientY]; cv.setPointerCapture(ev.pointerId); });
+  cv.addEventListener("pointermove", ev => {
+    if (!drag) return;
+    const r = cv.getBoundingClientRect(), k = size / r.width;
+    traceOff = [traceOff[0] + (ev.clientX - drag[0]) * k / cam.s, traceOff[1] - (ev.clientY - drag[1]) * k / cam.s]; drag = [ev.clientX, ev.clientY]; draw();
+  });
+  cv.addEventListener("pointerup", () => { drag = null; });
+  cv.style.touchAction = "none";
+  draw();
+  const lay = button("Lay it here", () => { $("traceDlg").close(); go({ t: "trace", off: traceOff }); }, "btn primary lf-take"), back = button("Back to the reckoning", () => { traceOff = [0, 0]; draw(); }, "btn");
+  body.replaceChildren(
+    el("p", "lf-note-p", `The machine sounded ${sounds.length} times on the last leg, the last just now (ringed). On tracing paper the line lies as the log and the compass have it; slide it over the chart until its depths agree with the chart's, then lay it down.`),
+    cv, el("div", "lf-sheet-acts", null),
+  );
+  body.lastChild.append(back, lay);
+  if (!$("traceDlg").open) $("traceDlg").showModal();
+  // drawn in 340 units and shown as large as the sheet allows: sharp at whatever size that is
+  const shown = cv.getBoundingClientRect().width;
+  if (shown > 0) { cv.width = cv.height = Math.round(shown * dpr); draw(); }
+}
+$("traceClose").addEventListener("click", () => $("traceDlg").close());
 
 // ---------- the birds ----------
 /** The flight in sight this watch, as the ship sees it: its true course (home at dusk, out at dawn) and its kind; none outside the find. */
@@ -1121,7 +1180,7 @@ function openMenu() {
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
-  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"), action("Birds and the land", () => openHelp("birds"), "link"));
+  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"), action("Birds and the land", () => openHelp("birds"), "link"), action("Kelvin's machine", () => openHelp("kelvin"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

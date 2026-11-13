@@ -7,12 +7,13 @@
 //   nightowl  careful by night and never takes a sight of the sun: what section 1 taught, and no more
 //   blind     never looks at the sky: dead reckoning only, the floor
 // On a level with a charted bottom the careful bots cast the lead once a watch, after the sights and before making sail: a depth is a
-// contour that rings a bank, so it is read against a good fix rather than against the reckoning alone.
+// contour that rings a bank, so it is read against a good fix rather than against the reckoning alone. With Kelvin's machine they lay
+// the leg's line of soundings where it fits the chart best.
 // By day a bot takes the three sights of a noon watch: a morning altitude at once, the noon altitude at the reckoned noon, and the catch,
 // pressing for the moment the falling sun comes back to the drum with a delay of its own (`late`, `lateSd` game minutes) and a share of the
 // swell it fails to average away (`swing`). The sloppy bot is late, loose and takes one mark.
 import {
-  newVoyage, apply, moves, conditions, look, sextantTruth, BY_HR, levelOf, sunStage, reckonedNoonJd, expectedCatchJd, sceneJd, swellAt, sightNoise, lookSun,
+  newVoyage, apply, moves, conditions, look, lineMisfit, sextantTruth, BY_HR, levelOf, sunStage, reckonedNoonJd, expectedCatchJd, sceneJd, swellAt, sightNoise, lookSun,
   POLARIS, POLARIS_HR, MAX_WAIT, CLOCK,
 } from "./landfall-engine.js";
 import { draw, gaussAt, bearing, dist } from "./landfall-model.js";
@@ -49,7 +50,7 @@ export const driftOf = S => {
 /** Real seconds the sky takes for `min` game minutes: the first ten at the clock's pace, the rest fast-forwarded (a "wait" button, 60 times). */
 export const skySeconds = min => Math.min(min, 10) * 60 / CLOCK + Math.max(0, min - 10);
 /** Seconds a person is assumed to need for each desk action; the sky's own clock is the engine's (CLOCK game seconds per second). */
-export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12, light: 15, name: 12 };
+export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12, light: 15, name: 12, trace: 40 };
 
 /** The three sights of a noon watch, as a bot takes them. Ends with the watch in the book, or in steering if nothing could be taken. */
 function sunWatch(S, bot, g, take, cur) {
@@ -153,6 +154,27 @@ function lopFind(S, bot, take, wait, out, gaveUp, u) {
   if (!take({ t: "raise" }, SECONDS.raise).ok) { if (W.min < MAX_WAIT + 20) wait(); else take({ t: "skipsight" }, 0); }
 }
 
+/**
+ * Where a careful navigator lays the line of soundings: the place where it fits the chart best and the reckoning least disagrees (the
+ * misfit and the distance in the fog, as a likelihood and a prior), searched coarse then fine. None if nowhere fits.
+ */
+export function bestTrace(S) {
+  const sx = Math.sqrt(S.P[0][0]), sy = Math.sqrt(S.P[1][1]), n = S.watch.line.sounds.filter(x => x.depth !== null).length;
+  const [a, b, c] = [S.P[0][0], S.P[0][1], S.P[1][1]], det = a * c - b * b;
+  let best = null;
+  const scan = (cx, cy, rx, ry, k) => {
+    for (let i = -k; i <= k; i++) for (let j = -k; j <= k; j++) {
+      const off = [cx + rx * i / k, cy + ry * j / k], m = lineMisfit(S, [S.E[0] + off[0], S.E[1] + off[1]]);
+      const score = m * m * n + (c * off[0] * off[0] - 2 * b * off[0] * off[1] + a * off[1] * off[1]) / det;
+      if (!best || score < best.score) best = { score, m, off };
+    }
+  };
+  scan(0, 0, 3.5 * sx, 3.5 * sy, 7);
+  scan(best.off[0], best.off[1], 3.5 * sx / 3.5, 3.5 * sy / 3.5, 4);
+  scan(best.off[0], best.off[1], 3.5 * sx / 18, 3.5 * sy / 18, 3);
+  return best.m <= 2.2 ? best.off : null;
+}
+
 /** Plays a whole voyage. Returns { S, watches: [{ seconds, fixError }], wrongTaken, wrongAccepted, rejected }. */
 export function play(levelId, seed, botName) {
   const bot = BOTS[botName], S = newVoyage(levelId, seed), L = levelOf(S), salt = seed * 7919 + botName.length;
@@ -202,6 +224,7 @@ export function play(levelId, seed, botName) {
       }
       case "steer": {
         if (bot.lead && moves(S).includes("sound")) take({ t: "sound" }, SECONDS.sound);
+        if (bot.lead && moves(S).includes("trace")) { const off = bestTrace(S); if (off) take({ t: "trace", off }, SECONDS.trace); }
         const course = aim(L, S.E, bot.drift ? driftOf(S) : [0, 0]);
         cur.seconds += SECONDS.steer + SECONDS.sail + (S.watch.kind === "noon" ? 0 : skySeconds(S.watch.min));      // a noon watch has counted its own waits
         cur.fixError = dist(S.E, S.T);                       // how far the estimate is from the truth as the watch ends

@@ -228,3 +228,7 @@
 
 /* the birds in sight */
 .lf-birdpic { display: block; border-radius: 3px; border: 1px solid var(--rule); margin-bottom: .4rem; }
+
+/* Kelvin's line of soundings, on tracing paper over the chart */
+/* square, and no taller than the sheet leaves room for beside its words and buttons */
+.lf-trace { display: block; aspect-ratio: 1; width: min(100%, calc(88vh - 19rem)); width: min(100%, calc(88svh - 19rem)); border: 1px solid var(--rule); border-radius: 3px; cursor: grab; margin: .3rem auto .6rem; }

@@ -9,7 +9,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const BEDS = LEVELS.filter(L => L.bed);
 
-check(BEDS.length >= 3 && BEDS.every(L => L.section === 10), `the lead has its own chapter (${BEDS.map(L => L.name).join(", ")})`);
+check(BEDS.filter(L => L.section === 10).length >= 3 && BEDS.every(L => L.section === 10 || L.kelvin), `the lead has its own chapter, and Kelvin's machine sounds after it (${BEDS.map(L => L.name).join(", ")})`);
 for (const L of BEDS) {
   const H = [L.harbour.x, L.harbour.y], far = [H[0] * 0.2, H[1] * 0.2], near = [H[0] * 0.9, H[1] * 0.9];
   check(depthAt(L, far) > depthAt(L, near) && depthAt(L, near) > depthAt(L, H) - 0.01 && depthAt(L, H) < 40, `${L.name}: the bottom shelves up toward the coast (${depthAt(L, far).toFixed(0)}, ${depthAt(L, near).toFixed(0)}, ${depthAt(L, H).toFixed(0)} fathoms)`);

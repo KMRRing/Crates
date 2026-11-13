@@ -281,6 +281,17 @@ export const sound = {
     for (let i = 0; i < n; i++) { const u = i / n; burst(c, t + 0.25 + run * (u + 0.25 * u * u) / 1.25, { freq: 2800 + 900 * Math.random(), q: 6, gain: 0.03 * (1 - 0.5 * u), dur: 0.015 }); }
     if (depth != null) ping(c, t + 0.3 + run, { freq: 140, gain: 0.08, dur: 0.25, drop: 0.7, type: "triangle" });
   },
+  /** Kelvin's machine: the piano wire singing as it runs off the drum, a thin whine that falls as the brake takes it, and the click of the counter. */
+  wire() {
+    const c = audio();
+    if (!c || paused) return;
+    const t = c.currentTime + 0.05, o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+    o.type = "sawtooth"; o.frequency.setValueAtTime(1900, t); o.frequency.exponentialRampToValueAtTime(700, t + 2.2);
+    f.type = "bandpass"; f.frequency.value = 2400; f.Q.value = 6;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+    o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + 2.5);
+    for (let i = 0; i < 8; i++) burst(c, t + 0.2 + i * 0.27, { freq: 3200, q: 8, gain: 0.03, dur: 0.012 });
+  },
   /** A bird of the sea's life called for (a flight passing): its call from off to one side. */
   call(kind) {
     const c = audio();

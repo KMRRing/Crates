@@ -14,6 +14,8 @@
 // landfall-land.js) shows them over the horizon as she closes it, in twilight or by day: each told by its shape, and its bearing taken.
 // Near a coast with seabird colonies (`colonies`) a flight of its birds passes at twilight, home to the rock at dusk and out from it
 // at dawn: its compass course is a rough line through the rock, if the navigator says which rock (and minds which way they fly).
+// With Kelvin's sounding machine (`kelvin`, from 1876) the leg comes with a line of soundings taken at full speed, laid on the chart as on
+// tracing paper and slid until its depths agree with the chart's: a fix from the bottom alone.
 // Under cloud (`unnamed`) a star seen through a gap is not known by sight: the navigator names it (from the star finder, its
 // neighbours, its compass bearing) and the almanac works the named star, so a wrong name makes a wrong line.
 // On a level with a charted bottom (`bed`, landfall-bed.js) the lead may be cast once a watch, by day or night: the ship heaves to for a
@@ -24,7 +26,7 @@
 import { STARS } from "./landfall-stars.js";
 import { levelById } from "./landfall-levels.js";
 import { FIND } from "./landfall-finds.js";
-import { depthAt, bottomAt } from "./landfall-bed.js";
+import { depthAt, bottomAt, slopeAt } from "./landfall-bed.js";
 import { hillLook } from "./landfall-land.js";
 import { draw, gaussAt, rng, vec, rad, bearing, dist, fogOf, copyP, addP, legNoise, fold, firstEvent, enters, nearest, norm180 } from "./landfall-model.js";
 import {
@@ -173,6 +175,7 @@ function runLeg(S, course, speedFactor) {
     ...(day ? { sun: { m1: null, noon: null, aft: null }, stage: null } : {}),
     ...(L.lop && !day ? { lops: [], lines: [], targets: [] } : {}),
     ...(L.bed ? { sound: null } : {}),
+    ...(L.kelvin && L.bed ? { line: soundingLine(S, L, r, T0, S.T), traced: false } : {}),
   };
   if (L.lop && !day) S.watch.targets = chooseTargets(S);
   const reach = wx === "haze" ? 0.7 : wx === "storm" ? 0.6 : wx === "thick" ? 0.8 : 1;
@@ -509,6 +512,80 @@ function plotLight(S, at = null, as = at, key = "lights") {
   return { ok: true, accepted: true, z, observed };
 }
 
+/**
+ * Kelvin's sounding machine sounds at full speed, so the leg just run comes with a line of soundings, one every hour and a half or so:
+ * each a depth (none past the wire's length) and where it was taken as the reckoning has it, relative to where she is now (the run back
+ * along the course by the log). The true soundings were taken along the true track, so the reckoned line is a little stretched or
+ * turned where the log or the current were wrong, as a real one was.
+ */
+function soundingLine(S, L, r, T0, T1) {
+  const run = S.leg.run, v = vec(S.leg.course), n = Math.max(3, Math.min(9, Math.round(S.leg.hours / 1.5))), out = [];
+  for (let k = 1; k <= n; k++) {
+    const f = k / n, T = [T0[0] + f * (T1[0] - T0[0]), T0[1] + f * (T1[1] - T0[1])], truth = depthAt(L, T), sd = 0.4 + 0.03 * truth, g = r.g();
+    out.push({ rel: [-(1 - f) * run * v[0], -(1 - f) * run * v[1]], back: (1 - f) * run, depth: truth > L.bed.line ? null : Math.max(0.5, Math.round(truth + sd * g)) });
+  }
+  return { sounds: out, run, course: S.leg.course };
+}
+/** How far a sounding `back` nm along the run may lie from where the reckoned line puts it: the log, the compass and the current. */
+const slack = (L, S, back) => Math.hypot(back * L.errors.log, back * rad(S.compass.known === null ? S.compass.sd : 0.5), L.errors.current * back / L.speed);
+/** A sounding's error in fathoms where the line puts it at `p`: the cast, the chart, and the slack times the bottom's slope there. */
+const soundSd = (L, S, s, p, d0 = depthAt(L, p)) => {
+  const h = 0.25, gx = (depthAt(L, [p[0] + h, p[1]]) - d0) / h, gy = (depthAt(L, [p[0], p[1] + h]) - d0) / h;      // forward differences: this runs in a search
+  return Math.hypot(0.4 + 0.03 * s.depth, 0.5, Math.hypot(gx, gy) * slack(L, S, s.back));
+};
+/** How well a line of soundings placed with its last at `at` fits the chart: the root mean square of the misfit in its own errors. */
+export function lineMisfit(S, at) {
+  const L = levelOf(S), pts = S.watch.line.sounds.filter(s => s.depth !== null);
+  if (!pts.length) return Infinity;
+  let m = 0;
+  for (const s of pts) { const p = [at[0] + s.rel[0], at[1] + s.rel[1]], d = depthAt(L, p); m += ((d - s.depth) / soundSd(L, S, s, p, d)) ** 2; }
+  return Math.sqrt(m / pts.length);
+}
+/**
+ * The line of soundings laid on the chart at `off` from the reckoning (where its last sounding, the ship now, sits): the old way, on
+ * tracing paper slid over the chart until the depths agree. If they agree, the place is a fix, as sure as the bottom's slopes under
+ * the line make it (the soundings' information, the inverse of the summed outer products of the slopes over their errors), each
+ * sounding's error grown by how far back along the run it lies, for the log's error stretches the line.
+ */
+function traceLine(S, off) {
+  const L = levelOf(S), W = S.watch, before = { E: [...S.E], P: copyP(S.P) };
+  if (!W.line || W.traced) return no("there is no line of soundings to lay down");
+  if (!off || !off.every(Number.isFinite)) return no("no place for the line");
+  const at = [S.E[0] + off[0], S.E[1] + off[1]], pts = W.line.sounds.filter(s => s.depth !== null), misfit = lineMisfit(S, at);
+  W.traced = true;
+  if (pts.length < 2 || misfit > 2.2) { W.plot = { accepted: false, trace: true, misfit, off: true }; return { ok: true, accepted: false, misfit }; }
+  let a = 1e-4, b = 0, c = 1e-4;
+  for (const s of pts) {
+    const p = [at[0] + s.rel[0], at[1] + s.rel[1]], g = slopeAt(L, p), sd2 = soundSd(L, S, s, p) ** 2;
+    a += g[0] * g[0] / sd2; b += g[0] * g[1] / sd2; c += g[1] * g[1] / sd2;
+  }
+  // a line over even ground fits anywhere on it: if even its best way across says less than a third of what the fog already does, it is
+  // not a place (sixty miles off on the flat it fits as well as at the truth)
+  const lmax = (a + c) / 2 + Math.sqrt(((a - c) / 2) ** 2 + b * b), ub = Math.abs(b) > 1e-12 ? (() => { const x = [b, lmax - a], n = Math.hypot(...x); return [x[0] / n, x[1] / n]; })() : a >= c ? [1, 0] : [0, 1];
+  if (1 / lmax + 0.25 > 2 * (ub[0] * ub[0] * S.P[0][0] + 2 * ub[0] * ub[1] * S.P[0][1] + ub[1] * ub[1] * S.P[1][1])) { W.plot = { accepted: false, trace: true, misfit, flat: true }; return { ok: true, accepted: false, misfit, flat: true }; }
+  const det = a * c - b * b, R = [[c / det + 0.25, -b / det], [-b / det, a / det + 0.25]];
+  // how far the placing is from the reckoning, against the fog and the line's own doubt together
+  const C = [[S.P[0][0] + R[0][0], S.P[0][1] + R[0][1]], [S.P[1][0] + R[1][0], S.P[1][1] + R[1][1]]], cd = C[0][0] * C[1][1] - C[0][1] * C[1][0];
+  const d2 = (C[1][1] * off[0] * off[0] - 2 * C[0][1] * off[0] * off[1] + C[0][0] * off[1] * off[1]) / cd;
+  if (d2 > 4 ** 2) { W.plot = { accepted: false, trace: true, misfit, off: true, far: Math.sqrt(d2) }; return { ok: true, accepted: false, misfit, far: Math.sqrt(d2) }; }
+  // the placing is a measurement of the position with covariance R: folded in along R's two axes, whose errors are independent
+  const tr = R[0][0] + R[1][1], dt = R[0][0] * R[1][1] - R[0][1] ** 2, l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - dt)), l2 = Math.max(1e-6, tr - l1);
+  const u1 = Math.abs(R[0][1]) > 1e-9 ? (() => { const x = [l1 - R[1][1], R[0][1]], n = Math.hypot(...x); return [x[0] / n, x[1] / n]; })() : R[0][0] >= R[1][1] ? [1, 0] : [0, 1], u2 = [-u1[1], u1[0]];
+  let E = S.E, P = S.P, eps = S.epsE ?? 0;
+  for (const [u, l] of [[u1, l1], [u2, l2]]) {
+    const z = u[0] * (at[0] - E[0]) + u[1] * (at[1] - E[1]), f = fold(E, eps, P, u, 0, Math.sqrt(l), z);
+    E = f.E; P = f.P; eps = f.epsE;
+  }
+  S.E = E; S.P = P; if (S.clock) S.epsE = eps;
+  const line = { p: at, dir: vec(W.line.course), kind: "trace", sounds: pts.map(s => ({ p: [at[0] + s.rel[0], at[1] + s.rel[1]], depth: s.depth })) };
+  W.lines = W.lines || []; W.lines.push(line);
+  W.plot = { accepted: true, trace: true, misfit, before, after: { E: [...S.E], P: copyP(S.P) }, line, errorNm: dist(S.E, S.T), more: true };
+  S.fixes.push({ w: S.w, E: [...S.E], lat: null, z: 0, zLon: 0, hours: S.leg.hours, lop: true });
+  if (S.trail.at(-1)?.k === "fix" && S.trail.at(-1).w === S.w) S.trail.pop();
+  S.trail.push({ k: "fix", p: [...S.E], w: S.w });
+  return { ok: true, accepted: true, misfit };
+}
+
 /** A cast of the deep-sea lead (`CAST_MIN` minutes hove to). The depth is a line along its contour, where the bottom slopes enough to
  *  say which contour. A contour bends and the shelf flattens out to sea, so the depth is not folded in as a straight line at the
  *  reckoning: the fog is searched across, along the way the bottom slopes, for where that depth lies (the prior times the
@@ -516,7 +593,7 @@ function plotLight(S, at = null, as = at, key = "lights") {
 export const CAST_MIN = 15;
 function castLead(S) {
   const L = levelOf(S), W = S.watch, B = L.bed, r = rng(S), before = { E: [...S.E], P: copyP(S.P) };
-  W.min = Math.min(maxWait(S), W.min + CAST_MIN);
+  W.min = Math.min(maxWait(S), W.min + (L.kelvin ? 3 : CAST_MIN));                 // Kelvin's machine sounds at full speed: no heaving to
   if (W.kind === "noon") settleSun(S);
   const truth = depthAt(L, S.T);
   if (truth > B.line) { W.sound = { none: true, line: B.line }; return { ok: true, bottom: false, line: B.line }; }
@@ -558,14 +635,14 @@ export function moves(S) {
     case "ritual": return ["step", "skip"];
     case "find": {
       const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [];
-      const land = [...(S.watch.hills?.some(h => h.seen && !h.done) ? ["landmark"] : []), ...(S.watch.colonies?.some(c => c.seen && !c.done) ? ["birds"] : [])];
+      const land = [...(S.watch.hills?.some(h => h.seen && !h.done) ? ["landmark"] : []), ...(S.watch.colonies?.some(c => c.seen && !c.done) ? ["birds"] : []), ...(S.watch.line && !S.watch.traced ? ["trace"] : [])];
       if (day) return ["wait", "raise", "skipstage", ...lead, ...land, "skipsight"];
       const named = !levelOf(S).unnamed || S.watch.as != null, picked = S.watch.picked !== null;
       return ["wait", "pick", ...lead, ...(picked && levelOf(S).unnamed ? ["name"] : []), ...(picked && named && !S.watch.bearing ? ["bearing"] : []), ...(picked && named ? ["raise"] : []), ...((S.watch.light?.seen && !S.watch.light.done) || S.watch.lights?.some(l => l.seen && !l.done) ? ["light"] : []), ...land, "skipsight"];
     }
     case "sight": return ["read", "lower", ...(day ? ["wait"] : [])];       // the sun moves while it is watched: the clock runs in the eyepiece
     case "book": return ["plot", "retake", "discard"];
-    case "steer": return ["sail", "heave", ...(levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [])];     // a cast before she bears away
+    case "steer": return ["sail", "heave", ...(levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : []), ...(S.watch.line && !S.watch.traced ? ["trace"] : [])];     // a cast, or the line laid down, before she bears away
     default: return [];
   }
 }
@@ -610,6 +687,7 @@ export function apply(S, m) {
     case "light": return L.lights ? plotLight(S, m.at, m.as ?? m.at) : plotLight(S);
     case "landmark": return plotLight(S, m.at, m.as ?? m.at, "hills");
     case "birds": { const at = W.colonies.findIndex(c => c.seen); return plotLight(S, at, m.as ?? at, "colonies"); }
+    case "trace": return traceLine(S, m.off);
     case "sound": return castLead(S);
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);

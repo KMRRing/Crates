@@ -291,7 +291,7 @@ const lopSky = (S, hr) => { apply(S, { t: "skip" }); apply(S, { t: "pick", hr })
 {
   const LOP = LEVELS.filter(l => l.lop);
   check(LEVELS.length >= 30 && LOP.length >= 24 && new Set(LEVELS.map(l => l.id)).size === LEVELS.length && LEVELS.every((l, i) => l.n === i + 1), `${LEVELS.length} levels, numbered in order, ${LOP.length} of them by any star`);
-  check([...new Set(LEVELS.map(l => l.section))].every(k => SECTIONS[k]) && Object.keys(SECTIONS).length === 14, "fourteen chapters, each named");
+  check([...new Set(LEVELS.map(l => l.section))].every(k => SECTIONS[k]) && Object.keys(SECTIONS).length === 15, "fifteen chapters, each named");
   let worst = 0, n = 0, none = 0;
   for (const L of LOP.filter(l => !l.clock)) for (let seed = 1; seed <= 4; seed++) {
     const S = newVoyage(L.id, seed), hr = S.watch.targets[0];

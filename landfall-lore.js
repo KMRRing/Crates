@@ -78,6 +78,13 @@ export const HOW_BIRDS = [
   ["Which rock?", "Say which colony the birds belong to: their kind and how far it ranges narrow it down, and which way they fly says which side it lies. Their course is a line through the rock."],
   ["Rough, but a line", "Birds do not fly as straight as a bearing: the line is good to a few degrees, which is miles at a distance. Use it with the stars, not instead of them."],
 ];
+/** How Kelvin's machine is used, for the first voyage of its chapter and the menu. */
+export const HOW_KELVIN = [
+  ["The machine", "From 1876 William Thomson's sounding machine runs piano wire off a drum to a sinker, and a chemical tube in a brass case shows the depth. It sounds at full speed: no heaving to."],
+  ["A line of soundings", "The machine sounds every hour and a half or so as the ship sails, so each watch brings the last leg's line of depths. Line opens it on tracing paper over the chart."],
+  ["Slide it until it fits", "Drag the paper until its depths agree with the chart's soundings and contours, and lay it down: where it fits, the ship is, its last sounding the ship now. Keep it in the fog: a fit far outside it is likely the wrong bank."],
+  ["Its shape is the log's", "The line lies as the log and the compass have it, so it is a little stretched or turned where they were wrong. Match its most recent soundings closest."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

@@ -74,7 +74,7 @@ function contour(G, z) {
   return out;
 }
 /** The surveyed bottom: dotted contours at 5, 10, 20, 50 and 100 fathoms, a sounding every so often with its bottom now and then, and the banks' names. */
-function drawBed(ctx, L, cam, w, h, k, pal) {
+export function drawBed(ctx, L, cam, w, h, k, pal, dense = false) {
   const G = gridOf(L, cam, w, h, k), S = p => toScreen(cam, w, h, p);
   ctx.save(); ctx.strokeStyle = pal.ink; ctx.lineWidth = 1 * k; ctx.lineCap = "round";
   for (const [z, dash, al] of [[5, [1, 3], 0.4], [10, [1, 3], 0.32], [20, [1, 2.2, 1, 5], 0.3], [50, [5, 3, 1, 3], 0.26], [100, [6, 4], 0.22]]) {
@@ -84,14 +84,14 @@ function drawBed(ctx, L, cam, w, h, k, pal) {
   }
   ctx.restore();
   // the soundings: on a grid of whole miles, so they keep their places as the chart moves, each nudged a little as a surveyor's would be
-  const step = [1, 2, 5, 10, 20, 50].find(x => x * cam.s >= 46 * k) || 100, wb = toWorld(cam, w, h, 0, h), wt = toWorld(cam, w, h, w, 0);
+  const step = [1, 2, 3, 5, 10, 20, 50].find(x => x * cam.s >= (dense ? 30 : 46) * k) || 100, wb = toWorld(cam, w, h, 0, h), wt = toWorld(cam, w, h, w, 0);
   const hash = (i, j) => { const x = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return x - Math.floor(x); };
   ctx.save(); ctx.fillStyle = pal.ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let i = Math.floor(wb[0] / step); i <= Math.ceil(wt[0] / step); i++) for (let j = Math.floor(wb[1] / step); j <= Math.ceil(wt[1] / step); j++) {
     const p = [(i + 0.6 * (hash(i, j) - 0.5)) * step, (j + 0.6 * (hash(j, i) - 0.5)) * step];
     if ((L.land || []).some(poly => inside(p, poly))) continue;
     const [x, y] = S(p);
-    if (x < 44 * k || x > w - 8 * k || y < 10 * k || y > h - 20 * k) continue;
+    if (x < (dense ? 8 : 44) * k || x > w - 8 * k || y < 10 * k || y > h - (dense ? 8 : 20) * k) continue;
     const z = depthAt(L, p);
     ctx.globalAlpha = 0.55; ctx.font = `italic ${10 * k}px ${pal.serif}`; ctx.fillText(z > L.bed.line ? `${L.bed.line}+` : String(Math.round(z)), x, y);
     if (hash(i + 7, j + 3) < 0.3) { ctx.globalAlpha = 0.4; ctx.font = `italic ${8 * k}px ${pal.serif}`; ctx.fillText(BOTTOM_ABBR[bottomAt(L, p)] || "", x, y + 9 * k); }
@@ -263,6 +263,12 @@ export function drawChart(ctx, w, h, sc) {
   for (const [i, ln] of (sc.lines || []).entries()) {
     const a = S(ln.p), d = [ln.dir[0], -ln.dir[1]], far = Math.hypot(w, h) * 1.6, t = i === sc.lines.length - 1 ? clamp(sc.lineT ?? 1, 0, 1) : 1;
     if (ln.kind === "depth" && L.bed) { drawDepthLine(ctx, L, cam, w, h, k, pal, ln, t); continue; }
+    if (ln.kind === "trace") {                                       // the line of soundings where it was laid down, its depths in red
+      ctx.save(); ctx.globalAlpha = t; ctx.strokeStyle = pal.blood; ctx.fillStyle = pal.blood; ctx.lineWidth = 1.2 * k; ctx.font = `italic ${10 * k}px ${pal.serif}`; ctx.textAlign = "center";
+      ctx.beginPath(); ln.sounds.forEach((x, j) => { const q = S(x.p); j ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke();
+      for (const x of ln.sounds) { const q = S(x.p); ctx.beginPath(); ctx.arc(q[0], q[1], 2 * k, 0, 6.283); ctx.fill(); ctx.fillText(String(x.depth), q[0], q[1] - 7 * k); }
+      ctx.restore(); continue;
+    }
     ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k; ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
     if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]); else if (ln.kind === "hill") ctx.setLineDash([14 * k, 4 * k, 3 * k, 4 * k]); else if (ln.kind === "birds") ctx.setLineDash([2 * k, 5 * k]);
     ctx.beginPath(); ctx.moveTo(a[0] - d[0] * far * t, a[1] - d[1] * far * t); ctx.lineTo(a[0] + d[0] * far * t, a[1] + d[1] * far * t); ctx.stroke(); ctx.restore();

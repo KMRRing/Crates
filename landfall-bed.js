@@ -4,19 +4,34 @@
 // toward `deep` with distance off (half way in about 0.7 `width` miles); every shoal stands up out of it as a rock with a little bank
 // round it, and `banks` are humps (top < the shelf) or pits (top > it), each { name?, x, y, r, top }. `line` is how many fathoms of
 // line the deep-sea lead carries: deeper than that the lead finds no bottom. A fathom is six feet, 1.83 metres.
-import { inside } from "./landfall-model.js";
 
-/** The distance from a point to the nearest edge of the level's land, nm: negative on the land itself (how far inland). */
+/** Each polygon of a level's land as flat edge arrays, made once: the depth is asked for thousands of times when a line is laid down. */
+const EDGES = new WeakMap();
+function edgesOf(L) {
+  let e = EDGES.get(L);
+  if (!e) {
+    e = (L.land || []).map(poly => { const f = new Float64Array(poly.length * 4); poly.forEach(([bx, by], i) => { const [ax, ay] = poly[(i + poly.length - 1) % poly.length]; f.set([ax, ay, bx - ax, by - ay], i * 4); }); return f; });
+    EDGES.set(L, e);
+  }
+  return e;
+}
+/** The distance from a point to the nearest edge of the level's land, nm: negative on the land itself (how far inland). One pass over
+ *  the edges finds both the distance and, by counting crossings, whether the point is inside. */
 export function offshore(L, p) {
   let best = Infinity, land = false;
-  for (const poly of L.land || []) {
-    if (inside(p, poly)) land = true;
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      const [ax, ay] = poly[j], [bx, by] = poly[i], dx = bx - ax, dy = by - ay, A = dx * dx + dy * dy || 1e-12;
-      const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / A));
-      best = Math.min(best, Math.hypot(ax + t * dx - p[0], ay + t * dy - p[1]));
+  const [px, py] = p;
+  for (const f of edgesOf(L)) {
+    let inside = false;
+    for (let i = 0; i < f.length; i += 4) {
+      const ax = f[i], ay = f[i + 1], dx = f[i + 2], dy = f[i + 3], A = dx * dx + dy * dy || 1e-12;
+      const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / A)), ex = ax + t * dx - px, ey = ay + t * dy - py, d2 = ex * ex + ey * ey;
+      if (d2 < best) best = d2;
+      const by = ay + dy;
+      if ((by > py) !== (ay > py) && px < (ax - (ax + dx)) * (py - by) / (ay - by) + ax + dx) inside = !inside;
     }
+    if (inside) land = true;
   }
+  best = Math.sqrt(best);
   return land ? -best : best;
 }
 /** Depth in fathoms at a chart point. `raw` lets the shelf run on under the land as a negative depth, smoothly, for a reckoning that has

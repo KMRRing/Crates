@@ -2,7 +2,10 @@
 // a good level has the careful bot winning mostly, the blind one rarely and a clear gap to the sloppy one. The distribution of the
 // error at the end of each watch and the time a watch takes (the desk's actions are assumed seconds, the sky's wait is the
 // engine's own clock) are recorded here; the real time per watch is Korbi's to judge on a phone.
-import { LEVELS } from "../landfall-levels.js";
+import { LEVELS as ALL } from "../landfall-levels.js";
+// sections 10 on (the lead, the lights, the land, cloud, birds, Kelvin's machine) have their own gate, tests/landfall-bots-sea.mjs:
+// together they run too long for one quick test
+const LEVELS = ALL.filter(L => L.section <= 9);
 import { play, BOTS } from "../landfall-bots.js";
 import { validate } from "../landfall-engine.js";
 

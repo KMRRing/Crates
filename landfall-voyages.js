@@ -9,6 +9,7 @@
 //   hills   the summits behind a coast (landfall-land.js): seen from far off in twilight or by day, each told by its shape
 //   unnamed under cloud a star is not known by sight: the navigator names it, and the almanac works the star it is named as
 //   colonies seabird colonies (name, bird, range nm): a flight passes at twilight, home at dusk and out at dawn, a rough line through the rock
+//   kelvin  Kelvin's sounding machine (from 1876): each leg brings a line of soundings to lay on the chart, and a cast takes minutes
 //   gale    `legs`: the legs (0 is the first) a storm sets the ship off on by `push` nm sd, which the log cannot show
 //   bed     a charted bottom the lead can be cast on (landfall-bed.js): the shelf off the coast, banks and pits
 // The sea is invented (see landfall-levels.js); the latitudes and longitudes are real so the sky is.
@@ -16,7 +17,7 @@
 /** The chapters, by `section`. */
 export const SECTIONS = {
   1: "Polaris and the log", 2: "The noon sun", 3: "Two lines", 4: "The chronometer", 5: "The Southern Cross", 6: "Cloud and weather",
-  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land", 13: "Stars through cloud", 14: "Birds and the land",
+  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land", 13: "Stars through cloud", 14: "Birds and the land", 15: "Kelvin's machine",
 };
 
 const R = Math.round;
@@ -314,4 +315,29 @@ export const VOYAGES = [
     origin: { lat: 56.0, lon: 4.0 }, year: 1856, window: [[8, 1], [8, 25]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV, clock: clk(10, 25, 18),
     speed: 5, course0: 240, leg0: 6, hint: 2, swell: 0.6, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, compass: [1.5, 3.0], sd: 2, current: 0.5 },
     ...sea(240, 175, { r: 6.5, names: ["Tern Skerry", "The Craig"], coast: "Lundavik", colonies: [{ name: "The Craig", bird: "gannet", range: 65, v: 28, u: -6 }, { name: "Tern Holm", bird: "tern", range: 22, v: -14, u: 2 }, { name: "Lunda Skerries", bird: "puffin", range: 12, v: 6, u: 5 }] }) },
+  // ---------- section 15: Kelvin's machine ----------
+  // 1880: William Thomson's sounding machine (1876) runs piano wire off a drum with a twenty-two-pound sinker, and a glass tube lined
+  // with silver chromate in a brass case shows the depth by how far the sea was pressed up it. It sounds at full speed, so each leg
+  // comes with a line of soundings: laid on the chart as on tracing paper, and slid until the depths agree, it is a fix from the bottom.
+  { id: "the-sounding-machine", section: 15, n: 50, name: "The Sounding Machine", place: GREY, kelvin: true,
+    blurb: "1880, and a new machine on the taffrail: piano wire, a sinker and a glass tube. Each leg it brings a line of soundings. Slide it over the chart until the depths agree.",
+    lesson: "A line of soundings is a shape, and the bottom has shapes: where the line fits the chart, the ship is there.",
+    origin: { lat: 55.5, lon: 2.0 }, year: 1880, window: [[10, 1], [11, 10]], watches: 3, kinds: "dusk,dawn,dusk", lop: 1, pool: NAV,
+    speed: 5, course0: 75, leg0: 6, hint: 1, swell: 0.6, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.09, current: 0.55 },
+    ...sea(75, 160, { r: 6.5, names: ["Kettle Bank", "The Shoulder"], coast: "Kalvhavn" }),
+    bed: shelf(75, { deep: 70, width: 30, banks: [[40, -12, 9, 22, "Brown Bank"], [62, 14, 8, 26, "Outer Silver"], [88, -6, 10, 18, "Long Rig"], [104, 18, 7, 52, "the Deeps"], [124, -16, 8, 20, "Inner Rig"]] }) },
+  { id: "across-the-banks", section: 15, n: 51, name: "Across the Banks", place: GREY, kelvin: true,
+    blurb: "Four days of cloud over a sea of banks and holes. The stars will hardly show; the machine will sound all the way. Read the bottom.",
+    lesson: "Where the sky gives nothing, a line of soundings across a varied bottom still fixes the ship.",
+    origin: { lat: 56.0, lon: 1.0 }, year: 1880, window: [[11, 1], [12, 5]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV,
+    speed: 5, course0: 55, leg0: 6, hint: 2, swell: 0.7, weather: { thick: 4, haze: 1, clear: 1 }, errors: { ...standard, log: 0.09, current: 0.55 },
+    ...sea(55, 185, { r: 6.5, names: ["Ling Bank", "The Pole"], coast: "Lingvik" }),
+    bed: shelf(55, { deep: 75, width: 32, banks: [[30, 10, 10, 24, "Ling Bank"], [52, -14, 9, 50, "Swallow Hole"], [72, 8, 11, 16, "Great Fisher"], [96, -10, 8, 22, "Little Fisher"], [118, 14, 9, 55, "the Gut"], [140, -6, 10, 20, "Jutland Rig"], [160, 16, 7, 18, "Horn Reef"]] }) },
+  { id: "fog-in-the-approaches", section: 15, n: 52, name: "Fog in the Approaches", place: GREY, kelvin: true, clock: clk(10, 25, 18),
+    blurb: "The last passage: home through the approaches in thick weather, with banks, lights and a coast you know. Everything you have learned, and the machine sounding all the way.",
+    lesson: "A landfall is made with whatever shows: the bottom when nothing else does, the lights when they rise, the stars through a gap.",
+    origin: { lat: 55.0, lon: -2.0 }, year: 1880, window: [[11, 10], [12, 15]], watches: 5, kinds: "dusk,dawn,dusk,dawn,dusk", lop: 1, pool: NAV,
+    speed: 5, course0: 95, leg0: 6, hint: 3, swell: 0.8, weather: { thick: 4, haze: 2, clear: 1 }, errors: { ...standard, log: 0.09, compass: [1.5, 3.0], sd: 2, current: 0.6 },
+    ...sea(95, 215, { r: 6.5, names: ["The Shingles", "Outer Knock"], coast: "Hamburg Roads", lights: [{ name: "Elbe Head", ch: "Fl(2) 10s", range: 22, v: -14 }, { name: "Knock", ch: "Oc 6s", range: 16, v: 12, u: 6 }] }),
+    bed: shelf(95, { deep: 80, width: 34, banks: [[36, 12, 10, 24, "Outer Bank"], [64, -12, 8, 55, "the Pit"], [90, 6, 12, 18, "Middle Ground"], [120, -14, 9, 22, "Shingle Bank"], [146, 10, 8, 52, "the Trench"], [176, -8, 10, 16, "Inner Ground"]] }) },
 ];

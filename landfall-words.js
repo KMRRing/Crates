@@ -146,6 +146,7 @@ export function revealWords(S) {
   if (p.light) return `${p.name && levelOf(S).lights ? p.name : "The light"} bears ${fmtCourse(p.observed)} by the compass. ${fog()}`;
   if (p.sound) return `${p.depth} fathoms: the ship is somewhere on that depth's contour, ruled on the chart. ${fog()}`;
   if (p.hill) return `${p.name} bears ${fmtCourse(p.observed)} by the compass. ${fog()}`;
+  if (p.trace) return `The line of soundings is laid down where its depths agree with the chart's: a fix from the bottom. ${fog()}`;
   if (p.birds) return `The birds flew ${fmtCourse(p.observed)} by the compass: a line through ${p.name}, rough as birds are. ${fog()}`;
   if (p.lop) return `${starLabel(BY_HR.get(p.hr))}: the ship is ${fmtNm(p.z)} ${p.z >= 0 ? "toward it" : "away from it"} of where you reckoned. ${fog()}${p.more ? " Take a second star standing well apart from it, and the two lines make a fix." : ""}`;
   if (p.sun) {
@@ -160,6 +161,7 @@ export function revealWords(S) {
 export function refusedWords(S) {
   const p = S.watch.plot;
   if (p.light) return `${p.name && levelOf(S).lights ? `A line through ${p.name}` : "The light's line"} is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: is the compass right? Is it the light you think?`;
+  if (p.trace) return p.flat ? "The bottom under the line is too even to say where it lies: on this ground it would fit anywhere. Next leg's line, over the banks, will say more." : p.far ? "The line fits there, but that is far outside the fog: is it the right bank? It is not laid down." : "The depths there do not agree with the chart's. The line is not laid down: next leg's line will say more.";
   if (p.birds) return `A line through ${p.name} is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: were they bound for that rock? At dawn their rock is astern.`;
   if (p.hill) return `A line through ${p.name} is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: is it the summit you think?`;
   if (p.sound) return `${p.depth} fathoms is nowhere near the reckoning: the nearest such depth is ${fmtNm(Math.abs(p.z))} off it, and the fog allows ${fmtNm(p.gate)}. It is not plotted: the other side of a bank? Fix by the stars, and the next cast will say.`;
@@ -187,7 +189,7 @@ export function soundWords(S, r) {
 export function steerHead(S) {
   const W = S.watch, p = W.plot, names = (W.lops || []).map(h => starLabel(BY_HR.get(h))).join(" and ");
   if (W.lops?.length || W.lines?.length) {
-    const lit = (W.lines || []).filter(l => l.kind === "light"), many = !!levelOf(S).lights, hills = (W.lines || []).filter(l => l.kind === "hill" || l.kind === "birds").map(l => (l.kind === "birds" ? `the birds of ${l.name}` : l.name));
+    const lit = (W.lines || []).filter(l => l.kind === "light"), many = !!levelOf(S).lights, hills = (W.lines || []).filter(l => l.kind === "hill" || l.kind === "birds" || l.kind === "trace").map(l => (l.kind === "birds" ? `the birds of ${l.name}` : l.kind === "trace" ? "the line of soundings" : l.name));
     const extra = [...(many ? lit.map(l => l.name) : lit.length ? ["the light"] : []), ...hills, W.lines?.some(l => l.kind === "depth") && "the lead"].filter(Boolean);
     const lines = (W.lops?.length || 0) + (W.lines || []).filter(l => l.kind !== "star").length, from = [names, ...extra].filter(Boolean);
     return `<b>${lines > 1 ? "A fix" : "One line"}${from.length ? ` from ${from.slice(0, -1).join(", ")}${from.length > 1 ? " and " : ""}${from.at(-1)}` : ""}.</b> `;
