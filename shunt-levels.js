@@ -1,7 +1,8 @@
 // Shunt's plates: the campaign (shunt-campaign-data.js, made by shunt-pick.mjs: chapters of levels, then Endless), and the daily (the
 // day's plate, the same for everyone). Pure: seeded, no DOM. The rules of a campaign are campaign.js's; every goal and its stars come
 // from the longest trains the beam search makes on the plate (`tiers`), so three stars are always within reach.
-// The twelve levels from before (LEGACY) keep their ids, plates and places in the campaign's chapters; the eight that teach have a coach.
+// The eight levels from before that teach (LEGACY's first eight, with a coach) keep their ids and plates and open their chapters; the
+// other four are gone from the campaign (13 November 2026), but stay here so their old stars, kept by number, still map to ids.
 import { N, STUD } from "./shunt-engine.js";
 import { rng, longest } from "./shunt-bots.js";
 import { CHAPTERS, LEVELS as MADE, ENDLESS } from "./shunt-campaign-data.js";
@@ -43,15 +44,11 @@ const META = [
     coach: ["Every jewel has to end under a turning train: cover all three.", "A jewel under a jammed train doesn't count.", "Keep the jewels in mind as the plate fills."] },
   { tip: "A bridge shows two pitches and meshes both, so it fuses their trains into one. You need two separate trains: keep the bridges inside one pitch.",
     coach: ["A bridge shows two pitches and meshes both, so it fuses two trains into one.", "You need two separate trains: preview to see if a shove joins them.", "A fused train counts as one, and you need two."] },
-  { tip: "No jam anywhere. Think about where the last gears will go before the plate fills." },
-  { tip: "Cover every jewel with trains that turn, in three pitches." },
-  { tip: "Three separate trains: keep the bridges inside one pitch." },
-  { tip: "Studs (rivets) never move and end a line, so a shove stops short of them. Bridges, jewels and studs together." },
 ];
 
-const COACH = Object.fromEntries(LEGACY.map((d, i) => [d.id, META[i]]));
+const COACH = Object.fromEntries(META.map((m, i) => [LEGACY[i].id, m]));
 /** The levels with a coach (the first eight from before, each opening a chapter): hints are offered there after two undos or a shove that set your trains back. */
-export const COACHED = new Set(LEGACY.slice(0, 8).map(d => d.id));
+export const COACHED = new Set(Object.keys(COACH));
 /** The campaign's levels in order, numbered from one, each with its chapter, the coach's lines where it has them, and as its tip the
  *  coach's, its own, or for a chapter's first level its rule (one line, no more: campaign.js). */
 export const LEVELS = MADE.map((d, i) => ({ ...d, no: i + 1, ...COACH[d.id], tip: COACH[d.id]?.tip || d.tip || (MADE[i - 1]?.chapter !== d.chapter ? CHAPTERS[d.chapter].rule : ""), coach: COACH[d.id]?.coach || null }));

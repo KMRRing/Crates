@@ -144,6 +144,7 @@ export function createView({ board, tray, onGesture, onLost, cam: kept = null, o
     tab: envify(std({ color: 0xf0f2f5, metalness: 0.95, roughness: 0.16 }), 1.1),
     tabOff: envify(std({ color: 0x3c4048, metalness: 0.8, roughness: 0.42 }), 0.6),
     tabLit: envify(std({ color: 0xd4deee, metalness: 0.95, roughness: 0.12, emissive: 0x7a5a14, emissiveIntensity: 0.55 }), 1.2),
+    brass: envify(std({ color: 0xc8a052, metalness: 1, roughness: 0.24 }), 1.0),
     slot: std({ color: 0x3a3d42, roughness: 0.9 }), hole: std({ color: 0x14100c, roughness: 0.95 }), pin: std({ color: 0x70757c, roughness: 0.5, metalness: 0.6 }), pad: std({ color: 0x8c9096, roughness: 0.9 }),
     ruby: ruby(0.2, 0xff2a3a, 0x7e0a1c), rubyLit: ruby(0.7, 0xff5028, 0xd01a30),
     glow: basic({ color: 0xffe08a, opacity: 0.9 }), glowSoft: basic({ color: 0xffe08a, opacity: 0.22 }), jam: basic({ color: 0xe0301c, opacity: 0.9 }), jamSeat: basic({ color: 0xff3a22, opacity: 0.9 }),
@@ -251,6 +252,10 @@ export function createView({ board, tray, onGesture, onLost, cam: kept = null, o
   const jamGeo = G.ringGeometry(RO + 0.07, RO + 0.01, 0.014, 40), jamRings = inst(jamGeo, M.jam, 20, false);
   const jamSeatGeo = G.seatRingGeometry(SEAT_R - 0.01, SEAT_R + 0.04, 0.03), jamSeats = inst(jamSeatGeo, M.jamSeat, 20, false);
   const sparkGeo = new THREE.IcosahedronGeometry(0.022, 0), sparks = inst(sparkGeo, M.spark, SPARKS, false);
+  // a stud: its seat plugged with gunmetal up to the plate's face and a brass rivet on it, the slot of each turned its own way (set by hand),
+  // as the 2D plate draws it (13 November 2026: the 3D plate drew no studs at all, so a shove that stopped short looked like a fault)
+  const plugGeo = G.hexSlab(SEAT_R - 0.004, -FLOOR - 0.01, 0.012), headGeo = new THREE.SphereGeometry(0.21, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1);
+  const plugs = inst(plugGeo, M.tabOff, N), heads = inst(headGeo, M.brass, N), nicks = inst(new THREE.BoxGeometry(0.26, 0.03, 0.035), M.slot, N, false);
 
   // ---------- the show ----------
   let model = null, items = [], flashList = [], jamList = [], T = 0, motion = !reduced(), shown = true, held = false;
@@ -280,6 +285,16 @@ export function createView({ board, tray, onGesture, onLost, cam: kept = null, o
       items.push(it);
       if (mode === "jam") jamList.push(it);
     }
+    let ns = 0;
+    _s.set(1, 1, 1);
+    for (let i = 0; i < N; i++) {
+      if (st.cells[i] !== STUD) continue;
+      const [x, z] = cellW(i);
+      plugs.setMatrixAt(ns, _m.makeTranslation(x, FLOOR, z)); heads.setMatrixAt(ns, _m.makeTranslation(x, -0.01, z));
+      _q.setFromAxisAngle(_e, (i * 47 % 180) * DEG); nicks.setMatrixAt(ns, _m.compose(_p.set(x, 0.07, z), _q, _s));
+      ns++;
+    }
+    for (const m of [plugs, heads, nicks]) { m.count = ns; m.instanceMatrix.needsUpdate = true; }
     // jewels: a chaton in the seat's floor, or one set on the cap of the gear above (lit when its train turns)
     const newLit = new Set();
     st.jewels.forEach((j, n) => {

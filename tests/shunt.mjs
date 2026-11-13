@@ -1,16 +1,16 @@
 // Shunt (shunt-engine.js, shunt-bots.js, shunt-levels.js; the page is shunt.js): the shove and the line rule, shear, jams by odd
 // rings, bridges and idlers, trains and jewels, the goals and stars, a state kept and read back, the campaign (each deck won to three
-// stars by the line stored with it, each of the twelve from before teaching what it says, the bots' floors), the daily, the levers.
+// stars by the line stored with it, each of the eight from before teaching what it says, the bots' floors), the daily, the levers.
 // The slow searches (the beam at width 1500, a hundred runs of each bot) are in tests/shunt-search.mjs. Run: node tests/shunt.mjs
-import { CELLS, N, ENTRIES, at, fresh, swap, shove, step, play, track, legal, legalEntries, canSwap, over, judge, goalCheck, starsOf, reach, progress, effect, sound, mend, movesOf, STUD, EMPTY } from "../shunt-engine.js";
+import { CELLS, N, NB as NB_, PS as PS_, ENTRIES, at, fresh, swap, shove, step, play, track, legal, legalEntries, canSwap, over, judge, goalCheck, starsOf, reach, progress, effect, sound, mend, movesOf, STUD, EMPTY } from "../shunt-engine.js";
 import { rng, playRandom, playGreedy, beam, search, longest } from "../shunt-bots.js";
 import { LEVELS, LEGACY, ENDLESS, CAMPAIGN, COACHED, goalWords, tiers, dailyPlate, rating } from "../shunt-levels.js";
 import { LEVERS, D, HIT } from "../shunt-view-2d.js";
 import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
-/** The twelve levels from before, as they stand in the campaign (their ids, their coach). */
-const OLD = LEGACY.map(d => LEVELS.find(l => l.id === d.id));
+/** The eight levels from before that teach, as they stand in the campaign (their ids, their coach): each opens a chapter. */
+const OLD = LEGACY.slice(0, 8).map(d => LEVELS.find(l => l.id === d.id));
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v);
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
@@ -157,7 +157,7 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
 
 // ---------- a state kept and read back ----------
 {
-  const L = OLD[11], s = play(L, L.sol.slice(0, 9));
+  const L = LEVELS.find(l => l.stud.length && l.jewels.length), s = play(L, L.sol.slice(0, 9));
   check(sound(s) && sound(fresh(L)), "a state made here is sound");
   check(same(JSON.parse(JSON.stringify(s)), s), "plain JSON: it survives a round through text unchanged");
   const back = mend(roundTrip(s));
@@ -170,13 +170,28 @@ const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([
 }
 
 // ---------- the campaign (campaign.js holds its rules; tests/campaign.mjs its data) and Endless ----------
-check(LEVELS.every((l, i) => l.no === i + 1) && OLD.every(Boolean) && CAMPAIGN.chapters.length >= 6 && CAMPAIGN.chapters.every((_, c) => { const n = LEVELS.filter(l => l.chapter === c).length; return n >= 3 && n <= 5; }),
-  "the levels are numbered in order, the twelve from before are in the campaign, and a chapter is as long as its lessons: three to five levels");
+// Korbi, 13 November 2026: a hundred levels, twelve chapters of eight or nine (shunt-pick.mjs)
+check(LEVELS.length === 100 && LEVELS.every((l, i) => l.no === i + 1) && OLD.every(Boolean) && CAMPAIGN.chapters.length === 12 && CAMPAIGN.chapters.every((_, c) => { const n = LEVELS.filter(l => l.chapter === c).length; return n >= 8 && n <= 9; }),
+  "a hundred levels, numbered in order, in twelve chapters of eight or nine, the eight that teach among them");
 check(LEVELS.filter(l => l.role === "intro").length === CAMPAIGN.chapters.length - 1 && LEVELS.filter(l => l.role === "cap").length === CAMPAIGN.chapters.length && CAMPAIGN.chapters.every((_, c) => LEVELS.filter(l => l.chapter === c).at(-1).role === "cap"),
   "every chapter ends with its capstone, and all but the last (where the twists meet) open with an introduction");
-check(LEVELS.filter((l, i) => LEVELS[i - 1]?.chapter !== l.chapter).every(l => l.tip), "a chapter's first level says what the chapter brings");
-check(LEVELS.filter(l => l.chapter === 0).every(l => l.tip) && LEVELS[1].goal.trains.k === 1 && LEVELS[2].goal.trains.k === 2 && LEVELS.filter(l => l.chapter === 0).every(l => !l.deal.some(g => g > 0)),
-  "the first chapter, one pitch: the shove, a train kept a chain (a jam), then two trains rather than one, each level saying its lesson");
+check(OLD.every(l => LEVELS.find(m => m.chapter === l.chapter && m.role === "intro") === l || l.id === "l4"), "each of the eight that teach opens its chapter (the jam right after the shear)");
+check(LEVELS.every(l => l.tip), "every level says its trick");
+check(LEVELS.filter(l => l.chapter === 0).every(l => !l.deal.some(g => g > 0) && !Object.values(l.start).some(g => g > 0)) && LEVELS.filter(l => l.chapter === 0).some(l => l.goal.trains.k === 2),
+  "the first chapter is one pitch throughout, one long train and then two that must not touch");
+{
+  // what the chapters bring is in their levels' lines: Push's slide three gears or more at once, twice from its third level on;
+  // every level of Rings ends with a train that closes a ring
+  const ch = name => CAMPAIGN.chapters.findIndex(c => c.name === name), lines = c => LEVELS.filter(l => l.chapter === c);
+  const end = L => { let s = fresh(L), pushes = 0; for (const m of L.sol) { if (m === -1) { s = swap(s); continue; } const r = shove(s, m); if (r.moved.length >= 3) pushes++; s = r.s; } return { s, pushes }; };
+  const ringed = L => {
+    const { s } = end(L), J = judge(s), meshes = t => t.cells.reduce((e, x) => e + NB_[x].filter(y => y > x && s.cells[y] >= 0 && PS_[s.cells[x]] & PS_[s.cells[y]]).length, 0);
+    return J.comps.some(t => !t.jam && t.n >= 3 && meshes(t) >= t.n);
+  };
+  check(lines(ch("Push")).every((L, n) => end(L).pushes >= (n < 2 ? 1 : 2)), "Push: every line slides a chain of three or more, twice from the third level on");
+  check(lines(ch("Rings")).every(ringed), "Rings: every line ends with a train that closes an even ring");
+  check(LEVELS.filter(l => l.goal.nojam).length >= 25 && LEVELS.filter(l => l.deal.length === N - l.stud.length - Object.keys(l.start).length).length >= 50, "plates are full: half of them fill every cell, and a quarter forbid a jam");
+}
 check(ENDLESS.length >= 200 && ENDLESS.every((e, n) => n === 0 || e.needs >= ENDLESS[n - 1].needs) && ENDLESS.filter(e => e.milestone).length === Math.floor(ENDLESS.length / 25), "Endless: hundreds of plates, the chapters they wait for in order, a milestone every 25th");
 {
   const bad1 = [];
@@ -188,20 +203,20 @@ check(ENDLESS.length >= 200 && ENDLESS.every((e, n) => n === 0 || e.needs >= END
   check(!bad1.length, `every level's deck, and every Endless plate's, is won to three stars by the line stored with it${bad1.length ? `: not ${bad1.slice(0, 5)}` : ""}`);
   check(ALL.every(l => l.goal.trains && l.goal.trains.m >= 3 && same(l.stars, [l.goal.trains.m + 1, l.goal.trains.m + 2]) && l.stars[1] === l.best), "each goal is trains two gears short of the longest found, a star for each gear more");
   check(ALL.every(l => !("score" in l.goal)), "no points anywhere");
+  check(ALL.every(l => { const J = judge(fresh(l)); return reach(J, l.goal.trains.k) < l.goal.trains.m && !J.jams; }), "no plate's goal is met, and nothing is jammed, before its first shove");
   check(ALL.every(l => l.deal.length <= N - l.stud.length - Object.keys(l.start).length && l.deal.every(g => g >= 0 && g <= 6)), "every deck fits its plate");
   check(ALL.every(l => sound(fresh(l)) && l.jewels.every(j => fresh(l).cells[j] === EMPTY)), "every plate's start is sound, its jewels on open cells");
   const groups = L => new Set(L.deal.concat(Object.values(L.start)).filter(g => g <= 2 || g >= 4).flatMap(g => (g <= 2 ? [g] : g === 4 ? [0, 1] : g === 5 ? [0, 2] : [1, 2])));
-  check(groups(OLD[0]).size === 1 && groups(OLD[1]).size === 2 && groups(OLD[2]).size === 2, "the first level has one pitch, the second and third two");
-  check(OLD[2].demo === "shear" && OLD[3].demo === "jam" && OLD[4].swap && OLD[0].guide && OLD[1].guide, "levels 3 and 4 demonstrate a shear and a jam, 5 the hold, 1 and 2 are guided");
+  check(groups(OLD[0]).size === 1 && groups(OLD[1]).size === 2 && groups(OLD[2]).size === 2, "Shove has one pitch, Pitch and Shear two");
+  check(OLD[2].demo === "shear" && OLD[3].demo === "jam" && OLD[4].swap && OLD[0].guide && OLD[1].guide, "Shear and Jam demonstrate a shear and a jam, Hold the hold, Shove and Pitch are guided");
   // the demonstrations exist at the first turn: a shear that sets the trains back, a shove that jams
   const first = L => fresh(L);
   const shears = L => legalEntries(first(L)).filter(e => { const f = effect(first(L), shove(first(L), e)), k = L.goal.trains.k; return f.broken.length && progress(f.B, k, L.stars[1], true) < progress(f.A, k, L.stars[1], true); });
   const jams = L => legalEntries(first(L)).filter(e => effect(first(L), shove(first(L), e)).newJams > 0);
-  check(shears(OLD[2]).length > 0 && jams(OLD[3]).length > 0, "level 3 has a shove that shears a train and sets the trains back, level 4 one that jams, at its first turn");
-  check(OLD[4].sol[0] === -1, "level 5's best line begins with a swap (the coach pulses the cradle)");
-  check(OLD[5].deal.includes(I) && OLD[6].jewels.length === 3 && OLD[6].goal.jewels && OLD[7].deal.some(g => g >= 4) && OLD[7].goal.trains.k === 2, "level 6 deals idlers, 7 has three jewels, 8 deals bridges and asks for two separate trains");
-  check(OLD[10].deal.some(g => g >= 4) && OLD[11].stud.length === 3 && OLD[11].jewels.length === 2, "levels 11 and 12 are the old fusion and workshop plates");
-  check(OLD.every(l => COACHED.has(l.id) === !!l.coach) && OLD.slice(0, 8).every(l => l.tip && l.coach?.length >= 3) && OLD.slice(8).every(l => l.tip && !l.coach), "the first eight from before have coach lines, the rest only their tip");
+  check(shears(OLD[2]).length > 0 && jams(OLD[3]).length > 0, "Shear has a shove that shears a train and sets the trains back, Jam one that jams, at its first turn");
+  check(OLD[4].sol[0] === -1, "Hold's best line begins with a swap (the coach pulses the cradle)");
+  check(OLD[5].deal.includes(I) && OLD[6].jewels.length === 3 && OLD[6].goal.jewels && OLD[7].deal.some(g => g >= 4) && OLD[7].goal.trains.k === 2, "Idler deals idlers, Jewels has three jewels, Bridge deals bridges and asks for two separate trains");
+  check(LEVELS.every(l => COACHED.has(l.id) === !!l.coach) && OLD.every(l => l.tip && l.coach?.length >= 3), "the eight from before have coach lines, the rest only their tip");
   check(LEVELS.every(l => (l.tip || "").length <= 190 && (l.coach || []).every(c => c.length <= 130)), "every line fits the coach's box");
 }
 // the bots (a few runs each; the hundred-run floors are in tests/shunt-search.mjs)

@@ -15,8 +15,9 @@ export const RUN_KEY = { levels: KEYS.run, endless: KEYS.erun, daily: KEYS.drun 
 /** 2: the rail-yard game's run and best are gone. 3: and its `scrapped` (its `seen` was a flag, not a list: readSeen drops it).
  *  4 (10 Nov 2026): the campaign (campaign.js): Random's run and difficulty go (Endless took its place), and a level's run is kept by
  *  the level's id, not its number (the twelve levels are spread through the chapters now). 5 (10 Nov 2026): no points (goals and
- *  stars are trains of a length): the days' scores go, and the runs, whose plates were picked again. */
-export const VER = 5;
+ *  stars are trains of a length): the days' scores go, and the runs, whose plates were picked again. 6 (13 Nov 2026): a hundred
+ *  levels and Endless picked again: Endless's run goes (its plates are kept by number). */
+export const VER = 6;
 
 const isRecord = v => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -42,6 +43,7 @@ export function migrate({ read, write }) {
   if (v < 2) { write(KEYS.run, null); write(KEYS.best, 0); }
   if (v < 4) { for (const k of [KEYS.rrun, KEYS.diff, KEYS.coach, KEYS.run]) write(k, null); }
   if (v < 5) { for (const k of [KEYS.daily, KEYS.run, KEYS.erun, KEYS.drun]) write(k, null); }
+  if (v < 6) write(KEYS.erun, null);
   write(KEYS.scrapped, null);
   write(KEYS.ver, VER);
 }
