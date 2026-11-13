@@ -447,6 +447,9 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     w = Math.max(1, Math.round(r.width)); h = Math.max(1, Math.round(r.height));
     renderer.setSize(w, h, false);
     azH = P.homeAz(w / h, cols, rows); if (!lookOn) { elT = P.homeEl(w / h); el = elT; azT = az = azH; }
+    // 13 Nov 2026, Korbi: "there's a gear that has the upright symbol but it's actually horizontal": a movement turned a quarter to fit
+    // the screen turns the hand's pieces with it (pipes.css), so a tile shows its piece as it will lie
+    app?.style.setProperty("--pi-turned", `${Math.round(azH / P.DEG)}deg`);
     setCamera(); wakeLoop();
   }
   const ro = new ResizeObserver(resize);
@@ -731,6 +734,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       renderer.dispose();
       canvas.remove();
       app?.classList.remove("view3d");
+      app?.style.removeProperty("--pi-turned");
     },
   };
   function applySkinFirst() { applySkin(); }

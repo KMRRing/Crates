@@ -71,14 +71,15 @@ function escapementSet(c, scale = 1, metal = 0xd9a949) {
   };
 }
 
-// 9 Nov 2026, Korbi: "the escapement wheel (the big one on the ground) is sometimes so big that it goes through the watch case." The driving wheel is now the
-// sink-sized twin of buildDock (meshed on the port side, always within the board), not a wheel up to twice the sink's size that a compact instrument left unscaled.
+// 13 Nov 2026, Korbi: "the gear below the escapement (the large one that's somewhat in the ground) is a bit offputting since it can be on top of
+// other squares and it's not clear whether it occupies it or not (it doesn't); it should go": an escapement (and a tourbillon) has no driving wheel
+// under it; the escape wheel on the sink's own arbor is what the train turns.
 /** Escapement on a sink: the escape wheel stands on the sink's arbor, the fork and balance beyond it, out into the margin. */
-export function buildEscapement(c, group, r, out, k, o = {}) {
+export function buildEscapement(c, group, r, out, k) {
   const { THREE, P } = c, g = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g);
-  const metal = metalOf(r), set = escapementSet(c, 1, metal), drive = o.dock === false ? null : buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
+  const set = escapementSet(c, 1, metalOf(r));
   g.add(set.group);
   const base = P.LAYER_Y[r.layer] + P.THICK + 0.03;
   set.group.position.y = base;
@@ -89,7 +90,6 @@ export function buildEscapement(c, group, r, out, k, o = {}) {
       const awake = cx.awake(k), beat = cx.beat(k), b = awake && beat ? cx.g / beat : 0;
       const kk = set.pose(b, awake, cx.angle(r.id) * P.DEG);
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
-      drive?.update(cx);
       if (awake && kk !== lastK) { c.onEvent?.({ type: "tick", train: k, tock: kk % 2 === 1 }); }
       lastK = awake ? kk : -1;
     },
@@ -101,7 +101,7 @@ export function buildTourbillon(c, group, r, out, k) {
   const { THREE, G, M, P, mk } = c, g = new THREE.Group(), cage = new THREE.Group();
   g.position.set(r.wx, 0, r.wz);
   group.add(g); g.add(cage);
-  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, R = 0.56, metal = metalOf(r), drive = buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
+  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, R = 0.56, metal = metalOf(r);
   const low = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), metal), up = G.tint(G.slab(G.shapeOf(G.circle(R, 56), [G.circle(R - 0.07, 56)]), 0.03, 0.007, 1), metal);
   G.polish(low, 2); G.polish(up, 2); up.translate(0, 0.3, 0);
   const posts = G.merge([0, 1, 2].map(i => { const a = i * TAU / 3 + 0.4, p = new THREE.CylinderGeometry(0.034, 0.034, 0.3, 10); p.translate(Math.cos(a) * (R - 0.035), 0.15, Math.sin(a) * (R - 0.035)); G.tint(p, metal); return p.toNonIndexed(); }));
@@ -119,7 +119,6 @@ export function buildTourbillon(c, group, r, out, k) {
       const awake = cx.awake(k), a = cx.angle(r.id) * P.DEG;
       cage.rotation.y = -a;
       inner.pose(awake ? cx.tMs / 190 : 0, awake, a * 17);
-      drive.update(cx);
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
     },
   };
@@ -131,7 +130,7 @@ export function buildChime(c, group, r, out, goal, k) {
   const { THREE, G, M, P, mk } = c, g = new THREE.Group(), turn = new THREE.Group();
   g.position.set(r.wx, 0, r.wz); g.rotation.y = -Math.atan2(out[1], out[0]);
   group.add(g); g.add(turn);
-  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, RD = 0.56, NT = 7, step = 0.062, metal = metalOf(r), drive = buildDock(c, group, r, out, { mesh: true, y: P.LAYER_Y[r.layer] - 0.055 });
+  const y0 = P.LAYER_Y[r.layer] + P.THICK + 0.04, RD = 0.56, NT = 7, step = 0.062, metal = metalOf(r);
   const tipX = i => 0.12 + 0.065 * i + 0.08, tz = i => (i - (NT - 1) / 2) * step;     // tine i's tip over the disc (graded: longer tines are lower notes)
   const disc = G.tint(G.slab(G.shapeOf(G.circle(RD, 64), [G.circle(0.04, 10)]), 0.04, 0.008, 2), metal); G.polish(disc, 2);
   const tune = Array.isArray(goal?.tune) ? goal.tune : [0, 2, 4, 2, 5, 4, 2, 0, 3, 1, 4, 6, 4, 2, 1, 3];
@@ -161,7 +160,6 @@ export function buildChime(c, group, r, out, goal, k) {
       const a = cx.angle(r.id) * P.DEG, awake = cx.awake(k) || true;
       turn.rotation.y = -cx.angle(r.id) * P.DEG;
       g.position.y = cx.layerY(r.layer) - P.LAYER_Y[r.layer];
-      drive.update(cx);
       const dt = Math.max(0, (cx.tMs - tPrev) / 1000); tPrev = cx.tMs;
       for (let i = 0; i < NT; i++) amp[i] *= Math.exp(-dt * 5.5);
       if (awake) tune.forEach((n, s) => {

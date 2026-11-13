@@ -231,7 +231,7 @@ export function createParts(env) {
         const r = byId.get(pin.c * 8 + (pin.goal.w ?? 0));
         if (!r) continue;
         const before = group.children.length;
-        items.push(buildEscapement(ctxB, group, r, out(r), pin.train ?? 0, { dock: false }));
+        items.push(buildEscapement(ctxB, group, r, out(r), pin.train ?? 0));
         const sub = new THREE.Group();
         sub.position.set(r.wx, 0.12, r.wz); sub.scale.set(COMPACT.escape, 1, COMPACT.escape);
         for (const ch of group.children.slice(before)) { ch.position.x -= r.wx; ch.position.z -= r.wz; sub.add(ch); }

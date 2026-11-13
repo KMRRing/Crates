@@ -247,6 +247,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 .pi-chip:is(.off, .blind) { color: var(--ink-soft); }
 .pi-queue .pi-h { overflow: visible; }
 .pi-queue .pi-h svg { overflow: hidden; border-radius: 4px; }
+.pi-queue .pi-h svg { rotate: var(--pi-turned, 0deg); }   /* (the 3D movement turned a quarter to fit the screen: pipes-view-3d.js) */
 .pi-queue .pi-h { touch-action: none; }
 
 /* the workings: one line a train, in the order the power runs; a chip pulses its square */
