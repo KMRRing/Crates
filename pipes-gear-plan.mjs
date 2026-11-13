@@ -31,7 +31,7 @@ const TOKEN = Object.fromEntries(Object.entries(PIECE).map(([t, p]) => [p, t]));
 
 export const CHAPTERS = [
   { key: "na", book: "N", name: "Gears", from: 1, rule: "Mesh gears from the motor to the dial: each mesh turns the next wheel the other way." },
-  { key: "nb", book: "N", name: "Duos and trios", from: 4, rule: "Duos and trios mesh only at their ends. A duo turns the next wheel the way a single would not; a trio turns it as a single does." },
+  { key: "nb", book: "N", name: "Duos and trios", from: 2, rule: "Duos and trios mesh only at their ends. A duo turns the next wheel the way a single would not; a trio turns it as a single does." },
   // Korbi, 12 Nov 2026: quartz turns smoothly; then "mechanical early levels: it's an arbor coming from the other side ... discrete 1 per second",
   // then "mechanical late: mainspring must be connected to the escapement before wound, otherwise it just unwinds"; "late chapter 1 should
   // introduce the escapement" (read as: the escapement comes at the end of this first set of chapters)
@@ -49,37 +49,38 @@ export const PLAN = [
     "GS PN o",
     "o  o  o"],
     aha: "The dial sits beside the motor, but they face away from each other: the train goes the whole way round." },
-  { n: 2, name: "Staircase", power: "Q", themes: [], draw: [
-    "#  o  o  o",
-    "o  o  #  o",
-    "GN #  o  o",
-    ".  PE o  #"],
-    aha: "Motor and dial sit corner to corner with a pillar between them: the train climbs one side of the diagonal wall and comes down the other." },
-  { n: 3, name: "Spiral", power: "Q", themes: [], draw: [
-    "_  o  o  o  _",
-    "o  o  #  o  o",
-    "GN .  #  #  o",
-    ".  #  o  o  o",
-    "_  PE o  #  _"],
-    aha: "The dial is two squares above the motor but meshes only from above: the train winds round the pillars in the middle to come down onto it." },
-  { n: 4, name: "Duo", power: "Q", themes: ["Duos"], draw: [
+  // 13 Nov 2026, Korbi's ratings: Staircase (2/5), Spiral (1/5) and the first Trio (2/5) had no short way that turns the dial backwards
+  // and leaned on pillars, so the route was forced; they go. The duo comes second, and the rest of the chapter is drawn with the sketch's
+  // TRICK (a trap and a blind side) and at most two pillars.
+  { n: 2, name: "Duo", power: "Q", themes: ["Duos"], draw: [
     ".  b  o  o",
     "PE o  .  o",
     ".  .  #  o",
     "GE o  o  o"],
     aha: "Three singles reach the dial straight down, but turn it backwards. The duo turns it the other way, and it turns only an east-to-south corner, the top one: so the train goes the long way round." },
-  { n: 5, name: "Trio", power: "Q", themes: ["Trios"], draw: [
-    "#  o  o  o  GW",
-    "o  o  #  #  PS",
-    "o  #  #  o  o",
-    "A  o  o  o  #"],
-    aha: "Motor and dial sit back to back in the corner, so the train goes the whole way round. The trio turns the dial just as a single would; it turns only a north-to-east corner, and only the far one is that." },
-  { n: 6, name: "Pair and three", power: "Q", themes: ["Duos", "Trios"], draw: [
+  { n: 3, name: "Blind side", power: "Q", themes: ["Duos"], draw: [
+    "o  o  o  o",
+    "o  PE -  o",
+    "o  o  o  #",
+    ".  .  GN ."],
+    aha: "Two singles from the motor reach the dial, but turn it backwards. Only the straight duo, on the motor's own wheel, puts it right: the train turns back over the top and goes the long way round the motor, past its three blind sides, to come down onto the dial." },
+  { n: 4, name: "Trio", power: "Q", themes: ["Duos", "Trios"], draw: [
+    "o  o  o  o  GS",
+    "|  PE C  o  o",
+    "o  o  o  .  #"],
+    aha: "Three singles from the motor reach the dial, backwards. The duo puts it right, but it fits only on the motor's far side: the trio takes the motor's wheel and turns the train down, under the motor and up through the duo, back across the top. The trio turns the next wheel as a single would; what it adds is its blind sides." },
+  { n: 5, name: "Pair and three", power: "Q", themes: ["Duos", "Trios"], draw: [
     "o  o  o  GW",
     "o  #  B  PW",
     "o  #  o  .",
     "o  o  d  ."],
     aha: "The dial is right above the motor's first wheel, but that way turns it backwards. The duo puts it right and turns only the bottom corner, so the train goes all the way round, and comes home beside the first wheel: only a trio can sit there, meshing just at its ends." },
+  { n: 6, name: "Back to back", power: "Q", themes: ["Duos", "Trios"], draw: [
+    "o  o  c  .  .",
+    "o  #  o  .  .",
+    "o  #  A  GW PS",
+    "o  o  o  o  o"],
+    aha: "Motor and dial stand back to back, so the train goes all the way round: four singles get there, backwards. The duo puts it right in the top corner, and the last wheel must be the trio, turning the corner into the dial while the train passes under it on its blind side." },
   { n: 7, name: "Bench", power: "Q", themes: ["Duos", "Trios"], draw: [
     "_  GE o  #  _",
     "o  PW o  -  o",
@@ -113,12 +114,14 @@ export const PLAN = [
     "GS .  .  o  D",
     "o  o  o  D  ."],
     aha: "Four singles from under the arbor reach the dial, but turn it backwards. The duo that puts it right turns only the top-right corner, so the train leaves the arbor on the left and goes the long way round, the two trios stepping it round the bottom-right corner and under the arbor to the dial." },
+  // 13 Nov 2026: Mainspring (1/5), Escapement (3/5) and Barrel in the middle (2/5) redrawn to the rules the ratings gave (a trap,
+  // blind sides, at most two pillars, no forced spiral)
   { n: 12, name: "Mainspring", power: "M", themes: ["Mechanical", "Duos"], draw: [
-    "_  o  o  o  _",
-    ".  o  GE o  .",
-    ".  o  #  b  PW",
-    "_  o  o  o  _"],
-    aha: "Two wheels reach the escape wheel, and wound they run it backwards. The duo at the barrel sets it right and sends the train down; it goes all the way round and comes home just above the duo, which meshes only the barrel and the wheel below it." },
+    "GS o  o  o",
+    "o  o  b  o",
+    ".  PS o  #",
+    ".  o  o  ."],
+    aha: "Four singles straight up the left reach the escape wheel, and wound they'd run it backwards. The duo sets it right, but it turns only an east-to-south corner: so the train goes down and right, up into the duo from below, out over the top, and back down past the barrel's blind side to the escape wheel." },
   { n: 13, name: "Escape wheel", power: "M", themes: ["Mechanical", "Duos"], draw: [
     "_  .  o  o  _",
     "o  o  |  o  o",
@@ -138,19 +141,19 @@ export const PLAN = [
     "o  o  #  ."],
     aha: "Two wheels run the escape wheel backwards. The duo sets it right but turns only the top-left corner, so the train goes down, round and up the left; the barrel's first wheel must be the straight trio, which the train passes on both sides." },
   { n: 16, name: "Escapement", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
-    "_  o  o  c  _",
-    ".  o  #  A  c",
-    ".  A  PW #  o",
-    ".  #  o  o  o",
-    "_  GE o  #  _"],
-    aha: "The escape wheel is just below the barrel's first wheel, but the way down is shut: the trio at the barrel turns the train up, and a duo, a trio and a duo, a corner each, step it down the right-hand side." },
-  { n: 17, name: "Barrel in the middle", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
-    "_  GE o  #  _",
-    ".  #  o  -  o",
-    ".  B  PW #  o",
-    ".  o  #  B  o",
-    "_  o  -  o  _"],
-    aha: "The escape wheel's square is two above the barrel, but the barrel faces left and nothing beside it meshes: the train spirals once right round the barrel to get there." },
+    "_  o  PW .  _",
+    "o  o  #  .  .",
+    "o  -  o  o  .",
+    "B  o  #  o  .",
+    "GN o  o  o  ."],
+    aha: "The escape wheel's last wheel must be the trio, turning the corner from above; five singles get there backwards. The straight duo sets it right, but it meshes only across: the train comes down the left, crosses through the duo, and loops round the right and back along the bottom, passing the duo's and the trio's blind sides, to come into the trio from its right." },
+  { n: 17, name: "Going train", power: "M", themes: ["Mechanical", "Duos", "Trios"], draw: [
+    "_  o  o  o  _",
+    ".  o  #  o  #",
+    ".  o  .  a  o",
+    ".  o  PE o  !",
+    ".  o  o  o  GN"],
+    aha: "The barrel's wheel and the straight trio reach the escape wheel at once, and wound they'd run it backwards. The duo's corner sets it right, but it sits just above the barrel's wheel and doesn't mesh it: the train leaves the other way, along the bottom, up the left and over the top, down into the duo, and through the trio past the barrel's wheel to the escape wheel." },
 ];
 
 /** A drawn level as level data. */
@@ -253,8 +256,10 @@ if (mode === "sketch") {
   for (let k = Number(args[5] || 0), t0 = Date.now(); k < Number(args[5] || 0) + tries && Date.now() - t0 < 280000; k++) {
     const res = forgeLevel(mixSeed(1, k, 77), recipe);
     if (!res) continue;
-    const pic = picture(res.spec), g = { k, nodes: res.nodes, pic, idle: pic.join(" ").split(/\s+/).filter(t => t === ".").length, ...trickOf(res.spec) };
-    if (!process.env.TRICK || (g.trap && g.touch)) got.push(g);
+    const pic = picture(res.spec), toks = pic.join(" ").split(/\s+/), g = { k, nodes: res.nodes, pic, idle: toks.filter(t => t === ".").length, pillars: toks.filter(t => t === "#").length, ...trickOf(res.spec) };
+    // Korbi's ratings, 13 Nov 2026: every level he liked has a short way that turns the dial backwards, and few pillars (a route the
+    // pillars force is no puzzle): TRICK keeps only those with a trap and a blind side, PILLARS caps the pillars
+    if ((!process.env.TRICK || (g.trap && g.touch)) && (!process.env.PILLARS || g.pillars <= Number(process.env.PILLARS))) got.push(g);
   }
   got.sort((a, b) => (process.env.HARD ? b.nodes - a.nodes : a.idle - b.idle || b.nodes - a.nodes));   // the fewest squares left idle first, or the hardest
   console.log(`${got.length} of ${tries}`);
