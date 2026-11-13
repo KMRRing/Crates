@@ -43,6 +43,13 @@ export const HOW_STAR = [
   ["A line, and then a fix", "The intercept is drawn across the chart at right angles to the star's bearing: you are somewhere along that line. A second star in another quarter makes a second line, and you are where they cross."],
   ["The clock and the light", "A star in the east or west climbs fastest, so a wrong chronometer moves its line: two stars show which way the clock errs. A light, when it is in sight, is a line too: take its compass bearing."],
 ];
+/** How the lead is cast, for the first voyage of the lead's chapter and the menu. */
+export const HOW_LEAD = [
+  ["The lead", "On a coast whose bottom is charted, Lead heaves the ship to and casts the deep-sea lead: a quarter of an hour of the watch, once a watch, by day or night."],
+  ["A depth is a line", "The chart's soundings and dotted contours show the bottom. The depth you find puts you on its contour: where the bottom shelves up to the coast, that says how far off the land you are, which is how far you have run."],
+  ["Read it against a fix", "A flat bottom says nothing, and a bank has the same depth on both its sides. Take your stars first and sound after: a depth far from the reckoning is not plotted."],
+  ["The bottom", "Tallow in the lead's foot brings up the bottom: rock on a ledge, sand and shell on a bank, mud in a hole, gravel close to the land. The chart prints the same words beside its soundings."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

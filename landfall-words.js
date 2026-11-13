@@ -4,6 +4,7 @@ import { levelOf, estPlace, sceneJd, shipClock, reckonedNoonJd, expectedCatchJd,
 import { STARS } from "./landfall-stars.js";
 import { ellipse, dist } from "./landfall-model.js";
 import { starAltAz, polarisAlmanac, polarisLatitude, toLatLon, placeOfDate, norm360, sunPlace, sunSemidiameter, calendar } from "./landfall-sky.js";
+import { leadsmanCall } from "./landfall-bed.js";
 
 const pad = (n, w = 2) => String(n).padStart(w, "0");
 
@@ -143,6 +144,7 @@ export function revealWords(S) {
   if (!p || !p.accepted) return "";
   const fog = () => `Now north-south ±${fmtNm(fogNS(p.after.P))} (was ${fmtNm(fogNS(p.before.P))}), east-west ±${fmtNm(fogEW(p.after.P))} (was ${fmtNm(fogEW(p.before.P))}).`;
   if (p.light) return `The light bears ${fmtCourse(p.observed)} by the compass. ${fog()}`;
+  if (p.sound) return `${p.depth} fathoms: the ship is somewhere on that depth's contour, ruled on the chart. ${fog()}`;
   if (p.lop) return `${starLabel(BY_HR.get(p.hr))}: the ship is ${fmtNm(p.z)} ${p.z >= 0 ? "toward it" : "away from it"} of where you reckoned. ${fog()}${p.more ? " Take a second star standing well apart from it, and the two lines make a fix." : ""}`;
   if (p.sun) {
     const got = [p.latOk && `latitude ${fmtLat(p.lat)}`, p.lonOk && `longitude ${fmtLon(p.lon)}`].filter(Boolean).join(", ");
@@ -156,6 +158,7 @@ export function revealWords(S) {
 export function refusedWords(S) {
   const p = S.watch.plot;
   if (p.light) return `The light's line is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: is the compass right? Is it the light you think?`;
+  if (p.sound) return `${p.depth} fathoms is nowhere near the reckoning: the nearest such depth is ${fmtNm(Math.abs(p.z))} off it, and the fog allows ${fmtNm(p.gate)}. It is not plotted: the other side of a bank? Fix by the stars, and the next cast will say.`;
   if (p.lop) return `This line is ${fmtNm(Math.abs(p.z))} ${p.z >= 0 ? "toward" : "away from"} ${starLabel(BY_HR.get(p.hr))} of the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: was it that star, was the horizon right, was the reading? Take it again, or throw it away.`;
   if (p.sun) {
     const bits = [p.zLat !== undefined && `The latitude is ${fmtNm(Math.abs(p.zLat))} ${p.zLat >= 0 ? "north" : "south"} of the reckoning (the fog allows ${fmtNm(p.gateLat)})`,
@@ -165,12 +168,24 @@ export function refusedWords(S) {
   return `This latitude is ${fmtNm(Math.abs(p.z))} ${p.z >= 0 ? "north" : "south"} of the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: was it Polaris, was the horizon right, was the reading? Take it again, or throw it away.`;
 }
 
+/** What the lead brought up, in the leadsman's words and the navigator's: the call, the bottom, and what it means for the plot. */
+export function soundWords(S, r) {
+  const W = S.watch, s = W.sound, L = levelOf(S);
+  if (!s) return "";
+  if (s.none) return `"No bottom with this line!" Past ${L.bed.line} fathoms: well out from the coast.`;
+  const call = `"${leadsmanCall(s.depth)}!" ${s.bottom[0].toUpperCase()}${s.bottom.slice(1)} on the tallow.`;
+  if (s.flat) return `${call} The bottom is flat here: the depth says nothing of where on it you are.`;
+  if (s.off) return `${call} ${refusedWords(S)}`;
+  return call;
+}
+
 /** The first words of the steering line: what the watch's sights made. */
 export function steerHead(S) {
   const W = S.watch, p = W.plot, names = (W.lops || []).map(h => starLabel(BY_HR.get(h))).join(" and ");
   if (W.lops?.length || W.lines?.length) {
-    const lines = (W.lops?.length || 0) + (W.lines || []).filter(l => l.kind === "light").length;
-    return `<b>${lines > 1 ? "A fix" : "One line"}${names ? ` from ${names}` : ""}${W.lines?.some(l => l.kind === "light") ? `${names ? " and" : " from"} the light` : ""}.</b> `;
+    const extra = [W.lines?.some(l => l.kind === "light") && "the light", W.lines?.some(l => l.kind === "depth") && "the lead"].filter(Boolean);
+    const lines = (W.lops?.length || 0) + (W.lines || []).filter(l => l.kind === "light" || l.kind === "depth").length, from = [names, ...extra].filter(Boolean);
+    return `<b>${lines > 1 ? "A fix" : "One line"}${from.length ? ` from ${from.slice(0, -1).join(", ")}${from.length > 1 ? " and " : ""}${from.at(-1)}` : ""}.</b> `;
   }
   return p?.accepted ? `<b>Latitude ${fmtLat(p.lat)}.</b> ` : p?.discarded ? "The sight is thrown away. " : "No sight this watch. ";
 }

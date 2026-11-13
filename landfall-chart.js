@@ -1,9 +1,10 @@
 // The chart on the desk, drawn on a canvas 2D: engraved linework on parchment, the graticule with its two scales (the side scale in
 // minutes of latitude is the nautical mile; the foot scale in minutes of longitude is shorter by the cosine of the latitude, which is
-// the longitude trap), the invented coast, banks and harbour, the pencilled track, the fog as an ellipse, the line of position, the
+// the longitude trap), the invented coast, banks and harbour, the surveyed bottom where it is charted, the pencilled track, the fog as an ellipse, the line of position, the
 // dividers and the course to steer. Pure drawing from a scene: no state, no clock.
-import { ellipse, vec } from "./landfall-model.js";
+import { ellipse, vec, inside } from "./landfall-model.js";
 import { fromLatLon } from "./landfall-sky.js";
+import { depthAt, bottomAt, BOTTOM_ABBR } from "./landfall-bed.js";
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200];     // arcminutes between graticule lines
@@ -42,6 +43,70 @@ function label(ctx, text, x, y, size, pal, { italic = false, align = "center", h
   ctx.font = `${italic ? "italic " : ""}${size}px ${pal.serif}`; ctx.textAlign = align; ctx.textBaseline = "middle";
   if (halo) { ctx.lineWidth = 3; ctx.strokeStyle = pal.paper; ctx.globalAlpha = 0.8; ctx.strokeText(text, x, y); ctx.globalAlpha = 1; }
   ctx.fillStyle = color || pal.ink; ctx.fillText(text, x, y);
+}
+
+// ---------- the bottom: soundings and contours ----------
+// The depths are sampled on a grid of the screen (kept while the chart stands still: a reveal redraws every frame), and each contour is
+// traced through it by marching squares: a cell whose corners lie both sides of the depth carries a piece of its line.
+let bedGrid = null;
+function gridOf(L, cam, w, h, k) {
+  const key = `${L.id}|${cam.cx.toFixed(3)}|${cam.cy.toFixed(3)}|${cam.s.toFixed(4)}|${w}|${h}`;
+  if (bedGrid?.key === key) return bedGrid;
+  const cell = 14 * k, nx = Math.ceil(w / cell) + 1, ny = Math.ceil(h / cell) + 1, v = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) v[j * nx + i] = depthAt(L, toWorld(cam, w, h, i * cell, j * cell));
+  bedGrid = { key, cell, nx, ny, v };
+  return bedGrid;
+}
+/** The pieces of a depth's contour on the grid, as [x1, y1, x2, y2] in px. */
+function contour(G, z) {
+  const { cell, nx, ny, v } = G, out = [];
+  const at = (a, b, i0, j0, i1, j1) => { const t = (z - a) / (b - a); return [(i0 + (i1 - i0) * t) * cell, (j0 + (j1 - j0) * t) * cell]; };
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = v[j * nx + i], b = v[j * nx + i + 1], c = v[(j + 1) * nx + i + 1], d = v[(j + 1) * nx + i];
+    const pts = [];
+    if ((a < z) !== (b < z)) pts.push(at(a, b, i, j, i + 1, j));
+    if ((b < z) !== (c < z)) pts.push(at(b, c, i + 1, j, i + 1, j + 1));
+    if ((c < z) !== (d < z)) pts.push(at(c, d, i + 1, j + 1, i, j + 1));
+    if ((d < z) !== (a < z)) pts.push(at(d, a, i, j + 1, i, j));
+    if (pts.length === 2) out.push([...pts[0], ...pts[1]]);
+    else if (pts.length === 4) out.push([...pts[0], ...pts[1]], [...pts[2], ...pts[3]]);
+  }
+  return out;
+}
+/** The surveyed bottom: dotted contours at 5, 10, 20, 50 and 100 fathoms, a sounding every so often with its bottom now and then, and the banks' names. */
+function drawBed(ctx, L, cam, w, h, k, pal) {
+  const G = gridOf(L, cam, w, h, k), S = p => toScreen(cam, w, h, p);
+  ctx.save(); ctx.strokeStyle = pal.ink; ctx.lineWidth = 1 * k; ctx.lineCap = "round";
+  for (const [z, dash, al] of [[5, [1, 3], 0.4], [10, [1, 3], 0.32], [20, [1, 2.2, 1, 5], 0.3], [50, [5, 3, 1, 3], 0.26], [100, [6, 4], 0.22]]) {
+    ctx.globalAlpha = al; ctx.setLineDash(dash.map(x => x * k)); ctx.beginPath();
+    for (const [x1, y1, x2, y2] of contour(G, z)) { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+    ctx.stroke();
+  }
+  ctx.restore();
+  // the soundings: on a grid of whole miles, so they keep their places as the chart moves, each nudged a little as a surveyor's would be
+  const step = [1, 2, 5, 10, 20, 50].find(x => x * cam.s >= 46 * k) || 100, wb = toWorld(cam, w, h, 0, h), wt = toWorld(cam, w, h, w, 0);
+  const hash = (i, j) => { const x = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return x - Math.floor(x); };
+  ctx.save(); ctx.fillStyle = pal.ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (let i = Math.floor(wb[0] / step); i <= Math.ceil(wt[0] / step); i++) for (let j = Math.floor(wb[1] / step); j <= Math.ceil(wt[1] / step); j++) {
+    const p = [(i + 0.6 * (hash(i, j) - 0.5)) * step, (j + 0.6 * (hash(j, i) - 0.5)) * step];
+    if ((L.land || []).some(poly => inside(p, poly))) continue;
+    const [x, y] = S(p);
+    if (x < 44 * k || x > w - 8 * k || y < 10 * k || y > h - 20 * k) continue;
+    const z = depthAt(L, p);
+    ctx.globalAlpha = 0.55; ctx.font = `italic ${10 * k}px ${pal.serif}`; ctx.fillText(z > L.bed.line ? `${L.bed.line}+` : String(Math.round(z)), x, y);
+    if (hash(i + 7, j + 3) < 0.3) { ctx.globalAlpha = 0.4; ctx.font = `italic ${8 * k}px ${pal.serif}`; ctx.fillText(BOTTOM_ABBR[bottomAt(L, p)] || "", x, y + 9 * k); }
+  }
+  ctx.restore();
+  for (const b of L.bed.banks || []) if (b.name) { const [x, y] = S([b.x, b.y]); label(ctx, b.name, x, y - 12 * k, 11 * k, pal, { italic: true, color: pal.pencil }); }
+}
+/** A sounding's line: its depth's contour, near where it was plotted, drawn in as far as `t` (0 to 1) of the way out from its point. */
+function drawDepthLine(ctx, L, cam, w, h, k, pal, ln, t) {
+  const G = gridOf(L, cam, w, h, k), [px, py] = toScreen(cam, w, h, ln.p), reach = Math.min(Math.hypot(w, h), 60 * cam.s) * t;
+  ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k; ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
+  ctx.beginPath();
+  for (const [x1, y1, x2, y2] of contour(G, ln.depth)) if (Math.hypot(x1 - px, y1 - py) <= reach) { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+  ctx.stroke(); ctx.restore();
+  label(ctx, `${ln.depth} fm`, px + 10 * k, py - 10 * k, 11 * k, pal, { italic: true, color: pal.ink, align: "left" });
 }
 
 /**
@@ -92,6 +157,7 @@ export function drawChart(ctx, w, h, sc) {
     ctx.restore();
     ctx.lineWidth = 1.6 * k; ctx.strokeStyle = pal.ink; ctx.lineJoin = "round"; ctx.stroke(path);
   }
+  if (L.bed) drawBed(ctx, L, cam, w, h, k, pal);
   // the banks
   for (const s of L.shoals || []) {
     const [x, y] = S([s.x, s.y]), r = Math.max(4 * k, s.r * cam.s);
@@ -176,6 +242,7 @@ export function drawChart(ctx, w, h, sc) {
   // the lines of this watch's star sights and the light's bearing, ruled across the chart; the newest draws itself in from its point
   for (const [i, ln] of (sc.lines || []).entries()) {
     const a = S(ln.p), d = [ln.dir[0], -ln.dir[1]], far = Math.hypot(w, h) * 1.6, t = i === sc.lines.length - 1 ? clamp(sc.lineT ?? 1, 0, 1) : 1;
+    if (ln.kind === "depth" && L.bed) { drawDepthLine(ctx, L, cam, w, h, k, pal, ln, t); continue; }
     ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k; ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
     if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]);
     ctx.beginPath(); ctx.moveTo(a[0] - d[0] * far * t, a[1] - d[1] * far * t); ctx.lineTo(a[0] + d[0] * far * t, a[1] + d[1] * far * t); ctx.stroke(); ctx.restore();

@@ -64,7 +64,7 @@ export function shipMotion(t, swell = 0.6, storm = 0, reduced = false) {
   };
 }
 /** The wind, 0 (a breath) to 1 (a gale): the swell and the weather between them. */
-export const windOf = (swell = 0.6, weather = "clear") => clamp(0.16 + 0.34 * swell + (weather === "swell" ? 0.2 : 0) + (weather === "storm" ? 0.55 : 0) + (weather === "cloud" ? 0.08 : 0), 0, 1);
+export const windOf = (swell = 0.6, weather = "clear") => clamp(0.16 + 0.34 * swell + (weather === "swell" ? 0.2 : 0) + (weather === "storm" ? 0.55 : 0) + (weather === "cloud" || weather === "thick" ? 0.08 : 0), 0, 1);
 
 // ---------- the stars ----------
 /**

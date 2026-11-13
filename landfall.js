@@ -16,10 +16,10 @@ import * as sx from "./landfall-sextant.js";
 import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart } from "./landfall-chart.js";
 import { sound } from "./landfall-sound.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
-import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
-  sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable,
+  sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable, soundWords,
 } from "./landfall-words.js";
 import { scale, sideways } from "./wide.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
@@ -35,7 +35,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -398,6 +398,12 @@ function after(m, prev, r) {
     case "light":
       if (r.accepted) { startReveal(); learn("light"); } else note = refusedWords(S);
       break;
+    case "sound":
+      learn("sound");
+      note = soundWords(S, r);
+      sound.lead(S.watch.sound?.none ? null : S.watch.sound?.depth);
+      if (r.accepted) startReveal();
+      break;
     case "read":
       if (isDay() && r.stage) {
         const s = S.watch.sun, rec = r.stage === "morning" ? s.m1 : r.stage === "noon" ? s.noon : s.aft;
@@ -420,6 +426,7 @@ function arrive(prev) {
   if (S.phase === "ritual" && day) { const sun = skyData().sun; view.az = free.az = Math.round(sun.az); free.alt = 35; }       // look where the sun is
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
   if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
+  else if (L.bed && prev === "ritual" && !read(KEY.seenLead, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lead"); }, 350);
   if (S.phase === "ritual" && prev !== "ritual") { if (L.origin.lat < 0) learn("south"); if (S.watch.weather === "storm") learn("gale"); }
   sound.place(L.origin.lat); sound.conditions(S.watch.weather);
   sound.day(day && S.phase !== "end");
@@ -451,7 +458,7 @@ function lookFor(prev) {
 }
 function startReveal() {
   const p = S.watch.plot;
-  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
+  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light || p.sound ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
   retarget();
 }
 
@@ -677,13 +684,14 @@ function renderTools() {
         const st = sunStage(S), spent = W.min >= maxWait(S);
         const label = { morning: "Morning sight", noon: "Noon altitude", afternoon: "Catch the sun", done: "Sextant" }[st];
         const [wt, wf] = st === "noon" ? ["To noon", () => waitUntil(reckonedNoonJd(S) - 3 / 1440)] : st === "afternoon" ? ["To the catch", () => waitUntil(expectedCatchJd(S) - 8 / 1440)] : ["Wait", () => { ff += 5; wake(); }];
-        acts.append(button(wt, wf, "lf-btn", { disabled: spent }), button(label, () => go({ t: "raise" }), "lf-btn go", { disabled: !can("raise") || st === "done" }));
+        acts.append(button(wt, wf, "lf-btn", { disabled: spent }), ...leadButton(), button(label, () => go({ t: "raise" }), "lf-btn go", { disabled: !can("raise") || st === "done" }));
         auxFixed();
         break;
       }
       acts.append(
         button("Wait", () => { ff += 5; wake(); }, "lf-btn", { disabled: W.min >= MAX_WAIT + 30 }),
         button(W.bearing ? "Compass ✓" : "Compass", () => go({ t: "bearing" }), "lf-btn", { disabled: !can("bearing") }),
+        ...leadButton(),
         button("Sextant", () => go({ t: "raise" }), "lf-btn go", { disabled: !can("raise") }),
       );
       auxFixed();
@@ -698,6 +706,7 @@ function renderTools() {
       break;
     case "steer":
       acts.append(
+        ...leadButton(),
         button("Heave to", () => go({ t: "heave", course: S.ui.course }), "lf-btn", { disabled: !can("heave") }),
         button("Sail", () => go({ t: "sail", course: S.ui.course }), "lf-btn go", { disabled: !can("sail") }),
       );
@@ -708,6 +717,11 @@ function renderTools() {
       auxFixed();
       break;
     default: break;
+  }
+  /** The lead, on a level whose bottom is charted: cast once a watch, ticked once it has been. */
+  function leadButton() {
+    if (!levelOf(S).bed) return [];
+    return [button(W.sound ? "Lead ✓" : "Lead", () => go({ t: "sound" }), "lf-btn", { disabled: !can("sound"), label: "Heave to and cast the lead" })];
   }
   function auxFixed() {
     const L = levelOf(S), lit = !isDay() && L.light && S.phase === "find";
@@ -887,10 +901,10 @@ function openNotes() {
 }
 /** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
 function openHelp(sun = false) {
-  const rows = sun === true ? HOW_SUN : sun === "star" ? HOW_STAR : HOW;
-  $("helpTitle").textContent = sun === true ? "How the sun is taken" : sun === "star" ? "Any star, and the intercept" : "How a sight works";
+  const rows = sun === true ? HOW_SUN : sun === "star" ? HOW_STAR : sun === "lead" ? HOW_LEAD : HOW;
+  $("helpTitle").textContent = sun === true ? "How the sun is taken" : sun === "star" ? "Any star, and the intercept" : sun === "lead" ? "The lead" : "How a sight works";
   $("helpBody").replaceChildren(...rows.map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
-  write(sun === true ? KEY.seenSun : sun === "star" ? KEY.seenStar : KEY.seen, 1);
+  write(sun === true ? KEY.seenSun : sun === "star" ? KEY.seenStar : sun === "lead" ? KEY.seenLead : KEY.seen, 1);
   $("helpDlg").showModal();
 }
 for (const [btn, dlg] of [["notesClose", "notesDlg"], ["almanacClose", "almanacDlg"], ["logClose", "logDlg"], ["codexClose", "codexDlg"], ["helpClose", "helpDlg"], ["helpOk", "helpDlg"]]) $(btn).addEventListener("click", () => $(dlg).close());
@@ -913,7 +927,7 @@ function openMenu() {
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
-  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"));
+  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -941,7 +955,7 @@ function pushWorld(now) {
   if (key !== worldKey) { worldKey = key; stage.refreshSky(); }
   if (clouds.length || sc._clouds) { stage.setClouds(); sc._clouds = clouds.length; }
 }
-let lastRoll = 0, rollDir = 0, weatherSent = -1;
+let lastRoll = 0, rollDir = 0, lastPitch = 0, pitchDir = 0, weatherSent = -1;
 /** The sea's sound follows the deck: the weather sets the wind, and each extreme of the roll may bring a creak. */
 function soundOfSea() {
   const sc = stage.scene.S, w = windOf(sc.swell, sc.weather);
@@ -950,6 +964,11 @@ function soundOfSea() {
   if (dir && rollDir && dir !== rollDir) sound.roll(Math.abs(lastRoll));
   if (dir) rollDir = dir;
   lastRoll = r;
+  // the bow at the bottom of its dip: the bow wave surges
+  const p = stage.scene.motion.pitch, pd = Math.sign(p - lastPitch);
+  if (pd > 0 && pitchDir < 0 && lastPitch < -0.2) sound.surge(Math.min(1, -lastPitch / 1.5));
+  if (pd) pitchDir = pd;
+  lastPitch = p;
 }
 const stageHooks = {
   reduced: reducedMotion,

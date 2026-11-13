@@ -9,11 +9,15 @@
 //     sight   the sextant                                    book   the reduction; plot it, retake it or throw it away
 //     steer   a heading, then the next leg                   end    arrived, grounded or missed
 //
+// On a level with a charted bottom (`bed`, landfall-bed.js) the lead may be cast once a watch, by day or night: the ship heaves to for a
+// quarter of an hour, the depth comes up, and a sloping bottom makes it a line along the depth's contour.
+//
 // Hidden from the player: the true position T, the compass's true error, the log's, the set and drift, the horizon's error.
 // Shown: the estimate E and its fog P (model.js). Every sight is a noisy measurement of one direction, folded in by a Kalman filter.
 import { STARS } from "./landfall-stars.js";
 import { levelById } from "./landfall-levels.js";
 import { FIND } from "./landfall-finds.js";
+import { depthAt, bottomAt } from "./landfall-bed.js";
 import { draw, gaussAt, rng, vec, rad, bearing, dist, fogOf, copyP, addP, legNoise, fold, firstEvent, enters, nearest, norm180 } from "./landfall-model.js";
 import {
   julianDate, starAltAz, sunAltAz, dip, refraction, sextantReading, toLatLon, fromLatLon, polarisAlmanac, sunPlace, sunReading, sunObservedAltitude,
@@ -157,12 +161,13 @@ function runLeg(S, course, speedFactor) {
   const day = kind === "noon";
   S.watch = {
     min: 0, picked: day ? SUN : null, marks: [], retakes: 0, bearing: null, book: null, plot: null, ritual: null, weather: wx, kind,
-    hUnit: r.g(), swell: [r.u() * 6.28, r.u() * 6.28], clouds: wx === "cloud" || wx === "storm" ? (day ? makeSunClouds(r) : makeClouds(r)) : [],
+    hUnit: r.g(), swell: [r.u() * 6.28, r.u() * 6.28], clouds: wx === "cloud" || wx === "storm" ? (day ? makeSunClouds(r) : makeClouds(r)) : wx === "thick" ? (day ? makeSunClouds(r) : makeThick(r)) : [],
     ...(day ? { sun: { m1: null, noon: null, aft: null }, stage: null } : {}),
     ...(L.lop && !day ? { lops: [], lines: [], targets: [] } : {}),
+    ...(L.bed ? { sound: null } : {}),
   };
   if (L.lop && !day) S.watch.targets = chooseTargets(S);
-  if (L.light && !day) S.watch.light = { seen: dist(S.T, [L.light.x, L.light.y]) <= L.light.range * (wx === "haze" ? 0.7 : wx === "storm" ? 0.6 : 1), done: false };
+  if (L.light && !day) S.watch.light = { seen: dist(S.T, [L.light.x, L.light.y]) <= L.light.range * (wx === "haze" ? 0.7 : wx === "storm" ? 0.6 : wx === "thick" ? 0.8 : 1), done: false };
   S.phase = "ritual";
   return { ok: true };
 }
@@ -207,6 +212,13 @@ function makeClouds(r) {
   return [{ x0: r0 - v * m0, y: 0, r: r0, v }, { x0: -r1 - v * m1, y: 0, r: r1, v }, { x0: -40, y: 22, r: 12, v: 1.4 }, { x0: 30 + r.u() * 20, y: -26, r: 15, v: -1.1 }];
 }
 
+/** Thick weather: banks of cloud in three rows all round the sky, drifting, so that a gap opens here and there and closes again. */
+function makeThick(r) {
+  const out = [];
+  for (const [y, n, rr] of [[-36, 5, 24], [-10, 4, 26], [18, 3, 26]]) for (let i = 0; i < n; i++) out.push({ x0: (i / n) * 200 + r.u() * 30 - 100, y: y + (r.u() - 0.5) * 8, r: rr + r.u() * 6, v: 0.8 + r.u() * 0.8 });
+  return out;
+}
+
 /** Clouds that cross the sun: discs that pass over it at a time of their own, so that a gap is there and then is not (the hazard of the day). */
 function makeSunClouds(r) {
   const out = [];
@@ -220,7 +232,7 @@ function makeSunClouds(r) {
 /** The sun, the horizon and the stars at this moment of the watch, and the noise they give a sight. */
 export function conditions(S) {
   const jd = sceneJd(S), p = truePlace(S), sun = sunAltAz(jd, p.lat, p.lon).alt, wx = S.watch.weather, day = S.watch.kind === "noon";
-  const haze = wx === "haze" ? 1 : wx === "storm" ? 0.8 : 0;
+  const haze = wx === "haze" ? 1 : wx === "storm" ? 0.8 : wx === "thick" ? 0.4 : 0;
   const hf = sun >= -9 ? 1 : sun >= -12 ? 1 + (-9 - sun) / 3 : sun >= -16 ? 2 + (-12 - sun) : 6;
   const limMag = day ? -2 : Math.max(-2, Math.min(6.2, 2.0 + (-5.5 - sun) * 0.45)) - 0.7 * haze;
   return { jd, sun, limMag, horizon: sun >= -16 && (day || sun <= 6), horizonFactor: hf * (1 + 0.8 * haze), swell: levelOf(S).swell * (wx === "swell" ? 2 : wx === "storm" ? 2.4 : 1) * (1 + 0.25 * haze), weather: wx };
@@ -407,7 +419,9 @@ export function chooseTargets(S) {
     if (!s[8] || s[5] > 1.8 || s[5] > lim - 0.2 || (pool && !pool.has(s[0]))) continue;
     const a = starAltAz(s, jd, p.lat, p.lon);
     if (a.alt < 22 || a.alt > 66) continue;
-    c.push({ hr: s[0], az: a.az, mag: s[5], cost: s[5] + (a.alt < 28 || a.alt > 60 ? 0.6 : 0) });
+    // on a level with soundings the lead says how far along the course: a star abeam is the one that crosses it
+    const abeam = L.bed && S.leg ? 1.6 * Math.abs(Math.cos((a.az - S.leg.course) * Math.PI / 180)) : 0;
+    c.push({ hr: s[0], az: a.az, mag: s[5], cost: s[5] + (a.alt < 28 || a.alt > 60 ? 0.6 : 0) + abeam });
   }
   c.sort((x, y) => x.cost - y.cost);
   if (!c.length) return [];
@@ -465,6 +479,46 @@ function plotLight(S) {
   return { ok: true, accepted: true, z, observed };
 }
 
+/** A cast of the deep-sea lead (`CAST_MIN` minutes hove to). The depth is a line along its contour, where the bottom slopes enough to
+ *  say which contour. A contour bends and the shelf flattens out to sea, so the depth is not folded in as a straight line at the
+ *  reckoning: the fog is searched across, along the way the bottom slopes, for where that depth lies (the prior times the
+ *  sounding's likelihood, point by point), and the answer's mean and spread are folded in as the one line that gives them. */
+export const CAST_MIN = 15;
+function castLead(S) {
+  const L = levelOf(S), W = S.watch, B = L.bed, r = rng(S), before = { E: [...S.E], P: copyP(S.P) };
+  W.min = Math.min(maxWait(S), W.min + CAST_MIN);
+  if (W.kind === "noon") settleSun(S);
+  const truth = depthAt(L, S.T);
+  if (truth > B.line) { W.sound = { none: true, line: B.line }; return { ok: true, bottom: false, line: B.line }; }
+  const sd = 0.4 + 0.03 * truth, raw = truth + sd * r.g(), depth = Math.max(0.5, raw > 20 ? Math.round(raw) : Math.round(raw * 4) / 4);
+  W.sound = { depth, bottom: bottomAt(L, S.T) };
+  // which way the bottom slopes across the fog (not at its middle: the reckoning may sit on a bank's top, or ashore)
+  const E = S.E, D = q => depthAt(L, q, true), sx = Math.min(12, Math.max(0.1, Math.sqrt(S.P[0][0]))), sy = Math.min(12, Math.max(0.1, Math.sqrt(S.P[1][1])));
+  const g = [(D([E[0] + sx, E[1]]) - D([E[0] - sx, E[1]])) / (2 * sx), (D([E[0], E[1] + sy]) - D([E[0], E[1] - sy])) / (2 * sy)], gn = Math.hypot(g[0], g[1]);
+  if (gn < 0.04) { W.sound.flat = true; return { ok: true, depth, flat: true }; }
+  const a = [g[0] / gn, g[1] / gn], s = Math.sqrt(Math.max(0.01, a[0] * a[0] * S.P[0][0] + 2 * a[0] * a[1] * S.P[0][1] + a[1] * a[1] * S.P[1][1]));
+  const err = Math.hypot(sd, 0.3);
+  let w = 0, m1 = 0, m2 = 0, best = Infinity;
+  for (let i = -64; i <= 64; i++) {
+    const t = i / 16 * s, dd = (D([E[0] + t * a[0], E[1] + t * a[1]]) - depth) / err, wt = Math.exp(-0.5 * ((t / s) ** 2 + dd * dd));
+    w += wt; m1 += wt * t; m2 += wt * t * t; best = Math.min(best, Math.abs(dd));
+  }
+  if (best > 3.5 || w < 1e-12) { W.sound.off = true; W.plot = { accepted: false, sound: true, z: 4 * s, gate: 2.5 * s, off: true, depth }; return { ok: true, accepted: false, depth }; }
+  const m = m1 / w, v = Math.max(1e-3, m2 / w - m * m), s2 = s * s;
+  // a depth that lies only far out in the fog is more likely the other side of a bank than a reckoning that wrong: refused, like a star
+  if (Math.abs(m) > 2.5 * s) { W.sound.off = true; W.plot = { accepted: false, sound: true, z: m, gate: 2.5 * s, off: true, depth }; return { ok: true, accepted: false, depth }; }
+  if (v >= 0.97 * s2) { W.sound.flat = true; return { ok: true, depth, flat: true }; }
+  const sig2 = s2 * v / (s2 - v), z = m * (s2 + sig2) / s2, f = fold(E, S.epsE ?? 0, S.P, a, 0, Math.sqrt(sig2), z);
+  S.E = f.E; S.P = f.P; if (S.clock) S.epsE = f.epsE;
+  const line = { p: [before.E[0] + a[0] * z, before.E[1] + a[1] * z], dir: [a[1], -a[0]], kind: "depth", depth };
+  W.lines = W.lines || []; W.lines.push(line);
+  W.plot = { accepted: true, sound: true, z, gate: 2.5 * s, before, after: { E: [...S.E], P: copyP(S.P) }, line, errorNm: dist(S.E, S.T), depth, more: true };
+  S.fixes.push({ w: S.w, E: [...S.E], lat: null, z: 0, zLon: 0, hours: S.leg.hours, lop: true });
+  if (S.trail.at(-1)?.k === "fix" && S.trail.at(-1).w === S.w) S.trail.pop();
+  S.trail.push({ k: "fix", p: [...S.E], w: S.w });
+  return { ok: true, accepted: true, z, depth };
+}
+
 // ---------- the moves ----------
 
 /** What a phase allows. */
@@ -472,12 +526,14 @@ export function moves(S) {
   const day = S.watch.kind === "noon";
   switch (S.phase) {
     case "ritual": return ["step", "skip"];
-    case "find":
-      if (day) return ["wait", "raise", "skipstage", "skipsight"];
-      return ["wait", "pick", ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), ...(S.watch.light?.seen && !S.watch.light.done ? ["light"] : []), "skipsight"];
+    case "find": {
+      const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [];
+      if (day) return ["wait", "raise", "skipstage", ...lead, "skipsight"];
+      return ["wait", "pick", ...lead, ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), ...(S.watch.light?.seen && !S.watch.light.done ? ["light"] : []), "skipsight"];
+    }
     case "sight": return ["read", "lower", ...(day ? ["wait"] : [])];       // the sun moves while it is watched: the clock runs in the eyepiece
     case "book": return ["plot", "retake", "discard"];
-    case "steer": return ["sail", "heave"];
+    case "steer": return ["sail", "heave", ...(levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [])];     // a cast before she bears away
     default: return [];
   }
 }
@@ -515,6 +571,7 @@ export function apply(S, m) {
       if (W.lops?.includes(m.hr)) return no("that star is already in the book");
       W.picked = m.hr; return { ok: true };
     case "light": return plotLight(S);
+    case "sound": return castLead(S);
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);
       if (!l.visible) return no("the star cannot be seen");

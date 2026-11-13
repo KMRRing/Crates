@@ -45,5 +45,13 @@ for (const [k, f] of Object.entries(CALLS)) {
   check(made.nodes > before, `${k}: makes a sound`);
 }
 check(made.peak <= 0.2, `no single call peaks above 0.2 (loudest ${made.peak.toFixed(3)})`);
+// the bow wave and the rigging: a surge as the bow dips, quiet, and not two within three seconds
+sound.weather(1); made.peak = 0;
+let before = made.nodes; sound.surge(1);
+const once = made.nodes - before; before = made.nodes; sound.surge(1);
+check(once > 0 && made.nodes === before, "the bow's dip makes a surge, and the next dip so soon after makes none");
+check(made.peak <= 0.2, `the surge stays quiet (loudest ${made.peak.toFixed(3)})`);
+made.peak = 0; before = made.nodes; sound.lead(23); const cast = made.nodes - before; before = made.nodes; sound.lead(null);
+check(cast > 20 && made.nodes - before > cast && made.peak <= 0.2, `the lead splashes and runs its line out, longer when it finds no bottom, and stays quiet (loudest ${made.peak.toFixed(3)})`);
 sound.setMuted(true);
 process.exit(bad ? 1 : 0);

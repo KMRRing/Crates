@@ -76,6 +76,8 @@
   font: 750 .8rem var(--font); font-stretch: var(--stretch-btn); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
 .lf-btn.go { background: var(--lf-gilt); border-color: var(--lf-gilt); color: #1d1608; }
 .lf-btn:disabled { opacity: .35; cursor: default; }
+/* four to a row (the lead's levels): tighter, so Compass and Sextant still fit a phone */
+.lf-acts:has(> .lf-btn:nth-child(4)) .lf-btn { padding-inline: .15rem; letter-spacing: 0; font-size: .74rem; }
 .lf-aux { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; margin-top: .35rem; }
 .lf-mini { min-width: 0; min-height: 2.3rem; padding: .2rem .1rem; border: 1px solid rgba(201, 162, 74, .6); border-radius: 4px; background: rgba(0, 0, 0, .22); color: var(--lf-cream);
   font: 700 .66rem var(--font); text-transform: var(--caps); letter-spacing: .05em; cursor: pointer; }

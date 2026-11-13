@@ -6,21 +6,23 @@
 //   confused  careful, but takes another star for Polaris a third of the time
 //   nightowl  careful by night and never takes a sight of the sun: what section 1 taught, and no more
 //   blind     never looks at the sky: dead reckoning only, the floor
+// On a level with a charted bottom the careful bots cast the lead once a watch, after the sights and before making sail: a depth is a
+// contour that rings a bank, so it is read against a good fix rather than against the reckoning alone.
 // By day a bot takes the three sights of a noon watch: a morning altitude at once, the noon altitude at the reckoned noon, and the catch,
 // pressing for the moment the falling sun comes back to the drum with a delay of its own (`late`, `lateSd` game minutes) and a share of the
 // swell it fails to average away (`swing`). The sloppy bot is late, loose and takes one mark.
 import {
-  newVoyage, apply, conditions, look, sextantTruth, BY_HR, levelOf, sunStage, reckonedNoonJd, expectedCatchJd, sceneJd, swellAt, sightNoise, lookSun,
+  newVoyage, apply, moves, conditions, look, sextantTruth, BY_HR, levelOf, sunStage, reckonedNoonJd, expectedCatchJd, sceneJd, swellAt, sightNoise, lookSun,
   POLARIS, POLARIS_HR, MAX_WAIT, CLOCK,
 } from "./landfall-engine.js";
 import { draw, gaussAt, bearing, dist } from "./landfall-model.js";
 import { STARS } from "./landfall-stars.js";
 
 export const BOTS = {
-  careful:  { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0,    retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3 },
+  careful:  { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0,    retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, lead: true },
   sloppy:   { step: 1.6,  centre: 4,   marks: 1, sweet: false, bearing: false, wrong: 0.12, retakes: 0, late: 0.2, lateSd: 0.35, swing: 1 },
-  confused: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0.33, retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3 },
-  nightowl: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0,    retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, noSun: true },
+  confused: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0.33, retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, lead: true },
+  nightowl: { step: 0.15, centre: 0.3, marks: 3, sweet: true,  bearing: true,  wrong: 0,    retakes: 2, drift: true, late: 0.05, lateSd: 0.04, swing: 0.3, noSun: true, lead: true },
   blind:    { blind: true },
 };
 // stars a hurried observer takes for Polaris: the bright ones in the north
@@ -47,7 +49,7 @@ export const driftOf = S => {
 /** Real seconds the sky takes for `min` game minutes: the first ten at the clock's pace, the rest fast-forwarded (a "wait" button, 60 times). */
 export const skySeconds = min => Math.min(min, 10) * 60 / CLOCK + Math.max(0, min - 10);
 /** Seconds a person is assumed to need for each desk action; the sky's own clock is the engine's (CLOCK game seconds per second). */
-export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3 };
+export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12 };
 
 /** The three sights of a noon watch, as a bot takes them. Ends with the watch in the book, or in steering if nothing could be taken. */
 function sunWatch(S, bot, g, take, cur) {
@@ -167,6 +169,7 @@ export function play(levelId, seed, botName) {
         break;
       }
       case "steer": {
+        if (bot.lead && moves(S).includes("sound")) take({ t: "sound" }, SECONDS.sound);
         const course = aim(L, S.E, bot.drift ? driftOf(S) : [0, 0]);
         cur.seconds += SECONDS.steer + SECONDS.sail + (S.watch.kind === "noon" ? 0 : skySeconds(S.watch.min));      // a noon watch has counted its own waits
         cur.fixError = dist(S.E, S.T);                       // how far the estimate is from the truth as the watch ends

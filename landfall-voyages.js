@@ -6,12 +6,13 @@
 //   clock   the chronometer: `err` [least, most] seconds it is wrong by (sign drawn), `sd` what the reckoning trusts it to, `rate` the sd of its drift in seconds a day
 //   light   a lighthouse (made by `sea`): seen only from within `range` nm (less in haze or a gale), it gives a bearing
 //   gale    `legs`: the legs (0 is the first) a storm sets the ship off on by `push` nm sd, which the log cannot show
+//   bed     a charted bottom the lead can be cast on (landfall-bed.js): the shelf off the coast, banks and pits
 // The sea is invented (see landfall-levels.js); the latitudes and longitudes are real so the sky is.
 
 /** The chapters, by `section`. */
 export const SECTIONS = {
   1: "Polaris and the log", 2: "The noon sun", 3: "Two lines", 4: "The chronometer", 5: "The Southern Cross", 6: "Cloud and weather",
-  7: "The lighthouse", 8: "The storm", 9: "The Hanse run",
+  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead",
 };
 
 const R = Math.round;
@@ -32,6 +33,12 @@ function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = 
     ...(light ? { light: { name: light.name, range: light.range, x: lp[0], y: lp[1] } } : {}),
   };
 }
+/** A point `u` nm along `course` from the departure fix and `v` nm to starboard of it, as sea() places things. */
+const spot = (course, u, v) => { const a = course * Math.PI / 180; return [R(10 * (u * Math.sin(a) + v * Math.cos(a))) / 10, R(10 * (u * Math.cos(a) - v * Math.sin(a))) / 10]; };
+/** A bottom that shelves off the coast: four fathoms at the shore, `deep` far out, with banks and pits laid along the approach. */
+const shelf = (course, { deep = 85, width = 30, line = 120, banks = [] } = {}) => ({
+  shore: 4, deep, width, line, banks: banks.map(([u, v, r, top, name]) => { const [x, y] = spot(course, u, v); return { x, y, r, top, ...(name ? { name } : {}) }; }),
+});
 const NAV = [1708, 7001, 5340, 7924, 7557, 1457, 2990, 3982, 5056, 2943, 2061, 1713, 2491, 4301, 4905, 5191, 1017, 1791, 2088, 2891, 1790, 6134];
 const SOUTH = [4730, 4853, 4763, 5267, 5459, 2326, 472, 3685, 7790, 8425, 8728, 6134, 6527, 6879, 6217, 3207, 3307, 6553, 2491];
 const standard = { log: 0.07, compass: [1.5, 3.0], sd: 2, current: 0.5, start: 0.4 };
@@ -191,4 +198,26 @@ export const VOYAGES = [
     origin: { lat: 54.0, lon: 2.5 }, year: 1856, window: [[11, 1], [11, 25]], watches: 5, kinds: "dusk,dawn,dusk,dawn,dusk", lop: 2, pool: NAV, clock: clk(10, 28, 20),
     speed: 5, course0: 222, leg0: 6, hint: 3, swell: 0.8, weather: { clear: 2, haze: 2, cloud: 2 }, errors: { ...standard, log: 0.07, compass: [1.5, 3.0], sd: 2, current: 0.5 },
     ...sea(222, 212, { names: ["Long Sand", "Kentish Knock"], coast: "the Nore", light: { name: "Nore Light", range: 13 } }) },
+  // ---------- section 10: the lead ----------
+  // The deep-sea lead, cast once a watch with the ship hove to: the depth is a line along its contour wherever the bottom slopes.
+  // The shelf off a coast says how far off it you are, which is how far you have run, the thing the log gets wrong.
+  { id: "on-soundings", section: 10, n: 35, name: "On Soundings", place: GREY,
+    blurb: "One star a night, and a log that runs fast. The bottom shelves up to the coast: when the lead finds it, it says how far you have to go.",
+    lesson: "A star across your course says where you are across it; the depth on a shelving bottom says how far along. Together they fix you.",
+    origin: { lat: 56.5, lon: 0.5 }, year: 1856, window: [[9, 1], [10, 5]], watches: 3, kinds: "dusk,dawn,dusk", lop: 1, pool: NAV,
+    speed: 5, course0: 95, leg0: 6, hint: 1, swell: 0.5, weather: { clear: 2, haze: 2 }, errors: { ...standard, log: 0.1, compass: [1.0, 2.0], sd: 1.5, current: 0.5 },
+    ...sea(95, 150, { r: 6.5, names: ["Gull Bank", "Hake Ledge"], coast: "Sandvik" }), bed: shelf(95, { deep: 100, width: 42 }) },
+  { id: "thick-weather", section: 10, n: 36, name: "Thick Weather", place: GREY,
+    blurb: "Cloud for days, with gaps. When the stars will not show, the lead still will: sound every watch and steer by what the bottom says.",
+    lesson: "Cloud hides the sky, not the sea floor. A sounding is a line on any night.",
+    origin: { lat: 57.5, lon: 2.0 }, year: 1856, window: [[11, 1], [12, 5]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 2, pool: NAV,
+    speed: 5, course0: 40, leg0: 6, hint: 2, swell: 0.7, weather: { thick: 5, haze: 1, clear: 1 }, errors: { ...standard, log: 0.09, current: 0.5 },
+    ...sea(40, 185, { r: 6.5, names: ["The Fladen", "Brann Knoll"], coast: "Utvær" }), bed: shelf(40, { deep: 100, width: 40, banks: [[120, -26, 14, 22, "Fladen Ground"]] }) },
+  { id: "the-silver-pit", section: 10, n: 37, name: "The Silver Pit", place: GREY,
+    blurb: "Across the Dogger, a wide bank as flat as a table, with one deep hole in it, the Silver Pit. Find the hole and you know where you are on the bank.",
+    lesson: "A flat bottom says nothing, but a hole in it is a mark: the depth jumps, and the sounding pins you to its edge.",
+    origin: { lat: 54.6, lon: 0.0 }, year: 1856, window: [[10, 10], [11, 15]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV,
+    speed: 5, course0: 70, leg0: 6, hint: 2, swell: 0.7, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, compass: [1.5, 3.0], sd: 2, current: 0.35 },
+    ...sea(70, 165, { r: 7, names: ["Dogger Tail", "Swarte Bank"], coast: "Westerhaven" }),
+    bed: shelf(70, { deep: 70, width: 30, banks: [[85, 0, 46, 13, "the Dogger"], [96, 4, 9, 46, "the Silver Pit"]] }) },
 ];

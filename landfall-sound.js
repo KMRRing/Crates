@@ -1,11 +1,13 @@
 // Landfall's sounds, made as they play (Web Audio: filtered noise and sine partials, no files, so they are there offline).
-//   the bed       water along the hull, wind in the rigging and, now and then, a timber's creak: quiet, always under everything
+//   the bed       water along the hull, wind in the rigging and, now and then, a timber's creak: quiet, always under everything;
+//                 the rigging sings when the wind freshens, and the bow wave surges as she pitches into the swell
 //   the bell      the ship's bell, struck in pairs by the watch system, every half hour of the ship's time
 //   the sight     the bed all but stops while the sextant is up ("no music while the player is measuring")
 //   small things  a mark's click, the chime of a good fix, the hollow knock of a bad ending
+//   the lead      its splash alongside, the line running out over the rail, and the check as it finds the bottom
 // Nothing is made until a tap has unlocked audio, nothing plays while the menu is open or the page is hidden (pause), and with
 // the sound off no audio context is ever made. Two gains sit in front of the speakers: `master`, and `bedGain` for the bed alone.
-let ctx = null, master = null, bedGain = null, bedNodes = null, noiseBuf = null;
+let ctx = null, master = null, bedGain = null, bedNodes = null, noiseBuf = null, bus = null, lastSurge = 0;
 let muted = true, paused = false, bedOn = false, hushed = false, creakTimer = 0, dayOn = false, gullTimer = 0, windLevel = 0.3, lastRollSound = 0;
 const BED_LEVEL = 0.55;      // Korbi, 7 Nov 2026: "a bit too loud" (was 0.9, with master 0.85)
 
@@ -56,9 +58,12 @@ function startBed() {
   bedGain = c.createGain(); bedGain.gain.value = 0.0001; bedGain.connect(master);
   const water = loop(c, { type: "lowpass", freq: 380, q: 0.6, gain: 0.5 }), slosh = loop(c, { type: "bandpass", freq: 170, q: 1.2, gain: 0.3 });
   const wind = loop(c, { type: "bandpass", freq: 620, q: 0.8, gain: 0.07 }), hull = loop(c, { type: "bandpass", freq: 1900, q: 3, gain: 0.012 });
+  // the rigging's song (13 November 2026): stays and shrouds whistle in a fresh wind, two thin tones that waver as the gusts come
+  const sing = [loop(c, { type: "bandpass", freq: 430, q: 38, gain: 0 }), loop(c, { type: "bandpass", freq: 655, q: 44, gain: 0 })];
   const osc = [wobble(c, water.g.gain, 0.12, 0.18), wobble(c, slosh.g.gain, 0.19, 0.2), wobble(c, wind.g.gain, 0.06, 0.05), wobble(c, wind.g.gain, 0.21, 0.025), wobble(c, hull.g.gain, 0.33, 0.01)];
-  for (const n of [water, slosh, wind, hull]) n.g.connect(bedGain);
-  bedNodes = { srcs: [water.src, slosh.src, wind.src, hull.src], osc, wind, water, hull };
+  for (const [i, n] of sing.entries()) osc.push(wobble(c, n.src.playbackRate, 0.07 + 0.05 * i, 0.04));
+  for (const n of [water, slosh, wind, hull, ...sing]) n.g.connect(bedGain);
+  bedNodes = { srcs: [water.src, slosh.src, wind.src, hull.src, ...sing.map(n => n.src)], osc, wind, water, hull, sing };
   setWeather();
   bedGain.gain.setTargetAtTime(hushed ? 0.05 : BED_LEVEL, c.currentTime, 1.4);
   scheduleCreak();
@@ -71,6 +76,8 @@ function setWeather() {
   bedNodes.wind.src.playbackRate.setTargetAtTime((0.9 + 0.5 * w) * region.wind, t, 1.5);
   bedNodes.hull.g.gain.setTargetAtTime(0.012 + 0.03 * w + (sky === "storm" ? 0.03 : 0), t, 1.5);   // rain's hiss rides the hull's high band
   bedNodes.water.g.gain.setTargetAtTime(0.4 + 0.45 * w, t, 1.5);
+  const song = Math.max(0, w - 0.35) ** 2;
+  for (const [i, n] of bedNodes.sing.entries()) n.g.gain.setTargetAtTime(song * (0.5 - 0.15 * i), t, 2.5);
 }
 function stopBed() {
   clearTimeout(creakTimer);
@@ -132,20 +139,20 @@ export const CALLS = {
       const o = c.createOscillator(), g = c.createGain(), t0 = t + k * 0.55;
       o.type = "sine"; o.frequency.setValueAtTime(1700, t0); o.frequency.exponentialRampToValueAtTime(3300, t0 + 0.22); o.frequency.exponentialRampToValueAtTime(2300, t0 + 0.42);
       g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.014, t0 + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
-      o.connect(g).connect(master); o.start(t0); o.stop(t0 + 0.5);
+      o.connect(g).connect(out()); o.start(t0); o.stop(t0 + 0.5);
     }
   },
   /** A flying fish's flick on the water: a short run of splashes. */
   flying(c, t) { for (let i = 0; i < 4; i++) burst(c, t + i * 0.11, { freq: 2400 + Math.random() * 1200, q: 1.2, gain: 0.03, dur: 0.07, type: "highpass" }); },
   /** A bell buoy answering the swell: one dull, flat note with a long tail, a long way off. */
-  buoy(c, t) { [[1, 0.5, 2.8], [2.4, 0.2, 1.6], [0.5, 0.25, 3.4]].forEach(([r, a, d]) => ping(c, t, { freq: 330 * r, gain: 0.028 * a, dur: d, attack: 0.004, to: master })); },
+  buoy(c, t) { [[1, 0.5, 2.8], [2.4, 0.2, 1.6], [0.5, 0.25, 3.4]].forEach(([r, a, d]) => ping(c, t, { freq: 330 * r, gain: 0.028 * a, dur: d, attack: 0.004 })); },
   /** A whale a very long way off: a low glide that wavers, slow. */
   whale(c, t) {
     const o = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), ld = c.createGain(), dur = 4 + Math.random() * 2, f = 90 + Math.random() * 40;
     o.type = "sine"; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * 1.9, t + dur * 0.45); o.frequency.linearRampToValueAtTime(f * 1.2, t + dur);
     lfo.frequency.value = 5; ld.gain.value = 4; lfo.connect(ld).connect(o.frequency);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03, t + dur * 0.4); g.gain.linearRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(master); o.start(t); lfo.start(t); o.stop(t + dur + 0.1); lfo.stop(t + dur + 0.1);
+    o.connect(g).connect(out()); o.start(t); lfo.start(t); o.stop(t + dur + 0.1); lfo.stop(t + dur + 0.1);
   },
   /** Thunder, in a gale: a low noise that rolls and fades. */
   thunder(c, t) { burst(c, t, { freq: 110, q: 0.5, gain: 0.16, dur: 2.6, type: "lowpass" }); burst(c, t + 0.5, { freq: 70, q: 0.5, gain: 0.1, dur: 2.2, type: "lowpass" }); },
@@ -157,13 +164,15 @@ function scheduleLife() {
     const c = audio();
     if (c && !paused && !hushed && bedNodes) {
       const t = c.currentTime + 0.02;
+      bus = side(c, Math.random() * 1.6 - 0.8);                          // each call from somewhere off to one side or the other
       if (sky === "storm" && Math.random() < 0.4) CALLS.thunder(c, t);
       else {
         let table = dayOn ? region.day : region.night;
-        if (sky === "haze" || sky === "cloud") table = { ...table, buoy: (table.buoy || 0) + 4 };    // the bell buoy is heard in thick weather
+        if (sky === "haze" || sky === "cloud" || sky === "thick") table = { ...table, buoy: (table.buoy || 0) + 4 };    // the bell buoy is heard in thick weather
         if (sky === "storm") table = { buoy: 2, fulmar: dayOn ? 1 : 0 };                              // birds shelter in a gale
         CALLS[pick(table)]?.(c, t);
       }
+      bus = null;
     }
     scheduleLife();
   }, (sky === "storm" ? 6000 : 9000) + Math.random() * 14000);
@@ -171,7 +180,16 @@ function scheduleLife() {
 
 // ---------- single sounds ----------
 
-function ping(c, t, { freq, gain, dur, attack = 0.002, type = "sine", drop = 1, to = master }) {
+/** Where a single sound goes: the life call's place while one is being made, else straight to the speakers. */
+const out = () => bus || master;
+/** A place to one side (-1 left, 1 right), where the browser can pan; the speakers otherwise. */
+function side(c, x) {
+  if (!c.createStereoPanner) return master;
+  const p = c.createStereoPanner(); p.pan.value = x; p.connect(master);
+  return p;
+}
+
+function ping(c, t, { freq, gain, dur, attack = 0.002, type = "sine", drop = 1, to = out() }) {
   const o = c.createOscillator(), g = c.createGain();
   o.type = type; o.frequency.setValueAtTime(freq, t); if (drop !== 1) o.frequency.exponentialRampToValueAtTime(freq * drop, t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -181,7 +199,7 @@ function burst(c, t, { freq, q, gain, dur, type = "bandpass" }) {
   const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
   src.buffer = noise(c); f.type = type; f.frequency.value = freq; f.Q.value = q;
   g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(f).connect(g).connect(master); src.start(t, Math.random()); src.stop(t + dur + 0.02);
+  src.connect(f).connect(g).connect(out()); src.start(t, Math.random()); src.stop(t + dur + 0.02);
 }
 /** One stroke of the ship's bell: a small bronze bell, inharmonic partials with the high ones dying first. */
 function stroke(c, t, level = 1) {
@@ -205,6 +223,21 @@ export const sound = {
     else burst(c, now, { freq: 240 + Math.random() * 180, q: 0.9, gain: 0.05 + 0.025 * windLevel, dur: 0.5 + Math.random() * 0.5, type: "lowpass" });
     if (windLevel > 0.55 && Math.random() < 0.6) burst(c, now + 0.05, { freq: 3400, q: 0.7, gain: 0.025, dur: 0.35, type: "highpass" });
   },
+  /** The bow has dipped into a swell (`k` 0 to 1, how deep): the bow wave's surge, a long rush of water that swells and draws back. */
+  surge(k) {
+    const c = audio();
+    if (!c || !bedNodes || paused || hushed) return;
+    const t = c.currentTime;
+    if (t - lastSurge < 3) return;
+    lastSurge = t;
+    const lv = (0.03 + 0.05 * windLevel) * Math.min(1, 0.4 + k), dur = 1.6 + windLevel;
+    for (const [freq, q, a, type] of [[520, 0.7, 1, "lowpass"], [2600, 0.6, 0.35, "highpass"]]) {
+      const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = noise(c); f.type = type; f.frequency.setValueAtTime(freq * 0.6, t); f.frequency.linearRampToValueAtTime(freq, t + dur * 0.35); f.Q.value = q;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(lv * a, t + dur * 0.35); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      src.connect(f).connect(g).connect(bedGain); src.start(t, Math.random()); src.stop(t + dur + 0.05);
+    }
+  },
   /** Call from a tap: makes (or wakes) the audio context and starts the bed if it was asked for. */
   unlock() { if (muted) return; const c = audio(); if (c && bedOn && !bedNodes && !paused) startBed(); },
   setMuted(m) {
@@ -219,7 +252,7 @@ export const sound = {
   day(on) { dayOn = !!on; scheduleLife(); },
   /** The level's place (its latitude): which birds and beasts the sea has, and how the wind sounds. */
   place(lat) { region = REGIONS[regionFor(lat)]; setWeather(); },
-  /** The weather of the watch ("clear", "cloud", "haze", "swell", "storm"): a bell buoy in thick weather, thunder in a gale, rain's hiss. */
+  /** The weather of the watch ("clear", "cloud", "thick", "haze", "swell", "storm"): a bell buoy in thick weather, thunder in a gale, rain's hiss. */
   conditions(w) { sky = w || "clear"; setWeather(); },
   bed(on) { bedOn = !!on; if (on) { if (!paused) startBed(); scheduleLife(); } else { stopBed(); clearTimeout(gullTimer); } },
   /** The bed all but stops for the sight (and comes back after). */
@@ -232,6 +265,17 @@ export const sound = {
     let t = t0;
     for (let i = 0; i < count; i++) { stroke(c, t, 1); t += i % 2 === 0 && i + 1 < count ? 0.55 : 1.15; }
     return t - t0;
+  },
+  /** The deep-sea lead cast: the splash alongside, the line running out (the marks ticking over the rail, slowing as the lead sinks,
+   *  longer the deeper), and the check as it touches the bottom; no check when it runs out without finding one (`depth` null). */
+  lead(depth) {
+    const c = audio();
+    if (!c || paused) return;
+    const t = c.currentTime + 0.05, run = 0.8 + Math.min(1.8, (depth ?? 130) / 60), n = Math.round(10 + run * 14);
+    burst(c, t, { freq: 900, q: 0.8, gain: 0.12, dur: 0.35 });
+    burst(c, t + 0.02, { freq: 2600, q: 0.6, gain: 0.05, dur: 0.5, type: "highpass" });
+    for (let i = 0; i < n; i++) { const u = i / n; burst(c, t + 0.25 + run * (u + 0.25 * u * u) / 1.25, { freq: 2800 + 900 * Math.random(), q: 6, gain: 0.03 * (1 - 0.5 * u), dur: 0.015 }); }
+    if (depth != null) ping(c, t + 0.3 + run, { freq: 140, gain: 0.08, dur: 0.25, drop: 0.7, type: "triangle" });
   },
   mark() { const c = audio(); if (!c || paused) return; const t = c.currentTime; burst(c, t, { freq: 1700, q: 5, gain: 0.35, dur: 0.03 }); ping(c, t, { freq: 420, gain: 0.2, dur: 0.06, drop: 0.8 }); },
   tick() { const c = audio(); if (!c || paused) return; burst(c, c.currentTime, { freq: 2600, q: 8, gain: 0.05, dur: 0.012 }); },
