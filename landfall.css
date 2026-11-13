@@ -209,3 +209,11 @@
 .lf-lights .lf-names .lf-mini[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); font-weight: 800; }
 .lf-lights .lf-take { grid-column: 1 / -1; }
 .lf-lights .lf-alm td:last-child { white-space: nowrap; }
+
+/* the land in sight: the skyline round a summit as it stands now, and the Sailing Directions' views */
+.lf-lights .lf-land { grid-template-columns: 1fr; }
+.lf-view { display: block; border: 1px solid var(--rule); border-radius: 3px; }
+.lf-sub { margin: 1rem 0 .4rem; font-size: .9rem; }
+.lf-views { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .6rem; }
+.lf-viewcard { margin: 0; }
+.lf-viewcard figcaption { font-size: .8rem; line-height: 1.3; margin-top: .25rem; color: var(--ink); }

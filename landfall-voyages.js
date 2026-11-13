@@ -6,6 +6,7 @@
 //   clock   the chronometer: `err` [least, most] seconds it is wrong by (sign drawn), `sd` what the reckoning trusts it to, `rate` the sd of its drift in seconds a day
 //   light   a lighthouse (made by `sea`): seen only from within `range` nm (less in haze or a gale), it gives a bearing
 //   lights  a coast of several, each with its character (`ch`, landfall-lights.js): the one in sight must be told from the others
+//   hills   the summits behind a coast (landfall-land.js): seen from far off in twilight or by day, each told by its shape
 //   gale    `legs`: the legs (0 is the first) a storm sets the ship off on by `push` nm sd, which the log cannot show
 //   bed     a charted bottom the lead can be cast on (landfall-bed.js): the shelf off the coast, banks and pits
 // The sea is invented (see landfall-levels.js); the latitudes and longitudes are real so the sky is.
@@ -13,7 +14,7 @@
 /** The chapters, by `section`. */
 export const SECTIONS = {
   1: "Polaris and the log", 2: "The noon sun", 3: "Two lines", 4: "The chronometer", 5: "The Southern Cross", 6: "Cloud and weather",
-  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character",
+  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land",
 };
 
 const R = Math.round;
@@ -21,7 +22,7 @@ const R = Math.round;
  * A landfall `nm` from the departure fix on `course`: the harbour dead ahead, two shoals either side of the approach, a coast across it
  * (perpendicular to the course, 14 nm beyond) and, if `light` is given, a lighthouse on the coast beside the harbour.
  */
-function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = null, lights = null, coast = "the coast" } = {}) {
+function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = null, lights = null, hills = null, coast = "the coast" } = {}) {
   const a = course * Math.PI / 180, f = [Math.sin(a), Math.cos(a)], rt = [Math.cos(a), -Math.sin(a)];
   const at = (u, v) => [R(10 * (u * f[0] + v * rt[0])) / 10, R(10 * (u * f[1] + v * rt[1])) / 10];
   const h = at(nm, 0), s1 = at(nm - 3, r + 11), s2 = at(nm + 1, -(r + 12));
@@ -34,6 +35,8 @@ function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = 
     ...(light ? { light: { name: light.name, range: light.range, x: lp[0], y: lp[1] } } : {}),
     // a coast of several lights: each `v` nm along the coast from the harbour (to starboard of the approach is positive), `u` on from it
     ...(lights ? { lights: lights.map(g => { const q = at(nm + (g.u ?? 10), g.v); return { name: g.name, ch: g.ch, range: g.range, x: q[0], y: q[1] }; }) } : {}),
+    // the summits behind the coast, `u` nm on from the harbour (inland of the shore at 14) and `v` along it
+    ...(hills ? { hills: hills.map(g => { const q = at(nm + (g.u ?? 20), g.v); return { name: g.name, shape: g.shape, h: g.h, w: g.w, ...(g.side ? { side: g.side } : {}), x: q[0], y: q[1] }; }) } : {}),
   };
 }
 /** A point `u` nm along `course` from the departure fix and `v` nm to starboard of it, as sea() places things. */
@@ -243,4 +246,26 @@ export const VOYAGES = [
     origin: { lat: 56.0, lon: 6.0 }, year: 1856, window: [[10, 15], [11, 20]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV, clock: clk(10, 25, 18),
     speed: 5, course0: 250, leg0: 6, hint: 2, swell: 0.7, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, compass: [1.5, 3.0], sd: 2, current: 0.5 },
     ...sea(250, 170, { r: 6.5, names: ["The Graves", "Old Pen"], coast: "Westerhaven", lights: [{ name: "Graves", ch: "Fl(2) 10s", range: 24, v: -9 }, { name: "Pen Head", ch: "Fl(3) 15s", range: 24, v: 10 }, { name: "Westerhaven", ch: "Fl R 5s", range: 14, v: 2, u: 4 }] }) },
+  // ---------- section 12: the lie of the land ----------
+  // The summits behind a coast rise over the horizon thirty and forty miles off, long before any light: each is told by its shape
+  // against the views in the Sailing Directions, and its bearing is a line through it.
+  { id: "landfall", section: 12, n: 41, name: "Landfall", place: GREY,
+    blurb: "Three hills stand behind the coast you are making for: a loaf, a table and a peak. On the last evening they will rise out of the sea; know them before you steer for them.",
+    lesson: "The land rises out of the sea summit first: match each shape to the views in the Sailing Directions, and its bearing is a line through it.",
+    origin: { lat: 57.5, lon: 0.0 }, year: 1856, window: [[9, 10], [10, 15]], watches: 3, kinds: "dusk,dawn,dusk", lop: 1, pool: NAV,
+    speed: 5, course0: 90, leg0: 6, hint: 1, swell: 0.5, weather: { clear: 3, haze: 1 }, errors: { ...standard, log: 0.09, compass: [1.0, 2.0], sd: 1.5, current: 0.55 },
+    ...sea(90, 165, { names: ["Loaf Rock", "Skerry Mouth"], coast: "Hellvik", hills: [{ name: "The Loaf", shape: "dome", h: 420, w: 4, v: -26 }, { name: "Table Fell", shape: "flat", h: 380, w: 5, v: 8, u: 22 }, { name: "Spire Peak", shape: "peak", h: 610, w: 3, v: 34, u: 26 }] }) },
+  { id: "the-notch", section: 12, n: 42, name: "The Notch", place: GREY,
+    blurb: "Cloud over the stars and a coast of flat-topped hills. One has a notch, one has two summits; the views show which is which.",
+    lesson: "Two summits well apart are a fix, as two stars are: but only if each is the summit you think it is.",
+    origin: { lat: 58.5, lon: 2.0 }, year: 1856, window: [[10, 20], [11, 25]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV,
+    speed: 5, course0: 60, leg0: 6, hint: 2, swell: 0.6, weather: { thick: 3, haze: 1, clear: 2 }, errors: { ...standard, log: 0.08, current: 0.55 },
+    ...sea(60, 170, { r: 6.5, names: ["Notch Ledge", "The Kist"], coast: "Kistvik", hills: [{ name: "Notch Fell", shape: "notch", h: 450, w: 5, v: -14 }, { name: "Twin Fells", shape: "twin", h: 500, w: 5, v: 18, u: 23 }, { name: "Long Table", shape: "flat", h: 400, w: 6, v: 40, u: 21 }] }) },
+  { id: "under-the-bluff", section: 12, n: 43, name: "Under the Bluff", place: GREY,
+    blurb: "A bluff, a peak and a light, a harbour between them, and a current along the coast. Everything you can see is a line: take them all.",
+    lesson: "By day the land, by night the lights, at twilight both and the stars: a landfall is made with whatever shows.",
+    origin: { lat: 56.5, lon: 4.0 }, year: 1856, window: [[10, 1], [11, 5]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV, clock: clk(10, 25, 18),
+    speed: 5, course0: 120, leg0: 6, hint: 2, swell: 0.7, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.07, compass: [1.5, 3.0], sd: 2, current: 0.45 },
+    ...sea(120, 175, { r: 7, names: ["Bluff Rock", "The Sows"], coast: "Bluffhavn", hills: [{ name: "Raven Bluff", shape: "bluff", h: 360, w: 4, v: -12, u: 18 }, { name: "Kame Peak", shape: "peak", h: 560, w: 3, v: 24, u: 24 }],
+      lights: [{ name: "Bluffhavn", ch: "Oc(2) 8s", range: 18, v: 3, u: 8 }, { name: "Sows", ch: "Fl 5s", range: 16, v: 20, u: 6 }] }) },
 ];

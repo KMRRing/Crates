@@ -57,6 +57,13 @@ export const HOW_LIGHTS = [
   ["Name it, then take its bearing", "Say which light it is and take its compass bearing. The line runs through the tower you name: name the wrong one, and the line is wrong too."],
   ["Two lights are a fix", "Two lights well apart cross like two stars. A third shows whether you named them right."],
 ];
+/** How the land is read, for the first voyage of its chapter and the menu. */
+export const HOW_LAND = [
+  ["The land rises", "High land shows long before the coast: a summit rises out of the sea thirty or forty miles off, top first, and stands higher as you close it. It shows against a twilight or a day sky, not at night."],
+  ["Tell it by its shape", "Land opens the summits in sight. Each is drawn as it stands now; the Sailing Directions' views below show each summit of the coast from seaward. A loaf, a table, a peak, a notch: match them."],
+  ["Its bearing is a line", "Name the summit and take its compass bearing: a line through it, like a light's. A summit is broad, so its line is a little less sure than a light's."],
+  ["Two summits are a fix", "Two summits well apart cross like two stars, and the land, the lights and the stars can all be taken in one twilight."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

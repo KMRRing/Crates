@@ -2,7 +2,7 @@
 // reading, to see whether a level is winnable and decided by skill (tests/landfall-bots.mjs).
 //   careful   steps the dividers exactly, waits for the star and the horizon together, takes three marks, checks the compass,
 //             retakes a sight the reckoning rejects, and steers for the harbour from every fix
-//   sloppy    a wide step-off, one rushed mark, no compass check, sometimes takes the wrong star and names a light wrongly
+//   sloppy    a wide step-off, one rushed mark, no compass check, sometimes takes the wrong star and names a light or a summit wrongly
 //   confused  careful, but takes another star for Polaris a third of the time
 //   nightowl  careful by night and never takes a sight of the sun: what section 1 taught, and no more
 //   blind     never looks at the sky: dead reckoning only, the floor
@@ -100,6 +100,13 @@ function sunWatch(S, bot, g, take, cur) {
 function lopFind(S, bot, take, wait, out, gaveUp, u) {
   const W = S.watch, L = levelOf(S);
   if (W.light?.seen && !W.light.done && !bot.noLight) { take({ t: "light" }, SECONDS.bearing); return; }
+  const hill = W.hills ? W.hills.findIndex(l => l.seen && !l.done) : -1;
+  if (hill >= 0 && !bot.noLand) {                                 // a summit in sight, named by its shape
+    const others = L.hills.map((_, i) => i).filter(i => i !== hill), wrong = others.length && u() < (bot.misname ?? 0);
+    if (wrong) out.wrongTaken++;
+    take({ t: "landmark", at: hill, as: wrong ? others[Math.floor(u() * others.length)] : hill }, SECONDS.bearing + SECONDS.light);
+    return;
+  }
   const at = W.lights ? W.lights.findIndex(l => l.seen && !l.done) : -1;
   if (at >= 0 && !bot.noLight) {                                  // a light in sight, named by its character (or, now and then, not)
     const others = L.lights.map((_, i) => i).filter(i => i !== at), wrong = others.length && u() < (bot.misname ?? 0);

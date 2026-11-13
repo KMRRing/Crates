@@ -18,7 +18,7 @@ let threw = false; try { parseChar("Blink 3s"); } catch { threw = true; }
 check(threw, "a character the chart would not print is refused");
 
 const MANY = LEVELS.filter(L => L.lights);
-check(MANY.length >= 3 && MANY.every(L => L.section === 11), `the lights have their own chapter (${MANY.map(L => L.name).join(", ")})`);
+check(MANY.filter(L => L.section === 11).length >= 3 && MANY.every(L => L.section >= 11), `the lights have their own chapter, and come back after it (${MANY.map(L => L.name).join(", ")})`);
 for (const L of MANY) {
   const sig = L.lights.map(g => { const c = parseChar(g.ch); return `${c.kind}${c.n}${c.colour}${c.period}`; });
   check(new Set(sig).size === sig.length && L.lights.every(g => g.range >= 12), `${L.name}: no two of its lights share a character`);

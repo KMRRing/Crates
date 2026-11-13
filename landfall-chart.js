@@ -191,6 +191,15 @@ export function drawChart(ctx, w, h, sc) {
     ctx.restore();
     label(ctx, G.ch ? `${G.name}, ${G.ch} ${G.range}M` : `${G.name}, ${G.range} nm`, x, y + 17 * k, 10.5 * k, pal, { italic: true });
   }
+  // the summits behind the coast: a hachured hill, its name and its height in feet as the old charts gave it
+  for (const H of L.hills || []) {
+    const [x, y] = S([H.x, H.y]), r = Math.max(5 * k, (H.w / 2) * cam.s);
+    if (x < -r - 60 || x > w + r + 60 || y < -r - 30 || y > h + r + 30) continue;
+    ctx.save(); ctx.strokeStyle = pal.ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1 * k;
+    for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r * 0.45, y + Math.sin(a) * r * 0.45); ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.fillStyle = pal.ink; ctx.beginPath(); ctx.arc(x, y, 1.8 * k, 0, 6.283); ctx.fill(); ctx.restore();
+    label(ctx, `${H.name}, ${Math.round(H.h * 3.281).toLocaleString("en-GB")} ft`, x, y - r - 8 * k, 10.5 * k, pal, { italic: true });
+  }
   // the scales, on the edges: minutes of latitude down the side, minutes of longitude along the foot
   ctx.save(); ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink; ctx.lineWidth = 1; ctx.font = `${9.5 * k}px ${pal.mono}`;
   ctx.fillStyle = pal.paper; ctx.globalAlpha = 0.85; ctx.fillRect(0, 0, 38 * k, h); ctx.fillRect(0, h - 15 * k, w, 15 * k); ctx.globalAlpha = 1; ctx.fillStyle = pal.ink;
@@ -245,7 +254,7 @@ export function drawChart(ctx, w, h, sc) {
     const a = S(ln.p), d = [ln.dir[0], -ln.dir[1]], far = Math.hypot(w, h) * 1.6, t = i === sc.lines.length - 1 ? clamp(sc.lineT ?? 1, 0, 1) : 1;
     if (ln.kind === "depth" && L.bed) { drawDepthLine(ctx, L, cam, w, h, k, pal, ln, t); continue; }
     ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k; ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
-    if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]);
+    if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]); else if (ln.kind === "hill") ctx.setLineDash([14 * k, 4 * k, 3 * k, 4 * k]);
     ctx.beginPath(); ctx.moveTo(a[0] - d[0] * far * t, a[1] - d[1] * far * t); ctx.lineTo(a[0] + d[0] * far * t, a[1] + d[1] * far * t); ctx.stroke(); ctx.restore();
   }
   // the pencilled track and its marks

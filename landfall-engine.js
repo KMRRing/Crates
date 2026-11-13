@@ -10,7 +10,8 @@
 //     steer   a heading, then the next leg                   end    arrived, grounded or missed
 //
 // On a coast of several lights (`lights`, each with its character, landfall-lights.js) a light in sight is told by its flashes and its
-// bearing taken; a light taken for another puts the line through the wrong tower.
+// bearing taken; a light taken for another puts the line through the wrong tower. A coast with charted summits (`hills`,
+// landfall-land.js) shows them over the horizon as she closes it, in twilight or by day: each told by its shape, and its bearing taken.
 // On a level with a charted bottom (`bed`, landfall-bed.js) the lead may be cast once a watch, by day or night: the ship heaves to for a
 // quarter of an hour, the depth comes up, and a sloping bottom makes it a line along the depth's contour.
 //
@@ -20,6 +21,7 @@ import { STARS } from "./landfall-stars.js";
 import { levelById } from "./landfall-levels.js";
 import { FIND } from "./landfall-finds.js";
 import { depthAt, bottomAt } from "./landfall-bed.js";
+import { hillLook } from "./landfall-land.js";
 import { draw, gaussAt, rng, vec, rad, bearing, dist, fogOf, copyP, addP, legNoise, fold, firstEvent, enters, nearest, norm180 } from "./landfall-model.js";
 import {
   julianDate, starAltAz, sunAltAz, dip, refraction, sextantReading, toLatLon, fromLatLon, polarisAlmanac, sunPlace, sunReading, sunObservedAltitude,
@@ -172,6 +174,8 @@ function runLeg(S, course, speedFactor) {
   const reach = wx === "haze" ? 0.7 : wx === "storm" ? 0.6 : wx === "thick" ? 0.8 : 1;
   if (L.light && !day) S.watch.light = { seen: dist(S.T, [L.light.x, L.light.y]) <= L.light.range * reach, done: false };
   if (L.lights && !day) S.watch.lights = L.lights.map(g => ({ seen: dist(S.T, [g.x, g.y]) <= g.range * reach, done: false }));
+  // the land stands out against a twilight or a day sky, and haze or a gale hides the far part of it
+  if (L.hills) S.watch.hills = L.hills.map(h => { const l = hillLook(h, S.T); return { seen: l.visible && l.d <= 60 * reach, done: false }; });
   S.phase = "ritual";
   return { ok: true };
 }
@@ -424,7 +428,7 @@ export function chooseTargets(S) {
     const a = starAltAz(s, jd, p.lat, p.lon);
     if (a.alt < 22 || a.alt > 66) continue;
     // with the lead (how far along the course) or the lights ahead (where across it), a star abeam is the one that crosses them
-    const abeam = (L.bed || L.lights) && S.leg ? 1.6 * Math.abs(Math.cos((a.az - S.leg.course) * Math.PI / 180)) : 0;
+    const abeam = (L.bed || L.lights || L.hills) && S.leg ? 1.6 * Math.abs(Math.cos((a.az - S.leg.course) * Math.PI / 180)) : 0;
     c.push({ hr: s[0], az: a.az, mag: s[5], cost: s[5] + (a.alt < 28 || a.alt > 60 ? 0.6 : 0) + abeam });
   }
   c.sort((x, y) => x.cost - y.cost);
@@ -465,25 +469,28 @@ function plotLop(S) {
   return { ok: true, accepted: true, z: B.z, more: W.plot.more };
 }
 /**
- * A bearing of a lighthouse, corrected by what is known of the compass: a line through the light that the ship is on. On a coast of
- * several lights (`lights`) the navigator says which light it is (`as`), told by its character, and the line is drawn through that one:
- * the bearing is of the light really seen (`at`), so a light taken for another puts the line through the wrong tower.
+ * A bearing of a lighthouse or a summit, corrected by what is known of the compass: a line through it that the ship is on. On a coast
+ * of several lights (`lights`) or summits (`hills`) the navigator says which it is (`as`), told by its character or its shape, and the
+ * line is drawn through that one: the bearing is of the one really seen (`at`), so one taken for another puts the line through the
+ * wrong place. A summit is broad, and its bearing is the less sure for it.
  */
-function plotLight(S, at = null, as = at) {
-  const L = levelOf(S), W = S.watch, many = at !== null;
-  if (many && (!W.lights?.[at]?.seen || W.lights[at].done)) return no("that light is not in sight");
-  if (many && !L.lights[as]) return no("no such light on the chart");
-  const Lg = many ? L.lights[at] : L.light, Lc = many ? L.lights[as] : L.light, r = rng(S), before = { E: [...S.E], P: copyP(S.P) };
+function plotLight(S, at = null, as = at, key = "lights") {
+  const L = levelOf(S), W = S.watch, many = at !== null, list = many ? L[key] : null;
+  if (many && (!W[key]?.[at]?.seen || W[key][at].done)) return no(`that ${key === "hills" ? "summit" : "light"} is not in sight`);
+  if (many && !list[as]) return no("no such mark on the chart");
+  const Lg = many ? list[at] : L.light, Lc = many ? list[as] : L.light, r = rng(S), before = { E: [...S.E], P: copyP(S.P) };
   const trueB = bearing([Lg.x - S.T[0], Lg.y - S.T[1]]), sdB = 1.2, observed = (trueB + S.compass.err + sdB * r.g() + 360) % 360, b = observed - (S.compass.known ?? 0);
   const n = [Math.cos(rad(b)), -Math.sin(rad(b))], z = n[0] * (Lc.x - S.E[0]) + n[1] * (Lc.y - S.E[1]);
-  const d = Math.max(2, dist(S.E, [Lc.x, Lc.y])), sigB = Math.hypot(sdB, S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5)), sigma = Math.max(0.3, d * rad(sigB));
+  const d = Math.max(2, dist(S.E, [Lc.x, Lc.y])), broad = Lc.w ? Math.atan2(Lc.w / 4, d) * 180 / Math.PI : 0;
+  const sigB = Math.hypot(sdB, broad, S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5)), sigma = Math.max(0.3, d * rad(sigB));
   const f = fold(S.E, S.epsE ?? 0, S.P, n, 0, sigma, z), gate = 3.5 * Math.sqrt(f.S) + 1.5;
-  const mark = many ? (W.lights[at] = { ...W.lights[at], done: true, as, bearing: observed }) : Object.assign(W.light, { done: true, bearing: observed });
-  if (Math.abs(z) > gate) { mark.off = true; W.plot = { accepted: false, light: true, z, gate, off: true, name: Lc.name }; return { ok: true, accepted: false, z, gate, observed }; }
+  const mark = many ? (W[key][at] = { ...W[key][at], done: true, as, bearing: observed }) : Object.assign(W.light, { done: true, bearing: observed });
+  const kind = key === "hills" ? "hill" : "light";
+  if (Math.abs(z) > gate) { mark.off = true; W.plot = { accepted: false, [kind]: true, z, gate, off: true, name: Lc.name }; return { ok: true, accepted: false, z, gate, observed }; }
   S.E = f.E; S.P = f.P; if (S.clock) S.epsE = f.epsE;
-  const line = { p: [Lc.x, Lc.y], dir: vec(b), kind: "light", name: Lc.name };
+  const line = { p: [Lc.x, Lc.y], dir: vec(b), kind, name: Lc.name };
   W.lines = W.lines || []; W.lines.push(line);
-  W.plot = { accepted: true, light: true, z, gate, before, after: { E: [...S.E], P: copyP(S.P) }, line, errorNm: dist(S.E, S.T), observed, more: true, name: Lc.name };
+  W.plot = { accepted: true, [kind]: true, z, gate, before, after: { E: [...S.E], P: copyP(S.P) }, line, errorNm: dist(S.E, S.T), observed, more: true, name: Lc.name };
   S.fixes.push({ w: S.w, E: [...S.E], lat: null, z: 0, zLon: 0, hours: S.leg.hours, lop: true });
   if (S.trail.at(-1)?.k === "fix" && S.trail.at(-1).w === S.w) S.trail.pop();
   S.trail.push({ k: "fix", p: [...S.E], w: S.w });
@@ -538,9 +545,9 @@ export function moves(S) {
   switch (S.phase) {
     case "ritual": return ["step", "skip"];
     case "find": {
-      const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [];
-      if (day) return ["wait", "raise", "skipstage", ...lead, "skipsight"];
-      return ["wait", "pick", ...lead, ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), ...((S.watch.light?.seen && !S.watch.light.done) || S.watch.lights?.some(l => l.seen && !l.done) ? ["light"] : []), "skipsight"];
+      const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [], land = S.watch.hills?.some(h => h.seen && !h.done) ? ["landmark"] : [];
+      if (day) return ["wait", "raise", "skipstage", ...lead, ...land, "skipsight"];
+      return ["wait", "pick", ...lead, ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), ...((S.watch.light?.seen && !S.watch.light.done) || S.watch.lights?.some(l => l.seen && !l.done) ? ["light"] : []), ...land, "skipsight"];
     }
     case "sight": return ["read", "lower", ...(day ? ["wait"] : [])];       // the sun moves while it is watched: the clock runs in the eyepiece
     case "book": return ["plot", "retake", "discard"];
@@ -582,6 +589,7 @@ export function apply(S, m) {
       if (W.lops?.includes(m.hr)) return no("that star is already in the book");
       W.picked = m.hr; return { ok: true };
     case "light": return L.lights ? plotLight(S, m.at, m.as ?? m.at) : plotLight(S);
+    case "landmark": return plotLight(S, m.at, m.as ?? m.at, "hills");
     case "sound": return castLead(S);
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);

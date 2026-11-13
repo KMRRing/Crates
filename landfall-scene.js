@@ -10,7 +10,7 @@
 // Axes: x east, y up, z south. The ship (a Group) is turned by her heading and rolls; the camera is her child.
 import * as THREE from "./vendor/three-run.js";
 import { dirOf, D2R, clamp, lerp, smooth, shipMotion, windOf, starLook, dayLight, vfovOf } from "./landfall-look.js";
-import { skyColours } from "./landfall-skyview.js";
+import { skyColours, landColour } from "./landfall-skyview.js";
 import { parseChar, lightOn, flashTimes, lightColour } from "./landfall-lights.js";
 
 const SKY_R = 1800, EYE_Y = 2.0;                     // metres: the dome, and how high the deck stands above the sea
@@ -193,6 +193,32 @@ export function createScene(host, { reduced = () => false } = {}) {
     const rays = [0, 1, 2].map(() => { const m = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: rayTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, color: 0xffe2a0 })); m.renderOrder = 2; m.frustumCulled = false; m.visible = false; skyRoot.add(m); return m; });
     return { beacon, rays, ch: "" };
   });
+  // the land: the summits behind a coast standing over the horizon, a ring of quads every half degree whose tops are the skyline (S.land,
+  // landfall-land.js), dark against a twilight sky and blue-grey by day; the sea in front hides its foot as the real sea would
+  const NL = 720, landIdx = [];
+  for (let i = 0; i < NL; i++) { const a = i * 2; landIdx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  const landGeo = new THREE.BufferGeometry();                // the bundle's attribute copies its array: write into the attribute's own
+  landGeo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array((NL + 1) * 6), 3)); landGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array((NL + 1) * 6), 3)); landGeo.setIndex(landIdx);
+  const landPos = landGeo.attributes.position.array, landCols = landGeo.attributes.color.array;
+  const landMesh = new THREE.Mesh(landGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false }));
+  landMesh.frustumCulled = false; landMesh.visible = false; skyRoot.add(landMesh);
+  let landFor = null;
+  function setLand() {
+    landFor = S.land; landMesh.visible = !!S.land;
+    if (!S.land) return;
+    const RL = SKY_R - 150;
+    for (let i = 0; i <= NL; i++) {
+      const az = i * 0.5, alt = S.land[i % NL], b = dirOf(az, -0.5), t = dirOf(az, alt > 0.01 ? alt : -0.5);
+      landPos.set([b[0] * RL, b[1] * RL, b[2] * RL, t[0] * RL, t[1] * RL, t[2] * RL], i * 6);
+    }
+    landGeo.attributes.position.needsUpdate = true;
+    landGeo.computeBoundingSphere();
+  }
+  function paintLand() {
+    const col = skyColours(S.sunAlt), top = landColour(col.hor, S.sunAlt), foot = top.map((x, i) => x + (col.hor[i] - x) * 0.3);
+    for (let i = 0; i <= NL; i++) landCols.set([...foot.map(lin), ...top.map(lin)], i * 6);
+    landGeo.attributes.color.needsUpdate = true;
+  }
   // the moon: her disc lit as the sun lights her (the lit side towards the sun), a glow about her, and her light on the water (setSea)
   const moonCanvas = document.createElement("canvas"); moonCanvas.width = moonCanvas.height = 128;
   const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
@@ -490,7 +516,7 @@ export function createScene(host, { reduced = () => false } = {}) {
   // ---------- state the page sets ----------
   const S = {
     heading: 0, headingTo: 0, swell: 0.6, weather: "clear", storm: 0, sunAlt: -10, sunAz: 270, limMag: 5, lamp: true, lampLevel: 1, day: false,
-    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, lights: null, moon: null,
+    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, lights: null, land: null, moon: null,
     chartDirty: false, ratio: cap, aspect: 1, hfov: 64,
   };
   let skyKey = "", lampFlick = 0, sextLevel = 0;
@@ -521,6 +547,7 @@ export function createScene(host, { reduced = () => false } = {}) {
     flag.material.color.setRGB(lerp(0.05, 0.4, dl), lerp(0.02, 0.1, dl), lerp(0.015, 0.08, dl));
     sailMat.opacity = lerp(0.46, 0.8, dl);
     sunGlow.visible = sunDisc.visible = S.sunAlt > -4;
+    paintLand();
   }
 
   function placeBillboard(obj, az, alt, sizeDeg, r = SKY_R - 60) {
@@ -789,6 +816,7 @@ export function createScene(host, { reduced = () => false } = {}) {
       if (on > brightest) { brightest = on; SEA.uBeaconDir.value.set(...dirOf(g.az, 0.6)); }
     }
     SEA.uBeacon.value = 1.4 * brightest;
+    if (S.land !== landFor) setLand();
     // the sea, the flag, the spray
     setSea(t);
     if (!reduced()) {

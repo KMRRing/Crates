@@ -69,6 +69,8 @@ export function skyColours(sunAlt) {
   return { top: KEYS.at(-1)[1], hor: KEYS.at(-1)[2] };
 }
 const rgb = (c, a = 1) => `rgba(${c.map(Math.round).join(",")},${a})`;
+/** The land's colour against a sky whose horizon is `hor`: a dark silhouette at twilight, a blue-grey haze by day. */
+export const landColour = (hor, sunAlt) => { const day = clamp((sunAlt + 2) / 10, 0, 1); return hor.map((x, i) => mix(x, [18, 22, 28][i] + day * [62, 70, 80][i], 0.68 - 0.18 * day)); };
 const STAR_COLOUR = { 2061: "#ffb98a", 6134: "#ffa97c", 1457: "#ffc69a", 5340: "#ffd0a4", 1713: "#cfe0ff", 7001: "#d6e4ff", 2491: "#d8e6ff", 5056: "#cfe0ff", 424: "#fff2d6" };
 
 /** Radius in px for a magnitude. */
@@ -158,6 +160,17 @@ export function drawSky(ctx, v, sc) {
     ctx.lineWidth = 1 * k; ctx.strokeStyle = rgb(col.hor.map(x => Math.min(255, x * 1.3)), 0.5);
     ctx.beginPath(); sea.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
     ctx.restore();
+  }
+  // the land: summits standing over the horizon (sc.land: heights every half degree of azimuth), dark against a twilight sky, grey by day
+  if (sc.land) {
+    const lc = landColour(col.hor, sc.sunAlt), pts = [];
+    for (let d = -100; d <= 100; d += 0.5) { const az = (((v.az + d) % 360) + 360) % 360, alt = sc.land[Math.round(az * 2) % 720]; const p = project(v, az, alt > 0.01 ? alt : -0.3); if (p) pts.push(p); }
+    const base = [];
+    for (let d = 100; d >= -100; d -= 2) { const p = project(v, v.az + d, -0.3); if (p) base.push(p); }
+    if (pts.length > 3 && base.length > 3) {
+      ctx.save(); ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); base.forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath();
+      ctx.fillStyle = rgb(lc); ctx.fill(); ctx.restore();
+    }
   }
   // cloud: soft dark discs
   for (const c of sc.clouds || []) {
