@@ -61,14 +61,13 @@ const CUBES = [
     census: { cube: 1, bar: 1, bend: 3, knot: 3 },
     sol: rows("AAB AAC CCC", "DDB AEB ACF", "DEE GEH GHH") },
 ];
-// 13 Nov 2026, Korbi: 100 levels, "the first 50 levels should be easier than the 3x3 cube". The book (slipway-plan.mjs) comes first,
-// shaped blocks chapter by chapter; the cubes made before it follow as the later chapters: the two-by-two ones as Boxes, the three-by-
-// three as The cube. The tools those first met are met earlier now, so only glue keeps its line there (Post brings it in).
-export const CHAPTERS = [...BOOK_CHAPTERS, { n: 9, name: "Boxes", rule: "Whole blocks, two cubes each way." }, { n: 11, name: "The cube", rule: "Three cubes each way: a cube you can't see is still a cube." }];
-// (they offer the three tools met by then, as the book's later levels do; glue comes in at Post, and from there all four)
-const OLD = [...CUBES.filter(l => l.n === 2), ...CUBES.filter(l => l.n === 3)], GLUE = OLD.findIndex(l => l.id === "s5");
-const later = (l, i) => ({ ...l, chapter: l.n === 2 ? 9 : 11, tools: i < GLUE ? ["chisel", "saw", "bore"] : undefined, ...(l.rule && !/Glue/.test(l.rule) ? { rule: undefined } : {}) });
-export const LEVELS = [...BOOK, ...OLD.map(later)];
+// 13 Nov 2026, Korbi: 100 levels, "the first 50 levels should be easier than the 3x3 cube". The book (slipway-plan.mjs) is shaped
+// blocks, chapter by chapter; the cubes made before it take their places among them: the two-by-two ones in Boxes (9), the three-by-
+// three in The cube (11). Every tool is met by then (glue in the book's sixth chapter), so they offer all four and say no rule.
+export const CHAPTERS = [...BOOK_CHAPTERS, { n: 9, name: "Boxes", rule: "Whole blocks, two cubes each way." }, { n: 11, name: "The cube", rule: "Three cubes each way: a cube you can't see is still a cube." }].sort((a, b) => a.n - b.n);
+const later = l => ({ ...l, chapter: l.n === 2 ? 9 : 11, tools: undefined, rule: undefined });
+const OLD = CUBES.map(later);
+export const LEVELS = CHAPTERS.flatMap(c => [...BOOK.filter(l => l.chapter === c.n), ...OLD.filter(l => l.chapter === c.n)]);
 /** The chapter a level is in. */
 export const chapterOf = level => CHAPTERS.find(c => c.n === level.chapter) || null;
 /** The tools a level offers, in the bar's order. */

@@ -25,11 +25,20 @@ export const CHAPTERS = [
   { n: 2, name: "The chisel", rule: "Pieces can be any shape: the chisel splits one joint at a time." },
   { n: 3, name: "Posts", rule: "The bore frees a whole row of cubes at once." },
   { n: 4, name: "The census", rule: "The census counts the kinds of piece: a bar, a plank, a bend, a knot." },
+  { n: 5, name: "Steps", rule: "Blocks that climb: a piece can turn a corner upwards." },
+  { n: 6, name: "Glue", rule: "Glue mends a cut: saw through, then mend what should stay whole." },
+  { n: 7, name: "Frames", rule: "Rings and arches: a ring needs two cuts to come apart." },
+  { n: 8, name: "Hulls", rule: "Long timbers, a keel and its strakes." },
+  { n: 10, name: "Hidden cubes", rule: "Some cubes are inside, out of sight: count them all the same." },
+  { n: 12, name: "The yard", rule: "Big timbers and many pieces: everything at once." },
 ];
 
 // shapes, as layers bottom to top
 const slab = (w, d, h = 1) => Array.from({ length: h }, () => Array.from({ length: d }, () => "#".repeat(w)));
 const flat = (...rows) => [rows];
+/** A shape the same in every layer. */
+const prism = (h, ...rows) => Array.from({ length: h }, () => rows);
+const ALL = ["chisel", "saw", "bore"], GLUED = ["chisel", "saw", "bore", "glue"];
 
 /** The plan, in playing order: { ch, name, shape, cut, pieces, sizes, tools, clues, rule, seed }. */
 export const PLAN = [
@@ -73,6 +82,64 @@ export const PLAN = [
   { ch: 4, name: "Offset", shape: flat("##..", "####", "####", "..##"), pieces: 4, tools: ["chisel", "saw", "bore"], clues: "lean", census: true, seed: 36 },
   { ch: 4, name: "Two bends", shape: slab(5, 2), pieces: 3, tools: ["chisel", "saw", "bore"], clues: "lean", census: true, seed: 37 },
   { ch: 4, name: "Stack", shape: slab(3, 3, 2), pieces: 4, tools: ["chisel", "saw", "bore"], clues: "lean", census: true, seed: 38 },
+  // 5 Steps: stairs and podiums, pieces that climb
+  { ch: 5, name: "Tread", shape: [["###", "###"], ["##.", "##."], ["#..", "#.."]], pieces: 3, tools: ALL, clues: "rich", seed: 41 },
+  { ch: 5, name: "Riser", shape: [["####"], ["###."], ["##.."]], pieces: 3, tools: ALL, clues: "rich", seed: 42 },
+  { ch: 5, name: "Podium", shape: [["###", "###", "###"], ["...", ".#.", "..."]], pieces: 3, tools: ALL, clues: "rich", seed: 43 },
+  { ch: 5, name: "Winder", shape: [["###", "#..", "#.."], ["##.", "#..", "..."], ["#..", "...", "..."]], pieces: 3, tools: ALL, clues: "rich", seed: 44 },
+  { ch: 5, name: "Terrace", shape: [["####", "####", "####"], ["####", "####", "...."], ["####", "....", "...."]], pieces: 4, tools: ALL, clues: "rich", seed: 45 },
+  { ch: 5, name: "Ridge", shape: [["#####", "#####"], [".###.", ".###."], ["..#..", "..#.."]], pieces: 4, tools: ALL, clues: "lean", seed: 46 },
+  { ch: 5, name: "Ziggurat", shape: [["####", "####", "####", "####"], ["....", ".##.", ".##.", "...."]], pieces: 4, tools: ALL, clues: "lean", seed: 47 },
+  { ch: 5, name: "Two flights", shape: [["#####", "#####"], ["##.##", "##.##"], ["#...#", "#...#"]], pieces: 4, tools: ALL, clues: "lean", seed: 48 },
+  // 6 Glue: sawn through, and mended where a piece crosses the cut
+  { ch: 6, name: "Mend", shape: slab(4, 2), cut: "sawglue", planes: 2, glue: 1, tools: GLUED, clues: "rich", seed: 51,
+    rule: "Glue mends one cut: the first it meets, going in from the face you tap." },
+  { ch: 6, name: "Patch", shape: slab(4, 3), cut: "sawglue", planes: 3, glue: 1, tools: GLUED, clues: "rich", seed: 52 },
+  { ch: 6, name: "Splice", shape: slab(5, 2), cut: "sawglue", planes: 3, glue: 2, tools: GLUED, clues: "rich", seed: 53 },
+  { ch: 6, name: "Rebate", shape: slab(3, 3, 2), cut: "sawglue", planes: 2, glue: 1, tools: GLUED, clues: "rich", seed: 54 },
+  { ch: 6, name: "Lap joint", shape: slab(4, 2, 2), cut: "sawglue", planes: 3, glue: 2, tools: GLUED, clues: "lean", seed: 55 },
+  { ch: 6, name: "Housing", shape: flat("####", "####", "##..", "##.."), cut: "sawglue", planes: 3, glue: 2, tools: GLUED, clues: "lean", seed: 56 },
+  { ch: 6, name: "Bridle", shape: slab(4, 4), cut: "sawglue", planes: 4, glue: 2, tools: GLUED, clues: "lean", seed: 57 },
+  { ch: 6, name: "Halving", shape: slab(3, 3, 2), cut: "sawglue", planes: 3, glue: 2, tools: GLUED, clues: "lean", seed: 58 },
+  // 7 Frames: rings, arches and hollow boxes
+  { ch: 7, name: "Ring", shape: flat("###", "#.#", "###"), pieces: 2, tools: GLUED, clues: "rich", seed: 61 },
+  { ch: 7, name: "Picture frame", shape: flat("####", "#..#", "#..#", "####"), pieces: 3, tools: GLUED, clues: "rich", seed: 62 },
+  { ch: 7, name: "Arch", shape: [["#..#"], ["#..#"], ["####"]], pieces: 3, tools: GLUED, clues: "rich", seed: 63 },
+  { ch: 7, name: "Gate", shape: [["#...#", "#...#"], ["#...#", "#...#"], ["#####", "#####"]], pieces: 4, tools: GLUED, clues: "rich", seed: 64 },
+  { ch: 7, name: "Window", shape: flat("#####", "#...#", "#...#", "#####"), pieces: 3, tools: GLUED, clues: "lean", seed: 65 },
+  { ch: 7, name: "Collar", shape: prism(2, "###", "#.#", "###"), pieces: 3, tools: GLUED, clues: "lean", seed: 66 },
+  { ch: 7, name: "Cloister", shape: flat("#####", "#.#.#", "#####"), pieces: 4, tools: GLUED, clues: "lean", seed: 67 },
+  { ch: 7, name: "Lantern", shape: [["###", "###", "###"], ["#.#", "...", "#.#"], ["###", "###", "###"]], pieces: 4, tools: GLUED, clues: "lean", seed: 68 },
+  // 8 Hulls: long timbers, the keel along the bottom and strakes that widen above it
+  { ch: 8, name: "Keel", shape: [[".....", "#####", "....."], ["#####", "#####", "#####"]], pieces: 3, tools: GLUED, clues: "rich", seed: 71 },
+  { ch: 8, name: "Garboard", shape: [["......", "######", "......"], [".####.", "######", ".####."]], pieces: 3, tools: GLUED, clues: "rich", seed: 72 },
+  { ch: 8, name: "Strakes", shape: [[".....", "#####", "....."], ["#####", "#####", "#####"], ["#####", ".....", "#####"]], pieces: 4, tools: GLUED, clues: "rich", seed: 73 },
+  { ch: 8, name: "Stem and stern", shape: [["#....#", "######", "#....#"]], pieces: 3, tools: GLUED, clues: "lean", seed: 74 },
+  { ch: 8, name: "Ribs", shape: [["#.#.#", "#####", "#.#.#"]], pieces: 4, tools: GLUED, clues: "lean", seed: 75 },
+  { ch: 8, name: "Planking", shape: [[".###.", "#####", ".###."], ["#####", "#####", "#####"]], pieces: 4, tools: GLUED, clues: "lean", seed: 76 },
+  { ch: 8, name: "Deadwood", shape: [["######", "......"], ["######", "######"]], pieces: 4, tools: GLUED, clues: "lean", seed: 77 },
+  { ch: 8, name: "Launch", shape: [["..##..", "######", "..##.."], [".####.", "######", ".####."]], pieces: 5, tools: GLUED, clues: "lean", seed: 78 },
+  // 9 Boxes (with the two-by-two cubes made before): whole blocks
+  { ch: 9, name: "Chest", shape: slab(2, 2, 3), pieces: 3, tools: GLUED, clues: "lean", seed: 81 },
+  { ch: 9, name: "Crate", shape: slab(3, 2, 2), pieces: 3, tools: GLUED, clues: "lean", seed: 82 },
+  { ch: 9, name: "Bollard", shape: slab(2, 2, 4), pieces: 4, tools: GLUED, clues: "lean", seed: 83 },
+  // 10 Hidden cubes: three thick, a cube out of sight
+  { ch: 10, name: "Plinth", shape: [["###", "###", "###"], ["###", "###", "###"], [".#.", "###", ".#."]], pieces: 4, tools: GLUED, clues: "rich", seed: 91 },
+  { ch: 10, name: "Cross", shape: prism(3, ".#.", "###", ".#."), pieces: 4, tools: GLUED, clues: "rich", seed: 92 },
+  { ch: 10, name: "Cushion", shape: [[".#.", "###", ".#."], ["###", "###", "###"], [".#.", "###", ".#."]], pieces: 4, tools: GLUED, clues: "rich", seed: 93 },
+  { ch: 10, name: "Heart", shape: [["###", "###", "###"], ["###", "###", "###"], ["...", ".#.", "..."]], pieces: 4, tools: GLUED, clues: "lean", seed: 94 },
+  { ch: 10, name: "Capstan", shape: [["###", "###", "###"], [".#.", "###", ".#."], ["###", "###", "###"]], pieces: 4, tools: GLUED, clues: "lean", seed: 95 },
+  { ch: 10, name: "Bitts", shape: [["####", "####", "####"], ["#.##", "####", "##.#"], ["####", "####", "####"]], pieces: 5, tools: GLUED, clues: "lean", seed: 96 },
+  { ch: 10, name: "Windlass", shape: prism(3, "####", "####", "####"), pieces: 6, tools: GLUED, clues: "lean", seed: 97 },
+  { ch: 10, name: "Bulkhead", shape: [["###", "###", "###"], ["###", "#.#", "###"], ["###", "###", "###"]], pieces: 5, tools: GLUED, clues: "lean", seed: 98 },
+  { ch: 10, name: "Bilge", shape: [[".#.", "###", ".#."], ["###", "###", "###"], ["###", "###", "###"]], pieces: 5, tools: GLUED, clues: "lean", seed: 99 },
+  { ch: 10, name: "Hatch", shape: [["###", "###", "###"], ["###", "###", "###"], ["#.#", "...", "#.#"]], pieces: 5, tools: GLUED, clues: "lean", seed: 100 },
+  // 12 The yard: big timbers, many pieces
+  { ch: 12, name: "Timber stack", shape: prism(3, "####", "####", "####"), pieces: 7, tools: GLUED, clues: "lean", seed: 121 },
+  { ch: 12, name: "Sternpost", shape: [["#####", "#####", "#####"], ["#####", "#####", "#####"], ["#....", "#....", "#...."]], pieces: 7, tools: GLUED, clues: "lean", seed: 122 },
+  { ch: 12, name: "Gun deck", shape: [["#####", "#####", "#####"], ["#.#.#", "#####", "#.#.#"], ["#####", "#####", "#####"]], pieces: 8, tools: GLUED, clues: "lean", seed: 123 },
+  { ch: 12, name: "Capstan bar", shape: [["....", "####", "####", "...."], ["####", "####", "####", "####"], ["....", "####", "####", "...."]], pieces: 7, tools: GLUED, clues: "lean", seed: 124 },
+  { ch: 12, name: "Launching", shape: [["..##..", ".####.", "######"], [".####.", "######", "######"], ["######", "######", "######"]], pieces: 9, tools: GLUED, clues: "lean", seed: 125 },
 ];
 
 /** A shape as a level's box: { n, solid (cube indices) }. */
@@ -94,7 +161,7 @@ const levelOf = (row, n, solid, part, gauge) => {
 /** Cut a box: by whole planes, by bars then growth, or by growth alone. Returns Map cube -> piece, or null. */
 function cutOf(row, n, solid, r) {
   const set = new Set(solid), part = new Map();
-  if (row.cut === "saw") {
+  if (row.cut === "saw" || row.cut === "sawglue") {
     // planes between layers on random axes; the pieces are what the planes leave joined
     const planes = new Set();
     for (let t = 0; planes.size < row.planes && t < 50; t++) {
@@ -111,6 +178,17 @@ function cutOf(row, n, solid, r) {
       for (let i = 0; i < q.length; i++) for (const o of nb[q[i]]) if (set.has(o) && !part.has(o) && !cutHere(q[i], o)) { part.set(o, id); q.push(o); }
       id++;
     }
+    if (row.cut !== "sawglue") return part;
+    // mend some of the cut joints: two pieces across a plane become one (a piece no saw alone could leave)
+    for (let g = 0; g < row.glue; g++) {
+      const across = [];
+      for (const a of solid) for (const b of nb[a]) if (a < b && set.has(b) && part.get(a) !== part.get(b)) across.push([part.get(a), part.get(b)]);
+      if (!across.length) return null;
+      const [p, q] = pick(r, across);
+      for (const [k, v] of part) if (v === q) part.set(k, p);
+    }
+    const ids = [...new Set(part.values())];                          // number the pieces 0.. again
+    for (const [k, v] of part) part.set(k, ids.indexOf(v));
     return part;
   }
   let id = 0;
@@ -172,12 +250,13 @@ function cluesFor(row, base, r) {
     for (const k of Object.keys(gauge).sort(() => r() - 0.5)) {
       const v = gauge[k]; delete gauge[k];
       const s = solutions(lv(), 2, 4e5);
-      if (s.aborted || s.sols.length !== 1) gauge[k] = v;
+      if (s.aborted || s.sols.length !== 1 || (row.ch >= 5 && s.nodes > MAX_STEPS)) gauge[k] = v;     // (a number is kept where the proof would grow too long)
     }
   }
   return gauge;
 }
 
+const MAX_STEPS = 5000;
 /** A row's level: the first seed from its own on that gives a cut with one answer. */
 export function make(row) {
   const { n, solid } = boxOf(row.shape);
@@ -192,6 +271,10 @@ export function make(row) {
     if (!gauge) continue;
     const s = solutions({ ...base, gauge }, 2, 2e6);
     if (s.aborted || s.sols.length !== 1) continue;
+    // the proof stays quick (the level test proves every level again, and a test must take under five seconds): past the first four
+    // chapters, published before this rule, a level whose proof takes the solver more than MAX_STEPS is passed over for the next seed
+    if (row.ch >= 5 && s.nodes > MAX_STEPS) continue;
+    if (process.env.LOG) console.error(`${row.name}: seed ${seed}, ${s.nodes} steps`);
     return { id: `b${PLAN.indexOf(row) + 1}`, name: row.name, chapter: row.ch, n, maxSize: base.maxSize, gauge, census: base.census, tools: row.tools,
       ...(row.rule ? { rule: row.rule } : {}), sol: base.sol, seed, nodes: s.nodes };
   }
