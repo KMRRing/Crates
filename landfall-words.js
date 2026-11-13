@@ -146,6 +146,7 @@ export function revealWords(S) {
   if (p.light) return `${p.name && levelOf(S).lights ? p.name : "The light"} bears ${fmtCourse(p.observed)} by the compass. ${fog()}`;
   if (p.sound) return `${p.depth} fathoms: the ship is somewhere on that depth's contour, ruled on the chart. ${fog()}`;
   if (p.hill) return `${p.name} bears ${fmtCourse(p.observed)} by the compass. ${fog()}`;
+  if (p.birds) return `The birds flew ${fmtCourse(p.observed)} by the compass: a line through ${p.name}, rough as birds are. ${fog()}`;
   if (p.lop) return `${starLabel(BY_HR.get(p.hr))}: the ship is ${fmtNm(p.z)} ${p.z >= 0 ? "toward it" : "away from it"} of where you reckoned. ${fog()}${p.more ? " Take a second star standing well apart from it, and the two lines make a fix." : ""}`;
   if (p.sun) {
     const got = [p.latOk && `latitude ${fmtLat(p.lat)}`, p.lonOk && `longitude ${fmtLon(p.lon)}`].filter(Boolean).join(", ");
@@ -159,6 +160,7 @@ export function revealWords(S) {
 export function refusedWords(S) {
   const p = S.watch.plot;
   if (p.light) return `${p.name && levelOf(S).lights ? `A line through ${p.name}` : "The light's line"} is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: is the compass right? Is it the light you think?`;
+  if (p.birds) return `A line through ${p.name} is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: were they bound for that rock? At dawn their rock is astern.`;
   if (p.hill) return `A line through ${p.name} is ${fmtNm(Math.abs(p.z))} from the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: is it the summit you think?`;
   if (p.sound) return `${p.depth} fathoms is nowhere near the reckoning: the nearest such depth is ${fmtNm(Math.abs(p.z))} off it, and the fog allows ${fmtNm(p.gate)}. It is not plotted: the other side of a bank? Fix by the stars, and the next cast will say.`;
   if (p.lop) return `This line is ${fmtNm(Math.abs(p.z))} ${p.z >= 0 ? "toward" : "away from"} ${starLabel(BY_HR.get(p.hr))} of the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: was it that star, was the horizon right, was the reading? Take it again, or throw it away.`;
@@ -185,9 +187,9 @@ export function soundWords(S, r) {
 export function steerHead(S) {
   const W = S.watch, p = W.plot, names = (W.lops || []).map(h => starLabel(BY_HR.get(h))).join(" and ");
   if (W.lops?.length || W.lines?.length) {
-    const lit = (W.lines || []).filter(l => l.kind === "light"), many = !!levelOf(S).lights, hills = (W.lines || []).filter(l => l.kind === "hill").map(l => l.name);
+    const lit = (W.lines || []).filter(l => l.kind === "light"), many = !!levelOf(S).lights, hills = (W.lines || []).filter(l => l.kind === "hill" || l.kind === "birds").map(l => (l.kind === "birds" ? `the birds of ${l.name}` : l.name));
     const extra = [...(many ? lit.map(l => l.name) : lit.length ? ["the light"] : []), ...hills, W.lines?.some(l => l.kind === "depth") && "the lead"].filter(Boolean);
-    const lines = (W.lops?.length || 0) + (W.lines || []).filter(l => l.kind === "light" || l.kind === "depth" || l.kind === "hill").length, from = [names, ...extra].filter(Boolean);
+    const lines = (W.lops?.length || 0) + (W.lines || []).filter(l => l.kind !== "star").length, from = [names, ...extra].filter(Boolean);
     return `<b>${lines > 1 ? "A fix" : "One line"}${from.length ? ` from ${from.slice(0, -1).join(", ")}${from.length > 1 ? " and " : ""}${from.at(-1)}` : ""}.</b> `;
   }
   return p?.accepted ? `<b>Latitude ${fmtLat(p.lat)}.</b> ` : p?.discarded ? "The sight is thrown away. " : "No sight this watch. ";
@@ -200,7 +202,8 @@ export function lopFindWords(S, tier) {
     : W.light && !W.light.seen && L.light ? " No light is in sight yet."
     : seen ? ` ${seen > 1 ? "Lights are" : "A light is"} in sight: tell ${seen > 1 ? "them" : "it"} by the flashes, then take the bearing.`
     : L.lights && !W.lights?.some(l => l.seen) ? " No light is in sight yet." : "";
-  const land = W.hills?.some(h => h.seen && !h.done) ? " The land is in sight: tell its summits by their shapes, and take a bearing." : "";
+  const land = (W.hills?.some(h => h.seen && !h.done) ? " The land is in sight: tell its summits by their shapes, and take a bearing." : "")
+    + (W.colonies?.some(c => c.seen && !c.done) ? ` Seabirds are flying ${W.kind === "dawn" ? "out from" : "home to"} their rock: mark their course.` : "");
   const lead = `Sight ${W.lops.length + 1} of ${L.lop}: ${n === 1 && W.lops.length ? "one more, standing apart" : "tap a bright star"}`;
   return `${lead}${tier < 4 && names.length ? ` (try ${names.map(x => `<b>${x}</b>`).join(" or ")})` : ""}.${light}${land}`;
 }

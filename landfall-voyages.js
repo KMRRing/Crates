@@ -8,6 +8,7 @@
 //   lights  a coast of several, each with its character (`ch`, landfall-lights.js): the one in sight must be told from the others
 //   hills   the summits behind a coast (landfall-land.js): seen from far off in twilight or by day, each told by its shape
 //   unnamed under cloud a star is not known by sight: the navigator names it, and the almanac works the star it is named as
+//   colonies seabird colonies (name, bird, range nm): a flight passes at twilight, home at dusk and out at dawn, a rough line through the rock
 //   gale    `legs`: the legs (0 is the first) a storm sets the ship off on by `push` nm sd, which the log cannot show
 //   bed     a charted bottom the lead can be cast on (landfall-bed.js): the shelf off the coast, banks and pits
 // The sea is invented (see landfall-levels.js); the latitudes and longitudes are real so the sky is.
@@ -15,7 +16,7 @@
 /** The chapters, by `section`. */
 export const SECTIONS = {
   1: "Polaris and the log", 2: "The noon sun", 3: "Two lines", 4: "The chronometer", 5: "The Southern Cross", 6: "Cloud and weather",
-  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land", 13: "Stars through cloud",
+  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land", 13: "Stars through cloud", 14: "Birds and the land",
 };
 
 const R = Math.round;
@@ -23,7 +24,7 @@ const R = Math.round;
  * A landfall `nm` from the departure fix on `course`: the harbour dead ahead, two shoals either side of the approach, a coast across it
  * (perpendicular to the course, 14 nm beyond) and, if `light` is given, a lighthouse on the coast beside the harbour.
  */
-function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = null, lights = null, hills = null, coast = "the coast" } = {}) {
+function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = null, lights = null, hills = null, colonies = null, coast = "the coast" } = {}) {
   const a = course * Math.PI / 180, f = [Math.sin(a), Math.cos(a)], rt = [Math.cos(a), -Math.sin(a)];
   const at = (u, v) => [R(10 * (u * f[0] + v * rt[0])) / 10, R(10 * (u * f[1] + v * rt[1])) / 10];
   const h = at(nm, 0), s1 = at(nm - 3, r + 11), s2 = at(nm + 1, -(r + 12));
@@ -37,6 +38,8 @@ function sea(course, nm, { r = 6, names = ["Skarn Bank", "The Hounds"], light = 
     // a coast of several lights: each `v` nm along the coast from the harbour (to starboard of the approach is positive), `u` on from it
     ...(lights ? { lights: lights.map(g => { const q = at(nm + (g.u ?? 10), g.v); return { name: g.name, ch: g.ch, range: g.range, x: q[0], y: q[1] }; }) } : {}),
     // the summits behind the coast, `u` nm on from the harbour (inland of the shore at 14) and `v` along it
+    // seabird colonies on the rocks and islands, each with the birds that nest there and how far out they range
+    ...(colonies ? { colonies: colonies.map(g => { const q = at(nm + (g.u ?? 8), g.v); return { name: g.name, bird: g.bird, range: g.range, x: q[0], y: q[1] }; }) } : {}),
     ...(hills ? { hills: hills.map(g => { const q = at(nm + (g.u ?? 20), g.v); return { name: g.name, shape: g.shape, h: g.h, w: g.w, ...(g.side ? { side: g.side } : {}), x: q[0], y: q[1] }; }) } : {}),
   };
 }
@@ -290,4 +293,25 @@ export const VOYAGES = [
     origin: { lat: 55.5, lon: 3.0 }, year: 1856, window: [[12, 1], [12, 25]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 2, pool: NAV, clock: clk(10, 25, 18),
     speed: 5, course0: 140, leg0: 6, hint: 2, swell: 0.7, weather: { thick: 3, cloud: 1, clear: 2 }, errors: { ...standard, log: 0.08, current: 0.5 },
     ...sea(140, 175, { r: 6.5, names: ["The Twins", "Pollux Bank"], coast: "Tvillingvik" }) },
+  // ---------- section 14: birds and the land ----------
+  // Seabirds go out to feed at dawn and home to their rocks at dusk, and each kind ranges only so far: a gannet sixty miles, a tern
+  // twenty, a puffin a dozen. A flight's compass course is a rough line through its rock.
+  { id: "the-gannets-rock", section: 14, n: 47, name: "The Gannets' Rock", place: GREY,
+    blurb: "A gannetry on a rock off the coast. At dusk the gannets fly home low over the sea: their course points at the rock.",
+    lesson: "Gannets range sixty miles from their rock and fly home at dusk: their course is a line to it, rough but a line.",
+    origin: { lat: 57.0, lon: -1.0 }, year: 1856, window: [[8, 1], [8, 31]], watches: 3, kinds: "dusk,dawn,dusk", lop: 1, pool: NAV,
+    speed: 5, course0: 80, leg0: 6, hint: 1, swell: 0.5, weather: { clear: 3, haze: 1 }, errors: { ...standard, log: 0.07, compass: [1.0, 2.0], sd: 1.5, current: 0.45 },
+    ...sea(80, 145, { r: 6.5, names: ["Bass Ledge", "Gull Skerry"], coast: "Solan", colonies: [{ name: "Solan Rock", bird: "gannet", range: 70, v: -24, u: 2 }] }) },
+  { id: "morning-flight", section: 14, n: 48, name: "Morning Flight", place: GREY,
+    blurb: "Two gannetries, one each side of your track. At dawn the birds fly out to sea, away from home: which rock is behind them?",
+    lesson: "At dawn birds fly out from their rock, so it lies astern of their course; at dusk it lies ahead.",
+    origin: { lat: 58.0, lon: 2.0 }, year: 1856, window: [[8, 5], [9, 5]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV,
+    speed: 5, course0: 100, leg0: 6, hint: 2, swell: 0.6, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, current: 0.55 },
+    ...sea(100, 175, { r: 6.5, names: ["North Stack", "South Stack"], coast: "Stakkvik", colonies: [{ name: "North Stack", bird: "gannet", range: 65, v: -32, u: -20 }, { name: "South Stack", bird: "gannet", range: 65, v: 30, u: -14 }] }) },
+  { id: "terns-and-gannets", section: 14, n: 49, name: "Terns and Gannets", place: GREY,
+    blurb: "Gannets far out, terns close in, puffins on the skerries by the harbour. Which bird you see says how near the land is.",
+    lesson: "A gannet may be sixty miles out, a tern twenty, a puffin a dozen: the bird says which rock, and how near.",
+    origin: { lat: 56.0, lon: 4.0 }, year: 1856, window: [[8, 1], [8, 25]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 1, pool: NAV, clock: clk(10, 25, 18),
+    speed: 5, course0: 240, leg0: 6, hint: 2, swell: 0.6, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.08, compass: [1.5, 3.0], sd: 2, current: 0.5 },
+    ...sea(240, 175, { r: 6.5, names: ["Tern Skerry", "The Craig"], coast: "Lundavik", colonies: [{ name: "The Craig", bird: "gannet", range: 65, v: 28, u: -6 }, { name: "Tern Holm", bird: "tern", range: 22, v: -14, u: 2 }, { name: "Lunda Skerries", bird: "puffin", range: 12, v: 6, u: 5 }] }) },
 ];

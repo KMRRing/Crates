@@ -12,6 +12,7 @@ import * as THREE from "./vendor/three-run.js";
 import { dirOf, D2R, clamp, lerp, smooth, shipMotion, windOf, starLook, dayLight, vfovOf } from "./landfall-look.js";
 import { skyColours, landColour } from "./landfall-skyview.js";
 import { parseChar, lightOn, flashTimes, lightColour } from "./landfall-lights.js";
+import { drawBird } from "./landfall-birds.js";
 
 const SKY_R = 1800, EYE_Y = 2.0;                     // metres: the dome, and how high the deck stands above the sea
 export const TABLE = { x: 0, y: 0.94, z: 5.1 };      // the chart table's top, in the ship's frame (the bow is -z, the navigator stands at +z)
@@ -218,6 +219,30 @@ export function createScene(host, { reduced = () => false } = {}) {
     const col = skyColours(S.sunAlt), top = landColour(col.hor, S.sunAlt), foot = top.map((x, i) => x + (col.hor[i] - x) * 0.3);
     for (let i = 0; i <= NL; i++) landCols.set([...foot.map(lin), ...top.map(lin)], i * 6);
     landGeo.attributes.color.needsUpdate = true;
+  }
+  // a skein of seabirds (S.birds: { heading, kind }), a line of them low over the swell on their way home at dusk or out at dawn,
+  // crossing the ship's bow or stern a few hundred metres off, flapping and gliding, every fifty seconds or so
+  const birdTex = {}, birdMats = {}, NB = 7;
+  for (const kind of ["gannet", "tern", "puffin"]) {
+    birdTex[kind] = canvasTex(128, 64, (ctx, w, h) => drawBird(ctx, kind, w / 2, h / 2, w * 0.92, 0.25, "#ffffff"), false);
+    birdMats[kind] = new THREE.MeshBasicMaterial({ map: birdTex[kind], transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true, color: 0x14181e });
+  }
+  const skein = Array.from({ length: NB }, () => { const m = new THREE.Mesh(quad, birdMats.gannet); m.visible = false; m.frustumCulled = false; m.renderOrder = 3; scene.add(m); return m; });
+  const camPos = new THREE.Vector3();
+  function flyBirds(t) {
+    const B = S.birds && !reduced() ? S.birds : null;
+    for (const m of skein) m.visible = !!B;
+    if (!B) return;
+    camera.getWorldPosition(camPos);
+    const d = dirOf(B.heading, 0), side = [d[2], 0, -d[0]], loop = 40, u = (t % loop) / loop, along = (u - 0.5) * 560;
+    for (const [i, m] of skein.entries()) {
+      if (m.material !== birdMats[B.kind]) m.material = birdMats[B.kind];
+      const lag = i * 9, off = 70 + i * 6 + 4 * Math.sin(i * 1.7), hgt = 6 + 2.5 * Math.sin(i * 2.3) + 0.8 * Math.sin(t * 0.6 + i);
+      m.position.set(camPos.x + side[0] * off + d[0] * (along - lag), hgt, camPos.z + side[2] * off + d[2] * (along - lag));
+      m.lookAt(camPos);
+      const flap = B.kind === "gannet" ? Math.max(0, Math.sin(t * 5 + i)) * (Math.sin(t * 0.7 + i) > 0 ? 1 : 0.15) : Math.sin(t * (B.kind === "puffin" ? 14 : 7) + i);
+      m.scale.set(3.2 * (B.kind === "puffin" ? 0.6 : B.kind === "tern" ? 0.8 : 1), 1.6 * (0.75 + 0.35 * flap), 1);
+    }
   }
   // the moon: her disc lit as the sun lights her (the lit side towards the sun), a glow about her, and her light on the water (setSea)
   const moonCanvas = document.createElement("canvas"); moonCanvas.width = moonCanvas.height = 128;
@@ -516,7 +541,7 @@ export function createScene(host, { reduced = () => false } = {}) {
   // ---------- state the page sets ----------
   const S = {
     heading: 0, headingTo: 0, swell: 0.6, weather: "clear", storm: 0, sunAlt: -10, sunAz: 270, limMag: 5, lamp: true, lampLevel: 1, day: false,
-    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, lights: null, land: null, moon: null,
+    stars: [], clouds: [], figure: null, ring: null, picked: null, pickedName: "", sextant: 0, wire: null, light: null, lights: null, land: null, birds: null, moon: null,
     chartDirty: false, ratio: cap, aspect: 1, hfov: 64,
   };
   let skyKey = "", lampFlick = 0, sextLevel = 0;
@@ -817,6 +842,7 @@ export function createScene(host, { reduced = () => false } = {}) {
     }
     SEA.uBeacon.value = 1.4 * brightest;
     if (S.land !== landFor) setLand();
+    flyBirds(t);
     // the sea, the flag, the spray
     setSea(t);
     if (!reduced()) {

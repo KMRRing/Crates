@@ -225,3 +225,6 @@
 #namingBody > .lf-patch { margin: .3rem auto .2rem; }
 .lf-starpick b { font-weight: 800; }
 .lf-starpick small { color: var(--ink); opacity: .75; }
+
+/* the birds in sight */
+.lf-birdpic { display: block; border-radius: 3px; border: 1px solid var(--rule); margin-bottom: .4rem; }

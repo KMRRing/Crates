@@ -133,6 +133,10 @@ export const CALLS = {
   tern(c, t) { const n = 5 + Math.floor(Math.random() * 4), f = 2900 + Math.random() * 500; for (let i = 0; i < n; i++) ping(c, t + i * 0.085, { freq: f * (1 + i * 0.012), gain: 0.012, dur: 0.07, attack: 0.008, type: "triangle", drop: 0.9 }); },
   fulmar(c, t) { burst(c, t, { freq: 900, q: 2.2, gain: 0.05, dur: 0.35 }); burst(c, t + 0.3, { freq: 760, q: 2.2, gain: 0.04, dur: 0.4 }); },
   petrel(c, t) { for (let i = 0; i < 3; i++) ping(c, t + i * 0.26, { freq: 1050 - i * 60, gain: 0.015, dur: 0.22, attack: 0.03, type: "sawtooth", drop: 0.75 }); },
+  /** A gannet: a harsh, grating "arrah", two or three of them, from a flight going home. */
+  gannet(c, t) { for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) { burst(c, t + i * 0.42, { freq: 640 + Math.random() * 120, q: 3, gain: 0.05, dur: 0.28 }); ping(c, t + i * 0.42, { freq: 300, gain: 0.018, dur: 0.26, attack: 0.03, type: "sawtooth", drop: 0.85 }); } },
+  /** A puffin: a low purr from the skerries, rising and falling. */
+  puffin(c, t) { const o = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), ld = c.createGain(); o.type = "sawtooth"; o.frequency.setValueAtTime(140, t); o.frequency.linearRampToValueAtTime(190, t + 0.5); o.frequency.linearRampToValueAtTime(120, t + 1.1); lfo.frequency.value = 28; ld.gain.value = 0.012; lfo.connect(ld).connect(g.gain); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.014, t + 0.15); g.gain.linearRampToValueAtTime(0.0001, t + 1.15); o.connect(g).connect(out()); o.start(t); lfo.start(t); o.stop(t + 1.2); lfo.stop(t + 1.2); },
   /** Two whistles that climb and fall, a dolphin's, a little apart. */
   dolphin(c, t) {
     for (let k = 0; k < 2; k++) {
@@ -276,6 +280,12 @@ export const sound = {
     burst(c, t + 0.02, { freq: 2600, q: 0.6, gain: 0.05, dur: 0.5, type: "highpass" });
     for (let i = 0; i < n; i++) { const u = i / n; burst(c, t + 0.25 + run * (u + 0.25 * u * u) / 1.25, { freq: 2800 + 900 * Math.random(), q: 6, gain: 0.03 * (1 - 0.5 * u), dur: 0.015 }); }
     if (depth != null) ping(c, t + 0.3 + run, { freq: 140, gain: 0.08, dur: 0.25, drop: 0.7, type: "triangle" });
+  },
+  /** A bird of the sea's life called for (a flight passing): its call from off to one side. */
+  call(kind) {
+    const c = audio();
+    if (!c || paused || hushed || !CALLS[kind]) return;
+    bus = side(c, Math.random() * 1.4 - 0.7); CALLS[kind](c, c.currentTime + 0.05); bus = null;
   },
   mark() { const c = audio(); if (!c || paused) return; const t = c.currentTime; burst(c, t, { freq: 1700, q: 5, gain: 0.35, dur: 0.03 }); ping(c, t, { freq: 420, gain: 0.2, dur: 0.06, drop: 0.8 }); },
   tick() { const c = audio(); if (!c || paused) return; burst(c, c.currentTime, { freq: 2600, q: 8, gain: 0.05, dur: 0.012 }); },

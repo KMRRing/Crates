@@ -71,6 +71,13 @@ export const HOW_CLOUD = [
   ["Check with the compass", "The compass bearing of a rightly named star agrees with where it should stand, within the compass's error. Far out, and the name is wrong: name it again."],
   ["A wrong name is a wrong line", "The almanac works the star you name. Named wrongly, its line lies miles from the truth, and the plot may not catch it."],
 ];
+/** How the birds are read, for the first voyage of their chapter and the menu. */
+export const HOW_BIRDS = [
+  ["Birds mean land", "Seabirds nest on rocks and islands and fish the sea round them, each kind only so far out: a gannet sixty or seventy miles, a tern twenty, a puffin a dozen. The chart marks the colonies and their birds."],
+  ["Home at dusk, out at dawn", "At dusk a flight goes home low over the sea, its rock ahead of it; at dawn it goes out, its rock astern. Birds opens the flight in sight."],
+  ["Which rock?", "Say which colony the birds belong to: their kind and how far it ranges narrow it down, and which way they fly says which side it lies. Their course is a line through the rock."],
+  ["Rough, but a line", "Birds do not fly as straight as a bearing: the line is good to a few degrees, which is miles at a distance. Use it with the stars, not instead of them."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

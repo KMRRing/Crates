@@ -191,6 +191,16 @@ export function drawChart(ctx, w, h, sc) {
     ctx.restore();
     label(ctx, G.ch ? `${G.name}, ${G.ch} ${G.range}M` : `${G.name}, ${G.range} nm`, x, y + 17 * k, 10.5 * k, pal, { italic: true });
   }
+  // the seabird colonies: a bird over the rock, its name and its birds, and the range they fish to, dotted
+  for (const C of L.colonies || []) {
+    const [x, y] = S([C.x, C.y]);
+    ctx.save(); ctx.strokeStyle = pal.pencil; ctx.lineWidth = 1; ctx.setLineDash([1.5 * k, 6 * k]); ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(x, y, C.range * cam.s, 0, 6.283); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = pal.ink; ctx.lineWidth = 1.4 * k; ctx.lineCap = "round"; const u = 5 * k;
+    ctx.beginPath(); ctx.moveTo(x - u * 1.4, y - u * 0.2); ctx.quadraticCurveTo(x - u * 0.6, y - u * 1.1, x, y); ctx.quadraticCurveTo(x + u * 0.6, y - u * 1.1, x + u * 1.4, y - u * 0.2); ctx.stroke();
+    ctx.fillStyle = pal.ink; ctx.beginPath(); ctx.arc(x, y + u * 0.9, 1.8 * k, 0, 6.283); ctx.fill(); ctx.restore();
+    label(ctx, `${C.name} (${C.bird}s, ${C.range} nm)`, x, y + 15 * k, 10.5 * k, pal, { italic: true });
+  }
   // the summits behind the coast: a hachured hill, its name and its height in feet as the old charts gave it
   for (const H of L.hills || []) {
     const [x, y] = S([H.x, H.y]), r = Math.max(5 * k, (H.w / 2) * cam.s);
@@ -254,7 +264,7 @@ export function drawChart(ctx, w, h, sc) {
     const a = S(ln.p), d = [ln.dir[0], -ln.dir[1]], far = Math.hypot(w, h) * 1.6, t = i === sc.lines.length - 1 ? clamp(sc.lineT ?? 1, 0, 1) : 1;
     if (ln.kind === "depth" && L.bed) { drawDepthLine(ctx, L, cam, w, h, k, pal, ln, t); continue; }
     ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k; ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
-    if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]); else if (ln.kind === "hill") ctx.setLineDash([14 * k, 4 * k, 3 * k, 4 * k]);
+    if (ln.kind === "light") ctx.setLineDash([9 * k, 5 * k]); else if (ln.kind === "hill") ctx.setLineDash([14 * k, 4 * k, 3 * k, 4 * k]); else if (ln.kind === "birds") ctx.setLineDash([2 * k, 5 * k]);
     ctx.beginPath(); ctx.moveTo(a[0] - d[0] * far * t, a[1] - d[1] * far * t); ctx.lineTo(a[0] + d[0] * far * t, a[1] + d[1] * far * t); ctx.stroke(); ctx.restore();
   }
   // the pencilled track and its marks

@@ -12,6 +12,8 @@
 // On a coast of several lights (`lights`, each with its character, landfall-lights.js) a light in sight is told by its flashes and its
 // bearing taken; a light taken for another puts the line through the wrong tower. A coast with charted summits (`hills`,
 // landfall-land.js) shows them over the horizon as she closes it, in twilight or by day: each told by its shape, and its bearing taken.
+// Near a coast with seabird colonies (`colonies`) a flight of its birds passes at twilight, home to the rock at dusk and out from it
+// at dawn: its compass course is a rough line through the rock, if the navigator says which rock (and minds which way they fly).
 // Under cloud (`unnamed`) a star seen through a gap is not known by sight: the navigator names it (from the star finder, its
 // neighbours, its compass bearing) and the almanac works the named star, so a wrong name makes a wrong line.
 // On a level with a charted bottom (`bed`, landfall-bed.js) the lead may be cast once a watch, by day or night: the ship heaves to for a
@@ -178,6 +180,11 @@ function runLeg(S, course, speedFactor) {
   if (L.lights && !day) S.watch.lights = L.lights.map(g => ({ seen: dist(S.T, [g.x, g.y]) <= g.range * reach, done: false }));
   // the land stands out against a twilight or a day sky, and haze or a gale hides the far part of it
   if (L.hills) S.watch.hills = L.hills.map(h => { const l = hillLook(h, S.T); return { seen: l.visible && l.d <= 60 * reach, done: false }; });
+  // the birds: at a twilight the nearest colony within its birds' range sends a flight past, home at dusk and out at dawn
+  if (L.colonies) {
+    const near = L.colonies.map((c, i) => ({ i, d: dist(S.T, [c.x, c.y]) })).filter(x => x.d <= L.colonies[x.i].range && kind !== "noon").sort((a, b) => a.d - b.d)[0];
+    S.watch.colonies = L.colonies.map((_, i) => ({ seen: near?.i === i, done: false }));
+  }
   S.phase = "ritual";
   return { ok: true };
 }
@@ -430,7 +437,7 @@ export function chooseTargets(S) {
     const a = starAltAz(s, jd, p.lat, p.lon);
     if (a.alt < 22 || a.alt > 66) continue;
     // with the lead (how far along the course) or the lights ahead (where across it), a star abeam is the one that crosses them
-    const abeam = (L.bed || L.lights || L.hills) && S.leg ? 1.6 * Math.abs(Math.cos((a.az - S.leg.course) * Math.PI / 180)) : 0;
+    const abeam = (L.bed || L.lights || L.hills || L.colonies) && S.leg ? 1.6 * Math.abs(Math.cos((a.az - S.leg.course) * Math.PI / 180)) : 0;
     c.push({ hr: s[0], az: a.az, mag: s[5], cost: s[5] + (a.alt < 28 || a.alt > 60 ? 0.6 : 0) + abeam });
   }
   c.sort((x, y) => x.cost - y.cost);
@@ -477,18 +484,20 @@ function plotLop(S) {
  * line is drawn through that one: the bearing is of the one really seen (`at`), so one taken for another puts the line through the
  * wrong place. A summit is broad, and its bearing is the less sure for it.
  */
+const MARK = { lights: ["light", "light", 1.2], hills: ["summit", "hill", 1.2], colonies: ["flight", "birds", 6] };
 function plotLight(S, at = null, as = at, key = "lights") {
-  const L = levelOf(S), W = S.watch, many = at !== null, list = many ? L[key] : null;
-  if (many && (!W[key]?.[at]?.seen || W[key][at].done)) return no(`that ${key === "hills" ? "summit" : "light"} is not in sight`);
+  const L = levelOf(S), W = S.watch, many = at !== null, list = many ? L[key] : null, [what, kind, sdB] = MARK[key];
+  if (many && (!W[key]?.[at]?.seen || W[key][at].done)) return no(`that ${what} is not in sight`);
   if (many && !list[as]) return no("no such mark on the chart");
   const Lg = many ? list[at] : L.light, Lc = many ? list[as] : L.light, r = rng(S), before = { E: [...S.E], P: copyP(S.P) };
-  const trueB = bearing([Lg.x - S.T[0], Lg.y - S.T[1]]), sdB = 1.2, observed = (trueB + S.compass.err + sdB * r.g() + 360) % 360, b = observed - (S.compass.known ?? 0);
+  // a bird's flight: at dusk home to its rock, at dawn out from it, so the rock lies ahead at dusk and astern at dawn (the line is the same)
+  const away = key === "colonies" && W.kind === "dawn" ? 180 : 0;
+  const trueB = bearing([Lg.x - S.T[0], Lg.y - S.T[1]]), flown = (trueB + away + S.compass.err + sdB * r.g() + 360) % 360, observed = flown, b = (flown - away - (S.compass.known ?? 0) + 360) % 360;
   const n = [Math.cos(rad(b)), -Math.sin(rad(b))], z = n[0] * (Lc.x - S.E[0]) + n[1] * (Lc.y - S.E[1]);
   const d = Math.max(2, dist(S.E, [Lc.x, Lc.y])), broad = Lc.w ? Math.atan2(Lc.w / 4, d) * 180 / Math.PI : 0;
   const sigB = Math.hypot(sdB, broad, S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5)), sigma = Math.max(0.3, d * rad(sigB));
   const f = fold(S.E, S.epsE ?? 0, S.P, n, 0, sigma, z), gate = 3.5 * Math.sqrt(f.S) + 1.5;
   const mark = many ? (W[key][at] = { ...W[key][at], done: true, as, bearing: observed }) : Object.assign(W.light, { done: true, bearing: observed });
-  const kind = key === "hills" ? "hill" : "light";
   if (Math.abs(z) > gate) { mark.off = true; W.plot = { accepted: false, [kind]: true, z, gate, off: true, name: Lc.name }; return { ok: true, accepted: false, z, gate, observed }; }
   S.E = f.E; S.P = f.P; if (S.clock) S.epsE = f.epsE;
   const line = { p: [Lc.x, Lc.y], dir: vec(b), kind, name: Lc.name };
@@ -548,7 +557,8 @@ export function moves(S) {
   switch (S.phase) {
     case "ritual": return ["step", "skip"];
     case "find": {
-      const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [], land = S.watch.hills?.some(h => h.seen && !h.done) ? ["landmark"] : [];
+      const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [];
+      const land = [...(S.watch.hills?.some(h => h.seen && !h.done) ? ["landmark"] : []), ...(S.watch.colonies?.some(c => c.seen && !c.done) ? ["birds"] : [])];
       if (day) return ["wait", "raise", "skipstage", ...lead, ...land, "skipsight"];
       const named = !levelOf(S).unnamed || S.watch.as != null, picked = S.watch.picked !== null;
       return ["wait", "pick", ...lead, ...(picked && levelOf(S).unnamed ? ["name"] : []), ...(picked && named && !S.watch.bearing ? ["bearing"] : []), ...(picked && named ? ["raise"] : []), ...((S.watch.light?.seen && !S.watch.light.done) || S.watch.lights?.some(l => l.seen && !l.done) ? ["light"] : []), ...land, "skipsight"];
@@ -599,6 +609,7 @@ export function apply(S, m) {
       W.as = m.hr; W.bearing = null; return { ok: true };
     case "light": return L.lights ? plotLight(S, m.at, m.as ?? m.at) : plotLight(S);
     case "landmark": return plotLight(S, m.at, m.as ?? m.at, "hills");
+    case "birds": { const at = W.colonies.findIndex(c => c.seen); return plotLight(S, at, m.as ?? at, "colonies"); }
     case "sound": return castLead(S);
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);

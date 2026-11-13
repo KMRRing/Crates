@@ -18,8 +18,9 @@ import { sound } from "./landfall-sound.js";
 import { lightOn, lightColour, charWords } from "./landfall-lights.js";
 import { skyline, AZS, drawSkyline, viewOf, hillLook, SHAPE_WORDS } from "./landfall-land.js";
 import { FIND } from "./landfall-finds.js";
+import { BIRDS, drawBird } from "./landfall-birds.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
-import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, HOW_LAND, HOW_CLOUD, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, HOW_LAND, HOW_CLOUD, HOW_BIRDS, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
   sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable, soundWords,
@@ -38,7 +39,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -175,7 +176,7 @@ function drawSkyNow(now) {
   if (!S) return;
   const d = skyData(), h = help(), W = S.watch;
   drawSky(b.ctx, curView(b.w, b.h), {
-    sunAlt: d.sun.alt, sunAz: d.sun.az, stars: d.stars, limMag: d.lim, lamp: S.ui.lamp, clouds: d.clouds, land: d.land,
+    sunAlt: d.sun.alt, sunAz: d.sun.az, stars: d.stars, limMag: d.lim, lamp: S.ui.lamp, clouds: d.clouds, land: d.land, birds: birdsNow(),
     figure: h?.figure ? FIGS[h.figure] : null, ring: h?.ring ?? null, picked: W.picked, t: now / 1000, k: scale(),
   });
   dirty.sky = false;
@@ -407,6 +408,9 @@ function after(m, prev, r) {
       if (r.accepted) { startReveal(); learn("landmark"); } else note = refusedWords(S);
       break;
     case "name": learn("name"); break;
+    case "birds":
+      if (r.accepted) { startReveal(); learn("birdline"); } else note = refusedWords(S);
+      break;
     case "sound":
       learn("sound");
       note = soundWords(S, r);
@@ -436,6 +440,7 @@ function arrive(prev) {
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
   if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
   else if (L.bed && prev === "ritual" && !read(KEY.seenLead, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lead"); }, 350);
+  else if (L.colonies && prev === "ritual" && !read(KEY.seenBirds, 0)) setTimeout(() => { if (S.phase === "find") openHelp("birds"); }, 350);
   else if (L.unnamed && prev === "ritual" && !read(KEY.seenCloud, 0)) setTimeout(() => { if (S.phase === "find") openHelp("cloud"); }, 350);
   else if (L.hills && prev === "ritual" && !read(KEY.seenLand, 0)) setTimeout(() => { if (S.phase === "find") openHelp("land"); }, 350);
   else if (L.lights && prev === "ritual" && !read(KEY.seenLights, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lights"); }, 350);
@@ -470,7 +475,7 @@ function lookFor(prev) {
 }
 function startReveal() {
   const p = S.watch.plot;
-  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light || p.hill || p.sound ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
+  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false || p.lop || p.light || p.hill || p.birds || p.sound ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
   retarget();
 }
 
@@ -735,6 +740,7 @@ function renderTools() {
   function leadButton() {
     const L = levelOf(S), out = [];
     if (L.bed) out.push(button(W.sound ? "Lead ✓" : "Lead", () => go({ t: "sound" }), "lf-btn", { disabled: !can("sound"), label: "Heave to and cast the lead" }));
+    if (L.colonies && S.phase === "find") out.push(button(W.colonies?.some(c => c.seen && c.done) ? "Birds ✓" : "Birds", openBirds, "lf-btn", { disabled: !W.colonies?.some(c => c.seen), label: "The birds in sight: which rock are they bound for?" }));
     if (L.hills && S.phase === "find") out.push(button(W.hills?.some(h => h.seen) && W.hills.every(h => !h.seen || h.done) ? "Land ✓" : "Land", openLand, "lf-btn", { disabled: !W.hills?.some(h => h.seen), label: "The land in sight: tell the summits by their shapes" }));
     return out;
   }
@@ -919,7 +925,7 @@ function openNotes() {
 /** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
 function openHelp(sun = false) {
   const kind = sun === true ? "sun" : sun || "how", T = { sun: [HOW_SUN, "How the sun is taken", KEY.seenSun], star: [HOW_STAR, "Any star, and the intercept", KEY.seenStar],
-    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], land: [HOW_LAND, "The lie of the land", KEY.seenLand], cloud: [HOW_CLOUD, "Stars through cloud", KEY.seenCloud],
+    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], land: [HOW_LAND, "The lie of the land", KEY.seenLand], cloud: [HOW_CLOUD, "Stars through cloud", KEY.seenCloud], birds: [HOW_BIRDS, "Birds and the land", KEY.seenBirds],
     how: [HOW, "How a sight works", KEY.seen] }[kind];
   $("helpTitle").textContent = T[1];
   $("helpBody").replaceChildren(...T[0].map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
@@ -1014,6 +1020,48 @@ function openNaming() {
 }
 $("namingClose").addEventListener("click", () => $("namingDlg").close());
 
+// ---------- the birds ----------
+/** The flight in sight this watch, as the ship sees it: its true course (home at dusk, out at dawn) and its kind; none outside the find. */
+function birdsNow() {
+  const W = S?.watch, L = S && levelOf(S), at = W?.colonies?.findIndex(c => c.seen) ?? -1;
+  if (!L?.colonies || at < 0 || S.phase !== "find") return null;
+  const c = L.colonies[at], home = bearing([c.x - S.T[0], c.y - S.T[1]]);
+  return { heading: (home + (W.kind === "dawn" ? 180 : 0)) % 360, kind: c.bird };
+}
+/** The flight in sight, and the colonies of the chart: say which rock the birds are bound for (or come from), and take the line. */
+function openBirds() {
+  const L = levelOf(S), W = S.watch, body = $("birdsBody"), B = birdsNow(), at = W.colonies.findIndex(c => c.seen), st = W.colonies[at];
+  learn("birds");
+  if (B) sound.call(B.kind);
+  const pic = el("canvas", "lf-birdpic"), r = Math.min(2, devicePixelRatio || 1); pic.width = 320 * r; pic.height = 80 * r; pic.style.width = "100%"; pic.style.aspectRatio = "4 / 1";
+  const ctx = pic.getContext("2d"); ctx.scale(r, r);
+  const g = ctx.createLinearGradient(0, 0, 0, 80); g.addColorStop(0, "#56607a"); g.addColorStop(0.8, "#c9a184"); g.addColorStop(0.8, "#26313c"); g.addColorStop(1, "#1a222b");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 320, 80);
+  if (B) for (let i = 0; i < 6; i++) drawBird(ctx, B.kind, 40 + i * 46, 46 - (i % 2) * 8, 34, i % 3 === 0 ? 0.8 : -0.2);
+  const words = el("p", "lf-note-p");
+  const flown = B ? (B.heading + S.compass.err + 360) % 360 : 0;
+  words.textContent = !B ? "No birds this watch." : st.done ? `A flight of ${BIRDS[B.kind].name}, put to ${L.colonies[st.as].name}${st.off ? ": its line was not plotted" : ""}.`
+    : `A flight of ${BIRDS[B.kind].name} (${BIRDS[B.kind].words}), flying about ${fmtCourse(Math.round(flown / 5) * 5)} by the compass at ${W.kind}. Where is their rock?`;
+  const rows = [pic, words];
+  if (B && !st.done) {
+    let as = null;
+    const names = el("div", "lf-names"), take = button("Take the line", () => { $("birdsDlg").close(); go({ t: "birds", as }); }, "btn primary lf-take", { disabled: true });
+    for (const [i, c] of L.colonies.entries()) {
+      const b = button(`${c.name} · ${BIRDS[c.bird].name}`, () => { as = i; for (const x of names.children) x.setAttribute("aria-pressed", String(x === b)); take.disabled = false; }, "lf-mini");
+      b.setAttribute("aria-pressed", "false"); names.append(b);
+    }
+    rows.push(names, take);
+  }
+  const list = el("table", "lf-alm");
+  list.innerHTML = "<thead><tr><th>Colony</th><th>Birds</th><th>Range</th></tr></thead>";
+  const tb = el("tbody");
+  for (const c of L.colonies) { const tr = el("tr"); tr.append(el("td", null, c.name), el("td", null, BIRDS[c.bird].name), el("td", null, `${c.range} nm`)); tb.append(tr); }
+  list.append(tb);
+  body.replaceChildren(...rows, el("p", "lf-note-p", "Seabirds fly out to their fishing at dawn and home to their rock at dusk: at dusk the rock lies ahead of their course, at dawn astern."), list);
+  if (!$("birdsDlg").open) $("birdsDlg").showModal();
+}
+$("birdsClose").addEventListener("click", () => $("birdsDlg").close());
+
 // ---------- the land in sight ----------
 // Each summit in sight is shown as the skyline round its bearing looks now, the heights stretched as the views are; below are the views
 // of the coast's summits as the Sailing Directions draw them. The navigator names the summit and takes its bearing.
@@ -1073,7 +1121,7 @@ function openMenu() {
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
-  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"));
+  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"), action("Birds and the land", () => openHelp("birds"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -1097,7 +1145,7 @@ function pushWorld(now) {
     sunHidden: isDay() && lookSun(S).cloud, moon: d.moon ? { alt: d.moon.alt, az: d.moon.az, lit: d.moon.lit, waxing: d.moon.waxing } : null,
     light: !isDay() && L.light && W.light?.seen ? { az: bearing([L.light.x - S.T[0], L.light.y - S.T[1]]) } : null,
     lights: !isDay() && L.lights ? L.lights.map((g, i) => ({ az: bearing([g.x - S.T[0], g.y - S.T[1]]), ch: g.ch, off: i * 3.7, seen: !!W.lights?.[i]?.seen })).filter(g => g.seen) : null,
-    land: d.land,
+    land: d.land, birds: birdsNow(),
   });
   const c = calendar(sceneJd(S)), sec = c.h * 3600 + c.mi * 60 + c.s;
   if (sec !== dialSec) { dialSec = sec; sc.gmt = `${c.h}:${c.mi}:${c.s}`; }
@@ -1106,8 +1154,10 @@ function pushWorld(now) {
 }
 let lastRoll = 0, rollDir = 0, lastPitch = 0, pitchDir = 0, weatherSent = -1;
 /** The sea's sound follows the deck: the weather sets the wind, and each extreme of the roll may bring a creak. */
+let lastCall = 0;
 function soundOfSea() {
   const sc = stage.scene.S, w = windOf(sc.swell, sc.weather);
+  if (sc.birds && performance.now() - lastCall > 18000) { lastCall = performance.now(); sound.call(sc.birds.kind); }
   if (Math.abs(w - weatherSent) > 0.02) { weatherSent = w; sound.weather(w); }
   const r = stage.scene.motion.roll, dir = Math.sign(r - lastRoll);
   if (dir && rollDir && dir !== rollDir) sound.roll(Math.abs(lastRoll));

@@ -100,6 +100,13 @@ function sunWatch(S, bot, g, take, cur) {
 function lopFind(S, bot, take, wait, out, gaveUp, u) {
   const W = S.watch, L = levelOf(S);
   if (W.light?.seen && !W.light.done && !bot.noLight) { take({ t: "light" }, SECONDS.bearing); return; }
+  const flight = W.colonies ? W.colonies.findIndex(c => c.seen && !c.done) : -1;
+  if (flight >= 0 && !bot.noLand) {                               // a flight of seabirds, put to its rock (or, now and then, the wrong one)
+    const others = L.colonies.map((_, i) => i).filter(i => i !== flight), wrong = others.length && u() < (bot.misname ?? 0);
+    if (wrong) out.wrongTaken++;
+    take({ t: "birds", as: wrong ? others[Math.floor(u() * others.length)] : flight }, SECONDS.bearing + SECONDS.light);
+    return;
+  }
   const hill = W.hills ? W.hills.findIndex(l => l.seen && !l.done) : -1;
   if (hill >= 0 && !bot.noLand) {                                 // a summit in sight, named by its shape
     const others = L.hills.map((_, i) => i).filter(i => i !== hill), wrong = others.length && u() < (bot.misname ?? 0);

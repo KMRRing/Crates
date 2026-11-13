@@ -3,6 +3,7 @@
 // (tests/landfall-skyview.mjs); the drawing is the page's. Nothing here fetches or uses a filter: a star is a disc and a glow.
 export const D2R = Math.PI / 180;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+import { drawBird } from "./landfall-birds.js";
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const mix = (a, b, t) => a + (b - a) * t;
 
@@ -170,6 +171,15 @@ export function drawSky(ctx, v, sc) {
     if (pts.length > 3 && base.length > 3) {
       ctx.save(); ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); base.forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath();
       ctx.fillStyle = rgb(lc); ctx.fill(); ctx.restore();
+    }
+  }
+  // a skein of seabirds low over the sea, crossing the window along their flight (sc.birds: { heading, kind })
+  if (sc.birds) {
+    const u = ((sc.t || 0) % 52) / 52, base = sc.birds.heading + 90;
+    for (let i = 0; i < 7; i++) {
+      const az = base - 50 + u * 100 * (1 + 0) - i * 1.6, alt = 1.2 + 0.6 * Math.sin(i * 2.3) + 0.2 * Math.sin((sc.t || 0) * 0.6 + i), p = project(v, az, alt);
+      if (!p || p.x < -20 || p.x > w + 20 || p.y < -20 || p.y > h + 20) continue;
+      drawBird(ctx, sc.birds.kind, p.x, p.y, 14 * k, Math.sin((sc.t || 0) * 6 + i), rgb(col.top.map(x => x * 0.4)));
     }
   }
   // cloud: soft dark discs
