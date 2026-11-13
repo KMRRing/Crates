@@ -135,29 +135,46 @@ function sidesOf(s, hands) {
   }
   return seat => (seat === c.declarer || seat === partner ? 0 : 1);
 }
-/** The rule of thumb: win a trick worth taking as cheaply as possible, give points to a partner who holds it, else throw the least. */
+/** What a card is worth keeping for the tricks still to come, in card points: TRICK for one no card still out can beat,
+ *  less the more there are that can. TRICK is more than a trick's points, since the trick it takes decides who leads
+ *  and where the others' Zehner go; 64 played best against the old points-only rule in Schafkopf, Jass and Belote
+ *  (13 Nov 2026: Easy +8.5 card points a deal in Schafkopf, +12 in Jass, +4 in Belote; Medium +1.5, +5, even). */
+const TRICK = 64;
+function keepWorth(g, sim, p, card) {
+  let over = 0;
+  for (const [q, hand] of sim.hands.entries()) if (q !== p) for (const c of hand) if (g.winner(sim, [{ seat: 0, card }, { seat: 1, card: c }]) === 1) over++;
+  return TRICK / (1 + over);
+}
+/** The rule of thumb: win a trick worth taking with the card least worth keeping, give points to a partner who holds
+ *  it, else throw what's least worth, its points and the tricks it could still take together. Korbi, 13 Nov 2026:
+ *  Sepp threw his Herz-Ober into the other side's trick because it is a point cheaper than his Eichel-König, and the
+ *  next trick, which the Ober would have taken with a Zehner his partner had for it, went to the player: "Punkte über
+ *  Stichtaktik", and not for the first time. Then, playing, he threw the Schellen-Ober under a Gras-Ober "obwohl er
+ *  kleinere Trümpfe hat". A card that will take a trick is worth more than the points it saves, a Zehner's included. */
 function thumb(g, sim, p, side, rng, wobble = 0) {
   const cards = g.legal(sim, p);
   if (cards.length === 1) return cards[0];
-  const pts = c => g.points(sim, c);
+  const pts = c => g.points(sim, c), memo = new Map(), keep = c => (memo.has(c) ? memo.get(c) : memo.set(c, keepWorth(g, sim, p, c)).get(c));
   const powerIn = (trick, c) => { const t = [...trick, { seat: p, card: c }]; return g.winner(sim, t) === t.length - 1; };
   const jitter = () => (wobble ? (rng() - 0.5) * wobble : 0);
+  const least = list => list.sort((a, b) => pts(a) + keep(a) - pts(b) - keep(b) + jitter())[0];
   if (!sim.trick.length) {
-    // lead a card no other can beat if there's one (an ace, the top trump), else the cheapest of the longest suit
+    // lead a card no other can beat if there's one (an ace, the top trump), else the one least worth keeping
     const winners = cards.filter(c => isTop(g, sim, c));
     if (winners.length) return winners.sort((a, b) => pts(b) - pts(a) + jitter())[0];
-    return cards.sort((a, b) => pts(a) - pts(b) + jitter())[0];
+    return least(cards);
   }
   const w = sim.trick[g.winner(sim, sim.trick)].seat, partner = side(w) === side(p), last = sim.trick.length === 3;
   if (partner && (last || isTop(g, sim, sim.trick[g.winner(sim, sim.trick)].card))) {
-    const keep = cards.filter(c => !powerIn(sim.trick, c));
-    const from = keep.length ? keep : cards;
-    return from.sort((a, b) => pts(b) - pts(a) + jitter())[0];                     // fatten the partner's trick
+    // fatten the partner's trick: the most points, but not with a card that would take a trick of its own later
+    const under = cards.filter(c => !powerIn(sim.trick, c)), from = under.length ? under : cards;
+    return from.sort((a, b) => pts(b) - keep(b) - pts(a) + keep(a) + jitter())[0];
   }
   const take = cards.filter(c => powerIn(sim.trick, c));
   const worth = sim.trick.reduce((a, t) => a + pts(t.card), 0);
-  if (take.length && (last || worth >= 4 || take.some(c => isTop(g, sim, c)))) return take.sort((a, b) => pts(a) - pts(b) + jitter())[0];
-  return cards.sort((a, b) => pts(a) - pts(b) + jitter())[0];
+  // taking last, a card's points come home with the trick; before the others have played they may yet go to them
+  if (take.length && (last || worth >= 4 || take.some(c => isTop(g, sim, c)))) return take.sort((a, b) => keep(a) + (last ? -pts(a) : pts(a)) - keep(b) - (last ? -pts(b) : pts(b)) + jitter())[0];
+  return least(cards);
 }
 /** Whether no card still out can beat this one if it's led (the highest left of its kind). */
 function isTop(g, sim, card) {
@@ -199,15 +216,19 @@ function playCard(s, seat, level, rng) {
   const g = GAMES[s.game], legal = g.legal(s, seat);
   if (legal.length === 1) return legal[0];
   if (level === "easy" || !SAMPLES[level]) return thumb(g, s, seat, knownSides(s, seat), rng, 8);
-  const total = new Map(legal.map(c => [c, 0]));
-  let n = 0;
+  const per = new Map(legal.map(c => [c, []]));
   for (let k = 0; k < SAMPLES[level]; k++) {
     const hands = sample(s, seat, rng);
     if (!hands) continue;
     const side = sidesOf(s, hands);
-    for (const c of legal) total.set(c, total.get(c) + playout(g, s, hands, seat, c, side, rng));
-    n++;
+    for (const c of legal) per.get(c).push(playout(g, s, hands, seat, c, side, rng));
   }
-  if (!n) return thumb(g, s, seat, knownSides(s, seat), rng);
-  return [...total.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const rule = thumb(g, s, seat, knownSides(s, seat), rng), n = per.get(legal[0]).length;
+  if (n < 2) return rule;
+  // a few deals tell cards apart only so far: where the rule of thumb's card is within a standard error of the best
+  // (over the same deals), it's played, so the deals' noise doesn't throw an Ober away (Korbi, 13 Nov 2026)
+  const mean = c => per.get(c).reduce((a, v) => a + v, 0) / n, best = legal.reduce((a, c) => (mean(c) > mean(a) ? c : a));
+  const d = per.get(best).map((v, i) => v - per.get(rule)[i]), gap = d.reduce((a, v) => a + v, 0) / n;
+  const se = Math.sqrt(d.reduce((a, v) => a + (v - gap) ** 2, 0) / (n - 1) / n);
+  return gap <= se ? rule : best;
 }

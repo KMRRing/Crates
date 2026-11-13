@@ -63,6 +63,40 @@ const set = a => [...a].sort((x, y) => x - y).join(",");
   check(H.state.round === 1 && H.state.handNo === 1 && /new deal/.test(H.say.text), "all pass again: dealt anew, not counted");
 }
 
+// ---------- Schafkopf: trick tactics over points ----------
+// Korbi, 13 Nov 2026: Sepp threw his Herz-Ober into the player's trick because it is a point cheaper than a König, and
+// the trick it would have taken later went to the player. Here Resi plays a Sauspiel on the Eichel-Sau (Xaver has it,
+// shown in the first trick); you led the Schellen-Sau, Resi trumped it with the Gras-Ober, and Sepp, out of Schellen
+// and unable to beat the Ober, throws: a König, never the Herz-Ober, at every level.
+{
+  const H = [[[0, "T"], [1, "9"], [1, "8"], [2, "8"], [2, "7"], [2, "A"]], [[3, "Q"], [0, "Q"], [3, "J"], [2, "J"], [1, "7"], [2, "9"]],
+    [[0, "7"], [0, "8"], [0, "9"], [0, "J"], [1, "J"], [3, "8"]], [[1, "Q"], [1, "K"], [1, "T"], [3, "K"], [3, "T"], [2, "T"], [2, "K"]]];
+  const at = () => ({ game: "schafkopf", step: "play", dealer: 0, handNo: 1, opts: { tariff: 10, solo: 50 }, contract: { type: "sau", declarer: 1, trump: 1, ace: 3, partner: 2 },
+    hands: H.map(h => h.map(([s, r]) => C(s, r))), leader: 0, turn: 3,
+    tricks: [{ cards: [[1, 3, "9"], [2, 3, "A"], [3, 3, "7"], [0, 1, "A"]].map(([seat, s, r]) => ({ seat, card: C(s, r) })), winner: 0, pts: 22 }],
+    trick: [[0, 0, "A"], [1, 2, "Q"], [2, 0, "K"]].map(([seat, s, r]) => ({ seat, card: C(s, r) })) });
+  let r = 7;
+  const rng = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const thrown = level => Array.from({ length: level === "hard" ? 3 : 12 }, () => trumpsBot(at(), 3, level, rng).card);
+  for (const level of ["easy", "medium", "hard"]) {
+    const cards = thrown(level);
+    check(!cards.includes(C(1, "Q")), `Schafkopf ${level}: a Herz-Ober that will take a trick isn't thrown to save a point (${cards.map(c => rankOf(c) + suitOf(c)).join(" ")})`);
+  }
+  // and the same day, Sepp playing a Sauspiel on Resi's Eichel-Sau: Resi led the Herz-König, Xaver took it with the
+  // Gras-Ober, and Sepp, with the Schellen-Ober, the Herz-Sau and the Herz-Zehner, threw the Ober. Played out with every
+  // card seen, the Ober kept wins the game 27 times in 100 and thrown 21: a Zehner goes under, not the Ober.
+  const H2 = [[[3, "9"], [0, "A"], [2, "9"], [2, "T"], [1, "Q"], [3, "Q"], [1, "J"]], [[3, "A"], [3, "K"], [0, "K"], [1, "7"], [2, "J"], [1, "8"]],
+    [[3, "J"], [0, "J"], [3, "T"], [1, "9"], [0, "8"], [3, "8"]], [[0, "Q"], [1, "A"], [1, "T"], [3, "7"], [0, "7"], [0, "T"], [0, "9"]]];
+  const at2 = () => ({ game: "schafkopf", step: "play", dealer: 1, handNo: 1, opts: { tariff: 10, solo: 50 }, contract: { type: "sau", declarer: 3, trump: 1, ace: 3, partner: 1 },
+    hands: H2.map(h => h.map(([s, r]) => C(s, r))), leader: 1, turn: 3,
+    tricks: [{ cards: [[2, 2, "7"], [3, 2, "K"], [0, 2, "8"], [1, 2, "A"]].map(([seat, s, r]) => ({ seat, card: C(s, r) })), winner: 1, pts: 15 }],
+    trick: [[1, 1, "K"], [2, 2, "Q"]].map(([seat, s, r]) => ({ seat, card: C(s, r) })) });
+  for (const level of ["easy", "medium", "hard"]) {
+    const cards = Array.from({ length: level === "hard" ? 3 : 12 }, () => trumpsBot(at2(), 3, level, rng).card), obers = cards.filter(c => c === C(0, "Q")).length;
+    check(level === "medium" ? obers <= 3 : !obers, `Schafkopf ${level}: the Schellen-Ober kept, a smaller trump under the Gras-Ober (${cards.map(c => rankOf(c) + suitOf(c)).join(" ")})`);
+  }
+}
+
 // ---------- whole games ----------
 const T = 1_000_000;
 for (const game of ["jass", "belote", "schafkopf"]) {
