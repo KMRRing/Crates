@@ -12,6 +12,8 @@
 // On a coast of several lights (`lights`, each with its character, landfall-lights.js) a light in sight is told by its flashes and its
 // bearing taken; a light taken for another puts the line through the wrong tower. A coast with charted summits (`hills`,
 // landfall-land.js) shows them over the horizon as she closes it, in twilight or by day: each told by its shape, and its bearing taken.
+// Under cloud (`unnamed`) a star seen through a gap is not known by sight: the navigator names it (from the star finder, its
+// neighbours, its compass bearing) and the almanac works the named star, so a wrong name makes a wrong line.
 // On a level with a charted bottom (`bed`, landfall-bed.js) the lead may be cast once a watch, by day or night: the ship heaves to for a
 // quarter of an hour, the depth comes up, and a sloping bottom makes it a line along the depth's contour.
 //
@@ -446,7 +448,7 @@ export function chooseTargets(S) {
 const climb = (star, jd, lat, lon) => starAltAz(star, jd + 30 / 86400, lat, lon).alt - starAltAz(star, jd - 30 / 86400, lat, lon).alt;
 /** The almanac's reduction of the picked star's marks into an intercept: every line the sight book shows. */
 export function reduceLop(S, marks) {
-  const W = S.watch, star = BY_HR.get(W.picked), est = estPlace(S), jd = sceneJd(S);
+  const W = S.watch, star = BY_HR.get(levelOf(S).unnamed ? W.as : W.picked), est = estPlace(S), jd = sceneJd(S);
   const hs = marks.reduce((t, x) => t + x, 0) / marks.length, dp = dip(EYE), app = hs - dp, appDeg = app / 60, rf = refraction(appDeg), ho = appDeg - rf / 60;
   const eps = S.clock ? S.clock.err - S.epsE : 0, jdc = jd + eps / 86400;               // the time the chronometer gives, corrected by what is known of its error
   const hc = starAltAz(star, jdc, est.lat, est.lon), z = (ho - hc.alt) * 60;
@@ -465,6 +467,7 @@ function plotLop(S) {
   if (S.trail.at(-1)?.k === "fix" && S.trail.at(-1).w === S.w) S.trail.pop();         // a second line of the same watch moves the fix, it is not another
   S.trail.push({ k: "fix", p: [...S.E], w: S.w });
   W.book = null; W.marks = []; W.bearing = null;
+  if (L.unnamed) { W.took = [...(W.took || []), W.picked]; W.as = null; }
   if (W.plot.more) { W.picked = null; W.retakes = 0; S.phase = "find"; } else S.phase = "steer";
   return { ok: true, accepted: true, z: B.z, more: W.plot.more };
 }
@@ -547,7 +550,8 @@ export function moves(S) {
     case "find": {
       const lead = levelOf(S).bed && !S.watch.sound && S.watch.min < maxWait(S) ? ["sound"] : [], land = S.watch.hills?.some(h => h.seen && !h.done) ? ["landmark"] : [];
       if (day) return ["wait", "raise", "skipstage", ...lead, ...land, "skipsight"];
-      return ["wait", "pick", ...lead, ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), ...((S.watch.light?.seen && !S.watch.light.done) || S.watch.lights?.some(l => l.seen && !l.done) ? ["light"] : []), ...land, "skipsight"];
+      const named = !levelOf(S).unnamed || S.watch.as != null, picked = S.watch.picked !== null;
+      return ["wait", "pick", ...lead, ...(picked && levelOf(S).unnamed ? ["name"] : []), ...(picked && named && !S.watch.bearing ? ["bearing"] : []), ...(picked && named ? ["raise"] : []), ...((S.watch.light?.seen && !S.watch.light.done) || S.watch.lights?.some(l => l.seen && !l.done) ? ["light"] : []), ...land, "skipsight"];
     }
     case "sight": return ["read", "lower", ...(day ? ["wait"] : [])];       // the sun moves while it is watched: the clock runs in the eyepiece
     case "book": return ["plot", "retake", "discard"];
@@ -586,16 +590,22 @@ export function apply(S, m) {
     }
     case "pick":
       if (!BY_HR.has(m.hr)) return no("no such star");
-      if (W.lops?.includes(m.hr)) return no("that star is already in the book");
-      W.picked = m.hr; return { ok: true };
+      if (W.lops?.includes(m.hr) || W.took?.includes(m.hr)) return no("that star is already in the book");
+      W.picked = m.hr;
+      if (L.unnamed) { W.as = null; W.bearing = null; }
+      return { ok: true };
+    case "name":                                        // under cloud a star is not known by sight: the navigator says which it is
+      if (!BY_HR.has(m.hr)) return no("no such star");
+      W.as = m.hr; W.bearing = null; return { ok: true };
     case "light": return L.lights ? plotLight(S, m.at, m.as ?? m.at) : plotLight(S);
     case "landmark": return plotLight(S, m.at, m.as ?? m.at, "hills");
     case "sound": return castLead(S);
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);
       if (!l.visible) return no("the star cannot be seen");
-      // what the navigator compares the compass bearing with is where POLARIS should stand, whatever star was picked
-      const r = rng(S), ep = estPlace(S), ez = starAltAz(L.lop ? star : POLARIS, sceneJd(S), ep.lat, ep.lon).az;
+      // what the navigator compares the compass bearing with is where POLARIS should stand, whatever star was picked; on an any-star
+      // level where the star it is, and under cloud where the star it was named as should stand (a wrong name shows here)
+      const r = rng(S), ep = estPlace(S), ez = starAltAz(L.lop ? (L.unnamed ? BY_HR.get(W.as) : star) : POLARIS, sceneJd(S), ep.lat, ep.lon).az;
       const observed = (l.az + S.compass.err + 0.35 * r.g() + 360) % 360, diff = norm180(observed - ez);
       const wrong = Math.abs(diff) > 12;
       W.bearing = { observed, expected: ez, diff, wrong };
@@ -633,7 +643,7 @@ export function apply(S, m) {
       }
       W.min += 4; W.retakes += 1; W.book = null; W.marks = []; W.plot = null; S.phase = "find"; return { ok: true };
     case "discard":
-      if (L.lop) { W.book = null; W.marks = []; W.picked = null; W.retakes = 0; S.phase = "find"; return { ok: true }; }      // another star may still be taken; skipping the sight ends the watch's sights
+      if (L.lop) { W.book = null; W.marks = []; W.picked = null; W.retakes = 0; if (L.unnamed) W.as = null; S.phase = "find"; return { ok: true }; }      // another star may still be taken; skipping the sight ends the watch's sights
       W.plot = { accepted: false, discarded: true }; S.phase = "steer"; return { ok: true };
     case "plot": {
       if (W.book.kind === "sun") return plotSun(S);

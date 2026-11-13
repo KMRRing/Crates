@@ -7,6 +7,7 @@
 //   light   a lighthouse (made by `sea`): seen only from within `range` nm (less in haze or a gale), it gives a bearing
 //   lights  a coast of several, each with its character (`ch`, landfall-lights.js): the one in sight must be told from the others
 //   hills   the summits behind a coast (landfall-land.js): seen from far off in twilight or by day, each told by its shape
+//   unnamed under cloud a star is not known by sight: the navigator names it, and the almanac works the star it is named as
 //   gale    `legs`: the legs (0 is the first) a storm sets the ship off on by `push` nm sd, which the log cannot show
 //   bed     a charted bottom the lead can be cast on (landfall-bed.js): the shelf off the coast, banks and pits
 // The sea is invented (see landfall-levels.js); the latitudes and longitudes are real so the sky is.
@@ -14,7 +15,7 @@
 /** The chapters, by `section`. */
 export const SECTIONS = {
   1: "Polaris and the log", 2: "The noon sun", 3: "Two lines", 4: "The chronometer", 5: "The Southern Cross", 6: "Cloud and weather",
-  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land",
+  7: "The lighthouse", 8: "The storm", 9: "The Hanse run", 10: "The lead", 11: "Lights by their character", 12: "The lie of the land", 13: "Stars through cloud",
 };
 
 const R = Math.round;
@@ -268,4 +269,25 @@ export const VOYAGES = [
     speed: 5, course0: 120, leg0: 6, hint: 2, swell: 0.7, weather: { clear: 2, haze: 2, thick: 1 }, errors: { ...standard, log: 0.07, compass: [1.5, 3.0], sd: 2, current: 0.45 },
     ...sea(120, 175, { r: 7, names: ["Bluff Rock", "The Sows"], coast: "Bluffhavn", hills: [{ name: "Raven Bluff", shape: "bluff", h: 360, w: 4, v: -12, u: 18 }, { name: "Kame Peak", shape: "peak", h: 560, w: 3, v: 24, u: 24 }],
       lights: [{ name: "Bluffhavn", ch: "Oc(2) 8s", range: 18, v: 3, u: 8 }, { name: "Sows", ch: "Fl 5s", range: 16, v: 20, u: 6 }] }) },
+  // ---------- section 13: stars through cloud ----------
+  // Under a broken overcast only a star or two shows in each gap, and a star alone is not known by sight: the navigator names it from
+  // its neighbours, the star finder's bearings and heights, and the compass, and the almanac works the star it is named as.
+  { id: "a-gap-in-the-cloud", section: 13, n: 44, name: "A Gap in the Cloud", place: GREY, unnamed: true,
+    blurb: "Cloud all round, and a star in a gap. Which star? Its neighbours, its height and its bearing will tell you, if you look before you name it.",
+    lesson: "A star alone is a point of light: its name comes from where it stands, its neighbours, and a compass bearing against the star finder.",
+    origin: { lat: 56.5, lon: 2.0 }, year: 1856, window: [[9, 15], [10, 20]], watches: 3, kinds: "dusk,dawn,dusk", lop: 2, pool: NAV,
+    speed: 5, course0: 85, leg0: 6, hint: 1, swell: 0.6, weather: { thick: 2, cloud: 1, clear: 2 }, errors: { ...standard, compass: [1.0, 2.0], sd: 1.5 },
+    ...sea(85, 130, { names: ["Gap Rock", "The Wether"], coast: "Skarvik" }) },
+  { id: "through-the-murk", section: 13, n: 45, name: "Through the Murk", place: GREY, unnamed: true,
+    blurb: "Four nights of broken overcast in the autumn. Take what shows, name it with care, and let the compass catch a wrong name.",
+    lesson: "When the bearing of a star is far from where the star you named should stand, the name is wrong, not the compass.",
+    origin: { lat: 58.0, lon: 1.0 }, year: 1856, window: [[10, 10], [11, 15]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 2, pool: NAV,
+    speed: 5, course0: 260, leg0: 6, hint: 2, swell: 0.7, weather: { thick: 3, haze: 1, clear: 2 }, errors: { ...standard, current: 0.5 },
+    ...sea(260, 170, { names: ["Murk Bank", "Old Woman"], coast: "Westvik" }) },
+  { id: "twins-in-the-gap", section: 13, n: 46, name: "Twins in the Gap", place: GREY, unnamed: true,
+    blurb: "A winter passage under cloud, with bright stars that come in pairs: Castor and Pollux, Betelgeuse and Rigel. One wrong name is a line twenty miles out.",
+    lesson: "Bright stars near each other are told by their neighbours and their colours: Pollux is the brighter twin, Betelgeuse the red shoulder.",
+    origin: { lat: 55.5, lon: 3.0 }, year: 1856, window: [[12, 1], [12, 25]], watches: 4, kinds: "dusk,dawn,dusk,dawn", lop: 2, pool: NAV, clock: clk(10, 25, 18),
+    speed: 5, course0: 140, leg0: 6, hint: 2, swell: 0.7, weather: { thick: 3, cloud: 1, clear: 2 }, errors: { ...standard, log: 0.08, current: 0.5 },
+    ...sea(140, 175, { r: 6.5, names: ["The Twins", "Pollux Bank"], coast: "Tvillingvik" }) },
 ];

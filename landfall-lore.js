@@ -64,6 +64,13 @@ export const HOW_LAND = [
   ["Its bearing is a line", "Name the summit and take its compass bearing: a line through it, like a light's. A summit is broad, so its line is a little less sure than a light's."],
   ["Two summits are a fix", "Two summits well apart cross like two stars, and the land, the lights and the stars can all be taken in one twilight."],
 ];
+/** How a star is named under cloud, for the first voyage of its chapter and the menu. */
+export const HOW_CLOUD = [
+  ["A star in a gap", "Under a broken overcast a star shows alone, and is not known by sight. Tap it: the game does not name it for you."],
+  ["Name it", "Name opens the star finder: the bright stars up now, where your reckoning puts them, and how the sky leads to each. Its height and bearing, its colour and the neighbours in the gap say which it is."],
+  ["Check with the compass", "The compass bearing of a rightly named star agrees with where it should stand, within the compass's error. Far out, and the name is wrong: name it again."],
+  ["A wrong name is a wrong line", "The almanac works the star you name. Named wrongly, its line lies miles from the truth, and the plot may not catch it."],
+];
 export const HOW_SUN = [
   ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
   ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],

@@ -287,17 +287,18 @@ const toSky = (S, hr = POLARIS_HR) => { apply(S, { t: "skip" }); apply(S, { t: "
 }
 
 // ---------- any star: the intercept, the clock, the light and the gale ----------
-const lopSky = (S, hr) => { apply(S, { t: "skip" }); apply(S, { t: "pick", hr }); return waitFor(S, s => look(s, BY_HR.get(hr)).visible && conditions(s).sun < -6); };
+const lopSky = (S, hr) => { apply(S, { t: "skip" }); apply(S, { t: "pick", hr }); apply(S, { t: "name", hr }); return waitFor(S, s => look(s, BY_HR.get(hr)).visible && conditions(s).sun < -6); };
 {
   const LOP = LEVELS.filter(l => l.lop);
   check(LEVELS.length >= 30 && LOP.length >= 24 && new Set(LEVELS.map(l => l.id)).size === LEVELS.length && LEVELS.every((l, i) => l.n === i + 1), `${LEVELS.length} levels, numbered in order, ${LOP.length} of them by any star`);
-  check([...new Set(LEVELS.map(l => l.section))].every(k => SECTIONS[k]) && Object.keys(SECTIONS).length === 12, "twelve chapters, each named");
+  check([...new Set(LEVELS.map(l => l.section))].every(k => SECTIONS[k]) && Object.keys(SECTIONS).length === 13, "thirteen chapters, each named");
   let worst = 0, n = 0, none = 0;
   for (const L of LOP.filter(l => !l.clock)) for (let seed = 1; seed <= 4; seed++) {
     const S = newVoyage(L.id, seed), hr = S.watch.targets[0];
     if (hr === undefined) { none++; continue; }
     if (!lopSky(S, hr)) continue;
-    apply(S, { t: "raise" }); S.watch.hUnit = 0; S.E = [...S.T];                 // no horizon error, and the reckoning is right
+    if (!apply(S, { t: "raise" }).ok) continue;                                  // under cloud the star may show only once the horizon has gone
+    S.watch.hUnit = 0; S.E = [...S.T];                                           // no horizon error, and the reckoning is right
     apply(S, { t: "read", marks: [sextantTruth(S)] });
     worst = Math.max(worst, Math.abs(S.watch.book.z)); n++;
   }

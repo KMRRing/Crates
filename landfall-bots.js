@@ -49,7 +49,7 @@ export const driftOf = S => {
 /** Real seconds the sky takes for `min` game minutes: the first ten at the clock's pace, the rest fast-forwarded (a "wait" button, 60 times). */
 export const skySeconds = min => Math.min(min, 10) * 60 / CLOCK + Math.max(0, min - 10);
 /** Seconds a person is assumed to need for each desk action; the sky's own clock is the engine's (CLOCK game seconds per second). */
-export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12, light: 15 };
+export const SECONDS = { log: 6, step: 10, skip: 2, pick: 6, bearing: 8, mark: 8, raise: 4, plot: 4, steer: 12, sail: 8, now: 3, sound: 12, light: 15, name: 12 };
 
 /** The three sights of a noon watch, as a bot takes them. Ends with the watch in the book, or in steering if nothing could be taken. */
 function sunWatch(S, bot, g, take, cur) {
@@ -116,7 +116,7 @@ function lopFind(S, bot, take, wait, out, gaveUp, u) {
   }
   if (gaveUp || W.lops.length >= levelOf(S).lop) { take({ t: "skipsight" }, 0); return; }
   let sweet = bot.sweet;                                          // wait for the dark and a steady horizon, but not for ever
-  const ok = hr => look(S, BY_HR.get(hr)).visible && (!sweet || (conditions(S).sun < -5.8 && conditions(S).horizonFactor <= 1.3)) && !W.lops.includes(hr);
+  const ok = hr => look(S, BY_HR.get(hr)).visible && (!sweet || (conditions(S).sun < -5.8 && conditions(S).horizonFactor <= 1.3)) && !W.lops.includes(hr) && !W.took?.includes(hr);
   const seen = () => {
     const t = W.targets.find(ok);
     if (t !== undefined) return t;
@@ -128,7 +128,18 @@ function lopFind(S, bot, take, wait, out, gaveUp, u) {
   if (hr === undefined && sweet) { sweet = false; hr = seen(); }
   if (hr === undefined) { take({ t: "skipsight" }, 0); return; }
   take({ t: "pick", hr }, SECONDS.pick);
-  if (bot.bearing && !W.bearing && (S.compass.known === null || S.compass.checks.length < 2)) {
+  if (L.unnamed) {
+    // under cloud the star must be named: a careful bot names it rightly; a confused or sloppy one now and then takes it for another
+    // bright star up now, and a bot that checks the compass sees the wrong name and names it again
+    const others = [...BY_HR.values()].filter(s => s[5] < 1.8 && s[8] && s[0] !== hr && look(S, s).alt > 15).map(s => s[0]), wrong = others.length && u() < (bot.misname ?? 0);
+    if (wrong) out.wrongTaken++;
+    take({ t: "name", hr: wrong ? others[Math.floor(u() * others.length)] : hr }, SECONDS.name);
+    if (bot.bearing) {
+      const r = take({ t: "bearing" }, SECONDS.bearing);
+      if (r.ok) out.bearings++;
+      if (r.ok && r.wrong) { take({ t: "name", hr }, SECONDS.name); take({ t: "bearing" }, SECONDS.bearing); }
+    }
+  } else if (bot.bearing && !W.bearing && (S.compass.known === null || S.compass.checks.length < 2)) {
     const r = take({ t: "bearing" }, SECONDS.bearing);
     if (r.ok) out.bearings++;
   }

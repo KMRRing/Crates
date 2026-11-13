@@ -4,7 +4,7 @@
 // in the voyage or in `landfall:` keys, so a partner watching in a frame draws the same page from them.
 import {
   newVoyage, apply, moves, restore, save, forecast, conditions, sextantTruth, swellAt, sightNoise, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf,
-  masteryAfter, cloudsNow, bellsBetween, shipClock, lookSun, sunStage, reckonedNoonJd, expectedCatchJd, bodyOf, maxWait, CLOCK, MAX_WAIT, POLARIS_HR, SUN, BY_HR, EYE,
+  masteryAfter, cloudsNow, bellsBetween, shipClock, lookSun, sunStage, reckonedNoonJd, expectedCatchJd, bodyOf, maxWait, regionWords, CLOCK, MAX_WAIT, POLARIS_HR, SUN, BY_HR, EYE,
 } from "./landfall-engine.js";
 import { LEVELS, SECTIONS } from "./landfall-levels.js";
 import { STARS } from "./landfall-stars.js";
@@ -17,8 +17,9 @@ import { fitCamera, ellipsePoints, toWorld, toScreen, palette, drawChart } from 
 import { sound } from "./landfall-sound.js";
 import { lightOn, lightColour, charWords } from "./landfall-lights.js";
 import { skyline, AZS, drawSkyline, viewOf, hillLook, SHAPE_WORDS } from "./landfall-land.js";
+import { FIND } from "./landfall-finds.js";
 import { NOTES, GROUPS, earn, fillable, textOf, capOf, filledOf, tally, fromCourse, noteById } from "./landfall-notes.js";
-import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, HOW_LAND, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, HOW_STAR, HOW_LEAD, HOW_LIGHTS, HOW_LAND, HOW_CLOUD, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
   sunTaskWords, sunAlmanac, fmtGmt, fmtSecs, lopFindWords, steerHead, starTable, soundWords,
@@ -37,7 +38,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -385,7 +386,8 @@ function after(m, prev, r) {
     }
     case "bearing": {
       learn("bearing");
-      const b = S.watch.bearing;
+      const b = S.watch.bearing, L = levelOf(S);
+      if (L.unnamed && b.wrong) { note = `Compass bearing ${fmtCourse(b.observed)}, but ${starLabel(BY_HR.get(S.watch.as))} should stand at ${fmtCourse(b.expected)}: the star is not ${starLabel(BY_HR.get(S.watch.as))}. Name it again.`; break; }
       note = b.wrong ? `Compass bearing ${fmtCourse(b.observed)}, but Polaris should stand at ${fmtCourse(b.expected)}: this is not the pole star.`
         : `Compass ${fmtCourse(b.observed)} against ${fmtCourse(b.expected)} expected: the compass reads ${b.diff > 0 ? "high" : "low"} by ${Math.abs(b.diff).toFixed(1)}°. Steering is corrected.`;
       break;
@@ -404,6 +406,7 @@ function after(m, prev, r) {
     case "landmark":
       if (r.accepted) { startReveal(); learn("landmark"); } else note = refusedWords(S);
       break;
+    case "name": learn("name"); break;
     case "sound":
       learn("sound");
       note = soundWords(S, r);
@@ -433,6 +436,7 @@ function arrive(prev) {
   if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
   if (!day && L.lop && prev === "ritual" && !read(KEY.seenStar, 0)) setTimeout(() => { if (!isDay() && S.phase === "find") openHelp("star"); }, 350);
   else if (L.bed && prev === "ritual" && !read(KEY.seenLead, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lead"); }, 350);
+  else if (L.unnamed && prev === "ritual" && !read(KEY.seenCloud, 0)) setTimeout(() => { if (S.phase === "find") openHelp("cloud"); }, 350);
   else if (L.hills && prev === "ritual" && !read(KEY.seenLand, 0)) setTimeout(() => { if (S.phase === "find") openHelp("land"); }, 350);
   else if (L.lights && prev === "ritual" && !read(KEY.seenLights, 0)) setTimeout(() => { if (S.phase === "find") openHelp("lights"); }, 350);
   if (S.phase === "ritual" && prev !== "ritual") { if (L.origin.lat < 0) learn("south"); if (S.watch.weather === "storm") learn("gale"); }
@@ -698,6 +702,7 @@ function renderTools() {
       }
       acts.append(
         button("Wait", () => { ff += 5; wake(); }, "lf-btn", { disabled: W.min >= MAX_WAIT + 30 }),
+        ...(levelOf(S).unnamed ? [button(W.as != null ? "Named" : "Name", openNaming, "lf-btn", { disabled: !can("name"), label: "Say which star it is" })] : []),
         button(W.bearing ? "Compass ✓" : "Compass", () => go({ t: "bearing" }), "lf-btn", { disabled: !can("bearing") }),
         ...leadButton(),
         button("Sextant", () => go({ t: "raise" }), "lf-btn go", { disabled: !can("raise") }),
@@ -761,8 +766,9 @@ function renderText() {
       else if (W.picked === null && L.lop) lines.push(lopFindWords(S, S.ui.tier));
       else if (W.picked === null) lines.push("Look north for the pole star, and tap a star to choose it.");
       else {
-        const s = BY_HR.get(W.picked), p = skyData().stars.find(t => t.hr === s[0]);
-        lines.push(`<b>${starLabel(s)}</b>${p ? `, ${Math.round(p.alt)}° up, bearing ${fmtCourse(p.az)}` : ""}${p && !p.vis ? (p.alt <= 0.5 ? " (below the horizon)" : " (not yet visible)") : ""}.`);
+        const s = BY_HR.get(W.picked), p = skyData().stars.find(t => t.hr === s[0]), where = p ? `, ${Math.round(p.alt)}° up, bearing about ${fmtCourse(Math.round(p.az / 5) * 5)}` : "";
+        if (L.unnamed) lines.push(W.as != null ? `A star in a gap, named as <b>${starLabel(BY_HR.get(W.as))}</b>. Check the name with the compass.` : "A star in a gap. Which is it? Name it by its neighbours.");
+        else lines.push(`<b>${starLabel(s)}</b>${where}${p && !p.vis ? (p.alt <= 0.5 ? " (below the horizon)" : " (not yet visible)") : ""}.`);
       }
       break;
     }
@@ -913,7 +919,7 @@ function openNotes() {
 /** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
 function openHelp(sun = false) {
   const kind = sun === true ? "sun" : sun || "how", T = { sun: [HOW_SUN, "How the sun is taken", KEY.seenSun], star: [HOW_STAR, "Any star, and the intercept", KEY.seenStar],
-    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], land: [HOW_LAND, "The lie of the land", KEY.seenLand],
+    lead: [HOW_LEAD, "The lead", KEY.seenLead], lights: [HOW_LIGHTS, "Lights by their character", KEY.seenLights], land: [HOW_LAND, "The lie of the land", KEY.seenLand], cloud: [HOW_CLOUD, "Stars through cloud", KEY.seenCloud],
     how: [HOW, "How a sight works", KEY.seen] }[kind];
   $("helpTitle").textContent = T[1];
   $("helpBody").replaceChildren(...T[0].map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
@@ -960,6 +966,53 @@ function openLights() {
   void est;
 }
 $("lightsClose").addEventListener("click", () => $("lightsDlg").close());
+
+// ---------- naming a star under cloud ----------
+// The gap as it is now (the stars that show round the one tapped, as the eye sees them, the zenith up), and the star finder: the bright
+// stars up now where the reckoning puts them, each with the neighbours it has on a clear night. Matching the few stars the gap shows
+// against a constellation's pattern is how the star is named; the compass then checks the name.
+const D2R_ = Math.PI / 180, unit = (az, alt) => [Math.sin(az * D2R_) * Math.cos(alt * D2R_), Math.sin(alt * D2R_), Math.cos(az * D2R_) * Math.cos(alt * D2R_)];
+/** Draws the sky round a centre (az, alt), `deg` degrees to the edge, zenith up: `stars` [{ az, alt, mag }]. */
+function starPatch(ctx, size, centre, stars, deg) {
+  const c = unit(centre.az, centre.alt), z = [0, 1, 0], dz = z[0] * c[0] + z[1] * c[1] + z[2] * c[2];
+  let up = [z[0] - dz * c[0], z[1] - dz * c[1], z[2] - dz * c[2]]; const ul = Math.hypot(...up) || 1; up = up.map(x => x / ul);
+  const right = [up[1] * c[2] - up[2] * c[1], up[2] * c[0] - up[0] * c[2], up[0] * c[1] - up[1] * c[0]], k = size / 2 / Math.tan(deg * D2R_);
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.7);
+  g.addColorStop(0, "#1b2338"); g.addColorStop(1, "#0b0f19"); ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  for (const s of stars) {
+    const d = unit(s.az, s.alt), dc = d[0] * c[0] + d[1] * c[1] + d[2] * c[2];
+    if (dc < Math.cos(deg * 1.5 * D2R_)) continue;
+    const x = size / 2 - k * (d[0] * right[0] + d[1] * right[1] + d[2] * right[2]) / dc, y = size / 2 - k * (d[0] * up[0] + d[1] * up[1] + d[2] * up[2]) / dc;
+    if (x < -4 || x > size + 4 || y < -4 || y > size + 4) continue;
+    const r = Math.max(0.7, 3.4 - 0.62 * s.mag);
+    ctx.fillStyle = "rgba(255,244,220,.95)"; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(226,190,120,.85)"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(size / 2, size / 2, 7, 0, 6.283); ctx.stroke();
+}
+function openNaming() {
+  const W = S.watch, est = estPlace(S), jd = sceneJd(S), body = $("namingBody"), d = skyData(), seen = d.stars.find(t => t.hr === W.picked);
+  learn("name");
+  const dpr = Math.min(2, devicePixelRatio || 1), patch = (centre, stars, deg, size) => { const c = el("canvas", "lf-patch"); c.width = c.height = size * dpr; c.style.width = c.style.height = `${size / 16}rem`; const ctx = c.getContext("2d"); ctx.scale(dpr, dpr); starPatch(ctx, size, centre, stars, deg); return c; };
+  // what the gap shows: the stars round the one tapped that the cloud does not hide
+  const gap = seen ? patch(seen, d.stars.filter(t => t.vis), 16, 176) : null;
+  // the star finder: every catalogue star where the reckoning puts it, for the neighbourhoods
+  const all = STARS.filter(s => s[5] < 4.6).map(s => ({ s, ...starAltAz(s, jd, est.lat, est.lon) })).filter(x => x.alt > -5);
+  const rows = all.filter(x => x.s[5] < 2.05 && x.s[8] && x.alt > 8).sort((a, b) => a.s[5] - b.s[5]).slice(0, 14);
+  const list = el("div", "lf-names lf-stars");
+  for (const x of rows) {
+    const b = el("button", "lf-mini lf-starpick"); b.type = "button";
+    const words = el("span", "lf-starwords");
+    words.append(el("b", null, starLabel(x.s)), el("span", null, `, ${regionWords(x.az, x.alt)}`), el("small", null, FIND[x.s[0]] ? `: ${FIND[x.s[0]]}` : ""));
+    b.append(patch(x, all.map(y => ({ az: y.az, alt: y.alt, mag: y.s[5] })), 16, 96), words);
+    b.setAttribute("aria-pressed", String(W.as === x.s[0]));
+    b.addEventListener("click", () => { $("namingDlg").close(); go({ t: "name", hr: x.s[0] }); });
+    list.append(b);
+  }
+  body.replaceChildren(...(gap ? [el("p", "lf-note-p", "The gap: the star you tapped in the ring, and what else shows round it."), gap] : [el("p", "lf-note-p", "Tap a star in a gap first.")]),
+    el("h3", "lf-sub", "The star finder: the bright stars up now, each with its neighbours"), list);
+  if (!$("namingDlg").open) $("namingDlg").showModal();
+}
+$("namingClose").addEventListener("click", () => $("namingDlg").close());
 
 // ---------- the land in sight ----------
 // Each summit in sight is shown as the skyline round its bearing looks now, the heights stretched as the views are; below are the views
@@ -1020,7 +1073,7 @@ function openMenu() {
   set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
-  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"));
+  about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -1034,7 +1087,8 @@ let worldKey = "", dialSec = -1, deskH = 0;
 /** What the scene is told every frame: the sky as the true ship sees it, the weather, the ship's heading and what is picked. */
 function pushWorld(now) {
   const d = skyData(), h = help(), W = S.watch, L = levelOf(S), wx = W.weather, sc = stage.scene.S, sun = d.sun;
-  const picked = W.picked, name = picked > 0 ? starLabel(BY_HR.get(picked)) : "", fig = h?.figure ? FIGS[h.figure] : null;
+  const picked = W.picked, fig = h?.figure ? FIGS[h.figure] : null;
+  const name = !(picked > 0) ? "" : L.unnamed ? (W.as != null ? `${starLabel(BY_HR.get(W.as))}?` : "?") : starLabel(BY_HR.get(picked));
   const key = `${d.key}|${S.ui.lamp}|${picked}|${h?.ring ?? ""}|${h?.figure ?? ""}|${S.phase}`;
   const clouds = cloudsNow(S);
   Object.assign(sc, {
