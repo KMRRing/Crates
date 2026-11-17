@@ -36,10 +36,13 @@ const CORE = [
       site: 105, bodies: [EARTH, MOON(-1.65, 6.5, 1.1, 5.77)], target: { at: [-0.66, 9.25], r: 0.58 }, aim: { angle: 105, charge: 10 } },
     { ...WORLD, id: "1-5", name: "Low Moon", note: "The pad is round to the right and a heavy Moon sits low in the middle: the ring is out past its right shoulder.",
       site: 60, bodies: [EARTH, MOON(0.38, 6.43, 1.55, 9.84)], target: { at: [3.31, 8.91], r: 0.55 }, aim: { angle: 60, charge: 10 } },
-    { ...WORLD, id: "1-3", name: "A small moon", note: "A small Moon pulls less: the shot has to pass closer to be turned.",
-      bodies: [EARTH, MOON(0.04, 8.42, 0.9, 3.14)], target: { at: [1.48, 11.1], r: 0.54 }, aim: { angle: 90, charge: 10 } },
-    { ...WORLD, id: "1-4", name: "Wide of the Moon", note: "The ring is out at the edge: a long way across, the Moon's pull bending the whole of it.",
-      site: 105, bodies: [EARTH, MOON(-0.24, 6.87, 1.1, 4.91)], target: { at: [-2.84, 10.13], r: 0.5 }, aim: { angle: 105, charge: 10 } },
+    // Korbi rated A small moon 3/5 and Wide of the Moon 1/5 (16 Nov 2026): both were won at the top of the gauge, the shell too fast for the
+    // Moon to do much, where the levels he liked (5/5) are won at middling power and swing a long way round it. Redrawn by columbiad-plan.mjs's
+    // search, kept only where the winning window sits mid-gauge and the Moon turns the shot most of the way round; new ids, so stars start over
+    { ...WORLD, id: "1-10", name: "A small moon", note: "A small Moon over the pad, the ring just past its top. A small Moon pulls less: aim past it and close, and it hooks the shot round.",
+      site: 60, bodies: [EARTH, MOON(1.67, 7.74, 0.91, 3.36)], target: { at: [1.69, 9.77], r: 0.54 }, aim: { angle: 60, charge: 10 } },
+    { ...WORLD, id: "1-11", name: "Wide of the Moon", note: "The ring is out at the left edge and the Moon between: aim right of it, and its pull swings the shot all the way across.",
+      site: 75, bodies: [EARTH, MOON(-0.71, 7.08, 1.52, 10.14)], target: { at: [-2.33, 9.67], r: 0.5 }, aim: { angle: 75, charge: 10 } },
     { ...WORLD, id: "1-6", name: "Sidelong", note: "The ring is up on the right with the Moon low between you: aim to pass the Moon and let it bend you round.",
       site: 75, bodies: [EARTH, MOON(0.3, 6.69, 1.37, 8.8)], target: { at: [2.84, 9.78], r: 0.5 }, aim: { angle: 75, charge: 10 } },
     { ...WORLD, id: "1-7", name: "Close by", note: "A small Moon just up from the pad and the ring above it: it pulls only a shot that passes close.",

@@ -152,8 +152,14 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   const OLD = [4, 5, 3, 7, 6, 6, 6, 6, 5, 8, 7, 5], num = id => +id.split("-")[1];
   check(SECTIONS.length === 12 && LEVELS.length === 100 && new Set(ids).size === LEVELS.length && SECTIONS.every(sec => sec.levels.length >= 8 && sec.levels.length <= 9 && sec.levels.every((l, n) => l.id.startsWith(`${sec.id}-`) && l.label === `${sec.id}-${n + 1}`)),
     `${SECTIONS.length} chapters of eight or nine, ${LEVELS.length} levels, each id of its chapter and each label its chapter and place`);
-  check(SECTIONS.every((sec, c) => { const old = sec.levels.map(l => num(l.id)).filter(k => k <= OLD[c]); return old.length === OLD[c] && old.every((k, i) => k === i + 1) && sec.levels.every(l => num(l.id) <= sec.levels.length); }),
-    "the 68 levels from before are all there, each chapter's in its old order, and the new ones are numbered on from them");
+  // Korbi's ratings of 16 Nov 2026: an old level rated low is redrawn in its place under a new id, so its stars start over
+  const REDRAWN = { "1-3": "1-10", "1-4": "1-11" }, gone = new Set(Object.keys(REDRAWN)), redrawn = new Set(Object.values(REDRAWN));
+  check(SECTIONS.every((sec, c) => {
+    const kept = sec.levels.filter(l => !redrawn.has(l.id)), old = kept.map(l => num(l.id)).filter(k => k <= OLD[c]);
+    const want = Array.from({ length: OLD[c] }, (_, i) => i + 1).filter(k => !gone.has(`${sec.id}-${k}`));
+    return old.join() === want.join() && kept.every(l => num(l.id) <= sec.levels.length);
+  }) && Object.entries(REDRAWN).every(([was, now]) => !ids.includes(was) && ids.includes(now)),
+    "the 68 levels from before are all there but the two redrawn, each chapter's in its old order, and the new ones are numbered on from them");
   check(SECTIONS.slice(0, 3).flatMap(s => s.levels).every(l => l.bodies[0].id === "earth" && l.bodies[1].id === "moon"), "the first three chapters are the Earth and its Moon");
   check(LEVELS.every(l => E.validate(l).length === 0), `every level is valid${LEVELS.map(l => E.validate(l).map(m => `${l.id}: ${m}`)).flat().join("; ")}`);
   const mov = LEVELS.filter(l => E.isMoving(l));

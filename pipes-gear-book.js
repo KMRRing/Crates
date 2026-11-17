@@ -5,6 +5,7 @@
 import { LEGACY, LEGACY_CHAPTERS } from "./pipes-gear-legacy.js";
 import { CHAPTERS as PLAN_CHAPTERS, LEVELS as PLAN_LEVELS } from "./pipes-gear-levels.js";
 import { BOOKS as NEW_BOOKS, CHAPTERS as NEW_CHAPTERS, LEVELS as NEW_LEVELS } from "./pipes-gear-designs.js";
+import { REDRAWN } from "./pipes-gear-redrawn.js";
 
 const quartz = PLAN_CHAPTERS.find(c => c.key === "a").rule;          // the first plates are driven by a quartz motor, not a spring
 const after = LEGACY_CHAPTERS.findIndex(c => c.key === "d"), at = LEGACY.findIndex(l => l.chapter === "d");
@@ -14,7 +15,9 @@ const mainspring = { ...PLAN_CHAPTERS.find(c => c.key === "w"), book: "I" };
 // come first, as their own book, then everything that played before
 export const BOOKS = [...NEW_BOOKS, { key: "I", name: "The bench", rule: "Whole gears, parity and jams." }];
 export const CHAPTERS = [...NEW_CHAPTERS, ...[...LEGACY_CHAPTERS.slice(0, after), mainspring, ...LEGACY_CHAPTERS.slice(after)].map(c => (c.key === "a" ? { ...c, rule: quartz } : c))];
-export const LEVELS = [...NEW_LEVELS, ...LEGACY.slice(0, at), ...PLAN_LEVELS.filter(l => l.chapter === "w"), ...LEGACY.slice(at)];
+// 17 Nov 2026: Book I's levels Korbi rated low are redrawn in their places (pipes-gear-redraw.mjs), under new ids
+const kept = LEGACY.map(l => REDRAWN.find(r => r.replaces === l.id) || l);
+export const LEVELS = [...NEW_LEVELS, ...kept.slice(0, at), ...PLAN_LEVELS.filter(l => l.chapter === "w"), ...kept.slice(at)];
 export const indexOf = id => LEVELS.findIndex(l => l.id === id);
 
 /** What a run was kept for: a level whose plate, hand or goals changed starts over. */

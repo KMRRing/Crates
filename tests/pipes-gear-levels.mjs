@@ -8,6 +8,7 @@ import { LEVELS as PLAYED, CHAPTERS as PLAYED_CHAPTERS, BOOKS as PLAYED_BOOKS } 
 import { LEVELS, CHAPTERS, BOOKS } from "../pipes-gear-levels.js";
 import { PLAN, rulesBroken } from "../pipes-gear-campaign.mjs";
 import { LEVELS as DESIGNED } from "../pipes-gear-designs.js";
+import { REDRAWN } from "../pipes-gear-redrawn.js";
 import { faults } from "../pipes-gear-plan.mjs";
 import { sigOf } from "../pipes-gear-book.js";
 import { POOL } from "../pipes-gear-pool.js";
@@ -19,7 +20,19 @@ const ok = (c, what) => { console.log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c)
 // played while the campaign is rebuilt (12 Nov 2026): Book I's kept levels and the rebuilt chapters, each level in its chapter
 ok(PLAYED.length === 59 && new Set(PLAYED.map(l => l.id)).size === 59 && PLAYED.every(l => PLAYED_CHAPTERS.some(c => c.key === l.chapter)) && PLAYED_CHAPTERS.every(c => PLAYED_BOOKS.some(b => b.key === c.book)),
   `${PLAYED.length} levels played, the new ones first, then Book I's and Mainspring's, every one in its chapter`);
-ok(PLAYED.filter(l => !l.id.startsWith("g-")).every(l => LEVELS.some(k => k.id === l.id)), "every older level played is in the campaign too, so its stars carry over");
+ok(PLAYED.filter(l => !l.id.startsWith("g-") && !l.replaces).every(l => LEVELS.some(k => k.id === l.id)), "every older level played is in the campaign too, so its stars carry over");
+// Book I's levels redrawn where Korbi rated them low (17 Nov 2026): in the old one's place, under a new id, with one answer, no shorter
+// train, every pillar needed, at most two of them, half the pieces singles, and an aha
+{
+  const w = [];
+  for (const l of REDRAWN) {
+    const laid = Object.values(l.sols[0]), at = PLAYED.indexOf(l), old = PLAYED.findIndex(k => k.id === l.replaces);
+    w.push(...faults(l).out.map(m => `${l.id}: ${m.split("\n")[0]}`));
+    if (at < 0 || old >= 0) w.push(`${l.id}: not played in ${l.replaces}'s place`);
+    if (laid.filter(p => p.startsWith("S")).length < laid.length / 2 || l.map.join("").split("#").length > 3 || !l.aha) w.push(`${l.id}: breaks the drawn levels' rules`);
+  }
+  ok(REDRAWN.length >= 2 && !w.length, `${REDRAWN.length} of Book I's levels redrawn in place: one answer, no shorter train${w.length ? `: ${w.slice(0, 3).join("; ")}` : ""}`);
+}
 // the levels drawn to the plan of 12 November (pipes-gear-designs.js): one answer, and no shorter train that reaches the dial (Korbi,
 // 12 Nov 2026: "it should not be possible, in 90% of cases, to solve the problem by using fewer gears than given"; a `loose` level is let
 // off, at most one in ten and never the first), each pillar needed (on a symmetric face, each mirror pair), half the pieces singles, an aha
