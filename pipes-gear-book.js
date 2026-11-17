@@ -1,23 +1,12 @@
 // Gears: all the levels in order and the saved state around them. Pure.
-// (12 Nov 2026, Korbi, on the campaign of 11 November: "the levels are... really bad". Its 64 made levels missed the plan, so Book I's 36 kept
-// levels play, as they always did, and the campaign's chapters come in one at a time as they are rebuilt to the plan, for him to judge before
-// the next: Mainspring first, after Trios. The rest of the campaign waits in pipes-gear-levels.js; stars are kept by id, so none is lost.)
-import { LEGACY, LEGACY_CHAPTERS } from "./pipes-gear-legacy.js";
-import { CHAPTERS as PLAN_CHAPTERS, LEVELS as PLAN_LEVELS } from "./pipes-gear-levels.js";
-import { BOOKS as NEW_BOOKS, CHAPTERS as NEW_CHAPTERS, LEVELS as NEW_LEVELS } from "./pipes-gear-designs.js";
-import { REDRAWN } from "./pipes-gear-redrawn.js";
+// 17 Nov 2026, Korbi: "the first 17 levels are good at the moment ... but all the other stuff is missing ... let's get the next 30 levels".
+// The levels drawn to the plan of 12 November (pipes-gear-plan.mjs) are now the whole book. Book I's kept levels and the campaign's
+// Mainspring chapter, which the drawn chapters replace, are no longer played; their stars stay where they were kept, by id.
+import { BOOKS as DRAWN_BOOKS, CHAPTERS as DRAWN_CHAPTERS, LEVELS as DRAWN } from "./pipes-gear-designs.js";
 
-const quartz = PLAN_CHAPTERS.find(c => c.key === "a").rule;          // the first plates are driven by a quartz motor, not a spring
-const after = LEGACY_CHAPTERS.findIndex(c => c.key === "d"), at = LEGACY.findIndex(l => l.chapter === "d");
-const mainspring = { ...PLAN_CHAPTERS.find(c => c.key === "w"), book: "I" };
-
-// 12 Nov 2026, Korbi: "let me playtest them, just put them in front of all the levels": the levels designed to the new plan (pipes-gear-plan.mjs)
-// come first, as their own book, then everything that played before
-export const BOOKS = [...NEW_BOOKS, { key: "I", name: "The bench", rule: "Whole gears, parity and jams." }];
-export const CHAPTERS = [...NEW_CHAPTERS, ...[...LEGACY_CHAPTERS.slice(0, after), mainspring, ...LEGACY_CHAPTERS.slice(after)].map(c => (c.key === "a" ? { ...c, rule: quartz } : c))];
-// 17 Nov 2026: Book I's levels Korbi rated low are redrawn in their places (pipes-gear-redraw.mjs), under new ids
-const kept = LEGACY.map(l => REDRAWN.find(r => r.replaces === l.id) || l);
-export const LEVELS = [...NEW_LEVELS, ...kept.slice(0, at), ...PLAN_LEVELS.filter(l => l.chapter === "w"), ...kept.slice(at)];
+export const BOOKS = DRAWN_BOOKS;
+export const CHAPTERS = DRAWN_CHAPTERS;
+export const LEVELS = DRAWN;
 export const indexOf = id => LEVELS.findIndex(l => l.id === id);
 
 /** What a run was kept for: a level whose plate, hand or goals changed starts over. */
