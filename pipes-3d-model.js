@@ -232,5 +232,9 @@ export function gearUnder(origin, dir, gears) {
 
 // ---------- the budget (the design's phone budget) ----------
 export const BUDGET = { calls: 60, callsLook: 80, tris: 120000 };
-/** The detail level for a mean frame time in ms: down a step above 28, never back up (the caller keeps the lowest it has seen). */
-export const detailFor = (now, ms) => (ms > 28 ? Math.max(0, now - 1) : now);
+/** Whether a run of frame times (ms, the CPU's share) is slow enough to step the detail down: by the median, and only once the frames after a
+ *  build have passed (SETTLE), because compiling the shaders takes half a second on a phone. 18 Nov 2026, Korbi: an iPhone came down to the
+ *  lowest detail (low resolution, wheels without crossings) on a mean of 20 frames that counted that compile, once at the start and again
+ *  after the step down, which compiles everything anew. */
+export const SETTLE = 30, SLOW_MS = 45;
+export function tooSlow(times) { const s = [...times].sort((a, b) => a - b); return s[s.length >> 1] > SLOW_MS; }

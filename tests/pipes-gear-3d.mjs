@@ -19,6 +19,14 @@ check(M.worldOf(0, 0, 5, 4).join() === "-2.5,-2" && M.squareWorld(0, 5, 4).join(
   check(x0 < -2.5 && x1 > 2.5 && a0 < x0 && a1 > x1 && b0 < z0 && b1 > z1, "the plate has room round the board and the case holds the plate");
 }
 
+// ---------- the detail step-down (Korbi, 18 Nov 2026: an iPhone fell to the lowest detail on its shader compiles) ----------
+{
+  const quick = Array(30).fill(8), compile = [900, 600, ...Array(28).fill(8)], slow = Array(30).fill(60), mixed = [...Array(14).fill(8), ...Array(16).fill(60)];
+  check(!M.tooSlow(quick) && !M.tooSlow(compile) && M.tooSlow(slow) && M.tooSlow(mixed), "a compile's long frames don't step the detail down, a slow run does");
+  const view = fs.readFileSync(root + "pipes-view-3d.js", "utf8");
+  check(/function lowerDetail\(\) \{\s*detail--; settle = P\.SETTLE/.test(view) && /function loadFrame\(f\) \{\s*frame = f; settle = P\.SETTLE/.test(view), "the frames after a build or a step down are not judged");
+}
+
 // ---------- teeth ----------
 for (const [n, m] of [[10, 6], [12, 5], [15, 4], [4, 5], [8, 4]]) {
   for (const d of [0, 1, 2]) {

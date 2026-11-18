@@ -47,7 +47,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const host = board, app = board.closest?.("#app");
   if (getComputedStyle(host).position === "static") host.style.position = "relative";
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-  let detail = detail0;
+  let detail = detail0, settle = P.SETTLE, ftimes = [];          // frames not yet judged after a build; the frame times being judged
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, detail >= 2 ? 3 : detail >= 1 ? 2 : 1));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setClearColor(0x000000, 0);
@@ -255,7 +255,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     for (const m of [chatB, rubyD, rubyL]) { m.castShadow = false; m.receiveShadow = false; }
   }
   function loadFrame(f) {
-    frame = f;
+    frame = f; settle = P.SETTLE; ftimes = [];
     const Mf = f.M;
     ensureDyn();
     byId = new Map(); G_ = [];
@@ -455,7 +455,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
   const ro = new ResizeObserver(resize);
   ro.observe(host);
 
-  let raf = 0, last = 0, ftimes = [];
+  let raf = 0, last = 0;
   const camBusy = () => Math.abs(az - azT) > 1e-3 || Math.abs(el - elT) > 1e-3 || Math.abs(zoom - zoomT) > 1e-3 || Math.abs(ex - exT) > 1e-3 || Math.abs(panX - panXT) > 1e-3 || Math.abs(panY - panYT) > 1e-3;
   const running = () => motion && driveOn && tMs < runEnd + 700;
   const moving = () => running() || camBusy() || tilting() || (frame && G_.some(r => r.jam || r.locked) && motion) || (parts?.busy?.() && motion);
@@ -479,9 +479,9 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     if (camBusy()) { az += (azT - az) * k; el += (elT - el) * k; zoom += (zoomT - zoom) * k; ex += (exT - ex) * k; panX += (panXT - panX) * k; panY += (panYT - panY) * k; if (!camBusy()) { az = azT; el = elT; zoom = zoomT; ex = exT; panX = panXT; panY = panYT; } setCamera(); glassFade(); }
     layout();
     renderer.render(scene, camera);
-    // the detail steps down once if the frames are slow, and never back up
-    ftimes.push(performance.now() - t0);
-    if (ftimes.length >= 20) { const mean = ftimes.reduce((a, b) => a + b, 0) / ftimes.length; ftimes = []; if (autoDetail && detail > 0 && mean > 45) lowerDetail(); }
+    // the detail steps down if the frames are slow, and never back up
+    if (settle > 0) settle--;
+    else if (ftimes.push(performance.now() - t0) >= 30) { const slow = P.tooSlow(ftimes); ftimes = []; if (autoDetail && detail > 0 && slow) lowerDetail(); }
     if (moving()) raf = requestAnimationFrame(frameFn);
     else if (frame && !frame.solved && driveOn && motion) raf = requestAnimationFrame(frameFn);
   }
@@ -489,7 +489,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
     if (!raf && shown && !held && !document.hidden) raf = requestAnimationFrame(frameFn);
   }
   function lowerDetail() {
-    detail = P.detailFor(detail, 99);
+    detail--; settle = P.SETTLE; ftimes = [];
     renderer.shadowMap.enabled = detail >= 2; key.castShadow = detail >= 2;
     renderer.setPixelRatio(detail >= 1 ? Math.min(devicePixelRatio || 1, 2) : 1);
     geoCache.clear(); for (const e of sets.values()) dyn.remove(e.mesh); sets.clear(); lastFrameRef = null;
