@@ -146,7 +146,7 @@ export function createView({ board, onGesture, onLost, onEvent, detail: detail0 
       g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.28, "rgba(255,255,255,0)"); g.addColorStop(0.36, "rgba(255,255,255,.34)"); g.addColorStop(0.43, "rgba(255,255,255,.04)"); g.addColorStop(0.5, "rgba(255,255,255,.2)"); g.addColorStop(0.56, "rgba(255,255,255,0)"); g.addColorStop(1, "rgba(255,255,255,0)");
       c.fillStyle = g; c.fillRect(0, 0, s, s);
     }, true) });
-    const glass = mesh(round ? G.discQuad((x1 - x0) / 2 + 0.05) : G.quadGeometry(x1 - x0, z1 - z0), glassMat, { at: [(x0 + x1) / 2, P.GLASS_Y, (z0 + z1) / 2], cast: false, receive: false });
+    const glass = mesh(round ? G.discQuad((x1 - x0) / 2 + P.GLASS_IN) : G.roundRectQuad(x1 - x0 + 2 * P.GLASS_IN, z1 - z0 + 2 * P.GLASS_IN, G.CASE_R + P.GLASS_IN), glassMat, { at: [(x0 + x1) / 2, P.GLASS_Y, (z0 + z1) / 2], cast: false, receive: false });
     glass.userData.glass = true;
     const sh = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: 0.4, map: drawn(256, (c, s) => {
       c.filter = "blur(14px)"; c.fillStyle = "#000";

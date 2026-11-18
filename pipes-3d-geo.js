@@ -161,10 +161,11 @@ export function plateGeometry(rect, tile = 0.15, depth = 0.12, round = false) {
 }
 /** A polished frame line round the board (the field), standing on y = 0, h tall. */
 export const frameGeometry = (x0, x1, z0, z1, w, h, round = false) => slab(round ? shapeOf(circle((x1 - x0) / 2 + w, 96), [circle((x1 - x0) / 2, 96)]) : shapeOf(rectOutline(x0 - w, x1 + w, z0 - w, z1 + w, 0.1), [rectOutline(x0, x1, z0, z1, 0.06)]), h, h / 3);
-/** A flat disc of radius r facing up (the glass over a round plate), uv across its square like quadGeometry's. */
-export function discQuad(r, n = 64) {
+/** A flat face facing up over an outline ([x, z] points going round), as a fan from its middle; uv across its bounding square. */
+function fanQuad(points) {
+  const xs = points.map(p => p[0]), zs = points.map(p => p[1]), [ax, bx, az, bz] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)], n = points.length;
   const pos = [0, 0, 0], uv = [0.5, 0.5], nrm = [0, 1, 0], idx = [];
-  for (let i = 0; i < n; i++) { const t = (i / n) * TAU; pos.push(Math.cos(t) * r, 0, Math.sin(t) * r); uv.push(0.5 + Math.cos(t) / 2, 0.5 + Math.sin(t) / 2); nrm.push(0, 1, 0); idx.push(0, 1 + (i + 1) % n, 1 + i); }
+  points.forEach(([x, z], i) => { pos.push(x, 0, z); uv.push((x - ax) / (bx - ax), (z - az) / (bz - az)); nrm.push(0, 1, 0); idx.push(0, 1 + (i + 1) % n, 1 + i); });
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(nrm, 3));
@@ -172,6 +173,18 @@ export function discQuad(r, n = 64) {
   g.setIndex(idx);
   return g;
 }
+/** A flat disc of radius r facing up (the glass over a round plate). */
+export const discQuad = (r, n = 64) => fanQuad(Array.from({ length: n }, (_, i) => [Math.cos(i / n * TAU) * r, Math.sin(i / n * TAU) * r]));
+/** A flat rectangle w by d with corners rounded to r, facing up (the glass over a square or oblong plate, cut to the bezel). */
+export function roundRectQuad(w, d, r, n = 8) {
+  const pts = [];
+  for (const [cx, cz, a0] of [[w / 2 - r, d / 2 - r, 0], [-w / 2 + r, d / 2 - r, 90], [-w / 2 + r, -d / 2 + r, 180], [w / 2 - r, -d / 2 + r, 270]])
+    for (let i = 0; i <= n; i++) { const t = (a0 + i * 90 / n) * DEG; pts.push([cx + Math.cos(t) * r, cz + Math.sin(t) * r]); }
+  return fanQuad(pts);
+}
+
+/** The case's corner radius on a square or oblong plate (its band runs round the plate's edge, the corners on this radius). */
+export const CASE_R = 0.62;
 /** A flat slab w by d with rounded ends (a bridge) of height h on y = 0, its top striped along x: uv.x runs along the length in `stripe` units, so the
  *  Geneva normal map's stripes cross the bridge. Group 0 the top, 1 the sides and bevel. */
 export function bridgeGeometry(w, d, h, stripe = 0.07, round = 0.12, bevel = 0.014) {
@@ -184,7 +197,7 @@ export function bridgeGeometry(w, d, h, stripe = 0.07, round = 0.12, bevel = 0.0
 /** The case: the profile swept round a rounded rectangle, so the bezel, the band and the lip hold the plate (its edge meets the inner lip at y = 0).
  *  uv.x is the length round the case, in `flute` units (a normal map of fine ridges makes the coin edge and the fluted bezel). Top y = 0.2. */
 export function caseGeometry(rect, gap, flute = 0.05, round = false) {
-  const [x0, x1, z0, z1] = rect, R = 0.62, prof = [      // [outward offset from the plate's edge, y]
+  const [x0, x1, z0, z1] = rect, R = CASE_R, prof = [      // [outward offset from the plate's edge, y]
     [-0.01, -0.05], [-0.01, 0.1], [0.012, 0.17], [0.04, 0.2], [gap * 0.5, 0.208], [gap - 0.07, 0.196], [gap - 0.02, 0.15], [gap, 0.08], [gap, -0.1], [gap, -0.3], [gap - 0.03, -0.42], [gap - 0.1, -0.5], [-0.2, -0.52]];
   const c = [[x1 - R, z1 - R, 0], [x0 + R, z1 - R, 90], [x0 + R, z0 + R, 180], [x1 - R, z0 + R, 270]], path = [];
   const edge = (ax, az, bx, bz, nx, nz) => { const L = Math.hypot(bx - ax, bz - az), k = Math.max(1, Math.round(L / 0.5)); for (let i = 0; i < k; i++) path.push({ x: ax + (bx - ax) * i / k, z: az + (bz - az) * i / k, nx, nz }); };

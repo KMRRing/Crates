@@ -59,7 +59,10 @@ export const useMargins = mg => { cur = mg || MARGIN; };
 export const CASE_GAP = 0.34;                                  // the case's band beyond the plate
 export const LUG_L = 1.0;                                      // how far a lug reaches out of the case
 export const lugX = rect => Math.min(0.55 * (rect[1] - rect[0]) / 2, 1.7);
-export const GLASS_Y = 0.98;                                   // the sapphire's height
+// 18 Nov 2026, Korbi: the glass hovered above the case, its corner showing outside the bezel: it sits at the bezel's top, cut to its inner edge
+export const GLASS_Y = 0.19;                                   // the sapphire's height: just under the bezel's top (0.2)
+export const GLASS_IN = 0.02;                                  // how far past the plate's edge the bezel's inner edge lies at that height
+export const TOP_Y = 0.98;                                     // the tallest parts: what the camera keeps in view
 
 // ---------- the board in the world ----------
 export const worldOf = (x, y, cols, rows) => [x / UNIT - cols / 2, y / UNIT - rows / 2];
@@ -192,10 +195,10 @@ export function homeEl(aspect) { return (aspect < 0.7 ? 60 : aspect < 1 ? 63 : a
 export function homeAz(aspect, cols, rows) { const [x0, x1, z0, z1] = caseRect(cols, rows); return aspect < 0.9 && x1 - x0 > 1.15 * (z1 - z0) ? 90 * DEG : 0; }
 export const LOOK_EL = 48 * DEG;
 export const ORBIT = { az: 70 * DEG, el0: 35 * DEG, el1: 75 * DEG, zoom: 2 };
-/** The points the camera must keep in view: the case's corners at the bottom and at the glass. */
+/** The points the camera must keep in view: the case's corners at the bottom and at the tallest parts' height. */
 export function keepPoints(cols, rows, lift = 0) {
   const [x0, x1, z0, z1] = caseRect(cols, rows), p = [];
-  for (const y of [-0.5, GLASS_Y + lift]) for (const x of [x0, x1]) for (const z of [z0, z1]) p.push([x, y, z]);
+  for (const y of [-0.5, TOP_Y + lift]) for (const x of [x0, x1]) for (const z of [z0, z1]) p.push([x, y, z]);
   const lx = lugX([x0, x1]);
   for (const x of [-lx, lx]) for (const z of [z0 - LUG_L * 0.8, z1 + LUG_L * 0.8]) p.push([x, -0.4, z]);       // the lugs
   p.push([x1 + 0.34, -0.1, 0]);                                                                                   // the crown

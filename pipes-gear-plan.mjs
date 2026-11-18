@@ -25,7 +25,7 @@ import fs from "fs";
 import { forgeLevel, WHY } from "./pipes-gear-forge.js";
 import { mix as mixSeed } from "./pipes-pieces.js";
 import { solve } from "./pipes-gear-solve.js";
-import { parseLevel, emptyLaid, check } from "./pipes-gear-engine.js";
+import { parseLevel, emptyLaid, check, mesh } from "./pipes-gear-engine.js";
 
 const POWER = { Q: "quartz", M: "mech", A: "arbor" };
 const PIECE = { o: "S5.1@0", a: "D5.1:5>5e@0", b: "D5.1:5>5e@1", c: "D5.1:5>5e@2", d: "D5.1:5>5e@3", "-": "D5.1:6+6@0", "|": "D5.1:6+6@1",
@@ -268,12 +268,13 @@ export const PLAN = [
     "_  .  .  .  _"],
     aha: "Blind, and nearly all singles: eleven of them would reach the escape wheel and run it backwards. The one duo sets it right at the barrel, and the train zigzags up through both fixed singles, each row running beside the last; a single beside the wrong neighbour locks it, and only winding shows it." },
   { n: 33, name: "Calibre", power: "A", themes: ["Fixed gears", "Duos", "Loads"], sym: false, draw: [
-    "#  o  o  GE o",
-    "o^ o  a  o  o",
-    "o  o↺ *  c^ .",
-    ".  o  o  a  o",
-    ".  #  o  o  o"],
-    aha: "The arbor turns every wheel beside it, but the train leaves it through the fixed duo on its right: down round the bottom right, back left under the arbor, up past its left where the load must turn anticlockwise, through the fixed single, and across the top through a duo to the dial." },
+    // 18 Nov 2026, Korbi: the first drawing's arbor turned three wheels round it, so its train could only be traced mesh by mesh in one's head
+    ".  o  o  o  c",
+    "o  d^ .  #  o",
+    "o  GS *  .  o",
+    "o  |  o  #  o",
+    "o  o  o↻ o  o"],
+    aha: "The dial sits beside the arbor but takes its turn from below, and the arbor turns only the single under it: so the train goes the long way, down through the load, along the bottom, up the right edge and back across the top, through the fixed duo, down the left side and in under the dial through a straight duo." },
   { n: 34, name: "Keyless", power: "M", themes: ["Fixed gears", "Trios", "Jams", "Mechanical"], draw: [
     "o^ o  o  PW .",
     "o  C  #  B  o^",
@@ -281,12 +282,13 @@ export const PLAN = [
     "GE o  o  o  D"],
     aha: "Three fixed singles, one in each far corner of the train's way: it runs left along the top to the first, down and across under the pillar to the second, up through a trio to the third on the right edge, and back along the bottom to the escape wheel, the trios letting it pass close to itself." },
   { n: 35, name: "Winding", power: "A", themes: ["Fixed gears", "Jams", "Duos"], draw: [
-    "_  b^ o  o  _",
-    "#  o  .  o  o^",
-    "o  d  *  o^ o",
-    "o  o  o^ o  .",
-    "_  a  GW .  _"],
-    aha: "Fixed gears ring the arbor below and to its right: the train threads out through all three in turn, round the top through the fourth, and down the left through two duos to the dial under the arbor." },
+    // 18 Nov 2026, Korbi: the first drawing's arbor turned two fixed wheels, a block of big wheels with no train to trace through it
+    "_  o^ o  o  _",
+    ".  o  c  o  #",
+    "GS .  *  a  o^",
+    "o  o^ #  o  d",
+    "_  o  o  o^ _"],
+    aha: "Eleven singles would reach the dial and run it backwards. The arbor turns only the duo above it: up to the fixed single at the top, back down beside the arbor through a duo whose blind side faces it, out to the fixed single on the right, round the bottom through the third and up through the fourth into the dial on the left." },
   { n: 36, name: "Setting", power: "M", themes: ["Fixed gears", "Duos", "Trios", "Loads", "Jams", "Mechanical"], draw: [
     "o  =^ o  o  o",
     "a  C^ .  GS o",
@@ -454,6 +456,17 @@ export function trickOf(spec) {
   return { trap: s.sols.length ? Math.min(...s.sols.map(x => x.laid.filter(Boolean).length)) : 0, touch };
 }
 
+/** How many squares of the answer the power's wheel meshes. Korbi, 18 Nov 2026 (levels 33 and 35): an arbor that turns three wheels
+ *  round it hides the train, which can only be found by tracing every mesh in one's head; one, and the train leaves the power one way.
+ *  Big wheels side by side elsewhere are fine (many such levels are good), so this is no rule for a level, only the sketch's filter. */
+export function powerContacts(spec) {
+  const L = parseLevel(spec), laid = emptyLaid(L), c0 = spec.trains[0].barrel.c, cells = new Set();
+  for (const [c, p] of Object.entries(spec.sols[0])) laid[c] = p;
+  const M = mesh(L, laid), at = new Map(M.gears.map(g => [g.id, g.c]));
+  for (const e of M.edges) if (e.kind === "mesh") for (const [a, b] of [[at.get(e.u), at.get(e.v)], [at.get(e.v), at.get(e.u)]]) if (a === c0 && b !== c0) cells.add(b);
+  return cells.size;
+}
+
 const [mode, ...args] = process.argv[1]?.endsWith("pipes-gear-plan.mjs") ? process.argv.slice(2) : [];
 if (mode === "check") {
   for (const row of PLAN.filter(r => !args[0] || r.n === Number(args[0]))) {
@@ -470,7 +483,8 @@ if (mode === "write") {
 }
 if (mode === "sketch") {
   // env: LOADS, FIXED, SPARES (clues and spare pieces), TURN (pieces come unturned), TOUCH (the train may run beside itself), SYM, AT (the
-  // power's square); filters: TRICK (a trap and a blind side), BLIND (at least so many blind sides), PILLARS (at most), NODES (lo,hi)
+  // power's square); filters: TRICK (a trap and a blind side), BLIND (at least so many blind sides), PILLARS (at most), NODES (lo,hi),
+  // MESHED (at most so many squares beside the power turned by it; 1 unless set)
   const face = args[0].split(","), pieces = Number(args[1]), mx = (args[2] || "").split(/\s+/).filter(Boolean), power = args[3] || "Q", tries = Number(args[4] || 2000);
   const E = k => Number(process.env[k] || 0), spares = E("SPARES");
   const recipe = { cols: face[0].length, rows: face.length, face, power: POWER[power], arbor: power === "A", spares, loads: E("LOADS"), fixed: E("FIXED"), turn: !!process.env.TURN,
@@ -481,10 +495,10 @@ if (mode === "sketch") {
   for (let k = Number(args[5] || 0), t0 = Date.now(); k < Number(args[5] || 0) + tries && Date.now() - t0 < Number(process.env.SECONDS || 280) * 1000; k++) {
     const res = forgeLevel(mixSeed(1, k, 77), recipe);
     if (!res) continue;
-    const pic = picture(res.spec), toks = pic.join(" ").split(/\s+/), g = { k, nodes: res.nodes, pic, idle: toks.filter(t => t === ".").length, pillars: toks.filter(t => t === "#").length, spare: spareOf(res.spec), ...trickOf(res.spec) };
+    const pic = picture(res.spec), toks = pic.join(" ").split(/\s+/), g = { k, nodes: res.nodes, pic, idle: toks.filter(t => t === ".").length, pillars: toks.filter(t => t === "#").length, spare: spareOf(res.spec), meshed: powerContacts(res.spec), ...trickOf(res.spec) };
     // Korbi's ratings, 13 Nov 2026: every level he liked has a short way that turns the dial backwards, and few pillars (a route the
     // pillars force is no puzzle): TRICK keeps only those with a trap and a blind side, PILLARS caps the pillars
-    if ((!process.env.TRICK || (g.trap && g.touch)) && g.touch >= E("BLIND") && (!process.env.PILLARS || g.pillars <= E("PILLARS")) && g.nodes >= lo && g.nodes <= hi) got.push(g);
+    if ((!process.env.TRICK || (g.trap && g.touch)) && g.touch >= E("BLIND") && (!process.env.PILLARS || g.pillars <= E("PILLARS")) && g.meshed <= (E("MESHED") || 1) && g.nodes >= lo && g.nodes <= hi) got.push(g);
   }
   if (process.env.WHY) console.log(JSON.stringify(WHY));
   got.sort((a, b) => (process.env.HARD ? b.nodes - a.nodes : a.idle - b.idle || b.nodes - a.nodes));   // the fewest squares left idle first, or the hardest
