@@ -161,7 +161,7 @@ const fmt = w => F.fmt(F.abs(w));
  *   take once the pillars are out), full (keep every square the routes leave as a pillar: a filled plate), touch (routes may run beside
  *   themselves), extras { pins, clicks, bridges } (the most of each to add), forcePins,
  *   trains: [{ m, l, pieces, bends, fams, mods, layers, adapt, end { m, l }, goal { type, ring }, stations, stationType, self (crosses itself),
- *            ends: [{ len, look: "hands" | "barrel", type }], clutch { len }, hands (a pinned hands station on the way),
+ *            ends: [{ len, look: "hands" | "barrel", type }], branchFams (the branches' families, if not the train's), clutch { len }, hands (a pinned hands station on the way),
  *            kinds (only these kinds), mix (exactly these pieces besides singles: a family "D" or a kind each) }],
  *   minimal (every pillar left is needed for the one answer, however hard that makes it), far (the barrel at least this far from the sink),
  *   face (rows with " " off the face, in place of disc), arbor (the power is the movement's turning arbor), at (the power's square),
@@ -272,7 +272,7 @@ export function forgeLevel(seed, o) {
   const ends = [];
   for (let ti = 0; ti < o.trains.length; ti++) {
     const t = o.trains[ti], R = routes[ti], D = dressed[ti];
-    const pal = paletteOf({ mods: [t.m], layers: [t.l], fams: { S: 2, D: t.fams.D ? 3 : 0, T: t.fams.T ? 3 : 0 } });
+    const pal = paletteOf({ mods: [t.m], layers: [t.l], fams: t.branchFams || { S: 2, D: t.fams.D ? 3 : 0, T: t.fams.T ? 3 : 0 } });   // (branchFams: a recipe's own mix for its branches)
     const grow = (fromC, side, len, startChan, extraForce) => {
       for (let k = 0; k < 30; k++) {
         const first = beyond(L0, fromC, side);

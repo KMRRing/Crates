@@ -26,6 +26,7 @@ import { forgeLevel, WHY } from "./pipes-gear-forge.js";
 import { mix as mixSeed } from "./pipes-pieces.js";
 import { solve } from "./pipes-gear-solve.js";
 import { parseLevel, emptyLaid, check, mesh } from "./pipes-gear-engine.js";
+import { FORGED } from "./pipes-gear-forged.js";
 
 const POWER = { Q: "quartz", M: "mech", A: "arbor" };
 const PIECE = { o: "S5.1@0", a: "D5.1:5>5e@0", b: "D5.1:5>5e@1", c: "D5.1:5>5e@2", d: "D5.1:5>5e@3", "-": "D5.1:6+6@0", "|": "D5.1:6+6@1",
@@ -48,9 +49,17 @@ export const CHAPTERS = [
   { key: "ng", book: "N", name: "Fixed gears", from: 30, rule: "A dark pinned gear is already in place: the train must pass through it." },
   { key: "nh", book: "N", name: "The tray", from: 37, rule: "The tray holds more than the movement needs: choosing what stays out is the puzzle." },
   { key: "ni", book: "N", name: "Turning", from: 44, rule: "Pieces come unturned: tap one to turn it. The face and its neighbours say which way each must face." },
+  // 20 Nov 2026, Korbi: "still missing the remaining gear levels ... it's getting a tad repetitive": chapters 10 to 14 of the plan, made by
+  // pipes-gear-forge.js from the design log's rows (pipes-gear-forged.mjs), each bringing a new kind of piece or train
+  { key: "nj", book: "C", name: "Layers and ratios", from: 52, rule: "A stack is a wheel and a pinion on one arbor: entered at its wheel it slows the train, at its pinion it speeds it up. Wheels on two layers pass over each other." },
+  { key: "nk", book: "C", name: "Complications", from: 61, rule: "One train can drive more than one dial: from a branch, every dial must turn its own way." },
+  { key: "nl", book: "C", name: "Several trains", from: 70, rule: "Each colour is its own train: two trains of one tooth size must never mesh; a finer and a coarser one may touch." },
+  { key: "nm", book: "C", name: "The crown", from: 80, rule: "Pull the crown and the train runs another way: the movement must run in both positions." },
+  { key: "nn", book: "C", name: "Full plate", from: 90, rule: "No square is left empty: duos and trios are how a train keeps its count and passes beside itself." },
 ];
-// one book: the drawn levels replace Book I (17 Nov 2026)
-export const BOOKS = [{ key: "N", name: "The bench", rule: "Gears, duos and trios, the three powers, and the clues and tricks that come with them." }];
+// the drawn levels replace Book I (17 Nov 2026); the forged ones from 52 are the complications (20 Nov 2026)
+export const BOOKS = [{ key: "N", name: "The bench", rule: "Gears, duos and trios, the three powers, and the clues and tricks that come with them." },
+  { key: "C", name: "Complications", rule: "Stacks and layers, more dials, more trains, the crown and the full plate." }];
 export const chapterOf = n => [...CHAPTERS].reverse().find(c => n >= c.from).key;
 
 // { n, name, power, themes, draw, aha, loose, sym }: sym marks a mirror-symmetric face, whose pillars count in mirror pairs
@@ -372,6 +381,10 @@ export const PLAN = [
     aha: "Unturned trios round the arbor: only one facing of each misses the train's other passes. Down from the arbor through a load, up the right to the fixed trio, across the top through a straight trio, down the left through the second load and the fixed single, and through an upright trio to the dial, just under where it started." },
 ];
 
+/** A forged level (pipes-gear-forged.js: { n, name, power, themes, aha, spec }) as level data: the maker's level, named and placed. */
+export function forgedLevel(row) {
+  return { ...row.spec, id: `g-${row.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name: row.name, chapter: chapterOf(row.n), themes: row.themes, aha: row.aha };
+}
 /** A drawn level as level data. */
 export function level(row) {
   const { n, name, power, themes = [], draw, aha = "", sym, turn, spare } = row, cells = draw.map(r => r.trim().split(/\s+/));
@@ -469,14 +482,16 @@ export function powerContacts(spec) {
 
 const [mode, ...args] = process.argv[1]?.endsWith("pipes-gear-plan.mjs") ? process.argv.slice(2) : [];
 if (mode === "check") {
-  for (const row of PLAN.filter(r => !args[0] || r.n === Number(args[0]))) {
-    const spec = level(row), f = faults(spec, row.loose);
+  for (const row of [...PLAN, ...FORGED].filter(r => !args[0] || r.n === Number(args[0]))) {
+    const spec = row.spec ? forgedLevel(row) : level(row), f = faults(spec, row.loose);
     console.log(`${row.n} ${row.name} [${spec.power}] dial ${spec.trains[0].sink.goal.dir}, ${Object.keys(spec.sols[0]).length} pieces, nodes ${f.nodes}${row.loose ? ", loose" : ""}: ${f.out.length ? "" : "ok"}`);
     for (const m of f.out) console.log("   " + m);
   }
 }
 if (mode === "write") {
-  const levels = PLAN.map(row => { const spec = level(row), f = faults(spec, row.loose); if (f.out.length) throw new Error(`level ${row.n} ${row.name}: ${f.out[0]}`); return { ...spec, nodes: f.nodes, ...(row.loose ? { loose: true } : {}) }; });
+  const drawn = PLAN.map(row => { const spec = level(row), f = faults(spec, row.loose); if (f.out.length) throw new Error(`level ${row.n} ${row.name}: ${f.out[0]}`); return { n: row.n, spec: { ...spec, nodes: f.nodes, ...(row.loose ? { loose: true } : {}) } }; });
+  const forged = FORGED.map(row => { const spec = forgedLevel(row), f = faults(spec, row.loose); if (f.out.length) throw new Error(`level ${row.n} ${row.name}: ${f.out[0]}`); return { n: row.n, spec: { ...spec, nodes: f.nodes } }; });
+  const levels = [...drawn, ...forged].sort((a, b) => a.n - b.n).map(x => x.spec);
   fs.writeFileSync(new URL("./pipes-gear-designs.js", import.meta.url), `// Gears: the levels drawn to the plan of 12 November 2026. Made by pipes-gear-plan.mjs (node pipes-gear-plan.mjs write), never by hand.\n` +
     `export const BOOKS = ${JSON.stringify(BOOKS)};\nexport const CHAPTERS = ${JSON.stringify(CHAPTERS)};\nexport const LEVELS = [\n${levels.map(l => "  " + JSON.stringify(l)).join(",\n")}\n];\n`);
   console.log(`${levels.length} levels written`);
