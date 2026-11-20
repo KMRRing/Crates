@@ -85,9 +85,23 @@ for (const level of E.LEVELS) {
   check(mixed.items.length === 5 && kinds === "building,flag,flag,outline,painting", `a run of every kind at ${level}: ${kinds}`);
   for (const only of ["painting", "building", "flag", "outline"]) check(E.dealRun(9, level, allPools, only).items.every(i => i.kind === only) && E.dealRun(9, level, allPools, only).items.length === 5, `Pictures: only ${only} at ${level}`);
 }
+// museum objects (Korbi, 20 Nov 2026): the Cleveland Museum of Art's CC0 images, each culture with enough objects to deal from, its
+// other names typed; a run of all six kinds is five of them, never the same culture twice
+const { OBJECTS, ALSO } = await import("../spyglass-objects.js");
+const obj = E.objects(OBJECTS, ALSO), cultures = new Set(obj.map(o => o.answer));
+check(obj.length >= 150 && obj.every(o => /^https:\/\/openaccess-cdn\.clevelandart\.org\//.test(o.pic) && o.caption && o.region && [1, 2, 3].includes(o.d)), `${obj.length} objects, each a Cleveland image with a caption`);
+check(cultures.size >= 15 && [...cultures].every(c => obj.filter(o => o.answer === c).length >= 6) && new Set(obj.map(o => o.id)).size === obj.length, `${cultures.size} cultures of six objects or more, no object twice`);
+const egypt = obj.find(o => o.answer === "Ancient Egypt");
+check(E.matches(egypt, "egyptian") && E.matches(egypt, "Ancient Egypt") && !E.matches(egypt, "Greek"), "an object's culture typed by its other names, and not another's");
+for (const level of E.LEVELS) {
+  const six = E.dealRun(11, level, { ...allPools, object: obj }), kinds = new Set(six.items.map(i => i.kind));
+  check(six.items.length === 5 && kinds.size >= 4 && new Set(six.items.map(i => i.answer)).size === 5, `a run of all six kinds at ${level}: ${[...kinds]}`);
+  const only = E.dealRun(12, level, { object: obj }, "object").items;
+  check(only.length === 5 && only.every(i => i.kind === "object" && (i.options.includes(i.answer) && new Set(i.options).size === i.options.length || !i.options.length)) && new Set(only.map(i => i.answer)).size === 5, `Pictures: only objects at ${level}, five cultures, no option twice`);
+}
 const noArt = E.dealRun(3, "easy", { ...allPools, painting: [], building: [] });
 check(noArt.items.length === 5 && noArt.items.every(i => i.kind === "flag" || i.kind === "outline"), "a pool left empty (a region has no paintings) leaves the mix");
 check(E.dealRun(3, "easy", allPools, "painting").items.map(i => i.answer).join() === E.dealRun(3, "easy", allPools, "painting").items.map(i => i.answer).join(), "the same seed deals the same run");
 
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
-console.log(`spyglass: ${paint.length} paintings, ${flag.length} flags and ${outline.length} outlines, runs dealt at every level, sharpening and scoring and typed answers checked`);
+console.log(`spyglass: ${paint.length} paintings, ${flag.length} flags, ${outline.length} outlines and ${obj.length} objects, runs dealt at every level, sharpening and scoring and typed answers checked`);

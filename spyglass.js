@@ -2,7 +2,7 @@
 // does not turn it), and the sooner you say what it is the more it's worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
 // gives four answers to choose from, Medium eight, Hard a line to type in. The rules are spyglass-engine.js's; this file
 // keeps the run, draws the lens and builds the page.
-import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, dealRun, fraction, spent, focus, worth, matches, norm } from "./spyglass-engine.js";
+import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, objects, dealRun, fraction, spent, focus, worth, matches, norm } from "./spyglass-engine.js";
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as ARCH } from "./arch-bank.js";
 import { flags as menuFlags } from "./menu-flags.js";
@@ -12,6 +12,7 @@ import { subjectsOn } from "./topics-on.js";
 import { subjectsIn } from "./topics.js";
 import * as pile from "./pile.js";
 import { MATHS as FLAGS } from "./flags-bank.js";
+import { OBJECTS, ALSO } from "./spyglass-objects.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { pictureUrls } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -29,21 +30,21 @@ const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JS
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-const POOLS = { painting: paintings(ART), building: buildings(ARCH), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF) };
+const POOLS = { painting: paintings(ART), building: buildings(ARCH), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF), object: objects(OBJECTS, ALSO) };
 // Region and Topics (the shared settings) narrow what is dealt: a flag and an outline are in a region by their country; a painting and a
 // building have none (Worldwide only). Topics: paintings and buildings are Art & architecture, flags and outlines Geography; with no
 // topic on every one is. Pictures (this game's own row) is a kind, or all. A daily is the same for everyone, so it uses none of them.
 const regionsOfCountry = new Map(COUNTRIES.map(c => [c.about || c.id, c.regions]));
-const PICTURES = [["all", "All"], ["painting", "Paintings"], ["building", "Buildings"], ["flag", "Flags"], ["outline", "Outlines"]];
+const PICTURES = [["all", "All"], ["painting", "Paintings"], ["building", "Buildings"], ["flag", "Flags"], ["outline", "Outlines"], ["object", "Objects"]];
 const KIND = "spyglass:pictures";
 const poolsFor = daily => {
   if (daily) return POOLS;
-  const region = regionOf("spyglass"), on = new Set(subjectsIn(subjectsOn())), topic = k => !on.size || on.has(k === "painting" || k === "building" ? "art" : "geo");
-  const inR = { painting: () => region === "world", building: () => region === "world", flag: f => inRegions(region, regionsOfCountry.get(f.id)), outline: o => inRegions(region, REGION_OF[o.answer]) };
+  const region = regionOf("spyglass"), on = new Set(subjectsIn(subjectsOn())), topic = k => !on.size || on.has(["painting", "building", "object"].includes(k) ? "art" : "geo");
+  const inR = { painting: () => region === "world", building: () => region === "world", object: () => region === "world", flag: f => inRegions(region, regionsOfCountry.get(f.id)), outline: o => inRegions(region, REGION_OF[o.answer]) };
   return Object.fromEntries(Object.entries(POOLS).map(([k, list]) => [k, topic(k) ? list.filter(inR[k]) : []]));
 };
 const picturesNow = () => { const k = read(KIND, "all"); return PICTURES.some(([v]) => v === k) ? k : "all"; };
-const ASK = { painting: "Who painted this?", flag: "Whose flag is this?", outline: "Which country is this?" };
+const ASK = { painting: "Who painted this?", building: "Which building is this?", flag: "Whose flag is this?", outline: "Which country is this?", object: "Which culture made this?" };
 
 // ---------- the run ----------
 // S: { seed, level, daily, day, items, index, scores: [points per picture, null while it's open], elapsed (seconds on the open one),
@@ -214,7 +215,8 @@ async function sourceFor(it) {
     const colour = await outlineSource(it.name);
     return read(LOOK, "colour") === "ink" ? { ...(await outlineSource(it.name, true)), full: colour } : looked(colour);   // grey: the same ground in greys
   }
-  const urls = await pictureUrls(it.pic, 960);
+  // a museum object's picture is the museum's own web image (spyglass-objects.js); a painting's or a building's is looked up on Wikipedia
+  const urls = it.kind === "object" ? { t: it.pic } : await pictureUrls(it.pic, 960);
   if (!urls) return null;
   for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return { img, w: img.naturalWidth, h: img.naturalHeight }; } catch { /* try the original */ } }
   return null;
@@ -231,8 +233,8 @@ async function begin() {
   source = fetched;
   if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; tint = 1; showCaption(); render(); return; }
   if (source) { stretched(source); if (source.full) stretched(source.full); }   // the surround is drawn while the glass is still dark
-  if (!source) {                                   // a painting that won't load (offline): a flag or outline in its place
-    const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
+  if (!source) {                                   // a picture that won't load (offline): a flag or outline, drawn here, in its place
+    const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => (i.kind === "flag" || i.kind === "outline") && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
   }
   phase = "dawn"; dawnAt = 0; dawn = 0; render();
@@ -366,7 +368,7 @@ function pass() {
  *  draw on it through the other games); one named cleanly that was on a pile moves up it. Outlines have no picture to ask with. */
 function learn(why) {
   const it = item();
-  if (S.daily || it.kind === "outline") return;
+  if (S.daily || it.kind === "outline" || it.kind === "object") return;     // (an object's picture is its own address, which the other games cannot show)
   const key = `${it.kind}/${it.answer}`;
   if (why === "right") { pile.answer("spyglass", key, true, it.facts); return; }     // its own item, or another game's on the same fact
   const others = [...it.options.filter(o => o !== it.answer), ...POOLS[it.kind].map(p => p.answer).filter(a => a !== it.answer)].filter((o, i, all) => all.indexOf(o) === i).slice(0, 3);   // none were shown on Hard
@@ -423,7 +425,7 @@ function render() {
   } else {
     const row = el("form", "sg-type"), input = el("input"), go = el("button", "btn", "Guess");
     input.autocomplete = "off"; input.autocapitalize = "off"; input.spellcheck = false; input.enterKeyHint = "go";
-    input.placeholder = it.kind === "painting" ? "The painter" : "The country"; input.disabled = over || phase === "loading" || phase === "dawn";
+    input.placeholder = { painting: "The painter", building: "The building", object: "The culture" }[it.kind] || "The country"; input.disabled = over || phase === "loading" || phase === "dawn";
     go.type = "submit"; go.disabled = input.disabled;
     row.addEventListener("submit", e => { e.preventDefault(); const text = input.value; if (!text.trim()) return; const ok = guess(text); if (ok === false) { input.value = ""; input.classList.add("wrong"); setTimeout(() => input.classList.remove("wrong"), 500); } });
     row.append(input, go); opts.append(row);
@@ -457,7 +459,7 @@ function openMenu() {
     choice("Flags and outlines", [["colour", "Colour"], ["grey", "Black and white"], ["ink", "Ink"]], read(LOOK, "colour"), v => write(LOOK, v)),
     line("Black and white takes the colour out; Ink leaves only light and dark, with a line between neighbouring colours that would otherwise merge, so a flag is told by its shapes. From the next picture.")] });
   const best = read(BEST, {});
-  part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.building.length} buildings, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
+  part(body, "about").append(line(`Best: ${LEVELS.map(l => `${l} ${best[l] ?? "–"}`).join(", ")} · ${POOLS.painting.length} paintings, ${POOLS.building.length} buildings, ${POOLS.object.length} objects, ${POOLS.flag.length} flags, ${POOLS.outline.length} outlines · ${SECONDS.easy}s to focus on Easy`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

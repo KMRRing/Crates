@@ -5,7 +5,7 @@
 //
 // Licence (docs/licences-images-and-engines.md, 2 and 9 November 2026): a painting is shown only if it was painted by 1930 and
 // its painter died by 1955 (the rest are in copyright somewhere: LATE below). Flags are the emoji the page draws; outlines are
-// drawn from the map's own data; no photograph is used.
+// drawn from the map's own data; museum objects are the Cleveland Museum of Art's CC0 photographs (spyglass-objects.js).
 export const ROUNDS = 5, LEVELS = ["easy", "medium", "hard"];
 export const FULL = 100, FLOOR = 10, WRONG = 15;
 export const DEAD = 2;                                          // seconds at the start when nothing comes on
@@ -50,6 +50,8 @@ export function flags(bank) {
   }
   return out;
 }
+/** The museum objects (spyglass-objects.js): { kind, id, pic (the image's own address), answer (the culture), region, d, caption, also }. */
+export const objects = (list, also = {}) => list.map(o => ({ kind: "object", ...o, also: also[o.answer] || [] }));
 /** A country's size on the map: the widest of its rings, in square degrees (to rank how well known an outline is). */
 const area = c => Math.max(...c.rings.map(ring => { const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]); return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)); }));
 /** The countries whose outline is worth showing (the larger ones; a speck has no outline to know): { kind, name, answer, region, caption, size }. */
@@ -64,9 +66,10 @@ const keep = {
   flag: (f, level) => (level === "easy" ? f.lv === "ea" : level === "medium" ? f.lv !== "ha" : f.lv !== "ea"),
   outline: (o, level) => o.rank < (level === "easy" ? 55 : level === "medium" ? 90 : 1e9),
   building: (b, level) => (level === "easy" ? b.d <= 4 : level === "hard" ? b.d >= 4 : true),
+  object: (o, level) => (level === "easy" ? o.d <= 1 : level === "medium" ? o.d <= 2 : o.d >= 2),
 };
-/** What a run is made of: five pictures in a mix, or all of one kind (the Pictures row, spyglass.js). */
-export const MIX = ["painting", "building", "flag", "flag", "outline"];
+/** What a run is made of: five of these six, or all of one kind (the Pictures row, spyglass.js). */
+export const MIX = ["painting", "building", "flag", "flag", "outline", "object"];
 /** The options for a picture at a level: the answer among `n`, the bank's own distractors first, then others of its kind. */
 export function choicesFor(item, n, pool, r) {
   if (!n) return [];
@@ -75,15 +78,15 @@ export function choicesFor(item, n, pool, r) {
   if (!have.has(item.answer)) { mine.length = Math.min(mine.length, n - 1); mine.push(item.answer); have.add(item.answer); }
   const same = pool.filter(p => p.kind === item.kind && p.answer !== item.answer && !have.has(p.answer));
   const near = same.filter(p => item.region && p.region === item.region), far = same.filter(p => !(item.region && p.region === item.region));
-  for (const p of [...shuffle(r, near), ...shuffle(r, far)]) { if (have.size >= n) break; have.add(p.answer); mine.push(p.answer); }
+  for (const p of [...shuffle(r, near), ...shuffle(r, far)]) { if (have.size >= n) break; if (have.has(p.answer)) continue; have.add(p.answer); mine.push(p.answer); }   // (one culture or painter has many pictures)
   return shuffle(r, mine.slice(0, Math.max(n, 4)));
 }
-/** A run: five pictures (a painting, a building, two flags, an outline, in an order that varies; or all of one kind, `only`), no
- *  painter, building or country twice. A kind with nothing in `pools` (a region without paintings) leaves the mix. */
+/** A run: five pictures, five of the mix's six (a painting, a building, two flags, an outline, an object) in an order that varies, or all of
+ *  one kind (`only`); no painter, building, country or culture twice. A kind with nothing in `pools` (a region without paintings) leaves the mix. */
 export function dealRun(seed, level, pools, only = null) {
   const r = rng(seed), have = k => (pools[k] || []).length > 0;
   const mix = only && have(only) ? [only, only, only, only, only] : MIX.filter(have);
-  const kinds = shuffle(r, Array.from({ length: ROUNDS }, (_, i) => mix[i % mix.length])), used = new Set(), out = [];
+  const kinds = mix.length >= ROUNDS ? shuffle(r, mix).slice(0, ROUNDS) : shuffle(r, Array.from({ length: ROUNDS }, (_, i) => mix[i % mix.length])), used = new Set(), out = [];
   const all = Object.values(pools).flat();
   for (const kind of kinds) {
     const pick = shuffle(r, pools[kind].filter(p => keep[kind](p, level) && !used.has(p.answer)))[0] || shuffle(r, pools[kind].filter(p => !used.has(p.answer)))[0];
@@ -139,5 +142,5 @@ export function matches(item, text) {
   const g = norm(text);
   if (g.length < 2) return false;
   if (item.kind === "painting") return painterNames(item.answer).includes(g.replace(/-/g, " "));
-  return canon(text) === canon(item.answer);
+  return [item.answer, ...(item.also || [])].some(a => canon(a) === canon(text));
 }
