@@ -19,7 +19,6 @@ import "./pwa.js";
 import { part, action, line, choice, todayPart, isPaused } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
-import { busy } from "./loading.js";
 import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 
@@ -66,8 +65,9 @@ const answered = () => S.scores[S.index] != null;
 let source = null;                                 // { img (an Image or canvas), w, h } for the open picture
 let phase = "loading";                             // loading, dawn (the picture fades in), look (the clock runs), shown (answered or passed)
 // 13 Nov 2026, Korbi: "while the image is loading ... the countdown doesn't start and the spyglass is black, then fades in, then countdown
-// starts": the glass stays dark until the picture is fetched, decoded and stretched; it fades in (DAWN s) and only then does the clock run
-const DAWN = 0.7;
+// starts": the glass stays dark until the picture is fetched, decoded and stretched; it fades in (DAWN s) and only then does the clock run.
+// 20 Nov 2026, Korbi: no loading screen over it, only the dark glass; and the picture holds still HOLD s once in before it sharpens and costs points
+const DAWN = 0.7, HOLD = 0.5;
 let dawnAt = 0, dawn = 0;
 let reveal = { from: 0, at: 0 };                   // after an answer the focus runs on to sharp
 let token = 0;
@@ -226,10 +226,11 @@ async function begin() {
   phase = "loading"; source = null; unveil = 0;
   $("caption").hidden = true; $("passBtn").hidden = false; $("nextBtn").hidden = true;
   render();
-  if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; tint = 1; source = await sourceFor(item()); if (me === token) { showCaption(); render(); } return; }
-  const done = busy("", { delay: 350 });
-  try { source = await sourceFor(item()); if (source) { stretched(source); if (source.full) stretched(source.full); } } finally { done(); }   // the surround is drawn while it still says loading
-  if (me !== token) return;
+  const fetched = await sourceFor(item());
+  if (me !== token) return;                        // (moved on while it loaded: a later begin owns the glass)
+  source = fetched;
+  if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; tint = 1; showCaption(); render(); return; }
+  if (source) { stretched(source); if (source.full) stretched(source.full); }   // the surround is drawn while the glass is still dark
   if (!source) {                                   // a painting that won't load (offline): a flag or outline in its place
     const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => i.kind !== "painting" && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
@@ -327,8 +328,9 @@ function frame(now) {
   if (!S) return;
   if (phase === "dawn") {                             // (timed from its first frame: stretching the picture can hold up the one before)
     dawnAt ||= now;
-    dawn = Math.min(1, (now - dawnAt) / 1000 / DAWN);
-    if (dawn === 1) { phase = "look"; render(); }
+    const t = (now - dawnAt) / 1000;
+    dawn = Math.min(1, t / DAWN);
+    if (t >= DAWN + HOLD) { phase = "look"; render(); }
   } else if (phase === "look" && !S.over && !isPaused() && document.visibilityState === "visible") {
     S.elapsed += dt;
     if (Math.floor(S.elapsed) !== savedAt) { savedAt = Math.floor(S.elapsed); save(); }
