@@ -8,7 +8,6 @@ new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "
 const T = await import("../topics.js");
 const Q = await import("../quote-engine.js");
 const C = await import("../chart-engine.js");
-const L = await import("../lots-engine.js");
 const P = await import("../punt-gen.js");
 const K = await import("../core.js");
 const N = await import("../nonogram-pictures.js");
@@ -21,7 +20,7 @@ check(T.SUBJECTS.length === ids.size && T.SUBJECTS.length === 23, "23 subjects, 
 check(Object.values(T.TOPIC_OF).every(m => Object.values(m).every(id => ids.has(id))), "every subject a game names is one of the 23");
 
 const lists = {
-  kb: [...T.KB_TOPICS.country, ...T.KB_TOPICS.commodity], quote: Q.TOPICS, chart: C.TOPICS, lots: L.TOPICS, punt: P.TOPIC_LIST, nonogram: N.TOPIC_LIST,
+  kb: [...T.KB_TOPICS.country, ...T.KB_TOPICS.commodity], quote: Q.TOPICS, chart: C.TOPICS, punt: P.TOPIC_LIST, nonogram: N.TOPIC_LIST,
 };
 for (const [game, list] of Object.entries(lists)) {
   const map = T.TOPIC_OF[game], missing = list.filter(([id]) => !map[id]).map(([id]) => id), extra = Object.keys(map).filter(id => !list.some(([x]) => x === id));
@@ -64,8 +63,6 @@ const mq = T.mixFromSubjects(lists.quote, T.TOPIC_OF.quote, stemOnly);
 check(mq.scale === 1 && mq.art === 0 && mq.people === 0, "with STEM on, Quote deals scale (science) and not art or people");
 const mp = T.mixFromSubjects(lists.punt, T.TOPIC_OF.punt, stemOnly, puntBase);
 check(mp.maths === 2 && mp.physics === 2 && mp.art === 0 && mp.skiing === 0, "…and Punt deals maths and physics at its weight, not art or skiing");
-const ml = T.mixFromSubjects(lists.lots, T.TOPIC_OF.lots, T.cleanSubjects({ ...T.SUBJECT_PRESETS.none.topics, sport: 1 }));
-check(ml.sp === 1 && Object.entries(ml).filter(([, w]) => w).length === 1, "with only Sport on, Lots deals only Sport & games");
 
 // what an old or odd save becomes
 check(T.cleanSubjects({ geo: 0, zzz: 0 }).geo === 0 && T.cleanSubjects({ geo: 0 }).cities === 1 && !("zzz" in T.cleanSubjects({ zzz: 0 })), "a save is made whole: unknown dropped, missing on");

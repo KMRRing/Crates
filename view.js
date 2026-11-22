@@ -1,5 +1,4 @@
-// Everything that touches the page. Controllers hand render() a plain view model. The board's look is crates-board.js's,
-// shared with Classic (lots.html), so the two pages look the same.
+// Everything that touches the page. Controllers hand render() a plain view model. The board's look is crates-board.js's.
 import { NOUN, RESULT_LABEL, GROUPS } from "./core.js";
 import { topicsPart } from "./topics-ui.js";
 import { drawBoard, fitWords, shake as shakeBoard, drawCount, createLine, setControls, lotSheet, MARK_NAMES } from "./crates-board.js";

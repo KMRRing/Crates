@@ -14,7 +14,7 @@ const root = new URL("..", import.meta.url).pathname;
 const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: a card with a name, no game and no menu
 
 // TITLED: knowledge, puzzles, classics, courses, tools and word games, and Party (its Sketch drops the title in party.js)
-const TITLED = new Set(`crates lots punt quote census dispatch origin order crossing spyglass chart ledger lode crossword nonogram
+const TITLED = new Set(`crates punt quote census dispatch origin order crossing spyglass chart ledger lode crossword nonogram
   slate delta spot speedmaths pipes survey stow shunt slipway
   sudoku calcudoku kakuro nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls assay yield
   rack cartel deck rush

@@ -18,7 +18,7 @@ const RAMPED = {
   kakuro: ["Size", "Level", "Its pace", "Show the ways a run can be", "Clear pencil marks as you write"],
   delta: ["Level"], slate: ["Level"], survey: ["Size", "Readings"], bridges: ["Size", "Level", "Twist"],
   asterism: ["Size", "Level", "Stars a row"], ladder: ["Level", "Letters", "Themes", "Rules", "Its level"], bulls: ["Codemaker", "Computer", "Help", "Pieces"],
-  lode: ["Level", "Board", "Clues"], lots: ["Level"],
+  lode: ["Level", "Board", "Clues"],
   rack: ["Computer players"], 
   quest: ["Roles", "The computer", "The computer players talk"], speedmaths: ["Sprint range"],
   nurikabe: ["Size", "Level"], slitherlink: ["Size", "Level", "Clues"], yield: ["Puzzle", "Level", "Clock", "Race clock"],

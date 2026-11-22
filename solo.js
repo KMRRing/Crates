@@ -12,7 +12,6 @@ import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
 import { part, action, line, choice, ticks, isPaused, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
-import { modeChoice } from "./crates-board.js";
 import { topicsPart } from "./topics-ui.js";
 import { subjectsOn } from "./topics-on.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
@@ -29,7 +28,7 @@ function normalise(raw) {
   const s = raw && typeof raw === "object" ? raw : {};
   s.settings = cleanSettings(s.settings);
   s.settings.difficulty = "mixed";           // the Difficulty choice went on 4 November 2026 (Korbi: the menu is the minimum it needs to be)
-  s.pool = "country";                       // Crates deals countries; Classic is Lots, a page of its own
+  s.pool = "country";                       // Crates deals countries only (Korbi, 22 Nov 2026: Classic removed)
   s.n = s.n || 0;
   s.history = s.history || [];
   s.recentA = s.recentA || [];
@@ -349,11 +348,6 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     async share() {
       view.toast(await view.copyText(vm().shareText) ? "Result copied" : "Couldn't copy", 1600);
     },
-    // the menu's Mode: Countries is this page; Classic is Lots, which is Crates' other half (README, Crates and Lots)
-    async classic() {
-      if (!game().done && game().guesses.length && !(await sure("Leave this board unfinished?", { yes: "Leave it" }))) { handlers.menu(); return; }
-      location.href = "lots.html";
-    },
     menu() {
       // the menu: Play (a new board, or skip this one), Content (topics and difficulty, in Settings), About (your stats,
       // learning, recent boards to replay). Your other devices follow this run through the solo code on the games screen.
@@ -370,7 +364,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           done: had && !playing, result: store.daily?.pts != null ? `${store.daily.pts} of 8 in ${formatTime(store.daily.ms)}` : "",   // one go: leaving it unfinished is a go had
           play: () => { daily(); }, playing, busy: !g.done && g.guesses.length > 0,
         });
-        part(body, "content").append(...modeChoice("country", handlers.classic),
+        part(body, "content").append(
           // Korbi, 7 Nov 2026: learning and the regions are settings here like the mode, not a sheet of their own
           choice("Learning", CRATES_MODES, store.mode, v => { setCratesMode(v); if (takeMode()) fresh(); draw(); }),
           ticks("Countries from", GROUPS.country, GROUPS.country.map(([k]) => k).filter(k => !store.settings.off.includes(k)),

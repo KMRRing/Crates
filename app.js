@@ -25,7 +25,6 @@ const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, mySettings:
 
 const params = new URLSearchParams(location.search);
 const pool = parsePool(params.get("cat"));
-if (pool === "classic") location.replace("lots.html");
 const room = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 const runCode = params.get("run");
 if (runCode) setParam("run", null);

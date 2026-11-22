@@ -72,7 +72,6 @@ export const GAMES = {
   
   ladder: { name: "Ladder", page: "./ladder.html" },
   lode: { name: "Lode", page: "./lode.html" },
-  lots: { name: "Lots", page: "./lots.html" },
   
   crossword: { name: "Crossword", page: "./crossword.html" },
   

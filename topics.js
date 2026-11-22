@@ -125,7 +125,6 @@ export const TOPIC_OF = {
   chart: { cities: "cities", countries: "geo", trade: "trade", geo: "geo", physical: "nat", art: "art", museums: "art", architecture: "art", myth: "cult",
     history: "hist", people: "ppl", wine: "food", local: "geo" },
   nonogram: { countries: "geo", flags: "geo" },
-  lots: { wp: "lang", ph: "lang", mn: "lang", th: "lang", mk: "fin", sc: "sci", pl: "geo", cu: "cult", sp: "sport", fd: "food" },
   punt: { countries: "geo", commodities: "trade", maths: "math", refining: "nrg", reasoning: "math", words: "lang", cities: "cities", flags: "geo", patterns: "math",
     wine: "food", art: "art", economics: "mkt", physics: "sci", chemistry: "sci", code: "sci", philosophy: "rel", religion: "rel", skiing: "sport",
     china: "geo", britain: "geo", bavaria: "geo", swiss: "geo", titles: "hist", lit: "cult", sayings: "lang", law: "pol", merchants: "trade",

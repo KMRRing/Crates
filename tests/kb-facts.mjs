@@ -56,8 +56,6 @@ count("Spyglass, Nonogram", "country outlines", COUNTRIES.filter(c => c.about), 
 count("Spyglass", "paintings and buildings", ENTITIES.filter(e => e.pic && (e.sets.includes("painting") || e.sets.includes("building"))), e => [fieldFact(e.id, "pic")]);
 
 // held outside kb/ entirely
-const { CATEGORIES } = await import("../lots-bank.js");
-rows.push(["Lots", "categories", CATEGORIES.length, 0]);
 const decoy = await import("../party-decoy-bank.js");
 count("Decoy", "sayings", decoy.SAYINGS, s => [fieldFact(s.id, "meaning")]);
 rows.push(["Decoy", "odd facts", decoy.FACTS.length, 0]);

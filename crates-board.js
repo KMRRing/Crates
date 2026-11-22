@@ -1,6 +1,5 @@
-// The board both pages of Crates draw (README, Crates): Countries is crates.html and Classic is lots.html, and Korbi had them
-// look the same, centred (3 November 2026). Sixteen tiles in a four by four, each lot found taking a row as a bar in its
-// enamel; the strip above (what's on the board, the mistakes left), the line under it (what to do, what a guess came to),
+// Crates' board (README, Crates), centred (Korbi, 3 November 2026; the Classic page, Lots, was removed on 22 November):
+// sixteen tiles in a four by four, each lot found taking a row as a bar in its enamel; the strip above (what's on the board, the mistakes left), the line under it (what to do, what a guess came to),
 // the buttons below. Styles are crates-board.css's; what a page keeps (its run, its clock, its taps) stays its own.
 
 import { choice, line } from "./menu.js";
@@ -187,12 +186,3 @@ export function lotSheet({ title, lines }) {
   if (!sheet.open) sheet.showModal();
 }
 
-/**
- * The menu's first choice on both pages: Countries (crates.html) or Classic (lots.html), and in plain words what each is.
- * onPick(value) takes the player to the other page, asking first if a board is unfinished.
- */
-export function modeChoice(current, onPick) {
-  return [
-    choice("Mode", [["country", "Countries"], ["classic", "Classic"]], current, v => { if (v !== current) onPick(v); }),
-  ];
-}

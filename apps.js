@@ -382,7 +382,6 @@ export const APPS = [
   // Crates' Classic (Lots until 2 November 2026, when Korbi had it "simply a subgroup of crates"): no
   // tile, reached from Crates' header (Countries | Classic), under Crates' header and logo; its name is for what your partner
   // is playing, the requests and Party
-  { id: "lots", within: "crates", name: "Crates Classic", href: "./lots.html", logo: LOGO("crates", CRATES_LOGO), players: [1, 6] },
   { id: "calcudoku", within: "sudoku", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "kakuro", sec: "puzzle", name: "Tally", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
   // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)
