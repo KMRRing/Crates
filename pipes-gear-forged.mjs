@@ -91,7 +91,8 @@ const count = (s, k) => { const m = new RegExp(`(\\d+)${k}\\b`).exec(s); return 
 // that we have used for the previous chapters - they are good": 5×5 faces (6×5 at most, for two trains or more dials), all but two
 // squares used, as levels 18 to 47 are. The log's own faces (up to 7×7) and piece counts gave sparse levels on faces too big.
 // Levels that found nothing in four and a half minutes on that face (two trains, several dials, turned pieces held by clues): the
-// whole 6×5 plate, still filled but for two squares, up to five pieces fewer and six squares idle at most.
+// whole 6×5 plate, still filled but for two squares, up to five pieces fewer and six squares idle at most. (23 Nov 2026: of these only
+// 79 came out in five minutes; the rest keep their sparser forms of 20 November in pipes-gear-forged.js.)
 export const ROOMY = new Set([49, 51, 62, 64, 68, 70, 71, 74, 75, 77, 79, 85]);
 function denseFace(row, nT, ends, sw) {
   if (ROOMY.has(row.n)) return "6×5 rectangle (30)";
