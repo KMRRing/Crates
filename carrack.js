@@ -731,6 +731,7 @@ function showWalk() {
 function openWalk() { step = 0; write(SEEN, 1); showWalk(); }
 
 function openMenu() {
+  levelNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");

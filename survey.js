@@ -422,6 +422,7 @@ function levelList() {
   return all;
 }
 function openMenu() {
+  sizeNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {                                              // a match: the table's own, and the size and readings the next one deals

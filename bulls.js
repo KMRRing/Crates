@@ -955,6 +955,7 @@ function showRules() {
 
 // ---------- the menu ----------
 function openMenu() {
+  if (!G) run?.kind === "lock" ? lockNow() : cpuNow();   // this mode's ramp, read before the shared level row is made (22 Nov 2026)
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room || joining) { tableMenu(body); return; }

@@ -67,8 +67,9 @@ const actKind = () => (S.feats.fire ? FIRE : S.feats.stir ? STIR : null);
 /** A move as the engine takes it, from a slot (0 or 1, the skim, the action, a top held: its crucible `from`) and a crucible. */
 const moveOf = (slot, c, from) => (slot >= 0 ? [slot, c] : slot === SKIMMING ? [SKIM, c] : slot === ACTING ? [actKind(), c] : [DECANT, from, c]);
 const openLevel = L => begin(newGame(specOf(L), L.seed), "levels");
+const rampNow = () => ramp("settle", LEVELS.map(L => L.id));
 function openRandom() {
-  const seed = Math.floor(Math.random() * 2 ** 31), s = newGame(randomSpec(ramp("settle", LEVELS.map(L => L.id)), seed), seed);
+  const seed = Math.floor(Math.random() * 2 ** 31), s = newGame(randomSpec(rampNow(), seed), seed);
   s.lv = 0;
   begin(s, "random");
 }
@@ -480,6 +481,7 @@ function resumeOf(m) {
   return valid(g) && !g.over && (m === "levels" ? levelOf(g.lv) : g.lv === 0) ? g : null;
 }
 function openMenu() {
+  rampNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody"), L = isLevel() ? levelOf(S.lv) : null;
   body.replaceChildren();
   const play = part(body, "play");

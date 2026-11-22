@@ -291,6 +291,7 @@ async function playFromCourse() {
 const course = createCourse({ id: "yacht", course: COURSE, stage: yachtStage(), cls: "ya", inFrame: IN_FRAME, onRules: showRules, onPlay: playFromCourse });
 
 function openMenu() {
+  levelNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");

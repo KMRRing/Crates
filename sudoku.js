@@ -70,9 +70,9 @@ delete settings.pace;
 const OLD = { size: settings.size, level: settings.level };
 const RUNGS = Object.fromEntries(Object.keys(RULES).map(r => [r, rungs([6, 9], Object.keys(LEVELS), (n, l) => !!levelsOf(r, n)[l])]));
 /** The size and level the next grid of these rules deals. */
+const rampNow = () => { const list = RUNGS[settings.rules]; return ramp("sudoku", list, { id: settings.rules, start: startFor(list, [6, 9], Object.keys(LEVELS), OLD.size, OLD.level) }); };
 const rungNow = () => {
-  const list = RUNGS[settings.rules];
-  const { size, level } = split(ramp("sudoku", list, { id: settings.rules, start: startFor(list, [6, 9], Object.keys(LEVELS), OLD.size, OLD.level) }));
+  const { size, level } = split(rampNow());
   return { size: Number(size), level };
 };
 const kindKey = k => `${k.rules}:${k.size}:${k.level}`;
@@ -745,6 +745,7 @@ function showRules() {
 
 // ---------- the menu ----------
 function openMenu() {
+  rampNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {

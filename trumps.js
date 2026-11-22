@@ -723,6 +723,7 @@ const rush = createRush({ inFrame: IN_FRAME });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  levelNow();   // this game's ramp, read before the shared level row is made (Korbi, 22 Nov 2026: no row while it was his turn to play first)
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);

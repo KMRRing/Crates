@@ -586,6 +586,7 @@ function raceExtra() {
 // ---------- the menu ----------
 // Play: a new puzzle, the words shown. Together: only at a table.
 function openMenu() {
+  levelNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {

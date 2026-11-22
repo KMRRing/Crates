@@ -287,6 +287,7 @@ function askLink({ head, words, options, onPick, note = "" }) {
 }
 // ---------- the menu ----------
 function openMenu() {
+  levelNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   if (mode === "duo" || (mode !== "race" && roomInAddress() && !together.room)) duoMenu(body);

@@ -70,9 +70,10 @@ const OLD = { size: prefs.size, level: prefs.level };
 prefs.twist = "none";
 const RUNGS = rungs(SIZES, Object.keys(LEVELS), (n, l) => levelOn(n, l) === l);
 // The hex board has a ramp of its own (bridges:ramp:hex), over the same sizes and levels (docs/bridges.md, "The hex board").
+const rampNow = () => { const start = startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level); return prefs.shape === "hex" ? ramp("bridges", RUNGS, { id: "hex", start }) : ramp("bridges", RUNGS, { start }); };
 const chosenKind = () => {
-  const hex = prefs.shape === "hex", start = startFor(RUNGS, SIZES, Object.keys(LEVELS), OLD.size, OLD.level);
-  const { size, level } = split(hex ? ramp("bridges", RUNGS, { id: "hex", start }) : ramp("bridges", RUNGS, { start }));
+  const hex = prefs.shape === "hex";
+  const { size, level } = split(rampNow());
   prefs.size = Number(size); prefs.level = level;
   return hex ? { size: prefs.size, level, twist: "none", shape: "hex" } : { size: prefs.size, level, twist: "none" };
 };
@@ -922,6 +923,7 @@ function levelList() {
   return all;
 }
 function openMenu() {
+  rampNow();   // the ramp read before the shared level row is made (22 Nov 2026: no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   if (coop) {                                                  // in a party of two: one board, the way out
