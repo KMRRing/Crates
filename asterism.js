@@ -44,8 +44,10 @@ delete prefs.view;
 if (prefs.look !== "space" && prefs.look !== "flat") delete prefs.look;
 let slowFlat = false;                                              // the space view was too slow here: flat for this visit, not a choice
 const lookNow = () => (slowFlat || !wants3D(prefs.look, "space") ? "flat" : "space");
+if (prefs.shape === "cube") prefs.shape = "ball";                    // the cube gave way to the football (23 Nov 2026)
 if (!isSolid(prefs.shape)) prefs.shape = "flat";
-prefs.sizes = { cube: 4, hex: 5, ...(prefs.sizes || {}) };            // the size chosen on each solid shape
+prefs.sizes = { ball: 3, hex: 5, ...(prefs.sizes || {}) };            // the size chosen on each solid shape
+delete prefs.sizes.cube;
 for (const sh of Object.keys(SOLID_SIZES)) if (!SOLID_SIZES[sh].includes(prefs.sizes[sh])) prefs.sizes[sh] = SOLID_SIZES[sh][0];
 if (!STARS.includes(prefs.k)) prefs.k = 1;
 if (!KINDS[prefs.k].includes(prefs.size)) prefs.size = 8;
@@ -195,8 +197,9 @@ function recordBest(sc) {
 let strokeAt = 0;                    // a stroke dotting cell after cell is one step to undo: its cells share a number
 const newStroke = () => (strokeAt = Math.max(Date.now(), strokeAt + 1));   // (a time, so a saved run's numbers never meet a new one)
 /** A tap cycles the cell (empty, dot, star); a hold makes it a star at once, or clears it if it is one. */
+const isSky = x => !!P?.sky?.includes(x);                           // a ball's dark sky: never a star, nothing to mark
 function press(x, how) {
-  if (!S || S.done || IN_FRAME || paused || x < 0) return;
+  if (!S || S.done || IN_FRAME || paused || x < 0 || isSky(x)) return;
   const from = S.marks[x], to = how === "hold" ? (from === STAR ? NONE : STAR) : nextMark(from);
   setCell(x, from, to);
   if (to === STAR) navigator.vibrate?.(8);
@@ -235,7 +238,7 @@ function changed() {
 }
 
 // ---------- hints ----------
-const groupName = g => (g.kind === "row" ? `row ${g.id + 1}` : g.kind === "col" ? `column ${g.id + 1}` : g.kind === "belt" ? "the marked belt" : g.kind === "line" ? "the marked line" : "the marked region");
+const groupName = g => (g.kind === "row" ? `row ${g.id + 1}` : g.kind === "col" ? `column ${g.id + 1}` : g.kind === "ring" ? "the marked ring" : g.kind === "line" ? "the marked line" : "the marked region");
 const listOf = (word, ids) => {
   const n = ids.map(i => i + 1);
   return n.length === 1 ? `${word} ${n[0]}` : `${word}s ${n.slice(0, -1).join(", ")} and ${n.at(-1)}`;
@@ -257,7 +260,7 @@ function explain(x) {
     }
     case "look": return `A star here would leave ${groupName(x.group)} no room for ${x.group.kind === "region" || P.k === 1 ? "its star" : "its stars"}: so this cell is empty.`;
     case "count": {
-      const word = { col: "column", row: "row", belt: "belt", line: "line" }[x.orient], lines = word === "belt" || word === "line" ? (x.lines.length === 1 ? `the marked ${word}` : `the ${x.lines.length} marked ${word}s`) : listOf(word, x.lines), regions = x.regions.length === 1 ? "the marked region" : `the ${x.regions.length} marked regions`;
+      const word = { col: "column", row: "row", ring: "ring", line: "line" }[x.orient], lines = word === "ring" || word === "line" ? (x.lines.length === 1 ? `the marked ${word}` : `the ${x.lines.length} marked ${word}s`) : listOf(word, x.lines), regions = x.regions.length === 1 ? "the marked region" : `the ${x.regions.length} marked regions`;
       if (x.dir === "regions-in-lines") return `${cap(lines)} must hold ${plural(x.stars, "star")}. ${cap(regions)} lie${x.regions.length === 1 ? "s" : ""} wholly inside ${x.lines.length === 1 ? "it" : "them"} and need${x.regions.length === 1 ? "s" : ""} as many, so the other cells of ${x.lines.length === 1 ? "that" : "those"} ${word}${x.lines.length === 1 ? "" : "s"} are empty.`;
       return `${cap(lines)} must hold ${plural(x.stars, "star")}, all inside ${regions}. That leaves nothing for the rest of ${x.regions.length === 1 ? "that region" : "those regions"}: its other cells are empty.`;
     }
@@ -333,6 +336,7 @@ function drawBoard() {
     space = createSpace($("board"), { slow: () => { if (!space || solid) return; slowFlat = true; drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
     space.canvas.addEventListener("pointerdown", down);
     space.canvas.addEventListener("contextmenu", e => e.preventDefault());
+    space.canvas.addEventListener("wheel", e => { e.preventDefault(); space?.zoomBy(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     turnBtn = Object.assign(document.createElement("button"), { type: "button", className: "ast-turn", textContent: "Turn" });
     turnBtn.title = "Turn the board with one finger (two fingers always turn it)";
     turnBtn.addEventListener("click", () => setTurn(!turnMode));
@@ -451,17 +455,19 @@ function twoStart(ev) {
   pressing.cell = -1;
   space.press(-1);
 }
-const pair = (a, b) => { const p = touches.get(a), q = touches.get(b); return { cx: (p.x + q.x) / 2, cy: (p.y + q.y) / 2, ang: Math.atan2(q.y - p.y, q.x - p.x) }; };
+const pair = (a, b) => { const p = touches.get(a), q = touches.get(b); return { cx: (p.x + q.x) / 2, cy: (p.y + q.y) / 2, ang: Math.atan2(q.y - p.y, q.x - p.x), len: Math.hypot(q.x - p.x, q.y - p.y) }; };
 function twoMove() {
   const t = pressing.two, g = pair(t.a, t.b), tau = 2 * Math.PI;
   let da = g.ang - t.ang;
   if (da > Math.PI) da -= tau; else if (da < -Math.PI) da += tau;
   pressing.view.drag(g.cx - t.cx, g.cy - t.cy);
   pressing.view.twist(da);
+  if (t.len > 24 && g.len > 24) pressing.view.zoomBy(g.len / t.len);       // and they pinch it nearer or further (Korbi, 23 Nov 2026: "make it so user can zoom out")
   Object.assign(t, g);
 }
 /** Applies the stroke's action to one cell: the first cell decides, an empty one starts dotting, a dot starts rubbing dots out; stars stay. */
 function strokeCell(x) {
+  if (isSky(x)) return;
   const s = pressing.stroke, was = S.marks[x];
   s.mode ??= was === NONE ? DOT : was === DOT ? NONE : null;
   if (s.mode == null || was === STAR || was === s.mode) return;
@@ -473,9 +479,9 @@ function stroke(ev) {
   const p = boardPoint(ev);
   if (p) for (const x of axisStroke(pressing.stroke.axis, p.x, p.y)) strokeCell(x);
 }
-/** A dotting stroke on a cube or a hexagon board follows one of the lines through the cell it began on (a belt, or a row),
+/** A dotting stroke on a ball or a hexagon board follows one of the lines through the cell it began on (a ring, or a row),
  *  the one that runs the way the finger first goes on the screen, and keeps to it: each sample dots the cells between where
- *  it was and the line's cell nearest the finger (round a belt the shorter way). */
+ *  it was and the line's cell nearest the finger (round a ring the shorter way). */
 function lineStroke(cell, x0, y0) {
   const lines = space.linesOf(cell).map(gi => P.topo.lines[gi]);
   let line = null, at = -1;
@@ -608,10 +614,10 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>The board is cut into as many regions as it is wide, each outlined in a heavy rule. Put stars in the cells so that <b>every row, every column and every region holds exactly the same number of stars</b> (one on the easier boards, two on the larger ones), and <b>no two stars touch</b>, not even corner to corner. Every puzzle has exactly one answer, reached by reasoning, never by a guess.</p>
     <h4>Playing</h4>
-    <p>Tap a cell to dot it (a dot is your own note: "no star here"), again to make it a star, again to clear it. Hold a cell, or right-click it, to make it a star at once. Drag across cells to dot many at once, along the row or column you began on (start on a dot to rub dots out). In the space view, two fingers turn the board (drag or twist), and so does a drag begun off the pane, the Turn button with one finger, or a mouse drag with Shift held; the board stays where you leave it, and the menu's Reset the view brings it home. Only the stars count: the puzzle is solved the moment exactly its answer is starred. Undo and Redo step through your marks, and the menu clears the board.</p>
+    <p>Tap a cell to dot it (a dot is your own note: "no star here"), again to make it a star, again to clear it. Hold a cell, or right-click it, to make it a star at once. Drag across cells to dot many at once, along the row or column you began on (start on a dot to rub dots out). In the space view, two fingers turn the board (drag or twist), and so does a drag begun off the pane, the Turn button with one finger, or a mouse drag with Shift held; pinch (or scroll) to bring it nearer or send it further off; the board stays where you leave it, and the menu's Reset the view brings it home. Only the stars count: the puzzle is solved the moment exactly its answer is starred. Undo and Redo step through your marks, and the menu clears the board.</p>
     <p>A broken rule shows at once, in oxblood, with a line under the board saying which: two stars touching, a row, column or region with too many, or one with no room left for its stars. That comes from the rules, never the answer. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the cells it settled in gilt and the cells that say so dashed.</p>
     <h4>Shapes</h4>
-    <p><b>Flat</b> is the square board. On a <b>Cube</b> a line is a <b>belt</b>: the ring of cells that goes round the cube at one layer (four faces' worth), and every belt, like every region, holds one star. Every cell is on two belts, as a flat cell is on a row and a column, and a star touches the cells round it across an edge or a corner of the cube as well. On a <b>Hexagons</b> board the lines are the rows in all three directions, and every one holds one star. Drag along a belt or a row to dot it, as on the flat board; a finger held on a cell lights the lines through it. The cube and the hexagon board are drawn in space only.</p>
+    <p><b>Flat</b> is the square board. A <b>Football</b> is hexagons with twelve black pentagons, as a ball is stitched. A line is a <b>ring</b>: a straight row of hexagons, in at one side and out at the opposite, that goes right round the ball without meeting a pentagon; every ring holds one star. The regions are <b>constellations</b>, a few hexagons each in a gold rule, one star in each; the dark hexagons between them are sky and hold none, nor do the pentagons. A hexagon lies on two rings or three. On a <b>Hexagons</b> board the lines are the rows in all three directions, and every one holds one star. Drag along a ring or a row to dot it, as on the flat board; a finger held on a cell lights the lines through it. Pinch, or scroll, to bring the board nearer or send it further off. The football and the hexagon board are drawn in space only.</p>
     <h4>Finding the stars</h4>
     <p><b>A star's surroundings.</b> The eight cells round a star are empty. <b>A full group.</b> A row, column or region with all its stars has the rest empty. <b>Just enough room.</b> A group that has exactly as many cells left as stars to place has stars in them all.</p>
     <p><b>A group's few ways.</b> Two stars in a short row can go only so many ways without touching; a cell none of those ways uses is empty. <b>No room left.</b> If a star in a cell would leave some row, column or region with nowhere for its stars, the cell is empty. <b>A region held to a line.</b> A region wholly inside one row has the row's star: the row's other cells are empty (and the same the other way round).</p>

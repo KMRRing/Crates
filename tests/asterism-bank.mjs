@@ -1,4 +1,4 @@
-// Asterism's banked puzzles (asterism-bank.js, made ahead for the cube and the larger hexagon boards): each is graded
+// Asterism's banked puzzles (asterism-bank.js, made ahead for the larger hexagon boards): each is graded
 // again, and is the level it is stored under. Slow (grading a hexagon of 7 takes seconds a puzzle): the nightly run has it.
 import { BANK } from "../asterism-bank.js";
 import { solidPuzzle } from "../asterism-solid.js";

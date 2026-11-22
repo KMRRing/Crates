@@ -78,7 +78,7 @@ function placements(P, st, g, need, limit = 5000) {
 }
 /** Whether a group can still hold its stars (it has some arrangement left). */
 function feasible(P, st, g) {
-  const need = P.k - starsIn(st, g);
+  const need = (g.k ?? P.k) - starsIn(st, g);
   if (need <= 0) return need === 0;
   const free = freeIn(P, st, g);
   if (free.length < need) return false;
@@ -99,8 +99,8 @@ function feasible(P, st, g) {
 function contradiction(P, st, only = null) {
   for (const g of (only || P.groups)) {
     const n = starsIn(st, g);
-    if (n > P.k) return { why: "many", group: g };
-    if (n < P.k && !feasible(P, st, g)) return { why: "room", group: g };
+    if (n > (g.k ?? P.k)) return { why: "many", group: g };
+    if (n < (g.k ?? P.k) && !feasible(P, st, g)) return { why: "room", group: g };
   }
   return null;
 }
@@ -112,7 +112,8 @@ const touching = (P, st) => { for (let x = 0; x < st.length; x++) if (st[x] === 
 // level 2: the same counting across two lines or regions, and a short trial (a cell supposed, its consequences followed
 // a few rounds until a rule breaks)
 // level 3: the counting across three, and a longer trial, followed through the level-1 steps too
-const need = (P, st, g) => P.k - starsIn(st, g);
+// a group's stars: the puzzle's count, or its own (a football's rings hold two, its regions one)
+const need = (P, st, g) => (g.k ?? P.k) - starsIn(st, g);
 
 function basic(P, st) {
   for (const g of P.groups) {
@@ -161,7 +162,7 @@ function look(P, st) {
     for (const d of P.nbr[c]) { s2[d] = 2; for (const g of P.of[d]) touched.add(g); }
     for (const gi of P.of[c]) {
       const g = P.groups[gi];
-      if (starsIn(s2, g) === P.k) for (const x of g.cells) if (s2[x] === 0) { s2[x] = 2; for (const h of P.of[x]) touched.add(h); }
+      if (starsIn(s2, g) === (g.k ?? P.k)) for (const x of g.cells) if (s2[x] === 0) { s2[x] = 2; for (const h of P.of[x]) touched.add(h); }
     }
     const gone = contradiction(P, s2, [...touched].map(i => P.groups[i]));
     if (gone) return { level: 1, tech: "look", set: [[c, 2]], group: gone.group, cells: [c, ...gone.group.cells], why: gone.why };
@@ -170,7 +171,7 @@ function look(P, st) {
 }
 
 /** Groups that must hold the same stars. `P.pairs` says which families of disjoint groups (rows, columns, regions; on a
- *  solid its belts) are weighed against which: if the groups of one family lying wholly inside `s` groups of the other need
+ *  solid its rings or rows) are weighed against which: if the groups of one family lying wholly inside `s` groups of the other need
  *  as many stars as those do, the others' remaining cells are empty. Lines against regions, and regions against lines. */
 function counting(P, st, s) {
   const open = P.groups.map(g => unknownIn(st, g));
@@ -255,7 +256,7 @@ export function solveAs(P, maxLevel = 3, from = null) {
     level = Math.max(level, step.level);
     steps++;
   }
-  const solved = P.groups.every(g => starsIn(st, g) === P.k) && !touching(P, st);
+  const solved = P.groups.every(g => starsIn(st, g) === (g.k ?? P.k)) && !touching(P, st);
   return { st, solved, level, steps };
 }
 /** The level a puzzle is: the hardest step reasoning needs, or -1 if reasoning alone doesn't finish it. */
@@ -459,7 +460,8 @@ export const levelOn = (size, k, level) => (LEVELS[level] ? level : "medium");
 // ---------- marks ----------
 export const nextMark = m => (m === NONE ? DOT : m === DOT ? STAR : NONE);
 export const withMark = (marks, i, m) => marks.slice(0, i) + m + marks.slice(i + 1);
-const stateOf = marks => Int8Array.from(marks, Number);
+/** The marks as a solver's state; a ball's sky cells (P.sky) are known empty, whatever they show. */
+const stateOf = (P, marks) => { const st = Int8Array.from(marks, Number); for (const c of P.sky || []) st[c] = 2; return st; };
 /** The stars in the marks are the answer: the puzzle is solved the moment they are, however the dots lie. */
 export function solvedBy(P, marks) {
   for (let x = 0; x < marks.length; x++) if ((marks[x] === STAR) !== (P.sol[x] === 1)) return false;
@@ -469,16 +471,16 @@ export function solvedBy(P, marks) {
 /** What the marks break, from the rules alone (never the answer): stars that touch, a group with too many stars, a group
  *  with no room left for its stars. `bad` is the cells to colour. */
 export function breaks(P, marks) {
-  const st = stateOf(marks), bad = new Set(), over = [], short = [];
+  const st = stateOf(P, marks), bad = new Set(), over = [], short = [];
   for (let x = 0; x < st.length; x++) if (st[x] === 1) for (const d of P.nbr[x]) if (st[d] === 1) { bad.add(x); bad.add(d); }
   const touch = [...bad];
   P.groups.forEach((g, i) => {
     const n = starsIn(st, g);
-    if (n > P.k) { over.push(i); for (const c of g.cells) if (st[c] === 1) bad.add(c); }
-    else if (n < P.k) {
+    if (n > (g.k ?? P.k)) { over.push(i); for (const c of g.cells) if (st[c] === 1) bad.add(c); }
+    else if (n < (g.k ?? P.k)) {
       let room = n;
       for (const c of g.cells) if (isFree(P, st, c)) room++;
-      if (room < P.k) short.push(i);
+      if (room < (g.k ?? P.k)) short.push(i);
     }
   });
   return { bad, touch, over, short };
@@ -492,7 +494,7 @@ export function hintFor(P, marks) {
     if (marks[x] === STAR && P.sol[x] !== 1) return { wrong: x, should: DOT };
     if (marks[x] === DOT && P.sol[x] === 1) return { wrong: x, should: STAR };
   }
-  const step = findStep(P, stateOf(marks), 3);
+  const step = findStep(P, stateOf(P, marks), 3);
   if (step) return { step };
   for (let x = 0; x < marks.length; x++) if (P.sol[x] === 1 && marks[x] !== STAR) return { reveal: x, should: STAR };
   return null;

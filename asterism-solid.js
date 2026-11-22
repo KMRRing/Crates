@@ -1,62 +1,107 @@
-// Asterism on shapes other than the flat square board: a cube and a hexagon. Pure (no page), so the generator, the
-// tests and the view (asterism-space.js) share one geometry, as Mines' solids do (mines-solid.js, whose cube it reuses).
+// Asterism on shapes other than the flat square board: a football and a hexagon. Pure (no page), so the generator, the
+// tests and the view (asterism-space.js) share one geometry.
 //
-// The rule is the flat game's: every line and every region holds one star, none touching (even at a corner). What a
-// "line" is has to be settled for each shape, because a row and a column exist only on a square grid:
-//   cube: a BELT, the ring of cells going round the cube at one layer along an axis (4n cells; n layers on each of 3
-//     axes). Every cell lies on exactly two belts (a cell on the +x face is on one y belt and one z belt), as a flat cell
-//     lies on a row and a column. A belt, stars and regions: 3n belts holding a star each, so 3n/2 stars and regions:
-//     n is even (4, 6, 8);
+// The rule is the flat game's: every line and every region holds one star, none touching. What a "line" is has to be
+// settled for each shape, because a row and a column exist only on a square grid:
+//   football: the Goldberg ball GP(m,0), the icosahedron's faces cut m to an edge into hexagons, a pentagon at each of its
+//     12 corners. A line is a RING: a straight row of hexagons, in at one side and out at the opposite, that goes right
+//     round the ball and meets no pentagon. There are m-1 of them round each of the six axes through opposite pentagons; a
+//     hexagon inside a face lies on three, one on a face's edge on two. The pentagons are the ball's black panels: no star,
+//     no region (23 November 2026, Korbi: the cube "definitely doesn't work ... Maybe it'd work with hexagons? ... Replace
+//     the cube with football"). A star covers two or three rings, so the stars are 2(m-1) to 3(m-1). Rings that long and
+//     regions that tile the ball made puzzles only long trial and error could solve (the cube's trouble too), so a ball's
+//     regions are CONSTELLATIONS of three to eight hexagons, one star in each, and the hexagons outside them are dark SKY,
+//     which holds none: a few small regions, and the rings running through them, are a puzzle reasoning can work;
 //   hexagon: a hexagonal board of side s, its lines the rows in each of the three directions (2s-1 in each, of
 //     lengths s to 2s-1). A cell lies on three; 2s-1 stars and regions.
-// Two shapes that Mines has were left out, for want of lines (docs/asterism.md): the football (a hexagon grid with 12
-// pentagons: its straight lines break at every pentagon) and the rhombicuboctahedron (its triangles lie on no belt at all).
 // One star a line only: with two a line the puzzles need more room than a phone gives these shapes.
-import { solidBoard } from "./mines-solid.js";
 import { rngOf, shuffle } from "./loop-engine.js";
 import { ORDER, gradeOf } from "./asterism-engine.js";
 import { BANK } from "./asterism-bank.js";
 
-export const SHAPES = { flat: "Flat", cube: "Cube", hex: "Hexagons" };
-export const SOLID_SIZES = { cube: [4], hex: [4, 5, 6, 7] };
-/** What a size is called in the menu, from the shape's own measure. */
-export const sizeName = (shape, n) => (shape === "cube" ? `${n} a side` : shape === "hex" ? `Side ${n}` : `${n}×${n}`);
-export const isSolid = shape => shape === "cube" || shape === "hex";
+export const SHAPES = { flat: "Flat", ball: "Football", hex: "Hexagons" };
+export const SOLID_SIZES = { ball: [3, 4], hex: [4, 5, 6, 7] };
+/** A ball's cells outside every constellation: "z" in a region map. */
+export const SKY = 35;
+/** What a size is called in the menu, from the shape's own measure (a ball by its panels, as a football's 32 are counted). */
+export const sizeName = (shape, n) => (shape === "ball" ? `${10 * n * n + 2} panels` : shape === "hex" ? `Side ${n}` : `${n}×${n}`);
+export const isSolid = shape => shape === "ball" || shape === "hex";
 export const solidKind = (shape, size) => `${shape}:${size}`;
 const TRIES = 24, MOVES = 24, WORK = 36;            // counts, not times: a seed makes the same puzzle on every device
 
 // ---------- the shapes ----------
-const FACES = [                                         // as mines-solid.js cuts its cube: a face's axes and corner
-  n => ({ u: [0, 1, 0], v: [0, 0, 1], o: [n, 0, 0] }), n => ({ u: [0, 0, 1], v: [0, 1, 0], o: [0, 0, 0] }),
-  n => ({ u: [0, 0, 1], v: [1, 0, 0], o: [0, n, 0] }), n => ({ u: [1, 0, 0], v: [0, 0, 1], o: [0, 0, 0] }),
-  n => ({ u: [1, 0, 0], v: [0, 1, 0], o: [0, 0, n] }), n => ({ u: [0, 1, 0], v: [1, 0, 0], o: [0, 0, 0] }),
-];
 const TOPOS = new Map();
-/** The shape's cells and lines: { shape, size, n, nbr (cells sharing a corner), side (cells sharing an edge), lines
- *  [{ kind, id, cells (in order round or along it), cyclic }], mesh { cells [{ c, nrm, pts }], closed, size (a cell's
- *  width), radius (everything fits a circle this far from the middle) } }. */
+/** The shape's cells and lines: { shape, size, n, nbr (cells that touch), side (cells sharing an edge), lines [{ kind, id,
+ *  axis, cells (in order round or along it), cyclic }], mesh { cells [{ c, nrm, pts }], blank (the pentagons' outlines),
+ *  closed, size (a cell's width), radius (everything fits a circle this far from the middle) } }. */
 export function topoOf(shape, size) {
   const key = solidKind(shape, size);
   let t = TOPOS.get(key);
-  if (!t) { t = shape === "cube" ? cubeTopo(size) : hexTopo(size); t.shape = shape; t.size = size; t.regions = regionCount(shape, size); TOPOS.set(key, t); }
+  if (!t) { t = shape === "ball" ? ballTopo(size) : hexTopo(size); t.shape = shape; t.size = size; TOPOS.set(key, t); }
   return t;
 }
-function cubeTopo(n) {
-  const b = solidBoard("cube", n), lines = [], at = [];
-  const per = n * n;
-  for (let x = 0; x < b.n; x++) {
-    const face = Math.floor(x / per), j = Math.floor((x % per) / n), i = x % n, F = FACES[face](n);
-    at.push({ face, p: [0, 1, 2].map(k => F.o[k] + i * F.u[k] + j * F.v[k]), normal: F.o.findIndex((o, k) => F.u[k] === 0 && F.v[k] === 0) });
+const unit = p => { const l = Math.hypot(p[0], p[1], p[2]); return [p[0] / l, p[1] / l, p[2] / l]; };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const PHI = (1 + Math.sqrt(5)) / 2;
+export const ICOSA = {
+  V: [[-1, PHI, 0], [1, PHI, 0], [-1, -PHI, 0], [1, -PHI, 0], [0, -1, PHI], [0, 1, PHI], [0, -1, -PHI], [0, 1, -PHI], [PHI, 0, -1], [PHI, 0, 1], [-PHI, 0, -1], [-PHI, 0, 1]].map(unit),
+  F: [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]],
+};
+/** The ball GP(m,0): each icosahedron face's lattice of m to an edge, its points the panels (a corner's a pentagon), the
+ *  small triangles between them the ball's corners. Points shared by faces are named, not measured, so each is made once. */
+function ballTopo(m) {
+  const { V, F } = ICOSA, idx = new Map(), pos = [];
+  const at = (f, i, j) => {                                     // weights: the face's first corner m-i-j, its second i, its third j
+    const w = [[F[f][0], m - i - j], [F[f][1], i], [F[f][2], j]].filter(([, x]) => x > 0).sort((a, b) => a[0] - b[0]);
+    const name = w.length === 1 ? `v${w[0][0]}` : w.length === 2 ? `e${w[0][0]}-${w[1][0]}:${w[0][1]}` : `f${f}:${i},${j}`;
+    if (!idx.has(name)) idx.set(name, pos.push(unit([0, 1, 2].map(d => w.reduce((t, [v, x]) => t + V[v][d] * x, 0) / m))) - 1);
+    return idx.get(name);
+  };
+  const tris = [];
+  for (let f = 0; f < 20; f++) for (let i = 0; i < m; i++) for (let j = 0; i + j < m; j++) {
+    tris.push([at(f, i, j), at(f, i + 1, j), at(f, i, j + 1)]);
+    if (i + j <= m - 2) tris.push([at(f, i + 1, j), at(f, i + 1, j + 1), at(f, i, j + 1)]);
   }
-  for (let a = 0; a < 3; a++) for (let layer = 0; layer < n; layer++) {
-    const cells = [];
-    for (let x = 0; x < b.n; x++) if (at[x].normal !== a && at[x].p[a] === layer) cells.push(x);
-    const [p, q] = [0, 1, 2].filter(k => k !== a), ang = x => Math.atan2(b.cells[x].c[q], b.cells[x].c[p]);
-    cells.sort((x, y) => ang(x) - ang(y));
-    lines.push({ kind: "belt", id: a * n + layer, axis: a, cells, cyclic: true });
+  const N = pos.length, near = Array.from({ length: N }, () => new Set()), round = Array.from({ length: N }, () => []);
+  const corner = tris.map(t => unit([0, 1, 2].map(d => pos[t[0]][d] + pos[t[1]][d] + pos[t[2]][d])));
+  tris.forEach((t, ti) => t.forEach((a, k) => { near[a].add(t[(k + 1) % 3]); near[a].add(t[(k + 2) % 3]); round[a].push(ti); }));
+  /** Angles round a panel, in its own plane. */
+  const angleRound = c => {
+    const z = pos[c], x = unit(cross(Math.abs(z[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0], z)), y = cross(z, x);
+    return p => Math.atan2(dot(p, y), dot(p, x));
+  };
+  const ring = [], outline = [];
+  for (let c = 0; c < N; c++) {
+    const a = angleRound(c);
+    ring.push([...near[c]].sort((p, q) => a(pos[p]) - a(pos[q])));
+    outline.push(round[c].slice().sort((p, q) => a(corner[p]) - a(corner[q])).map(ti => corner[ti]));
   }
-  const mesh = { cells: b.cells.map(({ c, nrm, pts }) => ({ c, nrm, pts })), closed: true, size: b.size, radius: 1 };
-  return { n: b.n, nbr: b.nb, side: b.side, lines, mesh };
+  // the hexagons are the cells, numbered in the order made; the pentagons are left out
+  const cellOf = new Int16Array(N).fill(-1), hexes = [];
+  for (let c = 0; c < N; c++) if (ring[c].length === 6) { cellOf[c] = hexes.length; hexes.push(c); }
+  const nbr = hexes.map(c => ring[c].map(d => cellOf[d]).filter(d => d >= 0));
+  // the rings: in at one side and out at the opposite, until back where it began; one that meets a pentagon is none
+  const lines = [], seen = new Set(), axes = [];
+  for (const c of hexes) for (let d = 0; d < 3; d++) {
+    const cells = [c];
+    let prev = c, cur = ring[c][d];
+    while (cur !== c && ring[cur].length === 6) { cells.push(cur); const next = ring[cur][(ring[cur].indexOf(prev) + 3) % 6]; prev = cur; cur = next; }
+    if (cur !== c) continue;
+    const name = cells.slice().sort((p, q) => p - q).join();
+    if (seen.has(name)) continue;
+    seen.add(name);
+    // its axis: the ring goes round it; rings round one axis are disjoint, as the rows of a family are
+    const nrm = unit(cells.reduce((t, x, i) => { const v = cross(pos[x], pos[cells[(i + 1) % cells.length]]); return [t[0] + v[0], t[1] + v[1], t[2] + v[2]]; }, [0, 0, 0]));
+    let axis = axes.findIndex(a => Math.abs(dot(a, nrm)) > 0.95);
+    if (axis < 0) axis = axes.push(nrm) - 1;
+    lines.push({ kind: "ring", axis, cells: cells.map(x => cellOf[x]), cyclic: true });
+  }
+  lines.sort((p, q) => p.axis - q.axis || Math.min(...p.cells) - Math.min(...q.cells));
+  lines.forEach((l, i) => { l.id = i; });
+  const width = Math.acos(Math.min(1, dot(pos[hexes[0]], pos[ring[hexes[0]][0]])));
+  const mesh = { cells: hexes.map(c => ({ c: pos[c], nrm: pos[c], pts: outline[c] })), blank: pos.map((p, c) => (ring[c].length === 5 ? outline[c] : null)).filter(Boolean), closed: true, size: width, radius: 1 };
+  return { n: hexes.length, nbr, side: nbr, lines, families: axes.length, mesh };
 }
 function hexTopo(s) {
   const cells = [], index = new Map();
@@ -79,7 +124,7 @@ function hexTopo(s) {
     return { c: [cx / ext * 2, cy / ext * 2, 0], nrm: [0, 0, 1], pts };
   });
   // cells sharing a hexagon edge also share a corner pair: the corners' names come from their rounded coordinates
-  return { n: cells.length, nbr, side: nbr, lines, mesh: { cells: mc, closed: false, size: 1 / ext * 2, radius: 1 } };
+  return { n: cells.length, nbr, side: nbr, lines, families: 3, mesh: { cells: mc, closed: false, size: 1 / ext * 2, radius: 1 } };
 }
 
 // ---------- the puzzle of a region map ----------
@@ -91,26 +136,34 @@ export function solidPuzzle(shape, size, reg, sol = null) {
   if (!P) {
     const T = topoOf(shape, size), R = Uint8Array.from(reg, ch => parseInt(ch, 36)), L = T.lines.length;
     const groups = T.lines.map(l => ({ kind: l.kind, id: l.id, cells: l.cells }));
-    const per = T.lines.length / 3;                         // lines in each of the three families
-    const count = shape === "cube" ? 3 * size / 2 : 2 * size - 1;
+    const count = regionsIn(shape, size, reg), sky = [];
     for (let i = 0; i < count; i++) groups.push({ kind: "region", id: i, cells: [] });
-    for (let x = 0; x < T.n; x++) groups[L + R[x]]?.cells.push(x);
+    for (let x = 0; x < T.n; x++) if (R[x] === SKY) sky.push(x); else groups[L + R[x]]?.cells.push(x);
+    if (sky.length) groups.push({ kind: "sky", id: 0, cells: sky, k: 0 });   // known empty from the start (asterism-engine.js's stateOf)
     const of = Array.from({ length: T.n }, () => []);
     groups.forEach((g, gi) => { for (const c of g.cells) of[c].push(gi); });
-    const regs = Array.from({ length: count }, (_, i) => L + i), word = shape === "cube" ? "belt" : "line";
+    const regs = Array.from({ length: count }, (_, i) => L + i), word = shape === "ball" ? "ring" : "line";
     const pairs = [];
-    for (let f = 0; f < 3; f++) {
-      const fam = Array.from({ length: per }, (_, i) => f * per + i);
+    for (let f = 0; f < T.families; f++) {                  // the lines of a family are disjoint: weighed against the regions
+      const fam = []; T.lines.forEach((l, i) => { if (l.axis === f) fam.push(i); });
       pairs.push([fam, regs, "regions-in-lines", word], [regs, fam, "lines-in-regions", word]);
     }
-    P = { shape, size, n: T.n, k: 1, reg: R, nbr: T.nbr.map(l => Int16Array.from(l)), groups, of, pairs, topo: T };
+    P = { shape, size, n: T.n, k: 1, reg: R, nbr: T.nbr.map(l => Int16Array.from(l)), groups, of, pairs, topo: T, sky };
     if (PUZZLES.size > 200) PUZZLES.clear();
     PUZZLES.set(key, P);
   }
   return sol ? { ...P, sol: Uint8Array.from(sol, Number) } : P;
 }
-export const solidRegionsOk = (shape, size, reg) => { const T = topoOf(shape, size), count = shape === "cube" ? 3 * size / 2 : 2 * size - 1; return reg.length === T.n && /^[0-9a-z]+$/.test(reg) && [...reg].every(c => parseInt(c, 36) < count); };
-export const regionCount = (shape, size) => (shape === "cube" ? 3 * size / 2 : 2 * size - 1);
+/** How many regions (and stars) a puzzle has: a hexagon board's are fixed; a ball's are as many as its map has. */
+const regionsIn = (shape, size, reg) => (shape === "hex" ? 2 * size - 1 : Math.max(...Array.from(reg, ch => parseInt(ch, 36)).filter(r => r !== SKY)) + 1);
+export const solidRegionsOk = (shape, size, reg) => {
+  const T = topoOf(shape, size);
+  if (reg.length !== T.n || !/^[0-9a-z]+$/.test(reg)) return false;
+  const count = regionsIn(shape, size, reg), L = T.lines.length;
+  return [...reg].every(c => parseInt(c, 36) < count || (shape === "ball" && c === "z")) && (shape === "hex" || (count >= L / 3 && count <= L / 2));
+};
+/** The stars a puzzle of the shape has: fixed on a hexagon board; on a ball, a range (each star is on two or three rings). */
+export const regionCount = (shape, size) => (shape === "hex" ? 2 * size - 1 : null);
 
 // ---------- the answer: a plain search ----------
 /** Up to `limit` answers (lists of cells), by search: a group with just as many cells left as stars needs them all
@@ -125,8 +178,9 @@ export function solidAnswers(P, limit = 2) {
     for (const gi of P.of[x]) {
       let have = 0;
       for (const y of G[gi].cells) if (st[y] === 1) have++;
-      if (have > k) return false;
-      if (have === k) for (const y of G[gi].cells) if (st[y] === 0) st[y] = 2;
+      const want = G[gi].k ?? k;
+      if (have > want) return false;
+      if (have === want) for (const y of G[gi].cells) if (st[y] === 0) st[y] = 2;
     }
     return true;
   };
@@ -137,8 +191,9 @@ export function solidAnswers(P, limit = 2) {
       for (const g of G) {
         let have = 0, free = 0;
         for (const y of g.cells) { if (st[y] === 1) have++; else if (st[y] === 0) free++; }
-        if (have > k || have + free < k) return false;
-        if (have < k && have + free === k) { for (const y of g.cells) if (st[y] === 0 && !place(st, y)) return false; changed = true; }
+        const want = g.k ?? k;
+        if (have > want || have + free < want) return false;
+        if (have < want && have + free === want) { for (const y of g.cells) if (st[y] === 0 && !place(st, y)) return false; changed = true; }
       }
     }
     return true;
@@ -150,7 +205,7 @@ export function solidAnswers(P, limit = 2) {
     for (const g of G) {
       let have = 0, free = 0;
       for (const y of g.cells) { if (st[y] === 1) have++; else if (st[y] === 0) free++; }
-      if (have < k && free < bestFree) { bestFree = free; best = g; }
+      if (have < (g.k ?? k) && free < bestFree) { bestFree = free; best = g; }
     }
     if (!best) { const cells = []; st.forEach((v, x) => { if (v === 1) cells.push(x); }); out.push(cells); return; }
     const cands = best.cells.filter(x => st[x] === 0);
@@ -167,7 +222,7 @@ export function solidAnswers(P, limit = 2) {
 // ---------- making a puzzle ----------
 /** A random arrangement of one star in every line, none touching: cells, or null. */
 export function randomStars(T, rng) {
-  const n = T.n, st = new Int8Array(n), count = regionCount(T.shape, T.size);
+  const n = T.n, st = new Int8Array(n), count = regionCount(T.shape, T.size);    // (a ball's is whatever the rings come to)
   let budget = 3000;
   const lineOf = Array.from({ length: n }, () => []);
   T.lines.forEach((l, i) => { for (const c of l.cells) lineOf[c].push(i); });
@@ -195,30 +250,35 @@ export function randomStars(T, rng) {
   };
   if (!go()) return null;
   const out = []; st.forEach((v, x) => { if (v === 1) out.push(x); });
-  return out.length === count ? out : null;
+  return count == null || out.length === count ? out : null;
 }
-/** Regions grown round the stars, a cell at a time over the shared edges, the sizes made uneven by `spread`. */
-export function regionsAround(T, stars, rng, spread) {
+/** Regions grown round the stars, a cell at a time over the shared edges, the sizes made uneven by `spread`; with `caps`
+ *  (a ball's constellations) each stops at its own size and what none reaches is sky. */
+export function regionsAround(T, stars, rng, spread, caps = null) {
   const reg = new Int8Array(T.n).fill(-1), order = shuffle(stars.slice(), rng);
   order.forEach((s, i) => { reg[s] = i; });
   const weight = order.map(() => 0.15 + rng() ** (1 + spread) * 2);
   const front = order.map((_, i) => { const f = new Set(); for (const y of T.side[order[i]]) if (reg[y] < 0) f.add(y); return f; });
+  const size = order.map(() => 1), cap = caps ? order.map(() => caps()) : null;
   let free = reg.filter(r => r < 0).length;
   while (free > 0) {
+    if (cap) for (let i = 0; i < order.length; i++) if (size[i] >= cap[i]) front[i].clear();
     let total = 0;
     for (let i = 0; i < order.length; i++) if (front[i].size) total += weight[i];
-    if (!total) return null;
+    if (!total) { if (!cap) return null; reg.forEach((r, x) => { if (r < 0) reg[x] = SKY; }); return reg; }
     let t = rng() * total, pick = 0;
     for (let i = 0; i < order.length; i++) if (front[i].size) { t -= weight[i]; pick = i; if (t <= 0) break; }
     const cells = [...front[pick]], x = cells[Math.floor(rng() * cells.length)];
-    reg[x] = pick; free--;
+    reg[x] = pick; size[pick]++; free--;
     for (const f of front) f.delete(x);
     for (const y of T.side[x]) if (reg[y] < 0) front[pick].add(y);
   }
   return reg;
 }
 const MIN_REGION = 3;                                    // a region smaller than this gives a star away
+const MAX_CONSTELLATION = 10;                            // nor is a ball's constellation larger than this
 const connected = (T, reg, r, without) => {
+  if (r === SKY) return true;                            // the sky need not be one piece
   const cells = []; reg.forEach((v, x) => { if (v === r && x !== without) cells.push(x); });
   if (cells.length < MIN_REGION) return false;
   const seen = new Set([cells[0]]), queue = [cells[0]];
@@ -228,8 +288,9 @@ const connected = (T, reg, r, without) => {
 /** A region map as text: a character a cell, base 36 (a solid has up to 13 regions). */
 /** Whether the regions are fair: none a gift (a handful of cells), none most of the board. */
 const fair = (T, reg) => {
-  const size = new Int16Array(T.regions); reg.forEach(r => size[r]++);
-  return Math.min(...size) >= MIN_REGION && Math.max(...size) <= Math.max(0.5 * T.n, 3 * T.n / T.regions);
+  const regs = reg.filter(r => r !== SKY), count = Math.max(...regs) + 1, size = new Int16Array(count); regs.forEach(r => size[r]++);
+  if (regs.length < reg.length) return Math.min(...size) >= MIN_REGION && Math.max(...size) <= MAX_CONSTELLATION;
+  return Math.min(...size) >= MIN_REGION && Math.max(...size) <= Math.max(0.5 * T.n, 3 * T.n / count);
 };
 const textOf = reg => Array.from(reg, v => v.toString(36)).join("");
 /** Mends a region map until it has the one answer it was made from (as the flat engine does). */
@@ -277,7 +338,9 @@ export function generateSolid(seed, shape, size, level, work = WORK) {
   for (let t = 0, done = 0; t < TRIES && done < work; t++) {
     const stars = randomStars(T, rng);
     if (!stars) continue;
-    const reg = regionsAround(T, stars, rng, want === 0 ? 3 : want === 1 ? 2 : rng() * 2);
+    // a ball's constellations: three hexagons or four for an Easy puzzle, up to eight for an Expert one
+    const caps = shape === "ball" ? () => 3 + Math.floor(rng() * [2, 3, 5, 6][want]) : null;
+    const reg = regionsAround(T, stars, rng, want === 0 ? 3 : want === 1 ? 2 : rng() * 2, caps);
     if (!reg) continue;
     const mended = mend(shape, size, T, reg, stars, rng);
     if (!mended || !fair(T, mended)) continue;
@@ -300,9 +363,9 @@ export function generateSolid(seed, shape, size, level, work = WORK) {
 }
 
 // ---------- banked puzzles ----------
-// Where grading is too slow to steer a puzzle to its level on a phone (a cube; the larger hexagon boards), the puzzles
+// Where grading is too slow to steer a puzzle to its level on a phone (the larger hexagon boards), the puzzles
 // are made ahead (asterism-bank.js: each has one answer, and its level) and dealt by seed, each turned or flipped by one
-// of the shape's symmetries: 48 for a cube, 12 for a hexagon, so a few dozen puzzles make many hundreds.
+// of the shape's symmetries: 12 for a hexagon, so a few dozen puzzles make many hundreds.
 const SYMS = new Map();
 /** The shape's symmetries as cell permutations: perm[i] is where cell i goes. */
 function symmetries(shape, size) {
@@ -310,12 +373,7 @@ function symmetries(shape, size) {
   let out = SYMS.get(key);
   if (out) return out;
   const T = topoOf(shape, size), cs = T.mesh.cells.map(c => c.c), mats = [];
-  if (shape === "cube") {
-    const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
-    for (const p of perms) for (let sg = 0; sg < 8; sg++) mats.push(v => [0, 1, 2].map(i => v[p[i]] * (sg >> i & 1 ? -1 : 1)));
-  } else {
-    for (let r = 0; r < 6; r++) for (const fl of [1, -1]) { const a = r * Math.PI / 3, c = Math.cos(a), s = Math.sin(a); mats.push(v => [c * v[0] - s * v[1] * fl, s * v[0] + c * v[1] * fl, 0]); }
-  }
+  for (let r = 0; r < 6; r++) for (const fl of [1, -1]) { const a = r * Math.PI / 3, c = Math.cos(a), s = Math.sin(a); mats.push(v => [c * v[0] - s * v[1] * fl, s * v[0] + c * v[1] * fl, 0]); }
   out = mats.map(m => cs.map(v => {
     const w = m(v);
     let best = 0, bd = 1e9;
