@@ -34,25 +34,40 @@ export function poseOf(tilt, yaw, dist) {
   const right = unit(cross(f, up)), top = cross(right, f);
   return { pos, f, right, up: top };
 }
-/** A point of the table's world in the camera's normalised screen (-1..1 each way; z the depth in front of the camera). */
+/** A point of the table's world in the camera's normalised screen (-1..1 each way; z the depth in front of the camera), the picture
+ *  raised by the pose's `lift`. */
 export function project(P, p, aspect) {
   const v = sub(p, P.pos), z = dot(v, P.f), t = Math.tan(FOV / 2);
-  return [dot(v, P.right) / z / (t * aspect), dot(v, P.up) / z / t, z];
+  return [dot(v, P.right) / z / (t * aspect), dot(v, P.up) / z / t + (P.lift || 0), z];
 }
-/** The nearest camera distance at which the table's four corners (W by H), and the same `up` higher (the tallest pile, a carried card), are all on screen. At no tilt and no `up` that is the distance at which a board pixel is a screen pixel. */
-export function fitDistance(W, H, tilt, yaw, aspect = W / H, up = 0) {
+/**
+ * The camera for the table's four corners (W by H), and the same `up` higher (the tallest pile, a carried card): { dist, the
+ * nearest distance at which they fit the screen's width and its height, and lift, how far the picture is raised (normalised
+ * screen) so the far edge is the screen's top }. Tilted, the near edge looms larger than the far one, so a picture centred on the
+ * table's middle left a band of page above it (Korbi, 22 Nov 2026: "the table should move up a bit and the top edge should go to
+ * the top of the screen, bottom edge no lower than the bottom of the screen"). At no tilt and no `up` the distance is the one at
+ * which a board pixel is a screen pixel.
+ */
+export function fitView(W, H, tilt, yaw, aspect = W / H, up = 0) {
   const corners = [[-W / 2, 0, -H / 2], [W / 2, 0, -H / 2], [W / 2, 0, H / 2], [-W / 2, 0, H / 2]];
   if (up) for (const [x, , z] of corners.slice()) corners.push([x, up, z]);
   const d0 = H / 2 / Math.tan(FOV / 2);
-  const fits = d => { const P = poseOf(tilt, yaw, d); return corners.every(c => { const s = project(P, c, aspect); return s[2] > 0 && Math.abs(s[0]) <= 1.0001 && Math.abs(s[1]) <= 1.0001; }); };
+  /** The top of the table's far edge at distance d, or null where it does not fit (the room above the table counts at the sides and
+   *  the bottom, not the top: nothing stands over the far margin, and it would leave a band of page there). */
+  const top = d => {
+    const P = poseOf(tilt, yaw, d);
+    let lo = Infinity, hi = -Infinity;
+    corners.forEach((c, i) => { const s = project(P, c, aspect); if (s[2] <= 0 || Math.abs(s[0]) > 1.0001) lo = NaN; lo = Math.min(lo, s[1]); if (i < 4) hi = Math.max(hi, s[1]); });
+    return hi - lo <= 2.0002 ? hi : null;
+  };
   let lo = d0 * 0.5, hi = d0 * 3;
-  if (fits(lo)) return lo;
-  for (let i = 0; i < 28; i++) { const mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
-  return hi;
+  if (top(lo) == null) { for (let i = 0; i < 28; i++) { const mid = (lo + hi) / 2; if (top(mid) != null) hi = mid; else lo = mid; } } else hi = lo;
+  return { dist: hi, lift: 1 - top(hi) };
 }
 /** Where the ray through a normalised screen point meets the horizontal plane `h` high: board pixels from the table's middle ({x, z}). */
 export function groundAt(P, nx, ny, aspect, h = 0) {
   const t = Math.tan(FOV / 2);
+  ny -= P.lift || 0;
   const d = [P.f[0] + P.right[0] * nx * t * aspect + P.up[0] * ny * t, P.f[1] + P.right[1] * nx * t * aspect + P.up[1] * ny * t, P.f[2] + P.right[2] * nx * t * aspect + P.up[2] * ny * t];
   if (d[1] > -1e-6) return null;
   const s = (h - P.pos[1]) / d[1];
@@ -429,15 +444,16 @@ export function createView(host, opts = {}) {
     if (Math.abs(tYaw - yaw) < 0.03) yaw = tYaw;
     camBusy = tilt !== tTilt || yaw !== tYaw;
     const aspect = W / H;
-    dist = fitDistance(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom) / zoom;
-    pose = poseOf(tilt, yaw, dist);
+    const fit = fitView(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom);
+    dist = fit.dist / zoom;
+    pose = poseOf(tilt, yaw, dist); pose.lift = fit.lift;
     // zoomed, the camera may look anywhere on the table; at the whole table it may still slide a little, most of all toward
     // the far side, so the cards come down the screen toward the hand (Korbi, 10 Nov 2026)
     const reach = (k, free) => (k / 2 + margin()) * (1 - 1 / zoom) + k * free;
     panX = Math.max(-reach(W, 0.12), Math.min(reach(W, 0.12), panX)); panZ = Math.max(-reach(H, 0.32), Math.min(reach(H, 0.32), panZ));
     pose.pos = [pose.pos[0] + panX, pose.pos[1], pose.pos[2] + panZ];
     const near = dist * 0.1, top = near * Math.tan(FOV / 2), right = top * aspect;
-    camera.projectionMatrix.makePerspective(-right, right, top, -top, near, dist * 4);
+    camera.projectionMatrix.makePerspective(-right, right, top * (1 - fit.lift), -top * (1 + fit.lift), near, dist * 4);   // the window lowered: the picture raised
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     camera.position.set(...pose.pos);
     camera.up.set(...pose.up);

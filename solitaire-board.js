@@ -13,7 +13,7 @@ import { VARIANTS, RANKS, tableOf, TAB, FND, WST, STK, CEL, place, kindOf, index
 const FSLOT = [3, 2, 1, 0];                        // the foundations left to right: ♠ ♥ ♣ ♦, so the colours alternate
 const ASPECT = 1.4;                                // a card is 3.5em by 2.5em
 const TAB_REF = 3.9;                               // card heights the tableau is made for: a column longer than that fans in
-const MID_ROWS = 2.6;                              // card heights of tableau centred on the 3D table with the top row (a deal's columns, and some)
+const MID_ROWS = 2.6;                              // card heights of tableau centred on the table with the top row (a deal's columns, and some)
 const DRAG = 7;                                    // px (a tablet's rem grows it) a finger moves before a press is a drag
 const SLOP = 14;                                   // a drag that lets go over no place, within this of where it began, was a tap
 const SUITS = ["♦", "♣", "♥", "♠"];
@@ -84,9 +84,10 @@ export function createBoard(root, opts = {}) {
     ch = Math.round(cw * ASPECT);
     gap = Math.max(1, Math.floor((W - n * cw) / (n - 1)));
     x0 = Math.floor((W - (n * cw + (n - 1) * gap)) / 2);
-    // on the 3D table the cards lie in its middle (the top row and a deal's columns centred in the box), not along its far edge with
-    // the near half bare (Korbi, 10 Nov 2026); a column that grows still has the room down to the near edge, and fans in past it
-    y0 = view ? Math.max(0, Math.floor((H - ch * (1.16 + MID_ROWS)) / 2)) : 0;
+    // the cards lie in the table's middle (the top row and a deal's columns centred in the box), not along its far edge with the
+    // near half bare: on the 3D table (Korbi, 10 Nov 2026) and the flat one (22 Nov 2026); a column that grows still has the room
+    // down to the near edge, and fans in past it
+    y0 = Math.max(0, Math.floor((H - ch * (1.16 + MID_ROWS)) / 2));
     yTab = y0 + Math.round(ch * 1.16);
     fanDown = Math.max(3, Math.round(ch * 0.13));
     fanUp = Math.round(ch * 0.3);

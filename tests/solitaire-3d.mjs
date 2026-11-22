@@ -4,7 +4,7 @@
 // pick, lazy, a way back to 2D), and the sound module on a stand-in for Web Audio (silent until a gesture, silent when off,
 // the riffle a burst of many ticks).
 import fs from "node:fs";
-import { poseOf, project, groundAt, fitDistance, FOV, TILT_MAX, YAW_MAX, ANGLED } from "../solitaire-3d.js";
+import { poseOf, project, groundAt, fitView, FOV, TILT_MAX, YAW_MAX, ANGLED } from "../solitaire-3d.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -15,13 +15,16 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 // ---------- the camera ----------
 {
   const W = 350, H = 476, aspect = W / H, d0 = H / 2 / Math.tan(FOV / 2);
-  check(near(fitDistance(W, H, 0, 0, aspect), d0, d0 * 2e-4), "straight above, a board pixel is a screen pixel (the 2D table's scale)");
+  check(near(fitView(W, H, 0, 0, aspect).dist, d0, d0 * 2e-4) && near(fitView(W, H, 0, 0, aspect).lift, 0, 1e-3), "straight above, a board pixel is a screen pixel (the 2D table's scale)");
   const P0 = poseOf(0, 0, d0), a = project(P0, [-W / 2, 0, -H / 2], aspect), c = project(P0, [W / 2, 0, H / 2], aspect);
   check(near(a[0], -1, 1e-3) && near(a[1], 1, 1e-3) && near(c[0], 1, 1e-3) && near(c[1], -1, 1e-3), "straight above, the table's far left is the screen's top left and its near right the bottom right");
-  let grows = true, ok = true, up = true, round = true;
+  let grows = true, ok = true, up = true, round = true, raised = true;
   let last = d0 - 1;
   for (const tilt of [0, 15, 30, 45, TILT_MAX]) for (const yaw of [-YAW_MAX, 0, 9]) {
-    const d = fitDistance(W, H, tilt, yaw, aspect), P = poseOf(tilt, yaw, d);
+    const v = fitView(W, H, tilt, yaw, aspect), d = v.dist, P = poseOf(tilt, yaw, d); P.lift = v.lift;
+    // the far edge is the top of the screen (Korbi, 22 Nov 2026), the near edge no lower than the bottom
+    const ys = [[-W / 2, -H / 2], [W / 2, -H / 2], [W / 2, H / 2], [-W / 2, H / 2]].map(([x, z]) => project(P, [x, 0, z], aspect)[1]);
+    if (!near(Math.max(...ys), 1, 2e-3) || Math.min(...ys) < -1.0005) raised = false;
     for (const [x, z] of [[-W / 2, -H / 2], [W / 2, -H / 2], [W / 2, H / 2], [-W / 2, H / 2]]) {
       const s = project(P, [x, 0, z], aspect);
       if (!(s[2] > 0 && Math.abs(s[0]) <= 1.0005 && Math.abs(s[1]) <= 1.0005)) ok = false;
@@ -37,8 +40,9 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
   check(ok, "at every tilt and yaw the whole table fits the screen");
   check(up, "the far side of the table is the top of the screen at every tilt and yaw");
   check(round, "a point unprojected from the screen onto the plane it lies in comes back, at any tilt, yaw and height");
+  check(raised, "the far edge of the table is the top of the screen, the near edge on it, at every tilt and yaw");
   check(grows, "tilting never makes the table larger (the camera backs off to keep its corners in)");
-  check(fitDistance(W, H, 36, 0, aspect, 40) > fitDistance(W, H, 36, 0, aspect, 0), "room for a tall pile pulls the camera back a little");
+  check(fitView(W, H, 36, 0, aspect, 40).dist > fitView(W, H, 36, 0, aspect, 0).dist, "room for a tall pile pulls the camera back a little");
   check(ANGLED > 0 && ANGLED < TILT_MAX && TILT_MAX <= 55 && YAW_MAX <= 15, "the camera is limited: from straight above to 55 degrees, a little yaw");
 }
 
