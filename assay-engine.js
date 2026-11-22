@@ -1,20 +1,14 @@
 // Assay's rules (README, Assay), pure: no page in it, so tests/assay.mjs runs every part in Node. A hidden word; each
-// guess, itself a word, is read letter by letter, one of two ways. Weighed ("scale"): letters weigh by their place in
-// the alphabet, and each is right, or the word's letter weighs more (comes later) or less (comes earlier). Colours
-// ("colour", the classic marks): right place, elsewhere in the word, or not in it (a repeated letter marked the way
-// word-guessing games mark it: the right places first, then elsewhere for as many as the word has left). Both come
-// out as the same three marks, so everything built on them (the solvers, the dodging word, the levels) serves both.
-// Here too: the hard and strict rules (colours only), how hard a word is (a human-style solver's guesses, never its rarity alone), the
+// guess, itself a word, is read letter by letter in the classic colours: right place, elsewhere in the word, or not in it
+// (a repeated letter marked the way word-guessing games mark it: the right places first, then elsewhere for as many as
+// the word has left). Korbi, 22 Nov 2026: the weighed reading (each letter later or earlier in the alphabet) is cut,
+// "colours everywhere"; a game kept from it carries a `read` field that nothing reads now, its rows marked in colours.
+// Here too: the hard and strict rules, how hard a word is (a human-style solver's guesses, never its rarity alone), the
 // levels and the daily, several boards at once, the word that dodges, the sprint, and the game as it's kept.
 import { ENGLISH } from "./assay-words.js";
 import { GRADES } from "./assay-grades.js";
 
-export const GREY = 0, NEAR = 1, HIT = 2;      // colours: out, elsewhere, in place; weighed: earlier, later, right
-export const READS = ["scale", "colour"];
-/** A game's reading: a game kept before there were two has no field, and was played in colours. */
-export const readOf = g => (g?.read === "scale" ? "scale" : "colour");
-/** The reading a lexicon allows: equations' signs have no order worth weighing, so they stay in colours. */
-export const readFor = (lex, read) => (read === "scale" && lex?.id !== "equations" ? "scale" : "colour");
+export const GREY = 0, NEAR = 1, HIT = 2;      // out, elsewhere, in place
 export const LENGTHS = [4, 5, 6, 7];
 export const BOARDS = [1, 2, 4, 8];
 export const LEVELS = ["easy", "medium", "hard"];
@@ -33,12 +27,8 @@ const SPRINT_WORDS = 60;             // more than anyone solves in three minutes
 export const DAILY = Object.freeze({ mode: "classic", len: 5, boards: 1, level: "medium" });
 
 // ---------- marking ----------
-/**
- * The marks of a guess against the answer, letter by letter: HIT, NEAR or GREY. Works on any alphabet. Weighed: HIT
- * when the letter is right, NEAR when the answer's letter comes later in the alphabet, GREY when it comes earlier.
- */
-export function marksOf(guess, answer, read = "colour") {
-  if (read === "scale") return Array.from(guess, (c, i) => (c === answer[i] ? HIT : answer[i] > c ? NEAR : GREY));
+/** The marks of a guess against the answer, letter by letter: HIT, NEAR or GREY. Works on any alphabet. */
+export function marksOf(guess, answer) {
   const n = guess.length, out = new Array(n).fill(GREY), used = new Array(n).fill(false);
   for (let i = 0; i < n; i++) if (guess[i] === answer[i]) { out[i] = HIT; used[i] = true; }
   for (let i = 0; i < n; i++) {
@@ -53,20 +43,7 @@ export const marksOfCode = (code, n) => Array.from({ length: n }, (_, i) => Math
 export const allHit = n => 3 ** n - 1;
 const sameMarks = (a, b) => a.length === b.length && a.every((m, i) => m === b[i]);
 /** Whether a word could still be the answer after these rows ({ guess, marks }). */
-export const fits = (word, rows, read = "colour") => rows.every(r => sameMarks(marksOf(r.guess, word, read), r.marks));
-
-/**
- * What the weighed marks say of each place after these rows: the letters it may still be, from the earliest to the
- * latest of `alphabet` (the lexicon's characters in order), or the one letter once it's right: [{ from, to, exact }].
- */
-export function boundsOf(rows, len, alphabet) {
-  const lo = new Array(len).fill(0), hi = new Array(len).fill(alphabet.length - 1);
-  for (const { guess, marks } of rows) for (let i = 0; i < len; i++) {
-    const k = alphabet.indexOf(guess[i]);
-    if (marks[i] === HIT) { lo[i] = hi[i] = k; } else if (marks[i] === NEAR) lo[i] = Math.max(lo[i], k + 1); else if (marks[i] === GREY) hi[i] = Math.min(hi[i], k - 1);
-  }
-  return lo.map((l, i) => ({ from: alphabet[l], to: alphabet[hi[i]], exact: l === hi[i] }));
-}
+export const fits = (word, rows) => rows.every(r => sameMarks(marksOf(r.guess, word), r.marks));
 
 const ORD = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 const big = l => l.toUpperCase();
@@ -119,18 +96,13 @@ function shuffled(xs, r) {
 }
 
 // ---------- the answers of a length, packed for the solvers ----------
-const packs = new Map(), readPacks = new Map();
+const packs = new Map();
 /**
  * A lexicon's answers of a length as the solvers use them: words, tiers, each word's letters as numbers in one flat
  * array (L, n to a word), where each word is, and the human-style solver's weights (a common word comes to mind
  * first; a word of different letters is the kind people try).
  */
-export function packOf(lex, len, read = "colour") {
-  if (read === "scale") {                                    // the same words and arrays, read the weighed way (codeAt looks at `read`)
-    const key = `${lex.id}:${len}`;
-    if (!readPacks.has(key)) readPacks.set(key, { ...packOf(lex, len), read: "scale" });
-    return readPacks.get(key);
-  }
+export function packOf(lex, len) {
   const key = `${lex.id}:${len}`;
   if (!packs.has(key)) {
     const list = lex.answers(len), N = list.length, L = new Uint16Array(N * len), tier = new Uint8Array(N), weight = new Int32Array(N);
@@ -147,10 +119,6 @@ export function packOf(lex, len, read = "colour") {
 export function codeAt(P, g, a) {
   const n = P.len, L = P.L, go = g * n, ao = a * n;
   let code = 0, used = 0, mult = 1;
-  if (P.read === "scale") {
-    for (let i = 0; i < n; i++, mult *= 3) { const x = L[go + i], y = L[ao + i]; code += (x === y ? 2 : y > x ? 1 : 0) * mult; }
-    return code;
-  }
   for (let i = 0; i < n; i++) if (L[go + i] === L[ao + i]) used |= 1 << i;
   const hits = used;
   for (let i = 0; i < n; i++, mult *= 3) {
@@ -161,7 +129,7 @@ export function codeAt(P, g, a) {
   return code;
 }
 /** The same for a guess outside the pool (a string) against pool word a. */
-export function codeFor(P, guess, a) { return codeOfMarks(marksOf(guess, P.words[a], P.read)); }
+export function codeFor(P, guess, a) { return codeOfMarks(marksOf(guess, P.words[a])); }
 
 // ---------- how hard a word is ----------
 // The measure is the number of guesses a human-style player needs: one who opens with a word people open with, then
@@ -308,17 +276,16 @@ export const hide = w => shift(w, 1);
 export const unhide = w => shift(w, -1);
 
 // ---------- a game ----------
-// { v, mode, len, boards, level, rules, read ("scale", else colours), seed, day (a daily's), secret (the answers, hidden), guesses, over: null, "won",
+// { v, mode, len, boards, level, rules, seed, day (a daily's), secret (the answers, hidden), guesses, over: null, "won",
 // "lost" or "time", ms (time played) }; a sprint adds { at (the word being played), past: [{ guesses, won }] }, the
 // dodging word { left, marks } (the words still in play, and the marks it gave).
-export function newGame({ lex = ENGLISH, mode = "classic", len = 5, boards = 1, level = "medium", rules = "free", read = "colour", seed = 1, words = null, day = null, avoid = [] } = {}) {
-  read = readFor(lex, read);
+export function newGame({ lex = ENGLISH, mode = "classic", len = 5, boards = 1, level = "medium", rules = "free", seed = 1, words = null, day = null, avoid = [] } = {}) {
   boards = mode === "boards" ? (BOARDS.includes(boards) && boards > 1 ? boards : 4) : 1;
   const count = mode === "sprint" ? SPRINT_WORDS : mode === "dodge" ? 0 : boards;
   const answers = words || (count ? deal({ lex, len, level, seed, count, avoid }) : []);
-  const g = { v: 1, lang: lex.id, mode, len, boards, level, rules: boards === 1 && read === "colour" && RULES.includes(rules) ? rules : "free", read, seed, day, secret: answers.map(hide), guesses: [], over: null, ms: 0 };
+  const g = { v: 1, lang: lex.id, mode, len, boards, level, rules: boards === 1 && RULES.includes(rules) ? rules : "free", seed, day, secret: answers.map(hide), guesses: [], over: null, ms: 0 };
   if (mode === "sprint") { g.at = 0; g.past = []; }
-  if (mode === "dodge") { g.left = levelOf(packOf(lex, len, read), level).length; g.marks = []; }
+  if (mode === "dodge") { g.left = levelOf(packOf(lex, len), level).length; g.marks = []; }
   return g;
 }
 /** The answers, as words. */
@@ -328,7 +295,7 @@ export function rowsOf(g, b = 0) {
   if (g.mode === "dodge") return g.guesses.map((guess, i) => ({ guess, marks: g.marks[i] }));
   const answer = g.mode === "sprint" ? unhide(g.secret[g.at]) : unhide(g.secret[b]), rows = [];
   for (const guess of g.guesses) {
-    const marks = marksOf(guess, answer, readOf(g));
+    const marks = marksOf(guess, answer);
     rows.push({ guess, marks });
     if (marks.every(m => m === HIT)) break;
   }
@@ -361,7 +328,7 @@ export function guessIn(g, word, lex = ENGLISH) {
   g.guesses.push(word);
   let solved = [];
   if (g.mode === "dodge") {
-    const P = packOf(lex, g.len, readOf(g)), step = dodgeStep(P, dodgeCands(g, lex, g.guesses.length - 1), word);
+    const P = packOf(lex, g.len), step = dodgeStep(P, dodgeCands(g, lex, g.guesses.length - 1), word);
     g.marks.push(step.marks);
     g.left = step.cands.length;
     if (step.marks.every(m => m === HIT)) { g.over = "won"; solved = [0]; g.secret = [hide(word)]; }
@@ -385,7 +352,7 @@ export function guessIn(g, word, lex = ENGLISH) {
 }
 /** The dodging word's words in play before guess k (replayed from the start: it keeps nothing else). */
 export function dodgeCands(g, lex = ENGLISH, k = g.guesses.length) {
-  const P = packOf(lex, g.len, readOf(g));
+  const P = packOf(lex, g.len);
   let cands = levelOf(P, g.level);
   for (let i = 0; i < k; i++) cands = cands.filter(c => codeFor(P, g.guesses[i], c) === codeOfMarks(g.marks[i]));
   return cands;
@@ -396,7 +363,7 @@ export const sprintSolved = g => (g.past || []).filter(p => p.won).length;
 /** Guesses used: every one played (a sprint's, in all its words). */
 export const guessesUsed = g => (g.mode === "sprint" ? (g.past || []).reduce((n, p) => n + p.guesses.length, 0) + g.guesses.length : g.guesses.length);
 
-/** What each letter has shown on board b: { letter: HIT | NEAR | GREY }, the best it has shown (colours: weighed marks belong to a place, not a letter). */
+/** What each letter has shown on board b: { letter: HIT | NEAR | GREY }, the best it has shown. */
 export function lettersOf(g, b = 0) {
   const out = {};
   for (const { guess, marks } of rowsOf(g, b)) [...guess].forEach((l, i) => { if (!(out[l] >= marks[i])) out[l] = marks[i]; });

@@ -4,7 +4,7 @@
 // commoner first; Sharp guesses the possible word that splits the rest best (the most information); Master may
 // guess any word that splits them best, a word that can't be the answer included, and closes on one when it can.
 // Each guess comes after a person's thinking time.
-import { packOf, codeAt, marksOf, marksOfCode, readOf, rng, hashOf, levelOf, guessesFor, unhide, dodgeStep, SPRINT_MS, HIT, GREY } from "./assay-engine.js";
+import { packOf, codeAt, marksOf, marksOfCode, rng, hashOf, levelOf, guessesFor, unhide, dodgeStep, SPRINT_MS, HIT, GREY } from "./assay-engine.js";
 import { ENGLISH } from "./assay-words.js";
 
 export const RIVALS = ["novice", "steady", "sharp", "master"];
@@ -109,7 +109,7 @@ function thinking(level, r, { first, sure, boards }) {
  * `marks` the dodging word's answer to it.
  */
 export function rivalPlan(g, level, lex = ENGLISH) {
-  const P = packOf(lex, g.len, readOf(g)), r = rng(hashOf(`${g.seed}:${level}:${g.mode}:${g.len}:${g.boards}`)), rows = [];
+  const P = packOf(lex, g.len), r = rng(hashOf(`${g.seed}:${level}:${g.mode}:${g.len}:${g.boards}`)), rows = [];
   let clock = 0;
   const all = () => [...P.words.keys()];
   if (g.mode === "sprint") {
@@ -195,5 +195,5 @@ export const rivalDone = (plan, ms) => !!plan && ms >= plan.done;
 export function rivalMarks(g, row, b = 0) {
   if (row.marks) return row.marks;
   const answer = unhide(g.secret[g.mode === "sprint" ? row.word : b]);
-  return marksOf(row.guess, answer, readOf(g));
+  return marksOf(row.guess, answer);
 }

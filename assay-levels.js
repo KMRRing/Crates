@@ -1,7 +1,6 @@
 // Assay's levels, pure (no page): a ladder of word games in chapters, each chapter bringing a twist to the ones before.
-// A level is played the weighed way (the default reading) unless its recipe says "colour"; equations are always colours:
-// plain words of four to six letters; longer words and the hardest of each length; the classic colour marks, with a
-// hard rule and a strict one; several boards at once; the word that dodges; the three-minute sprint; and the two number games, primes and
+// Every level is played in the classic colours (Korbi, 22 Nov 2026: the weighed reading is cut):
+// plain words of four to six letters; longer words and the hardest of each length; a hard rule and a strict one; several boards at once; the word that dodges; the three-minute sprint; and the two number games, primes and
 // equations, in the same ways. A level is a kind of game (a lexicon, a mode, a length, how hard the answers are, a
 // rule), not one word: the first time it is the same word for everyone (the level's
 // own seed), and a new word of the level is another from the same recipe, so a level can be replayed for its stars.
@@ -14,17 +13,17 @@
 import { newGame, guessesFor, sprintSolved } from "./assay-engine.js";
 import { lexOf } from "./assay-lexicons.js";
 
-const level = spec => ({ boards: 1, rules: "free", lex: "en", read: "scale", ...spec });
+const level = spec => ({ boards: 1, rules: "free", lex: "en", ...spec });
 /** The chapters: where each begins in LEVELS, its name and what it brings. */
 export const CHAPTERS = [
-  { name: "First words", from: 0, about: "Guess the hidden word. Letters weigh by their place in the alphabet: each of yours is right, or the word's letter comes later (up) or earlier (down)." },
+  { name: "First words", from: 0, about: "Guess the hidden word. Green: the right letter in its place. Ochre: in the word, somewhere else. Grey: not in the word." },
   { name: "Long words", from: 5, about: "Six and seven letters give more away with every guess, and the hardest words of each length come to mind late." },
-  { name: "Colours", from: 10, about: "The classic marks: in place, elsewhere in the word, or out. Hard keeps what is found where it is and uses every letter shown; Strict allows only words that could be the answer." },
+  { name: "Hard and strict", from: 10, about: "Hard keeps what is found where it is and uses every letter shown; Strict allows only words that could be the answer." },
   { name: "Boards", from: 15, about: "Two, four or eight words at once, every guess played on all of them, with a few guesses more." },
   { name: "The dodging word", from: 20, about: "No word is chosen. Each guess is marked to keep as many words in play as it can. Leave it one, and guess it." },
   { name: "Sprints", from: 24, about: "Three minutes, as many words as you can. A word spent or solved moves you on at once." },
-  { name: "Primes", from: 28, about: "Four- and five-digit primes. A guess must be a prime too, and each digit is weighed against the prime's. Hard has a digit that repeats." },
-  { name: "Equations", from: 33, about: "A sum that balances, of six to eight characters: digits, + − × ÷ and one =, a number alone on the right. A guess must balance too, and the marks are colours." },
+  { name: "Primes", from: 28, about: "Four- and five-digit primes, in colours. A guess must be a prime too. Hard has a digit that repeats." },
+  { name: "Equations", from: 33, about: "A sum that balances, of six to eight characters: digits, + − × ÷ and one =, a number alone on the right. A guess must balance too." },
 ];
 export const LEVELS = [
   level({ name: "Warm-up", len: 5, level: "easy", par: 4 }),
@@ -39,11 +38,11 @@ export const LEVELS = [
   level({ name: "Tricky fives", len: 5, level: "hard", par: 5 }),
   level({ name: "Hard sixes", len: 6, level: "hard", par: 4 }),
 
-  level({ name: "Held to it", len: 5, level: "easy", rules: "hard", read: "colour", par: 4 }),
-  level({ name: "No letting go", len: 5, level: "medium", rules: "hard", read: "colour", par: 4 }),
-  level({ name: "Strictly", len: 5, level: "easy", rules: "strict", read: "colour", par: 4 }),
-  level({ name: "Only the possible", len: 5, level: "medium", rules: "strict", read: "colour", par: 4 }),
-  level({ name: "Held to six", len: 6, level: "medium", rules: "hard", read: "colour", par: 4 }),
+  level({ name: "Held to it", len: 5, level: "easy", rules: "hard", par: 4 }),
+  level({ name: "No letting go", len: 5, level: "medium", rules: "hard", par: 4 }),
+  level({ name: "Strictly", len: 5, level: "easy", rules: "strict", par: 4 }),
+  level({ name: "Only the possible", len: 5, level: "medium", rules: "strict", par: 4 }),
+  level({ name: "Held to six", len: 6, level: "medium", rules: "hard", par: 4 }),
 
   level({ name: "Twin boards", mode: "boards", len: 5, boards: 2, level: "easy", par: 5 }),
   level({ name: "Twin, tougher", mode: "boards", len: 5, boards: 2, level: "medium", par: 5 }),
@@ -67,14 +66,14 @@ export const LEVELS = [
   level({ name: "Twin primes", lex: "primes", mode: "boards", len: 5, boards: 2, level: "easy", par: 6 }),
   level({ name: "Prime sprint", lex: "primes", mode: "sprint", len: 4, level: "easy", par: 6 }),
 
-  level({ name: "Mini sums", lex: "equations", read: "colour", len: 6, level: "easy", par: 4 }),
-  level({ name: "Balanced", lex: "equations", read: "colour", len: 7, level: "easy", par: 4 }),
-  level({ name: "Full sums", lex: "equations", read: "colour", len: 8, level: "easy", par: 4 }),
-  level({ name: "Times and plus", lex: "equations", read: "colour", len: 8, level: "medium", par: 4 }),
-  level({ name: "Long division", lex: "equations", read: "colour", len: 8, level: "hard", par: 4 }),
-  level({ name: "Twin sums", lex: "equations", read: "colour", mode: "boards", len: 7, boards: 2, level: "easy", par: 5 }),
-  level({ name: "Slippery sums", lex: "equations", read: "colour", mode: "dodge", len: 7, level: "easy", par: 6 }),
-  level({ name: "Sum sprint", lex: "equations", read: "colour", mode: "sprint", len: 6, level: "easy", par: 8 }),
+  level({ name: "Mini sums", lex: "equations", len: 6, level: "easy", par: 4 }),
+  level({ name: "Balanced", lex: "equations", len: 7, level: "easy", par: 4 }),
+  level({ name: "Full sums", lex: "equations", len: 8, level: "easy", par: 4 }),
+  level({ name: "Times and plus", lex: "equations", len: 8, level: "medium", par: 4 }),
+  level({ name: "Long division", lex: "equations", len: 8, level: "hard", par: 4 }),
+  level({ name: "Twin sums", lex: "equations", mode: "boards", len: 7, boards: 2, level: "easy", par: 5 }),
+  level({ name: "Slippery sums", lex: "equations", mode: "dodge", len: 7, level: "easy", par: 6 }),
+  level({ name: "Sum sprint", lex: "equations", mode: "sprint", len: 6, level: "easy", par: 8 }),
 ].map(L => ({ mode: "classic", ...L }));
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */

@@ -2,8 +2,7 @@
 // for everyone and in its level's pool; the stars are the par's, to the guess; the Steady rival plays every level through
 // the real rules and the stars it earns come out whole; the ladder's miniatures draw; and the page keeps the ladder in
 // its own keys, a game per level.
-import { LEVELS as LEVEL_NAMES, BOARDS, RULES, MODES, READS, newGame, guessIn, answersOf, levelOf, packOf, timeUp } from "../assay-engine.js";
-import { readFor } from "../assay-engine.js";
+import { LEVELS as LEVEL_NAMES, BOARDS, RULES, MODES, newGame, guessIn, answersOf, levelOf, packOf, timeUp } from "../assay-engine.js";
 import { ENGLISH } from "../assay-words.js";
 import { ALL, IDS, lexOf, ready } from "../assay-lexicons.js";
 import { rivalPlan } from "../assay-solve.js";
@@ -21,8 +20,8 @@ const t0 = Date.now();
   const names = new Set(LV.LEVELS.map(L => L.name));
   check(LV.COUNT === LV.LEVELS.length && LV.COUNT >= 20, `${LV.COUNT} levels`);
   check(names.size === LV.COUNT, "every level has a name of its own");
-  check(LV.LEVELS.every(L => READS.includes(L.read) && (L.lex !== "equations" || L.read === "colour") && (L.rules === "free" || L.read === "colour")), "every level reads weighed or in colours, equations and the hard and strict rules always in colours");
-  check(!LV.LEVELS.slice(0, 10).some(L => L.read === "colour") && LV.CHAPTERS[2].name === "Colours" && LV.LEVELS.slice(10, 15).every(L => L.read === "colour"), "the ladder begins weighed and brings the classic colours in its third chapter");
+  check(LV.LEVELS.every(L => L.read === undefined), "every level plays in colours: no recipe has a reading (22 Nov 2026: Weighed cut)");
+  check(LV.CHAPTERS[2].name === "Hard and strict" && LV.LEVELS.slice(10, 15).every(L => L.rules !== "free"), "the third chapter brings the hard and strict rules");
   check(LV.LEVELS.every(L => MODES.includes(L.mode) && IDS.includes(L.lex) && lexOf(L.lex).lengths.includes(L.len) && BOARDS.includes(L.boards) && LEVEL_NAMES.includes(L.level) && RULES.includes(L.rules)), "every recipe is a lexicon, mode, length, board count, answer level and rule the engine has");
   check(LV.LEVELS.every(L => (L.mode === "boards") === (L.boards > 1) && (L.boards === 1 || L.rules === "free")), "several boards only in the boards mode, and always free (the engine plays them so)");
   check(LV.CHAPTERS[0].from === 0 && LV.CHAPTERS.every((c, i) => i === 0 || c.from > LV.CHAPTERS[i - 1].from) && LV.CHAPTERS.at(-1).from < LV.COUNT, "the chapters begin at the first level and run in order");
@@ -42,13 +41,13 @@ const t0 = Date.now();
   const seen = new Map();
   LV.LEVELS.forEach((L, i) => {
     const g = LV.levelGame(i), again = LV.levelGame(i), w = answersOf(g);
-    const P = packOf(lexOf(L.lex), L.len, L.read), pool = new Set(levelOf(P, L.level).map(k => P.words[k]));
+    const P = packOf(lexOf(L.lex), L.len), pool = new Set(levelOf(P, L.level).map(k => P.words[k]));
     if (!w.every(x => pool.has(x))) pooled = false;
     if (L.mode === "sprint" && pool.size < 60) pooled = `level ${i + 1}'s pool is ${pool.size}, a sprint deals 60`;
     if (w.length !== (L.mode === "boards" ? L.boards : L.mode === "dodge" ? 0 : L.mode === "sprint" ? 60 : 1)) pooled = false;
     if (JSON.stringify(g.secret) !== JSON.stringify(again.secret)) sameAgain = false;
     if (JSON.stringify(LV.levelGame(i, LV.seedOf(i), w).secret) !== JSON.stringify(g.secret)) ignoresAvoid = false;
-    if (g.lang !== L.lex || g.len !== L.len || g.mode !== L.mode || g.boards !== L.boards || g.rules !== L.rules || g.level !== L.level || g.read !== readFor(lexOf(L.lex), L.read)) lengthOk = false;
+    if (g.lang !== L.lex || g.len !== L.len || g.mode !== L.mode || g.boards !== L.boards || g.rules !== L.rules || g.level !== L.level) lengthOk = false;
     if (L.mode === "classic" || L.mode === "boards") for (const x of w) { if (seen.has(x)) distinct = `${x} in levels ${seen.get(x) + 1} and ${i + 1}`; seen.set(x, i); }
   });
   check(pooled === true, `a level's own words come from its level's pool, as many as its mode deals${pooled === true ? "" : ` (${pooled})`}`);

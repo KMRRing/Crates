@@ -21,7 +21,7 @@ export function miniature(L) {
     }
   }
   const W = across * w + (across - 1) * bgap, H = down * h + (down - 1) * bgap, pad = .2;
-  return `<svg${L.read === "scale" ? ' class="scale"' : ""} viewBox="${-pad} ${-pad} ${(W + 2 * pad).toFixed(2)} ${(H + 2 * pad).toFixed(2)}" aria-hidden="true">${tiles.join("")}</svg>`;
+  return `<svg viewBox="${-pad} ${-pad} ${(W + 2 * pad).toFixed(2)} ${(H + 2 * pad).toFixed(2)}" aria-hidden="true">${tiles.join("")}</svg>`;
 }
 /** A sprint: a dial with the minute marks, and the hand a little past the quarter. */
 function clockFace() {
