@@ -156,21 +156,26 @@ export function judge(level, cuts) {
 }
 /**
  * What a tool does when used on cube k from the outside of a face (axis, dir: +1 for the face looking up the axis): { add, remove }
- * (joints to break, joints to glue back), or null when it would change nothing. A chisel breaks the first joint still whole going
- * into the block from that cube; a saw the first plane that still has a whole joint; a bore breaks the sides of the whole line of
- * cubes through k; glue mends the first broken joint going in.
+ * (joints to break, joints to glue back), or null when it would change nothing. A chisel goes on a seam, the edge of that face
+ * toward `side` (a step across the face), and splits the joint under it, between cube k and its neighbour there (22 Nov 2026,
+ * Korbi: on a face it went straight in and could not reach the joint between the two bends of Steps; "if chisel was placed on the
+ * borders instead it would work"). A saw breaks the first plane that still has a whole joint going in; a bore the sides of the whole
+ * line of cubes through k; glue mends the first broken joint going in.
  */
-export function useTool(g, tool, axis, dir, k, cuts) {
+export function useTool(g, tool, axis, dir, k, cuts, side = null) {
   const { n, solid } = geo(g), step = [0, 0, 0]; step[axis] = -dir;
   const there = p => p.every(v => v >= 0 && v < n) && (!solid || solid[at(n, ...p)]), inside = there, c = xyz(n, k), nb = neighbours(g);
+  if (tool === "chisel") {
+    if (!side || side[axis]) return null;
+    const q = c.map((v, i) => v + side[i]);
+    if (!there(q)) return null;
+    const key = joint(k, at(n, ...q));
+    return cuts.has(key) ? null : { add: [key], remove: [] };
+  }
   const along = [];                                // the cubes from k going in, as far as the timber goes
   for (let p = c.slice(); there(p); p = p.map((v, i) => v + step[i])) along.push(at(n, ...p));
-  if (tool === "chisel" || tool === "glue") {
-    for (let i = 0; i + 1 < along.length; i++) {
-      const key = joint(along[i], along[i + 1]), broken = cuts.has(key);
-      if (tool === "chisel" && !broken) return { add: [key], remove: [] };
-      if (tool === "glue" && broken) return { add: [], remove: [key] };
-    }
+  if (tool === "glue") {
+    for (let i = 0; i + 1 < along.length; i++) { const key = joint(along[i], along[i + 1]); if (cuts.has(key)) return { add: [], remove: [key] }; }
     return null;
   }
   if (tool === "saw") {
@@ -190,6 +195,76 @@ export function useTool(g, tool, axis, dir, k, cuts) {
     for (const o of nb[cell]) { const q = xyz(n, o); if (q[axis] === i && !cuts.has(joint(cell, o))) add.push(joint(cell, o)); }
   }
   return add.length ? { add: [...new Set(add)], remove: [] } : null;
+}
+
+// ---------- whether the tools can cut the answer, and how much chisel it takes ----------
+/**
+ * A way to cut a level's answer with the tools it offers (Korbi, 22 Nov 2026: "some levels are actually impossible to solve"; one
+ * answer was all the proof checked): { ok, chisel (the joints left for the chisel, one stroke each) }. The saw and the bore first,
+ * every use from every outer face that breaks only joints the answer needs broken, over and over; then, with glue, a use that
+ * breaks more, if glue can mend each extra joint straight after (in fewer strokes than the chisel would take, unless the chisel cannot reach); what is left goes to the chisel, if it reaches each joint (a seam
+ * on the surface lies over it). Greedy, so `chisel` is enough, perhaps one or two more than the fewest.
+ */
+export function plan(level, tools = toolsOf(level)) {
+  const { n } = level, nb = neighbours(level), cubes = cubesOf(level), timber = solidOf(level), inside = q => q.every(v => v >= 0 && v < n) && timber[at(n, ...q)];
+  const need = new Set();
+  for (const c of cubes) for (const o of nb[c]) if (c < o && level.sol[c] !== level.sol[o]) need.add(joint(c, o));
+  const uses = [], seams = new Set();
+  for (const k of cubes) {
+    const c = xyz(n, k);
+    for (const [axis, dir] of [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]]) {
+      const q = c.slice(); q[axis] += dir;
+      if (inside(q)) continue;                                   // a face against another cube is no outer face
+      for (const t of tools) if (t !== "chisel") uses.push({ t, axis, dir, k });
+      for (const u of [0, 1, 2].filter(i => i !== axis)) for (const s of [1, -1]) { const p = c.slice(); p[u] += s; if (inside(p)) seams.add(joint(k, at(n, ...p))); }
+    }
+  }
+  let cuts = new Set();
+  const opOf = (u, set) => useTool(level, u.t, u.axis, u.dir, u.k, set);
+  for (let moved = true; moved;) {
+    moved = false;
+    for (const u of uses) {
+      if (u.t === "glue") continue;
+      const op = opOf(u, cuts);
+      if (op && op.add.every(key => need.has(key))) { op.add.forEach(key => cuts.add(key)); moved = true; }
+    }
+    if (moved || !tools.includes("glue")) continue;
+    for (const u of uses) {
+      if (u.t === "glue") continue;
+      const op = opOf(u, cuts);
+      if (!op || !op.add.some(key => need.has(key))) continue;
+      // worth it in fewer strokes than the chisel would take, or at any price for a joint the chisel cannot reach
+      const fresh = op.add.filter(key => need.has(key) && !cuts.has(key)), cap = fresh.some(key => !seams.has(key)) ? Infinity : fresh.length;
+      const trial = new Set([...cuts, ...op.add]);
+      let extra = op.add.filter(key => !need.has(key)), strokes = 1;
+      for (let mended = true; extra.length && mended && strokes < cap;) {
+        mended = false;
+        for (const g of uses) {
+          if (g.t !== "glue") continue;
+          const r = opOf(g, trial);
+          if (r && r.remove.every(key => extra.includes(key))) { r.remove.forEach(key => trial.delete(key)); extra = extra.filter(e => !r.remove.includes(e)); strokes++; mended = true; }
+        }
+      }
+      if (!extra.length && strokes < cap) { cuts = trial; moved = true; break; }
+    }
+  }
+  const left = [...need].filter(key => !cuts.has(key));
+  return { ok: left.every(key => tools.includes("chisel") && seams.has(key)), chisel: left.length };
+}
+export const reachable = (level, tools) => plan(level, tools).ok;
+/**
+ * The chisel strokes a level allows, or Infinity (22 Nov 2026, Korbi: "maybe there should be some cost to using chisel which is
+ * obviously best tool"): where a saw or a bore is offered too, what the plan leaves for the chisel and SPARE more, so the big tools
+ * do the big cuts and a stroke or two can still go astray. Undo gives a stroke back; glue does not. A level with only the chisel
+ * has no limit.
+ */
+export const SPARE = 2;
+const ALLOW = new WeakMap();
+export function chiselAllowance(level) {
+  const tools = toolsOf(level);
+  if (!tools.includes("chisel") || !tools.some(t => t === "saw" || t === "bore")) return Infinity;
+  if (!ALLOW.has(level)) ALLOW.set(level, plan(level, tools).chisel + SPARE);
+  return ALLOW.get(level);
 }
 
 // ---------- the proof that a level has one answer ----------

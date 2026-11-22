@@ -13,7 +13,7 @@
 // Usage: node slipway-plan.mjs check [chapter]     the levels a plan gives, drawn, with the solver's steps
 //        node slipway-plan.mjs write                writes slipway-book.js
 import fs from "fs";
-import { solutions, censusOf, kindOf, neighbours, at, xyz } from "./slipway-rules.js";
+import { solutions, censusOf, kindOf, neighbours, at, xyz, reachable } from "./slipway-rules.js";
 
 const rng = seed => { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; };
 const pick = (r, list) => list[Math.floor(r() * list.length)];
@@ -274,6 +274,8 @@ export function make(row) {
     // the proof stays quick (the level test proves every level again, and a test must take under five seconds): past the first four
     // chapters, published before this rule, a level whose proof takes the solver more than MAX_STEPS is passed over for the next seed
     if (row.ch >= 5 && s.nodes > MAX_STEPS) continue;
+    // and the tools it offers can cut it (22 Nov 2026: eleven could not; with the chisel on seams, three still could not)
+    if (!reachable({ ...base, gauge, tools: row.tools })) continue;
     if (process.env.LOG) console.error(`${row.name}: seed ${seed}, ${s.nodes} steps`);
     return { id: `b${PLAN.indexOf(row) + 1}`, name: row.name, chapter: row.ch, n, maxSize: base.maxSize, gauge, census: base.census, tools: row.tools,
       ...(row.rule ? { rule: row.rule } : {}), sol: base.sol, seed, nodes: s.nodes };

@@ -4,7 +4,7 @@
 // press, and the ones it changed flash; the pieces are the runs of cubes still joined, each its own colour, drifting apart a little
 // as they come free. It is done when every clue holds. The rules are slipway-rules.js's, the drawing slipway-view.js's; this file
 // keeps the run and builds the page.
-import { LEVELS, KIND_NAMES, KIND_NOTES, judge, pieces, useTool, hint as nextStep, at, xyz, toolsOf, newTool, jointCubes, joint, solidOf, extent, cubesOf as cubesOfLevel, chapterOf } from "./slipway-rules.js";
+import { LEVELS, KIND_NAMES, KIND_NOTES, judge, pieces, useTool, hint as nextStep, at, xyz, toolsOf, newTool, jointCubes, joint, solidOf, extent, cubesOf as cubesOfLevel, chapterOf, chiselAllowance } from "./slipway-rules.js";
 import { drawCubes, faceAt, REST, PITCH } from "./slipway-view.js";
 import { setSound, sound } from "./slipway-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -32,14 +32,14 @@ const FLASH = 900;                                   // how long the joints a ta
 const INK = { cut: ["rgb(52,124,206)", "rgb(18,58,110)"], glue: ["rgb(236,178,58)", "rgb(128,80,8)"] };
 
 // ---------- the run ----------
-// S: { v, level, cuts (the broken joints, "a-b"), ms, done }; bests by level id are { ms }
+// S: { v, level, cuts (the broken joints, "a-b"), chisel (strokes spent), ms, done }; bests by level id are { ms }
 let S = read(RUN, null);
 if (S && (S.v !== 5 || !LEVELS.some(l => l.id === S.level))) S = null;   // (the painting run, and the cut-list game's before it, are left behind)
 const save = () => write(RUN, S);
 // Older games stored bests in other shapes (a bare number); anything but { id: { ms } } counts as none.
 const bests = () => { const b = read(BEST, {}); return b && typeof b === "object" && !Array.isArray(b) ? b : {}; };
 let level = null, hint = null;                       // hint: the step a hint pointed at, { cells, text, op }, until the next cut
-let tool = "chisel", undo = [], view3d = true, layer = 0;
+let tool = "chisel", undo = [];
 let peek = null, flash = null;                       // peek: what a tap on the face under the pointer would do, { face, op }; flash: { op, t0 }
 const N = () => level.n;
 const whole = () => level.sol.every(v => v >= 0);                   // the old cube, not a shape inside its box
@@ -49,18 +49,18 @@ const cuts = () => new Set(S.cuts);
 const firstUndone = () => (LEVELS.find(l => !bests()[l.id]) || LEVELS[0]).id;
 
 function newRun(id = firstUndone()) {
-  S = { v: 5, level: id, cuts: [], ms: 0, done: false };
+  S = { v: 5, level: id, cuts: [], chisel: 0, ms: 0, done: false };
   save(); begin();
 }
 function begin() {
   level = LEVELS.find(l => l.id === S.level);
   levelOn("slipway", level.id, `${LEVELS.indexOf(level) + 1} · ${level.name}`);     // each block its own line in the play log, to be rated
-  undo = []; hint = null; layer = 0; view3d = true; peek = null; flash = null;
+  undo = []; hint = null; peek = null; flash = null;
   const offered = toolsOf(level);
   tool = newTool(level) ?? (offered.includes(tool) ? tool : offered[0]);
   for (const b of document.querySelectorAll(".sw-tool")) b.hidden = !offered.includes(b.dataset.tool);
   $("tools").style.setProperty("--tools", offered.length);
-  buildLayers(); buildRules();
+  buildRules();
   render();
 }
 
@@ -69,22 +69,27 @@ function apply(op) {
   const now = cuts();
   for (const k of op.add) now.add(k);
   for (const k of op.remove) now.delete(k);
-  undo.push(S.cuts); if (undo.length > 200) undo.shift();
+  undo.push({ cuts: S.cuts, chisel: S.chisel || 0 }); if (undo.length > 200) undo.shift();
   S.cuts = [...now]; hint = null; peek = null;
   flash = { op, t0: performance.now() };
   save(); render();
   if (judge(level, now).done) finish();
 }
-function use(axis, dir, k) {
+/** The chisel strokes still to spend on this block (Infinity where only the chisel is offered). */
+const chiselLeft = () => chiselAllowance(level) - (S.chisel || 0);
+function use(axis, dir, k, side) {
   if (!S || S.done) return;
-  const op = useTool(level, tool, axis, dir, k, cuts());
-  if (!op) { sound("refuse"); toast(tool === "glue" ? "No cut there to mend" : "Nothing left to cut there"); return; }
+  if (tool === "chisel" && chiselLeft() <= 0) { sound("refuse"); toast("The chisel is spent: saw, bore, or undo a stroke"); return; }
+  const op = useTool(level, tool, axis, dir, k, cuts(), side);
+  if (!op) { sound("refuse"); toast(tool === "glue" ? "No cut there to mend" : tool === "chisel" ? "That seam is cut already, or is no joint" : "Nothing left to cut there"); return; }
   sound(tool === "glue" ? "undo" : "fit");
   apply(op);
+  if (tool === "chisel") { S.chisel = (S.chisel || 0) + 1; save(); render(); }
 }
 function undoLast() {
   if (S.done || !undo.length) return;
-  S.cuts = undo.pop(); hint = null; peek = null; flash = null; sound("undo"); save(); render();
+  const u = undo.pop();
+  S.cuts = u.cuts; S.chisel = u.chisel; hint = null; peek = null; flash = null; sound("undo"); save(); render();
 }
 /** Points at the next step that can be worked out, and says why. */
 function showHint() {
@@ -190,62 +195,31 @@ function marksOf(cubes) {
   if (peek) {
     const c = byCell.get(peek.face.k), f = peek.face, q = [c.x + (c.ox || 0), c.y + (c.oy || 0), c.z + (c.oz || 0)];
     if (peek.op) lit(peek.op, 1, true);
-    // the face aimed at: its square, on the cube's outer side
+    // what is aimed at, on the cube's outer side: for the chisel the seam (the face's edge toward the joint), else the face's square
     const [u, v] = [0, 1, 2].filter(i => i !== f.axis), base = q.slice(); base[f.axis] += f.dir > 0 ? 1 : 0;
-    out.push({ quad: [[0, 0], [1, 0], [1, 1], [0, 1]].map(([du, dv]) => { const p = base.slice(); p[u] += du; p[v] += dv; return p; }), stroke: "rgba(255,255,255,.95)", width: 2.5 });
+    const corner = ([du, dv]) => { const p = base.slice(); p[u] += du; p[v] += dv; return p; };
+    if (f.side) {
+      const along = f.side[u] ? v : u, at0 = f.side[u] ? [f.side[u] > 0 ? 1 : 0, 0] : [0, f.side[v] > 0 ? 1 : 0];
+      const end = at0.slice(); end[along === u ? 0 : 1] = 1;
+      out.push({ quad: [corner(at0), corner(end)], stroke: "rgba(255,255,255,.95)", width: 4 });
+    } else out.push({ quad: [[0, 0], [1, 0], [1, 1], [0, 1]].map(corner), stroke: "rgba(255,255,255,.95)", width: 2.5 });
   }
   return out;
 }
 function drawAll() {
-  if (!S || !level || !view3d) return;
+  if (!S || !level) return;
   const cubes = cubesOf();
   hits = drawCubes($("cube"), cubes, pose, { n: whole() ? N() : 0, frame: S.cuts.length === 0, margin: 10, frameColor: "rgba(140,130,110,.7)", edgeColor: "rgba(20,26,31,.32)", inner: 0.45, marks: marksOf(cubes) });
-}
-function buildLayers() {
-  const n = N(), tabs = $("tabs"), grid = $("grid"), solid = solidOf(level);
-  grid.style.setProperty("--n", n);
-  tabs.replaceChildren();
-  for (let z = 0; z < n; z++) {
-    if (!solid.some((v, k) => v && xyz(n, k)[2] === z)) continue;     // a shape lower than its box has no tab for the air above it
-    const b = el("button", "btn sw-tab", String(z + 1)); b.type = "button"; b.setAttribute("role", "tab");
-    b.setAttribute("aria-label", `Layer ${z + 1}${z === 0 ? ", the bottom" : z === n - 1 ? ", the top" : ""}`);
-    b.dataset.z = z;
-    b.addEventListener("click", () => { layer = z; render(); });
-    tabs.append(b);
-  }
-  grid.replaceChildren();
-  for (let y = n - 1; y >= 0; y--) for (let x = 0; x < n; x++) {   // the back row on top, the front at the bottom
-    const b = el("button", "sw-sq"); b.type = "button"; b.dataset.x = x; b.dataset.y = y;
-    b.append(el("span", "", ""));
-    b.addEventListener("click", () => use(2, 1, at(n, x, y, layer)));   // from above, going down
-    grid.append(b);
-  }
 }
 function render() {
   if (!S || !level) return;
   const n = N(), now = cuts(), j = judge(level, now);
   $("where").textContent = `${level.name} · ${extent(level).join("×")} · ${j.pieces.length} ${j.pieces.length === 1 ? "piece" : "pieces"}`;
   drawClock();
-  $("cube").hidden = !view3d; $("layerView").hidden = view3d;
-  $("viewBtn").textContent = view3d ? "Layers" : "Block";
   for (const b of document.querySelectorAll(".sw-tool")) b.classList.toggle("on", b.dataset.tool === tool);
-  for (const b of $("tabs").children) { const on = +b.dataset.z === layer; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); }
-  const pieceOf = new Map();
-  j.pieces.forEach((p, i) => p.forEach(k => pieceOf.set(k, i)));
-  const fresh = new Set((flash?.op.add || []).concat(flash?.op.remove || []).flatMap(jointCubes));
-  for (const b of $("grid").children) {
-    const x = +b.dataset.x, y = +b.dataset.y, k = at(n, x, y, layer);
-    b.disabled = !solidOf(level)[k];                                  // air in a shaped block
-    b.classList.toggle("air", b.disabled);
-    if (b.disabled) { b.style.background = ""; b.style.boxShadow = ""; b.firstChild.textContent = ""; b.removeAttribute("aria-label"); continue; }
-    b.style.background = rgb(COLOURS[pieceOf.get(k) % COLOURS.length]);
-    // a broken joint in the layer is a dark bar on that side (the back row is drawn on top); one to the cube below, a dashed square
-    const cut = (dx, dy, dz) => { const q = [x + dx, y + dy, layer + dz]; return q.every(v => v >= 0 && v < n) && now.has(joint(k, at(n, ...q))); };
-    b.style.boxShadow = [[-1, 0, "4px 0"], [1, 0, "-4px 0"], [0, 1, "0 4px"], [0, -1, "0 -4px"]].filter(([dx, dy]) => cut(dx, dy, 0)).map(([, , o]) => `inset ${o} 0 rgba(28,42,52,.8)`).join(",") || "";
-    b.className = `sw-sq${level.gauge[k] != null && j.pieces[pieceOf.get(k)].length < level.gauge[k] ? " slip" : ""}${hint?.cells.includes(k) ? " hint" : ""}${cut(0, 0, -1) ? " below" : ""}${fresh.has(k) ? " fresh" : ""}`;
-    b.firstChild.textContent = level.gauge[k] ?? "";
-    b.setAttribute("aria-label", `Layer ${layer + 1}, left ${x + 1}, front ${y + 1}${level.gauge[k] != null ? `, number ${level.gauge[k]}` : ""}, piece ${pieceOf.get(k) + 1}${cut(0, 0, -1) ? ", cut from the cube below" : ""}`);
-  }
+  const left = chiselLeft(), chisel = document.querySelector('.sw-tool[data-tool="chisel"]');
+  chisel.lastChild.textContent = left === Infinity ? "one joint" : `${left} ${left === 1 ? "stroke" : "strokes"} left`;
+  chisel.classList.toggle("spent", left <= 0);
   drawCensus(j);
   drawHint();
   $("undoBtn").disabled = !undo.length || S.done;
@@ -265,10 +239,26 @@ function aim(e) {
   if (!S || S.done) return null;
   const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
   if (!h) return null;
-  const k = at(N(), h.cube.x, h.cube.y, h.cube.z);
-  return { face: { k, axis: h.axis, dir: h.dir }, op: useTool(level, tool, h.axis, h.dir, k, cuts()) };
+  const k = at(N(), h.cube.x, h.cube.y, h.cube.z), side = tool === "chisel" ? seamAt(h, e.clientX - r.left, e.clientY - r.top) : null;
+  return { face: { k, axis: h.axis, dir: h.dir, side }, op: tool === "chisel" && chiselLeft() <= 0 ? null : useTool(level, tool, h.axis, h.dir, k, cuts(), side) };
 }
-const sameAim = (a, b) => (!a && !b) || (a && b && a.face.k === b.face.k && a.face.axis === b.face.axis && a.face.dir === b.face.dir);
+/**
+ * The seam a chisel tap means: of the tapped face's edges that have a joint under them, the one nearest the point, as the step
+ * across it to the next cube (22 Nov 2026, Korbi: the chisel goes on the borders, so it can split the joint between two faces side
+ * by side). The block's own outer edges have none, so a tap near one goes to the nearest seam that has.
+ */
+function seamAt(h, x, y) {
+  const n = N(), timber = solidOf(level), c = [h.cube.x, h.cube.y, h.cube.z];
+  const sides = [0, 1, 2, 3].map(i => {
+    const [ax, ay] = h.poly[i], [bx, by] = h.poly[(i + 1) % 4], dx = bx - ax, dy = by - ay;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+    const a = h.corners[i], b = h.corners[(i + 1) % 4], side = a.map((v, j) => (j === h.axis || v !== b[j] ? 0 : v ? 1 : -1));
+    const q = c.map((v, j) => v + side[j]);
+    return { side, d: Math.hypot(x - ax - t * dx, y - ay - t * dy), joint: q.every(v => v >= 0 && v < n) && timber[at(n, ...q)] };
+  }).filter(o => o.joint).sort((p, q) => p.d - q.d);
+  return sides[0]?.side ?? null;
+}
+const sameAim = (a, b) => (!a && !b) || (a && b && a.face.k === b.face.k && a.face.axis === b.face.axis && a.face.dir === b.face.dir && String(a.face.side) === String(b.face.side));
 cube.addEventListener("pointerdown", e => {
   cube.setPointerCapture(e.pointerId); fingers.set(e.pointerId, [e.clientX, e.clientY]);
   drag = fingers.size > 1 ? null : { x: e.clientX, y: e.clientY, moved: 0 };
@@ -299,8 +289,8 @@ cube.addEventListener("pointermove", e => {
 cube.addEventListener("pointerup", e => {
   const d = drag; drag = null; fingers.delete(e.pointerId); peek = null;
   if (!d || d.moved > 6 || !S || S.done) { drawAll(); return; }
-  const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
-  if (h) use(h.axis, h.dir, at(N(), h.cube.x, h.cube.y, h.cube.z)); else drawAll();
+  const a = aim(e);
+  if (a) use(a.face.axis, a.face.dir, a.face.k, a.face.side); else drawAll();
 });
 cube.addEventListener("pointercancel", e => { drag = null; fingers.delete(e.pointerId); peek = null; drawAll(); });
 cube.addEventListener("pointerleave", () => { if (!drag && peek) { peek = null; drawAll(); } });
@@ -310,7 +300,7 @@ let last = performance.now(), savedAt = 0;
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = now - last; last = now;
-  if (flash) { if (view3d) drawAll(); else if (now - flash.t0 > FLASH) flash = null; }
+  if (flash) drawAll();
   if (!S || S.done || isPaused() || document.visibilityState !== "visible") return;
   S.ms += Math.min(dt, 250);
   const s = Math.round(S.ms / 1000);
@@ -337,7 +327,7 @@ function openMenu() {
   }, "link"));
   }
   part(body, "settings").append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
-  part(body, "about").append(line("The block is cubes glued together. Each tool works in from the face you tap: a chisel splits the first glued joint it meets, a saw the whole plane of joints just behind that face, a bore the joints round the row of cubes through it, and glue mends the first cut it meets. Press and hold (or hover) to see what a tap will do; a cut shows as a slit. In Layers, a tap works from above, going down."));
+  part(body, "about").append(line("The block is cubes glued together. A chisel goes on a seam, the line between two faces, and splits the joint under it; it has only so many strokes where a saw or a bore is to hand. The others work in from the face you tap: a saw the whole plane of joints just behind it, a bore the joints round the row of cubes through it, glue mends the first cut it meets. Press and hold (or hover) to see what a tap will do; a cut shows as a slit. Undo gives a chisel stroke back."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -348,7 +338,6 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 for (const b of document.querySelectorAll(".sw-tool")) b.addEventListener("click", () => { tool = b.dataset.tool; peek = null; render(); });
-$("viewBtn").addEventListener("click", () => { view3d = !view3d; render(); });
 $("undoBtn").addEventListener("click", undoLast);
 $("hintBtn").addEventListener("click", showHint);
 new ResizeObserver(() => drawAll()).observe($("bench"));
@@ -359,4 +348,4 @@ else if (S.done) { begin(); showDone(); }
 else begin();
 
 // for tests and debugging
-window.__slipway = { get state() { return S; }, get level() { return level; }, use, apply, undoLast, newRun, showHint, get hint() { return hint; }, get hits() { return hits; }, setTool: t => { tool = t; render(); }, get view3d() { return view3d; } };
+window.__slipway = { get state() { return S; }, get level() { return level; }, use, apply, undoLast, newRun, showHint, get hint() { return hint; }, get hits() { return hits; }, setTool: t => { tool = t; render(); }, get chiselLeft() { return chiselLeft(); } };

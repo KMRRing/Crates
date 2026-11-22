@@ -33,18 +33,19 @@ for (const lv of R.LEVELS) {
 }
 {
   const n = 3, c = R.at(n, 1, 1, 1), top = R.at(n, 1, 1, 2), none = new Set();
-  const chisel = R.useTool(n, "chisel", 2, 1, top, none);
-  check(chisel.add.length === 1 && chisel.add[0] === R.joint(top, c), "tools: a chisel from the top face breaks the joint to the cube below");
-  const again = R.useTool(n, "chisel", 2, 1, top, new Set(chisel.add));
-  check(again.add[0] === R.joint(c, R.at(n, 1, 1, 0)), "tools: the chisel goes on to the next whole joint going in");
-  check(R.useTool(n, "chisel", 2, 1, top, new Set([...chisel.add, ...again.add])) === null, "tools: and then has nothing left to break");
+  // the chisel goes on a seam (22 Nov 2026): the edge of the top face toward +x is the joint to the cube beside it, once
+  const beside = R.at(n, 2, 1, 2), chisel = R.useTool(n, "chisel", 2, 1, top, none, [1, 0, 0]);
+  check(chisel.add.length === 1 && chisel.add[0] === R.joint(top, beside), "tools: a chisel on a seam of the top face breaks the joint to the cube beside it");
+  check(R.useTool(n, "chisel", 2, 1, top, new Set(chisel.add), [1, 0, 0]) === null, "tools: and then has nothing left to break there");
+  check(R.useTool(n, "chisel", 2, 1, top, none) === null && R.useTool(n, "chisel", 2, 1, top, none, [0, 0, 1]) === null, "tools: a chisel needs a seam across the face");
+  check(R.useTool(n, "chisel", 2, 1, R.at(n, 2, 1, 2), none, [1, 0, 0]) === null, "tools: a seam on the block's own edge is no joint");
   const saw = R.useTool(n, "saw", 2, 1, top, none);
   check(saw.add.length === 9 && saw.add.every(k => { const [a, b] = k.split("-").map(Number); return Math.abs(R.xyz(n, a)[2] - R.xyz(n, b)[2]) === 1; }), "tools: a saw breaks the nine joints of a plane");
   const bore = R.useTool(n, "bore", 2, 1, c, none);
   check(bore.add.length === 12, `tools: a bore through the middle of a 3-block breaks the 12 joints beside its rod (${bore.add.length})`);
   check(R.pieces(n, new Set(bore.add)).length === 2 && R.pieces(n, new Set(bore.add)).some(p => p.length === 3), "tools: after a bore the rod is a piece of its own");
-  const glue = R.useTool(n, "glue", 2, 1, top, new Set(chisel.add));
-  check(glue.remove[0] === chisel.add[0] && R.useTool(n, "glue", 2, 1, top, none) === null, "tools: glue mends a broken joint, and does nothing where none is broken");
+  const below = new Set([R.joint(top, c)]), glue = R.useTool(n, "glue", 2, 1, top, below);
+  check(glue.remove[0] === R.joint(top, c) && R.useTool(n, "glue", 2, 1, top, none) === null, "tools: glue mends the first broken joint going in, and does nothing where none is broken");
 }
 // the tools come one at a time (11 Nov 2026, Korbi): each level has the tools met so far and at most one more (or, as a first
 // lesson, only the new one), and a level that brings one in says what it does in its rule
@@ -63,8 +64,16 @@ for (const lv of R.LEVELS) {
   const top = R.LEVELS.find(l => l.id === "s7"), corner = R.LEVELS.find(l => l.id === "s8"), n3 = top.n, saw = R.useTool(n3, "saw", 2, 1, R.at(n3, 1, 1, 2), new Set());
   check(R.judge(top, new Set(saw.add)).done, `${top.id}: one saw from the top cuts it`);
   let c = new Set();
-  for (const [axis, dir] of [[2, 1], [1, -1], [0, 1]]) for (const k of R.useTool(corner.n, "chisel", axis, dir, R.at(2, 1, 0, 1), c).add) c.add(k);
-  check(R.judge(corner, c).done, `${corner.id}: three chisels into the 1's three faces cut it`);
+  for (const side of [[-1, 0, 0], [0, 1, 0]]) for (const k of R.useTool(corner.n, "chisel", 2, 1, R.at(2, 1, 0, 1), c, side).add) c.add(k);
+  for (const k of R.useTool(corner.n, "chisel", 1, -1, R.at(2, 1, 0, 1), c, [0, 0, -1]).add) c.add(k);
+  check(R.judge(corner, c).done, `${corner.id}: three chisels on the 1's three inner seams cut it`);
+}
+// every level can be cut with the tools it offers (22 Nov 2026, Korbi: "some levels are actually impossible to solve"; Steps was one),
+// and where a saw or a bore is to hand the chisel has strokes enough for the plan and SPARE more
+for (const lv of R.LEVELS) {
+  const p = R.plan(lv), allow = R.chiselAllowance(lv), big = R.toolsOf(lv).some(t => t === "saw" || t === "bore");
+  check(p.ok, `${lv.id} ${lv.name}: its tools can cut the answer`);
+  check(allow === (R.toolsOf(lv).includes("chisel") && big ? p.chisel + R.SPARE : Infinity), `${lv.id}: the chisel has ${allow} strokes`);
 }
 // hints: doing what they say cuts the block; a cut through a piece is glued back first
 for (const lv of R.LEVELS) {

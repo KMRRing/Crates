@@ -27,11 +27,7 @@
   <div class="sw-strip full-pull"><span id="where"></span><span id="clock" class="sw-clock"></span></div>
   <section id="rules" class="sw-rules fit-scroll" aria-label="The clues"></section>
   <section id="bench" class="sw-bench fit-grow" aria-label="The block">
-    <canvas id="cube" class="sw-cube" aria-label="The block; drag to turn it, tap a cube to paint it"></canvas>
-    <div id="layerView" class="sw-lv" hidden>
-      <div id="tabs" class="sw-tabs" role="tablist" aria-label="Layer, lowest first"></div>
-      <div class="sw-gridbox fit-box"><div id="grid" class="sw-grid"></div></div>
-    </div>
+    <canvas id="cube" class="sw-cube" aria-label="The block; drag to turn it, tap a face or a seam to use the tool"></canvas>
   </section>
   <div id="tools" class="sw-tools" role="group" aria-label="Tools">
     <button class="btn sw-tool on" type="button" data-tool="chisel">Chisel<small>one joint</small></button>
@@ -41,7 +37,6 @@
   </div>
   <div class="sw-bar">
     <button class="btn" type="button" id="hintBtn">Hint</button>
-    <button class="btn" type="button" id="viewBtn">Layers</button>
     <button class="btn" type="button" id="undoBtn">Undo</button>
   </div>
 </div>

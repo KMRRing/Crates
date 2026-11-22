@@ -96,7 +96,7 @@ export function drawCubes(canvas, cubes, pose_, { n = 0, frame = false, margin =
       const col = `rgb(${c.color.map(v => Math.round(Math.min(255, v * k))).join(",")})`;
       const quad = f.q.map(o => at(...o.map((v, i) => off[i] + (v ? hi[i] : lo[i]))));
       poly(quad, col, c.edge || edgeColor, c.alpha ?? 1);
-      hits.push({ cube: c, axis: f.n.findIndex(v => v !== 0), dir: f.n.find(v => v !== 0), poly: quad.map(p => [sx(p), sy(p)]) });
+      hits.push({ cube: c, axis: f.n.findIndex(v => v !== 0), dir: f.n.find(v => v !== 0), poly: quad.map(p => [sx(p), sy(p)]), corners: f.q });
       if (c.label != null && !here.has(`${c.x + f.n[0]},${c.y + f.n[1]},${c.z + f.n[2]}`)) {
         shown = true;
         write(c, quad.reduce((a, p) => a + sx(p), 0) / 4, quad.reduce((a, p) => a + sy(p), 0) / 4, s * 0.5 * Math.max(0.6, Math.sqrt(-t[2])), 1);
