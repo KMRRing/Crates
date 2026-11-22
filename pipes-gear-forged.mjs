@@ -1,8 +1,9 @@
 // Gears: the maker of levels 48 to 100 (20 November 2026). Korbi: "still missing the remaining gear levels, we had a whole design log ...
 // it's getting a tad repetitive". The design log (the game plan's Gears tab) gives each level its power, themes, face, pieces and clues;
-// ROWS is that log. A row's recipe is read off it (recipeOf) and pipes-gear-forge.js makes levels from seeds; the log's piece counts are a
-// target, shortened by two at a time when a quarter of the time has found nothing; half of every level's pieces are singles. Trays with
-// spares are made strict, the spares added after while the answer stays the only one. FACE and DROP say where the log could not be kept. The chosen candidates are written to pipes-gear-forged.js, which pipes-gear-plan.mjs checks
+// ROWS is that log. A row's recipe is read off it (recipeOf) and pipes-gear-forge.js makes levels from seeds: on a face of the earlier
+// chapters' size, filled but for two squares (denseFace, 22 Nov 2026), a piece fewer when a quarter of the time has found nothing; half of
+// every level's pieces are singles. Trays with spares are made strict, the spares added after while the answer stays the only one. DROP
+// says where a theme could not be kept. The chosen candidates are written to pipes-gear-forged.js, which pipes-gear-plan.mjs checks
 // and writes into the level file with the drawn levels.
 //   node pipes-gear-forged.mjs make <n,n,...> <seconds each> <dir>     candidates to <dir>/cand-<n>.json (two can run at once)
 //   node pipes-gear-forged.mjs adopt <dir> <n>:<i> ...                 writes candidate i of each level n into pipes-gear-forged.js
@@ -71,13 +72,7 @@ export const ROWS = [
 const ENDS = { 61: 1, 62: 2, 63: 1, 64: 1, 65: 1, 66: 1, 67: 2, 68: 1, 69: 2, 77: 1, 79: 1, 85: 1, 89: 1, 94: 2, 97: 2, 99: 1, 100: 1 };
 const TRAINS = { 70: [5, 5], 71: [5, 4], 72: [5, 5], 73: [5, 5], 74: [5, 5], 75: [5, 5], 76: [5, 5], 77: [5, 5], 78: [5, 5, 4], 79: [5, 4, 5], 86: [5, 5], 89: [5, 5], 95: [5, 5], 98: [5, 5], 99: [5, 5, 4], 100: [5, 5] };
 const CROSS = { 72: [[0, 1]], 76: [[0, 1]] };
-// themes the maker could not fit with the rest in the log's face (20 Nov 2026: nothing in 150 s): left out of those levels
-// faces a size down where the log's face left a third of it idle (20 Nov 2026)
-export const FACE = { 61: "6×5 soft corners (26)", 65: "6×5 soft corners (26)", 67: "6×5 soft corners (26)", 78: "6×5 soft corners (26)", 80: "6×5 soft corners (26)",
-  // full plates: the maker fills a face of 20 to 26 squares; on the log's 6×6 and 7×7 faces it found none in four minutes
-  90: "5×5 round (21)", 91: "6×4 oval (20)", 92: "5×5 soft corners (21)", 93: "6×4 oval (20)", 94: "5×5 round (21)", 95: "6×4 oval (20)", 96: "6×4 oval (20)",
-  97: "5×5 round (21)", 98: "6×4 oval (20)", 99: "5×5 square (25)", 100: "6×5 soft corners (26)",
-  76: "7×7 round (37)" };   // (two trains crossing found no room on 6×6)
+// themes the maker could not fit with the rest (20 Nov 2026: nothing in 150 s): left out of those levels
 export const DROP = { 51: ["Spares", "Turning"], 76: ["Spares", "Crossing"], 54: ["Turning"], 57: ["Turning"], 60: ["Turning", "Spares"], 69: ["Turning", "Spares"], 72: ["Crossing"], 84: ["Turning"],
   87: ["Turning"], 89: ["Turning"], 93: ["Turning"] };
 
@@ -92,13 +87,28 @@ function faceOf(f) {
 const faceSquares = f => { const F = faceOf(f); return F.face ? F.face.join("").replace(/ /g, "").length : F.cols * F.rows - (F.disc ? (F.cols === 5 ? 4 : 12) : 0); };
 const count = (s, k) => { const m = new RegExp(`(\\d+)${k}\\b`).exec(s); return m ? +m[1] : 0; };
 
+// 22 Nov 2026, Korbi: "Book C of gears is bad right now ... Keep in mind the design decisions on watch size and gear placement density
+// that we have used for the previous chapters - they are good": 5×5 faces (6×5 at most, for two trains or more dials), all but two
+// squares used, as levels 18 to 47 are. The log's own faces (up to 7×7) and piece counts gave sparse levels on faces too big.
+// Levels that found nothing in four and a half minutes on that face (two trains, several dials, turned pieces held by clues): the
+// whole 6×5 plate, still filled but for two squares, up to five pieces fewer and six squares idle at most.
+export const ROOMY = new Set([49, 51, 62, 64, 68, 70, 71, 74, 75, 77, 79, 85]);
+function denseFace(row, nT, ends, sw) {
+  if (ROOMY.has(row.n)) return "6×5 rectangle (30)";
+  if (nT > 1 || ends > 1 || sw) return "6×5 soft corners (26)";
+  if (row.face.startsWith("6×4") || row.face.startsWith("5×5")) return row.face;
+  return /round|soft|oval/.test(row.face) ? "5×5 soft corners (21)" : "5×5 square (25)";
+}
+
 export function recipeOf(row, extra = {}, less = 0) {
   const has = t => row.themes.includes(t) && !(DROP[row.n] || []).includes(t), P = { Quartz: "Q", Mech: "M", Arbor: "A" }[row.power];
   const mods = TRAINS[row.n] || [5], nT = mods.length, ends = ENDS[row.n] || 0;
   const spares = has("Spares") ? (/\+(\d+)/.exec(row.mix) || [0, 0])[1] | 0 : 0;
   const nD = count(row.mix, "D"), nTr = count(row.mix, "T"), nK = count(row.mix, "K"), nX = count(row.mix, "X");
-  const squares = faceSquares(FACE[row.n] || row.face), pieces = has("Full plate") ? squares - 2 * nT - ends - (has("Switch") ? 1 : 0) - 1 : row.pieces;
-  const branch = ends * 4 + (has("Switch") ? 5 : 0), perTrain = Math.max(5, Math.round((pieces - branch - nX) / nT) - (ends || has("Switch") ? (has("Full plate") ? 0 : 3) : 0) - less);
+  const face = denseFace(row, nT, ends, has("Switch")), squares = faceSquares(face);
+  // the face full but for two squares (none on a full plate), less one more each quarter of the time that finds nothing
+  const pieces = squares - 2 * nT - ends - (has("Switch") ? 1 : 0) - (has("Full plate") ? 0 : 2) - less;
+  const branch = ends * 3 + (has("Switch") ? 4 : 0), perTrain = Math.max(5, Math.round((pieces - branch - nX) / nT));
   const fixed = count(row.extras, "F"), loads = count(row.extras, "L") || (has("Turning") && !fixed ? 1 : 0);   // turned pieces need a clue to settle on one answer
   const trains = mods.map((m, k) => {
     const scale = Math.min(1, perTrain * nT / Math.max(1, row.pieces - branch - nX)), share = q0 => { const q = Math.round(q0 * scale); return Math.floor(q / nT) + (k < q % nT ? 1 : 0); };
@@ -115,7 +125,7 @@ export function recipeOf(row, extra = {}, less = 0) {
     if (k === 0 && has("Switch")) t.clutch = { len: 4 };
     return t;
   });
-  return { ...faceOf(FACE[row.n] || row.face), power: { Q: "quartz", M: "mech", A: "arbor" }[P], arbor: P === "A", turn: has("Turning"), spares: 0, spareWant: spares, spareFam: (/\+\d*([SDTK])?/.exec(row.mix) || [])[1] || "", loads, fixed,
+  return { ...faceOf(face), power: { Q: "quartz", M: "mech", A: "arbor" }[P], arbor: P === "A", turn: has("Turning"), spares: 0, spareWant: spares, spareFam: (/\+\d*([SDTK])?/.exec(row.mix) || [])[1] || "", loads, fixed,
     full: false, touch: nT === 1 || has("Jams") || has("Full plate"), extras: { pins: fixed ? 1 : 0, clicks: loads ? 1 : 0, bridges: /Low bridge|Bridge/.test(row.name + row.brief) ? 2 : 0 },
     lastResortPins: false, minimal: true, strict: true, trains, cross: has("Crossing") || !(DROP[row.n] || []).includes("Crossing") ? CROSS[row.n] || [] : [], limit: 4e5, nodes: 1500 + 300 * row.pieces, ...extra };
 }
@@ -146,8 +156,8 @@ if (mode === "make") for (const n of list.split(",").map(Number)) {
   const row = ROWS.find(r => r.n === n), got = [], t0 = Date.now(), why = {}, budget = Number(secs) * 1000;
   let k = 0, less = 0, stageAt = t0, recipe = recipeOf(row, {}, less);
   for (; Date.now() - t0 < budget; k++) {
-    // the log's piece counts are a target: with nothing after a quarter of the time, the main line is shortened by two
-    if (!got.length && Date.now() - stageAt > budget / 4 && less < 6) { less += 2; recipe = recipeOf(row, {}, less); stageAt = Date.now(); }
+    // with nothing after a quarter of the time, one piece fewer (at most three; five on the whole plate)
+    if (!got.length && Date.now() - stageAt > budget / 4 && less < (ROOMY.has(n) ? 5 : 3)) { less += 1; recipe = recipeOf(row, {}, less); stageAt = Date.now(); }
     let res = null;
     try { res = forgeLevel(mixSeed(n, k, 77), recipe); } catch (e) { why[e.message] = (why[e.message] || 0) + 1; continue; }
     if (!res) continue;
@@ -158,7 +168,7 @@ if (mode === "make") for (const n of list.split(",").map(Number)) {
     const pillars = s.map.join("").split("").filter(ch => ch === "#").length;
     let meshed = 1, trick = {};
     try { if (s.trains.length === 1) { trick = trickOf(s); if (recipe.arbor) meshed = powerContacts(s); } } catch { /* a shape the plan tool can't read */ }
-    if (meshed > 1) continue;
+    if (meshed > 1 || idle > (ROOMY.has(n) ? 6 : 5) || pillars > 3) continue;   // dense: a handful of squares idle at most
     got.push({ seed: k, less, nodes: sp.nodes || res.nodes, idle, pillars, pieces: Object.keys(s.sols[0]).length, ...trick, spec: s });
   }
   got.sort((a, b) => (a.idle + a.pillars) - (b.idle + b.pillars) || (b.touch || 0) - (a.touch || 0) || b.nodes - a.nodes);
