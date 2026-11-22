@@ -20,7 +20,8 @@
 .sg-inner { width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%; padding: calc(var(--d) * .02);
   background: conic-gradient(from 30deg, #8A6128, #E8CB82, #F4DC9A, #C99B45, #7A5522, #D9B160, #8A6128);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .65), 0 0 .5rem rgba(0, 0, 0, .55); }
-.sg-seat { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--yard); }
+/* black behind the glass from the first paint, before the script has drawn anything (Korbi, 22 Nov 2026: "the back of the spyglass is black until a picture is loaded") */
+.sg-seat { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #000; }
 .sg-seat::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 50%;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .7), inset 0 .2rem 1.2rem rgba(0, 0, 0, .55); }
 .sg-seat canvas { display: block; width: 100%; height: 100%; }

@@ -257,7 +257,7 @@ function resize() {
 function draw() {
   if (!S) return;                                   // also once the run is over: the last picture's reveal plays out, and a resize clears the canvas (Korbi, 9 Nov 2026: the last screen was sometimes empty)
   const ctx = canvas.getContext("2d"), [cw, ch] = size;
-  ctx.fillStyle = "#141A1F"; ctx.fillRect(0, 0, cw, ch);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cw, ch);   // black until the picture is in (and behind its fade), as the seat is
   if (!source || phase === "loading") return;
   // the answer draws back until the whole picture sits inside the round glass
   const t = 1 - (1 - unveil) ** 3;
