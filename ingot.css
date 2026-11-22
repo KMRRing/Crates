@@ -100,6 +100,12 @@
 .ig-tool:disabled { opacity: .45; cursor: default; }
 .ig-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+/* the first game's lesson: what to do, over the tools */
+.ig-coach { grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr) 6.5rem; align-items: center; gap: .8rem; }
+.ig-coach[hidden] { display: none; }
+.ig-say { margin: 0; font-size: .92rem; line-height: 1.35; }
+.ig-coach-go { display: grid; gap: .4rem; }
+.ig-coach-go [hidden] { display: none; }
 .ig-result { grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
 .ig-result .ig-go { padding: 0 1.3rem; }
 .ig-result[hidden] { display: none; }
@@ -119,4 +125,5 @@
   #app.ingot .ig-side { grid-column: 2; grid-row: 3; align-content: end; }
   #app.ingot .ig-tools { grid-template-columns: 1fr; }
   #app.ingot .ig-result { grid-template-columns: 1fr; grid-row: auto; }
+  #app.ingot .ig-coach { grid-template-columns: 1fr; grid-row: auto; }
 }

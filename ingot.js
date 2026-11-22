@@ -2,7 +2,8 @@
 // bars that meet merge into one of twice the value, and a new bar lands. The rules and the search are ingot-engine.js's;
 // this file draws the board, plays each swipe out (the slide, then the merges and the new bar) and keeps the game.
 // The game in play is kept (`ingot:run`) and opens again where it was; the best is `ingot:best`, the daily's results
-// `ingot:daily` by the day (counted the moment a game on the day's board ends).
+// `ingot:daily` by the day (counted the moment a game on the day's board ends). A first visit gets a short lesson first
+// (`ingot:taught` once it is done or skipped).
 import { N, SIZE, DIRS, WIN, newGame, daySeed, move, undo, end, valid, hint, play, value } from "./ingot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -22,16 +23,19 @@ let S = null;             // the game (ingot-engine.js's), as saved, plus kind (
 let busy = false;         // a swipe being played out
 let pending = null;       // a swipe made meanwhile, played when this one is done
 let hintTimer = 0;
+let teach = null;         // the first game's lesson, while it runs: { step, real (the game it stands in front of) }
+let teachTimer = 0;
 const tileEls = new Array(SIZE).fill(null);
 const pars = new Map();   // seed -> the search's score, worked out once
 
 const dayDone = (day = today()) => read(DAILY, {})[day] != null;
 const started = () => !!S && S.moves > 0 && !S.over;
-const save = () => write(RUN, S);
+const save = () => { if (!teach) write(RUN, S); };   // (the lesson's boards are never kept)
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- a game ----------
 function newRun(kind = "random") {
+  if (teach) quitLesson();
   const day = kind === "daily" ? today() : null;
   S = { ...newGame(kind === "daily" ? daySeed(day) : Math.floor(Math.random() * 2 ** 31)), kind, day, par: null };
   busy = false;
@@ -115,6 +119,8 @@ function drawStrip() {
   $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
 }
 function drawSide() {
+  $("coach").hidden = !teach;
+  if (teach) { $("tools").hidden = $("line").hidden = $("result").hidden = true; return; }
   $("tools").hidden = $("line").hidden = S.over;
   $("result").hidden = !S.over;
   $("undoLeft").textContent = S.undos;
@@ -149,17 +155,18 @@ async function swipeTo(dir) {
   if (IN_FRAME || !S || S.over || isPaused()) return;
   if (busy) { pending = dir; return; }
   const r = move(S, dir);
-  if (!r) { nudge(dir); return; }
+  if (!r || (teach && !LESSON[teach.step].want?.includes(dir))) { nudge(dir); return; }
   busy = true;
   hideHint();
   S = r.state;
   save();
-  if (S.score > read(BEST, 0)) write(BEST, S.score);
+  if (!teach && S.score > read(BEST, 0)) write(BEST, S.score);
   if (r.gain) navigator.vibrate?.(8);
   await slideAll(r.slides);
   render(r.bar.at, r.slides.filter(s => s.into).map(s => s.to));
   if (r.made) toast(`${fmt(2 ** WIN)}: gilt. Play on`);
   busy = false;
+  if (teach) { learned(); return; }
   if (r.over) { finish(); return; }
   if (pending) { const d = pending; pending = null; swipeTo(d); }
 }
@@ -233,6 +240,7 @@ async function leaveOk() {
   return sure("Today's board only counts when it ends. Leave this game?", { yes: "Leave it" });
 }
 async function fresh(kind) {
+  if (teach) quitLesson();
   if (!(await leaveOk())) return;
   newRun(kind);
 }
@@ -241,6 +249,7 @@ function openMenu() {
   body.replaceChildren();
   const play = part(body, "play");
   play.append(action("New game", () => fresh("random"), "primary"));
+  if (!IN_FRAME && !teach) play.append(action("How to play", () => { $("menuDlg").close(); startLesson(); }, "link"));
   const day = read(DAILY, {})[today()];
   todayPart(body, { done: dayDone(), result: day != null ? fmt(day) : "", play: () => fresh("daily"), playing: S.kind === "daily" && S.day === today() && !S.over });   // fresh asks before it leaves a game
   if (started()) play.append(action("End this game", async () => {
@@ -254,6 +263,58 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
+// ---------- the first game's lesson ----------
+// Korbi, 22 Nov 2026: "When user first opens up 2048 without having played the tutorial, add a quick interactive tutorial
+// showing how the game is played and what the goal is". Two swipes on set boards (the arrow shows which way; another way only
+// nudges the board), then the goal. It stands in front of the game, which waits untouched; done or skipped, it is kept as
+// ingot:taught (synced, so one device teaches them all), and the menu's How to play brings it back.
+const TAUGHT = "ingot:taught";
+const LESSON = [
+  { grid: [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0], want: ["left"], show: "left",
+    say: "Swipe left, or press ←. Every bar slides as far as it can, and two equal bars that meet become one of twice the value.",
+    done: "2 and 2 made a 4, and 4 points. After every swipe a new bar lands." },
+  { grid: [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0], want: ["up", "down"], show: "up",
+    say: "Now make an 8: swipe so the two 4s meet.", done: "An 8, and 8 points: the bigger the bars you merge, the more they score." },
+  { say: "The goal: merge your way up to a 2048 bar, then play on for the score. The game ends when no swipe moves anything. Undo and Hint: three of each a game." },
+];
+function startLesson() {
+  if (IN_FRAME || busy || teach) return;
+  hideHint();
+  teach = { step: 0, real: S };
+  lessonStep();
+}
+function lessonStep() {
+  const L = LESSON[teach.step], last = teach.step === LESSON.length - 1;
+  if (L.grid) {
+    const g = newGame(7);
+    S = { ...g, grid: L.grid.slice(), top: Math.max(...L.grid), undos: 0, hints: 0 };
+    render();
+    const a = $("hintArrow");
+    a.dataset.dir = L.show;
+    a.hidden = false;
+  } else hideHint();
+  $("coachSay").textContent = L.say;
+  $("coachSkip").hidden = last;
+  $("coachPlay").hidden = !last;
+  drawSide();
+}
+/** The lesson's swipe was made: what it did, then the next step. */
+function learned() {
+  hideHint();
+  $("coachSay").textContent = LESSON[teach.step].done;
+  clearTimeout(teachTimer);
+  teachTimer = setTimeout(() => { if (!teach) return; teach.step++; lessonStep(); }, calm() ? 2200 : 1700);
+}
+function quitLesson() {
+  if (!teach) return;
+  clearTimeout(teachTimer);
+  hideHint();
+  S = teach.real;
+  teach = null;
+  write(TAUGHT, true);
+  render();
+}
+
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "ingot");
 document.querySelector(".ig-mark").innerHTML = APPS.find(a => a.id === "ingot").logo;
@@ -262,6 +323,8 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", () => fresh("random"));
 $("undoBtn").addEventListener("click", takeBack);
 $("hintBtn").addEventListener("click", showHint);
+$("coachSkip").addEventListener("click", quitLesson);
+$("coachPlay").addEventListener("click", quitLesson);
 $("slots").append(...Array.from({ length: SIZE }, () => document.createElement("i")));
 $("app").addEventListener("pointerdown", down);
 addEventListener("pointermove", drag);
@@ -270,7 +333,7 @@ addEventListener("pointercancel", up);
 addEventListener("keydown", key);
 
 // for tests and debugging
-window.__ingot = { get state() { return S; }, swipeTo, newRun, DIRS };
+window.__ingot = { get state() { return S; }, get lesson() { return teach && teach.step; }, swipeTo, newRun, DIRS };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's board, still to play
 S = read(RUN, null);
@@ -279,3 +342,5 @@ else { render(); settle(); ensurePar(); }
 if (forToday && !IN_FRAME && !(S.kind === "daily" && S.day === today()) && !dayDone()) {
   if (!started() || await sure("Today's board is waiting. Leave the game you've started?", { yes: "Leave it" })) newRun("daily");
 }
+// a first visit (nothing kept, no swipe made yet): the lesson first
+if (!IN_FRAME && !read(TAUGHT, false) && !started() && !read(BEST, 0)) startLesson();

@@ -114,5 +114,18 @@ const show = g => g.map(e => value(e));
   check(g.over && g.score > 3000 && g.moves > 300, `a whole game by the quick search ends with no swipe left (${g.score} in ${g.moves} swipes, top ${value(g.top)})`);
 }
 
+// the first game's lesson (Korbi, 22 Nov 2026): each set board merges with the swipe it asks for and with no other (another only
+// nudges), and it opens only on a first visit, kept as ingot:taught
+{
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../ingot.js", import.meta.url), "utf8");
+  const steps = [...page.matchAll(/\{ grid: (\[[\d, ]+\]), want: (\[[^\]]+\])/g)].map(m => ({ grid: JSON.parse(m[1]), want: JSON.parse(m[2]) }));
+  check(steps.length === 2 && steps.every(st => st.grid.length === SIZE && st.want.every(d => {
+    const r = move({ ...newGame(7), grid: st.grid }, d); return r && r.gain > 0;
+  })), "every lesson board merges with the swipe it asks for");
+  check(/if \(!IN_FRAME && !read\(TAUGHT, false\) && !started\(\) && !read\(BEST, 0\)\) startLesson\(\);/.test(page) && /write\(TAUGHT, true\)/.test(page),
+    "the lesson opens on a first visit only, and is kept as done");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("ingot: sliding, merging, the draw, a swipe, undo, the end, 2048, saving, the search");
+else console.log("ingot: sliding, merging, the draw, a swipe, undo, the end, 2048, saving, the search, the lesson");
