@@ -20,15 +20,20 @@ store.set("n:ramp", "99");
 check(ramp("n", [8, 10, 12], { start: 10 }) === 10, "a kept step no longer in the list falls back to the start");
 ramp("a", S, { id: "size" }); ramp.won();
 check(store.has("a:ramp:size") && !store.has("a:ramp"), "a second ramp in a game has its own key");
-// the shared menu row (7 Nov 2026): Easy / Medium / Hard move the ramp read last
+// the shared menu row (7 Nov 2026; Auto added 22 Nov 2026): Easy / Medium / Hard / Auto set the ramp read last
 ramp("lv", ["a", "b", "c", "d", "e"], { start: "a" });
-check(ramp.levels().join() === "easy,medium,hard" && ramp.level() === "easy", "five steps: three levels, standing on the first");
-check(ramp.pick("hard") === "e" && ramp.level() === "hard" && store.get("lv:ramp") === "e", "Hard is the last step and is kept");
-check(ramp.pick("medium") === "c" && ramp.level() === "medium", "Medium is the middle step");
-ramp.won(); check(ramp.level() === "medium", "a win from the middle (d) is still nearest Medium");
-ramp.won(); check(ramp.level() === "hard", "and one more win (e) is Hard again");
+check(ramp.levels().join() === "easy,medium,hard,auto" && ramp.level() === "auto" && ramp.near() === "easy", "five steps: three levels and Auto, Auto by default, standing on the first");
+ramp.won(); ramp.won();
+check(store.get("lv:ramp") === "c" && ramp.near() === "medium", "on Auto, wins climb");
+check(ramp.pick("hard") === "e" && ramp.level() === "hard" && store.get("lv:ramp") === "e" && store.get("lv:ramp-pick") === "hard", "Hard is the last step, and the pick is kept");
+ramp.lost(); ramp.lost(); ramp.won();
+check(store.get("lv:ramp") === "e" && ramp.level() === "hard", "a picked level stays put: losses and wins don't move it");
+check(ramp.pick("medium") === "c" && ramp.level() === "medium" && ramp.won() === "c", "Medium is the middle step, and stays");
+check(ramp.pick("auto") === "c" && ramp.level() === "auto" && ramp.won() === "d" && ramp.lost() === "c", "back on Auto: from where it stood, climbing and falling again");
+ramp("lv2", S, { id: "x" }); ramp.pick("easy");
+check(store.get("lv2:ramp:x-pick") === "easy" && ramp("lv2", S, { id: "y" }) && ramp.level() === "auto", "each ramp of a game keeps its own pick");
 ramp("lw", ["x", "y"], { start: "x" });
-check(ramp.levels().join() === "easy,hard" && ramp.pick("medium") === null && ramp.pick("hard") === "y", "two steps: Easy and Hard only");
+check(ramp.levels().join() === "easy,hard,auto" && ramp.pick("medium") === null && ramp.pick("hard") === "y", "two steps: Easy, Hard and Auto");
 ramp("lx", ["only"]);
 check(ramp.levels().length === 0 && ramp.level() === null && ramp.pick("easy") === null, "one step: no row");
 // 7 Nov 2026 (Korbi: the Level row showed three times in Lode): the row sits inside the Settings part, so menu.js must look

@@ -9,6 +9,8 @@
 // game's other keys. `start` is a step (not an index): where a player with nothing kept begins, which is how the choice
 // saved by the old picker becomes the first rung. Bests keyed by level keep working: they are keyed by the step.
 // `won` and `lost` act on the ramp read last and return the step now.
+// Korbi, 22 November 2026: the row is Easy / Medium / Hard / Auto, Auto by default; a level the player picks stays where it is (a win or
+// a loss no longer moves it), only Auto climbs and falls. The pick is kept as `<game>:ramp-pick` (`<game>:ramp:<id>-pick`).
 const mem = new Map();
 const read = k => { try { return localStorage.getItem(k) ?? mem.get(k) ?? null; } catch { return mem.get(k) ?? null; } };
 const write = (k, v) => { mem.set(k, v); try { localStorage.setItem(k, v); } catch { /* storage may be blocked */ } };
@@ -31,37 +33,47 @@ export function ramp(game, steps, { start, id = "" } = {}) {
   return steps[index(steps, key, start)];
 }
 
+const AUTO = "auto";
+const pickOf = key => read(`${key}-pick`) || AUTO;
+
 const move = by => {
   const { key, steps, start } = last;
   if (!key) return null;
   const i = index(steps, key, start);
+  if (pickOf(key) !== AUTO) return steps[i];      // a level the player picked stays put
   const j = Math.max(0, Math.min(steps.length - 1, i + by));
   write(key, String(steps[j]));
   return steps[j];
 };
 
-/** A win: up one step when `clean`, else the same step. */
+/** A win: up one step when `clean`, else the same step (on Auto; a picked level stays). */
 ramp.won = (clean = true) => move(clean ? 1 : 0);
-/** A loss or a give-up: down one step. */
+/** A loss or a give-up: down one step (on Auto; a picked level stays). */
 ramp.lost = () => move(-1);
 
-/** The levels the shared menu row offers for the ramp read last: Easy and Hard (its first and last step), and Medium between
- *  them when there is a step between. None when the ramp has a single step, or none has been read. */
-ramp.levels = () => {
-  const n = last.steps.length;
-  return n < 2 ? [] : n === 2 ? ["easy", "hard"] : ["easy", "medium", "hard"];
-};
+const bands = () => { const n = last.steps.length; return n < 2 ? [] : n === 2 ? ["easy", "hard"] : ["easy", "medium", "hard"]; };
+/** The levels the shared menu row offers for the ramp read last: Easy and Hard (its first and last step), Medium between them when
+ *  there is a step between, and Auto. None when the ramp has a single step, or none has been read. */
+ramp.levels = () => (bands().length ? [...bands(), AUTO] : []);
 const stepOf = band => (band === "easy" ? 0 : band === "hard" ? last.steps.length - 1 : Math.round((last.steps.length - 1) / 2));
-/** Which level the ramp read last stands on now: the nearest of its levels to its step. */
+/** The level the ramp read last is set to: "auto" (the default), or the level the player picked. */
 ramp.level = () => {
   const levels = ramp.levels();
   if (!levels.length) return null;
-  const i = index(last.steps, last.key, last.start);
-  return levels.reduce((best, b) => (Math.abs(stepOf(b) - i) < Math.abs(stepOf(best) - i) ? b : best));
+  const p = pickOf(last.key);
+  return levels.includes(p) ? p : AUTO;
 };
-/** Puts the ramp read last on a level ("easy", "medium" or "hard"); the next deal uses it. */
+/** Where an Auto ramp stands now: the nearest of Easy / Medium / Hard to its step. */
+ramp.near = () => {
+  if (!bands().length) return null;
+  const i = index(last.steps, last.key, last.start);
+  return bands().reduce((best, b) => (Math.abs(stepOf(b) - i) < Math.abs(stepOf(best) - i) ? b : best));
+};
+/** Sets the ramp read last to a level: "easy", "medium" or "hard" puts it on that step and keeps it there; "auto" lets it climb
+ *  and fall again from where it is. The next deal uses it. Returns the step. */
 ramp.pick = band => {
   if (!ramp.levels().includes(band)) return null;
-  write(last.key, String(last.steps[stepOf(band)]));
-  return last.steps[stepOf(band)];
+  write(`${last.key}-pick`, band);
+  if (band !== AUTO) write(last.key, String(last.steps[stepOf(band)]));
+  return last.steps[index(last.steps, last.key, last.start)];
 };

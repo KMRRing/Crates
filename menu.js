@@ -231,7 +231,8 @@ function shape(body) {
     }
     if (partyPart && !body.querySelector(":scope > [data-party]")) body.prepend(partyPart());
     if (!body.querySelector(":scope > [data-full]")) { const head = fullHead(body); if (head) body.prepend(head); }   // first of all
-    // the shared level row (Korbi, 7 Nov 2026), for a page that has a ramp: it moves the ramp and the next deal uses it
+    // the shared level row (Korbi, 7 Nov 2026), for a page that has a ramp: it moves the ramp and the next deal uses it;
+    // Easy / Medium / Hard / Auto, Auto first chosen, a picked level kept (22 Nov 2026)
     if (!IN_FRAME && !body.querySelector("[data-level]") && ramp.levels().length) {
       const row = choice("Level, from the next game", ramp.levels().map(b => [b, b[0].toUpperCase() + b.slice(1)]), ramp.level(), v => ramp.pick(v));
       row.dataset.level = "1";
