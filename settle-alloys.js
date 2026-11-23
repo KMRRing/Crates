@@ -80,7 +80,7 @@ export const CHAPTERS = [
   // 23 November 2026, Korbi: "work on a lot more levels. think of twists as well": each chapter from here one new idea, with the three
   // before it in every level (the Gears sheet's way: the common ideas recur, the chapter's own stays in its chapter and the capstones)
   { id: 4, name: "Spare metal", idea: "More metal than the moulds take: a crucible casts only its exact recipe, so a spare has to be parked where it does no harm." },
-  { id: 5, name: "Dross", idea: "Dross floats on all metal and spoils a cast. Skimmed into the iron slag pot it takes the measure under it along: skim it off metal you can spare, or pour it off on its own first." },
+  { id: 5, name: "Dross", idea: "Dross floats on all metal and spoils a cast, and clings: wherever it is poured, the measure under it goes too. The iron slag pot takes it and never gives it back." },
   { id: 6, name: "The teapot ladle", idea: "The teapot ladle pours from its foot: its heaviest metal comes out from under the rest, dross and all." },
   { id: 7, name: "Zinc", idea: "Zinc burns away in an open crucible once the pour is done; it keeps only under charcoal, which floats on everything, never pours, and takes a place." },
   { id: 8, name: "Liquation", idea: "Lead poured onto black copper draws out its silver, measure for measure: the lead turns rich, the copper is left plain. The Saigerprozess of the Hanse's silver trade." },

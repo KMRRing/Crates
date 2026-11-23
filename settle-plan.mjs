@@ -54,23 +54,23 @@ export const PLAN = [
   { ch: 4, name: "Surplus tin", moulds: ["pewter", "Cu2"], extra: ["Sn", "Pb"], caps: [4, 4, 3], tip: "Two spares: park them together." },
   { ch: 4, name: "Which to leave", moulds: ["speculum", "plumber"], extra: ["Sn", "Cu"], caps: [3, 3, 4], tip: "Every metal has a spare: which measure stays behind is yours to choose." },
   { ch: 4, name: "The surplus", moulds: ["pewter", "speculum", "fine"], extra: ["Cu", "Pb", "Sn"], caps: [5, 4, 4, 3], tries: 200, tip: "A spare of every metal." },
-  // 5 Dross: a scum lighter than all metal, which no mould takes; the slag pot takes anything and gives nothing back, and a skim takes the
-  // measure under the dross with it, so every level has metal to spare for it or room to pour the dross off on its own first, and the
-  // pot is never bigger than the level needs (a player who skims the moment they can misses the par: settle-levels' gradeOf)
-  { ch: 5, name: "Scum", moulds: ["Sn2", "Cu2"], extra: ["X", "Sn"], caps: [3, 3, 3, 2], kinds: SLAG(4), strict: "best", tip: "Dross floats on everything and spoils a cast. Skimmed into the slag pot, it takes the measure under it along: skim it off a spare." },
-  { ch: 5, name: "Skimming", moulds: ["plumber", "Cu2"], extra: ["X", "Cu"], caps: [3, 3, 3, 2], kinds: SLAG(4), strict: "best", tip: "Pour your spare under the dross before you skim it: metal poured in sinks below dross." },
-  { ch: 5, name: "Poured off", moulds: ["pewter", "Cu2"], extra: ["X"], caps: [4, 4, 3, 1], kinds: SLAG(4), tip: "No metal to spare and a pot for one: pour the dross off on its own first, and it goes in alone." },
-  { ch: 5, name: "The slag pot", moulds: ["hard", "pewter"], extra: ["X", "X", "Cu"], caps: [4, 4, 4, 3], kinds: SLAG(4), tries: 300, tip: "The pot holds three: one skim with its measure, one dross on its own." },
-  { ch: 5, name: "Dross and measure", moulds: ["speculum", "fine"], extra: ["X", "X", "Pb"], caps: [5, 3, 3, 3], kinds: SLAG(4), tip: "Every crucible its own size, and dross to clear." },
-  { ch: 5, name: "Under the dross", moulds: ["fine", "Cu3"], extra: ["X", "X", "Sn", "Cu"], caps: [4, 4, 3, 4], kinds: SLAG(4), tip: "Two spares, two skims: each spare under its own dross." },
-  { ch: 5, name: "Foul melt", moulds: ["bell", "plumber"], extra: ["X", "X", "X", "Sn"], caps: [4, 4, 4, 4], kinds: SLAG(4), tries: 300, tip: "Three dross and one spare: dross poured onto dross goes to the pot together." },
-  { ch: 5, name: "Slag heap", moulds: ["bell", "fine", "Pb2"], extra: ["X", "X", "Sn", "Cu"], caps: [5, 4, 4, 4], kinds: SLAG(4), tries: 80, tip: "Three moulds, two dross, two spares." },
-  { ch: 5, name: "Clean metal", moulds: ["pewter", "speculum", "plumber"], extra: ["X", "X", "Sn"], caps: [5, 5, 4, 3], kinds: SLAG(4), tries: 80, tip: "The chapter's last: one spare, two dross, a pot for three." },
+  // 5 Dross: a scum lighter than all metal, which no mould takes; it clings to the metal under it, so wherever it is poured the measure
+  // under it goes too; the slag pot takes anything and gives nothing back. Every level has a spare to feed each crust of dross, and the
+  // pot is never bigger than it needs (a player who skims the moment they can misses the par: settle-levels' gradeOf)
+  { ch: 5, name: "Scum", moulds: ["Sn2", "Cu2"], extra: ["X", "Sn"], caps: [3, 3, 3, 2], kinds: SLAG(4), strict: "best", tip: "Dross spoils a cast, and clings: poured anywhere, it takes the measure under it along. Skim it into the slag pot off a spare." },
+  { ch: 5, name: "Skimming", moulds: ["plumber", "Cu2"], extra: ["X", "Cu"], caps: [3, 3, 3, 2], kinds: SLAG(4), strict: "best", tip: "Metal poured onto dross sinks under it: feed the dross your spare, then skim." },
+  { ch: 5, name: "Feed the dross", moulds: ["pewter", "Cu2"], extra: ["X", "Sn"], caps: [4, 4, 3, 2], kinds: SLAG(4), tip: "Whatever lies under the dross goes with it: make it the spare." },
+  { ch: 5, name: "The slag pot", moulds: ["hard", "pewter"], extra: ["X", "X", "Cu", "Sn"], caps: [4, 4, 4, 4], kinds: SLAG(4), tries: 300, tip: "Two crusts of dross, two spares, and a pot that holds exactly them." },
+  { ch: 5, name: "Under the dross", moulds: ["fine", "Cu3"], extra: ["X", "X", "Sn", "Cu"], caps: [4, 4, 3, 4], kinds: SLAG(4), tip: "Two spares, two crusts: each spare under its own dross." },
+  { ch: 5, name: "Slag heap", moulds: ["bell", "fine", "Pb2"], extra: ["X", "X", "Sn", "Cu"], caps: [5, 4, 4, 4], kinds: SLAG(4), tries: 80, tip: "Three moulds, two crusts, two spares." },
+  { ch: 5, name: "Foul melt", moulds: ["bell", "plumber"], extra: ["X", "X", "Sn", "Cu"], caps: [4, 4, 4, 4], kinds: SLAG(4), tries: 300, tip: "Dross poured onto dross makes one crust, and takes its measure along." },
+  { ch: 5, name: "Clean metal", moulds: ["pewter", "speculum", "plumber"], extra: ["X", "X", "Sn", "Cu"], caps: [5, 5, 5, 4], kinds: SLAG(4), tries: 60, tip: "Every metal, and two crusts of dross." },
+  { ch: 5, name: "Dross and measure", moulds: ["speculum", "fine"], extra: ["X", "X", "Pb", "Sn"], caps: [5, 4, 3, 4], kinds: SLAG(4), tip: "The chapter's last: every crucible its own size, and dross to clear." },
   // 6 The teapot ladle: it pours from its foot, its heaviest metal, from under the rest (and under any dross)
   { ch: 6, name: "From the foot", moulds: ["Pb2", "Sn2"], caps: C(3, 3), kinds: ["teapot", "", ""], strict: "best", tip: "The teapot ladle, with the spout up its side, pours from its foot: its heaviest metal comes out, from under the rest." },
   { ch: 6, name: "Lead first", moulds: ["plumber", "Cu3"], caps: [4, 3, 3], kinds: ["", "teapot", ""], strict: "best", tip: "Lead out of the foot, tin off the top: two ways out of one crucible." },
   { ch: 6, name: "Under the tin", moulds: ["bell", "Pb2"], caps: [4, 4, 3], kinds: ["", "", "teapot"], tip: "Copper held under tin is no prisoner in the teapot." },
-  { ch: 6, name: "Clean pour", moulds: ["fine", "Cu2"], extra: ["X"], caps: [4, 3, 3, 1], kinds: ["teapot", "", "", "slag"], tip: "A teapot ladle pours clean metal from under the dross, and leaves the dross alone for the pot." },
+  { ch: 6, name: "Clean pour", moulds: ["fine", "Cu2"], extra: ["X"], caps: [4, 3, 3, 1], kinds: ["teapot", "", "", "slag"], tip: "A teapot ladle pours clean metal from under the dross and leaves it on its own: dross alone takes nothing with it." },
   { ch: 6, name: "Two ways out", moulds: ["speculum", "pewter"], caps: [4, 4, 3, 3], kinds: ["", "teapot", "", ""], tip: "Lead poured in sinks to the foot, and comes straight back out of it." },
   { ch: 6, name: "Ladle and measure", moulds: ["hard", "plumber"], extra: ["Cu"], caps: [5, 3, 2, 4], kinds: ["", "", "", "teapot"], tip: "Measures and the teapot." },
   { ch: 6, name: "Two ladles", moulds: ["pewter", "speculum", "Pb1"], caps: [4, 4, 3, 3], kinds: ["teapot", "", "", "teapot"], tries: 300, tip: "Two teapots." },
@@ -86,8 +86,8 @@ export const PLAN = [
   { ch: 7, name: "Burn it off", moulds: ["prince", "Sn2"], extra: ["Zn"], cover: [0, 1], caps: [5, 4, 4, 3], tip: "A zinc too many: let it burn." },
   { ch: 7, name: "Brass and bell", moulds: ["brass", "bell"], extra: ["Sn"], cover: [0, 1], caps: [4, 4, 4, 2], tries: 300, tip: "Two copper alloys from one copper stock." },
   { ch: 7, name: "Prince's metal", moulds: ["prince", "plumber"], cover: [0, 1], caps: [5, 4, 3], tip: "A copper alloy and a lead one, and only two crucibles under charcoal." },
-  { ch: 7, name: "Covered", moulds: ["brass", "fine"], extra: ["X"], cover: [0, 1], caps: [4, 4, 3, 2], kinds: SLAG(4), tip: "Charcoal, dross and the slag pot." },
-  { ch: 7, name: "The brass founder", moulds: ["brass", "prince", "plumber"], extra: ["X"], cover: [0, 1], caps: [5, 5, 4, 2], kinds: SLAG(4), tries: 150, tip: "The chapter's last." },
+  { ch: 7, name: "Covered", moulds: ["brass", "fine"], extra: ["X", "Sn"], cover: [0, 1], caps: [4, 4, 3, 2], kinds: SLAG(4), tip: "Charcoal, dross and the slag pot." },
+  { ch: 7, name: "The brass founder", moulds: ["brass", "prince", "plumber"], extra: ["X", "Cu"], cover: [0, 1], caps: [5, 5, 4, 2], kinds: SLAG(4), tries: 150, tip: "The chapter's last." },
   // 8 Liquation (the Saigerprozess of the Hanse's silver trade): lead meeting black copper draws its silver, a measure for a measure:
   // the lead turns rich (work lead, for the cupel) and the copper is left plain
   { ch: 8, name: "Black copper", moulds: ["Pr2", "Cu2"], raw: ["Pb", "Pb", "Bk", "Bk"], caps: C(3, 3), strict: "best", tip: "Black copper holds silver. Pour lead onto it: the lead draws the silver and turns rich, and the copper is left plain." },
@@ -98,8 +98,8 @@ export const PLAN = [
   { ch: 8, name: "Rich and plain", moulds: ["Pr3", "plumber", "Cu3"], raw: ["Pb", "Pb", "Pb", "Pb", "Bk", "Bk", "Bk", "Sn"], caps: [5, 4, 3, 3], tries: 60, tip: "Plain lead for the solder, rich lead for the cupel." },
   { ch: 8, name: "Work lead", moulds: ["Pr2", "Cu2", "Sn2"], raw: ["Pb", "Pb", "Bk", "Bk", "Sn", "Sn"], caps: [3, 3, 3, 2], strict: "best", tip: "Rich lead lies a hair above plain lead, and plain copper under black." },
   { ch: 8, name: "Silver drawn", moulds: ["Pr3", "bell"], raw: ["Pb", "Pb", "Pb", "Bk", "Bk", "Bk", "Sn"], caps: [4, 4, 3], tip: "The plain copper the liquation leaves is the bell's." },
-  { ch: 8, name: "Dross in the hut", moulds: ["Pr3", "bell"], raw: ["Pb", "Pb", "Pb", "Bk", "Bk", "Bk", "Sn"], extra: ["X", "X"], caps: [4, 4, 4, 2], kinds: SLAG(4), tries: 60, tip: "Dross over the black copper." },
-  { ch: 8, name: "Saigerprozess", moulds: ["Pr3", "bell", "plumber"], raw: ["Pb", "Pb", "Pb", "Pb", "Bk", "Bk", "Bk", "Sn", "Sn"], extra: ["X"], caps: [5, 5, 4, 2], kinds: SLAG(4), tries: 40, tip: "The chapter's last: the whole silver trade in one hearth." },
+  { ch: 8, name: "Dross in the hut", moulds: ["Pr3", "bell"], raw: ["Pb", "Pb", "Pb", "Bk", "Bk", "Bk", "Sn"], extra: ["X", "X", "Sn", "Sn"], caps: [5, 4, 4, 4], kinds: SLAG(4), tries: 60, tip: "Dross over the black copper." },
+  { ch: 8, name: "Saigerprozess", moulds: ["Pr3", "bell", "plumber"], raw: ["Pb", "Pb", "Pb", "Pb", "Bk", "Bk", "Bk", "Sn", "Sn"], extra: ["X", "Sn"], caps: [5, 5, 4, 2], kinds: SLAG(4), tries: 40, tip: "The chapter's last: the whole silver trade in one hearth." },
 ];
 
 /** The rows' levels, in order: a level already in the book is kept as it is (a level once written is never dealt again: its stars

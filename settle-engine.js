@@ -10,10 +10,10 @@
 // The campaign's later chapters (23 November 2026, Korbi: "work on a lot more levels. think of twists as well") add, each in its
 // own chapter and then for good:
 //   dross, a scum lighter than every metal that no mould wants, and the slag pot, which takes anything and gives nothing back.
-//   Skimming dross into it takes the measure of metal right under the dross with it, as a real skim always does (together or not at
-//   all: the pot needs room for both), so the dross is skimmed off a metal that can be spared, or first poured off on its own
-//   (23 November 2026, Korbi: "the dross theme/idea is good but the implementation is trash. the right move is always putting the
-//   dross into the garbage crucible": a skim that cost nothing was no decision);
+//   Dross clings to the metal under it: wherever it is poured, the measure of metal right under it goes too (together or not at all),
+//   so it is fed a spare before it is skimmed, or left alone by a teapot ladle pouring the metal from under it (23 November 2026,
+//   Korbi: "the right move is always putting the dross into the garbage crucible", then, of a first fix that took the metal only
+//   into the slag pot: "doesn't make sense". The rule is the dross's own, the same into every crucible);
 //   the teapot ladle, which pours from its foot: its heaviest metal, from under the rest;
 //   zinc and charcoal: zinc left in a crucible without charcoal burns away once a pour is done (after any cast it completes);
 //   charcoal floats on everything, never pours, and is no part of a recipe (a crucible casts with its charcoal still in it);
@@ -76,13 +76,13 @@ function burn(L, cup) {
   cup[L.Zn] = 0;
   return n;
 }
-/** What tipping crucible a into b would move: { metal, n, under } (under: a skim's measure of the metal below the dross, or -1),
- *  or null when it can't (a empty, b full, the same crucible, a skim with no room for its measure of metal). */
+/** What tipping crucible a into b would move: { metal, n, under } (under: the measure of metal below dross that goes with it, or
+ *  -1), or null when it can't (a empty, b full, the same crucible, dross with no room for its measure of metal). */
 export function pourOf(L, s, a, b) {
   if (a === b || L.kinds[a] === "slag") return null;
   const cup = s.cups[a], t = topOf(cup, L.kinds[a], L.C), room = L.caps[b] - sum(s.cups[b]);
   if (t < 0 || room <= 0) return null;
-  if (t === L.X && L.kinds[b] === "slag") {
+  if (t === L.X) {
     let under = -1;
     for (let i = t - 1; i >= 0; i--) if (cup[i] && i !== L.C) { under = i; break; }
     return cup[t] + (under >= 0 ? 1 : 0) > room ? null : { metal: t, n: cup[t], under };
@@ -90,7 +90,7 @@ export function pourOf(L, s, a, b) {
   return { metal: t, n: Math.min(cup[t], room), under: -1 };
 }
 /**
- * Tips a into b: { state, poured: { metal, n, under (a skim's measure of the metal below the dross, or -1) }, liquated (measures of lead turned rich in b), mid (b as it lies once the pour has
+ * Tips a into b: { state, poured: { metal, n, under (the measure of metal that went with poured dross, or -1) }, liquated (measures of lead turned rich in b), mid (b as it lies once the pour has
  * settled and liquated, before anything casts or burns), casts, burnt: [{ cup, n }] }, or null.
  */
 export function pour(L, s, a, b) {

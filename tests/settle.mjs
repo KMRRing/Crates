@@ -64,19 +64,21 @@ const cpuMs = () => { const u = process.cpuUsage(); return Math.round((u.user + 
   // spare metal: a crucible casts only its exact recipe
   const spare = levelOf({ caps: [3, 3, 3], fill: [["Cu", "Sn"], ["Cu"], []], moulds: [{ Cu: 2 }] }), s0 = startOf(spare);
   check(!pour(spare, s0, 1, 0).casts.length && pour(spare, pour(spare, s0, 0, 2).state, 1, 0).casts.length === 1, "a crucible with a spare measure in it casts nothing; once the spare is parked elsewhere, it casts");
-  // dross floats on everything and spoils a cast; the slag pot takes it and never pours; a skim takes the measure under the dross along
+  // dross floats on everything and spoils a cast; it clings: wherever it is poured, the measure under it goes too; the slag pot never pours
   const dross = levelOf({ caps: [4, 3, 2], kinds: ["", "", "slag"], fill: [["Cu", "Cu", "Cu", "X"], [], []], moulds: [{ Cu: 2 }] });
   const d0 = startOf(dross), name = i => dross.metals[i];
   check(!d0.cast[0] && layersOf(d0.cups[0]).map(name).join() === "Cu,Cu,Cu,X", "dross lies on top of all metal, and a crucible with dross in it does not cast");
   const d1 = pour(dross, d0, 0, 2);
   check(name(d1.poured.under) === "Cu" && layersOf(d1.state.cups[2]).map(name).join() === "Cu,X" && d1.casts.length === 1,
-    "a skim into the slag pot takes the measure of copper under the dross along; the two left cast");
+    "dross skimmed into the slag pot takes the measure of copper under it along; the two left cast");
+  const d2 = pour(dross, d0, 0, 1);
+  check(name(d2.poured.under) === "Cu" && layersOf(d2.state.cups[1]).map(name).join() === "Cu,X" && d2.casts.length === 1,
+    "and the same into any other crucible: the rule is the dross's own, not the pot's");
   check(!pourOf(dross, d1.state, 2, 1), "the slag pot never pours");
   const tight = levelOf({ caps: [4, 3, 1], kinds: ["", "", "slag"], fill: [["Cu", "Cu", "X"], [], []], moulds: [{ Cu: 2 }] }), t0 = startOf(tight);
-  check(!pourOf(tight, t0, 0, 2), "a skim needs room for the dross and its measure together: a pot for one refuses it");
-  const off = pour(tight, t0, 0, 1);
-  check(off.casts.length === 1 && pourOf(tight, off.state, 1, 2)?.under === -1 && pour(tight, off.state, 1, 2).state.cups[2].reduce((x, y) => x + y) === 1,
-    "dross poured off on its own goes to the pot alone, and the copper it left casts");
+  check(!pourOf(tight, t0, 0, 2), "dross and its measure go together or not at all: a pot for one refuses them");
+  const alone = levelOf({ caps: [2, 1], kinds: ["", "slag"], fill: [["X"], []], moulds: [{ Cu: 1 }] });
+  check(pourOf(alone, startOf(alone), 0, 1)?.under === -1, "dross on its own takes nothing with it");
   const potted = levelOf({ caps: [2, 2], kinds: ["", "slag"], fill: [[], ["Cu", "Cu"]], moulds: [{ Cu: 2 }] });
   check(!startOf(potted).cast[0], "nothing in the slag pot casts");
   // the teapot ladle pours its heaviest metal, from under the rest
