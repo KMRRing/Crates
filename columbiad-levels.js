@@ -34,8 +34,8 @@ const CORE = [
       bodies: [EARTH, MOON(1.87, 6.9, 1.35, 7.95)], target: { at: [1.26, 9.35], r: 0.62 }, aim: { angle: 90, charge: 10 } },
     { ...WORLD, id: "1-2", name: "The other shoulder", note: "From the pad's other side: power sets how flat the arc is, and the angle then has to follow.",
       site: 105, bodies: [EARTH, MOON(-1.65, 6.5, 1.1, 5.77)], target: { at: [-0.66, 9.25], r: 0.58 }, aim: { angle: 105, charge: 10 } },
-    { ...WORLD, id: "1-5", name: "Low Moon", note: "The pad is round to the right and a heavy Moon sits low in the middle: the ring is out past its right shoulder.",
-      site: 60, bodies: [EARTH, MOON(0.38, 6.43, 1.55, 9.84)], target: { at: [3.31, 8.91], r: 0.55 }, aim: { angle: 60, charge: 10 } },
+    { ...WORLD, id: "1-12", name: "Low Moon", note: "A heavy Moon low in the middle and the ring out past its right shoulder. Aim wide to the right, past the ring: the Moon's pull hooks the shot back in.",
+      dial: [2, 4.4], site: 60, bodies: [EARTH, MOON(0.48, 6.64, 1.55, 9.84)], target: { at: [2.55, 8.89], r: 0.57 }, aim: { angle: 60, charge: 10 } },
     // Korbi rated A small moon 3/5 and Wide of the Moon 1/5 (16 Nov 2026): both were won at the top of the gauge, the shell too fast for the
     // Moon to do much, where the levels he liked (5/5) are won at middling power and swing a long way round it. Redrawn by columbiad-plan.mjs's
     // search, kept only where the winning window sits mid-gauge and the Moon turns the shot most of the way round; new ids, so stars start over
@@ -43,14 +43,14 @@ const CORE = [
       site: 60, bodies: [EARTH, MOON(1.67, 7.74, 0.91, 3.36)], target: { at: [1.69, 9.77], r: 0.54 }, aim: { angle: 60, charge: 10 } },
     { ...WORLD, id: "1-11", name: "Wide of the Moon", note: "The ring is out at the left edge and the Moon between: aim right of it, and its pull swings the shot all the way across.",
       site: 75, bodies: [EARTH, MOON(-0.71, 7.08, 1.52, 10.14)], target: { at: [-2.33, 9.67], r: 0.5 }, aim: { angle: 75, charge: 10 } },
-    { ...WORLD, id: "1-6", name: "Sidelong", note: "The ring is up on the right with the Moon low between you: aim to pass the Moon and let it bend you round.",
-      site: 75, bodies: [EARTH, MOON(0.3, 6.69, 1.37, 8.8)], target: { at: [2.84, 9.78], r: 0.5 }, aim: { angle: 75, charge: 10 } },
+    { ...WORLD, id: "1-13", name: "Sidelong", note: "A Moon low on the right and the ring over its far shoulder, on the left. Fire right of the Moon: it swings the shot up round its top and back across.",
+      dial: [2, 4.4], site: 75, bodies: [EARTH, MOON(2.17, 6.55, 1.37, 8.8)], target: { at: [-0.28, 8.58], r: 0.57 }, aim: { angle: 75, charge: 10 } },
     { ...WORLD, id: "1-7", name: "Close by", note: "A small Moon just up from the pad and the ring above it: it pulls only a shot that passes close.",
       site: 120, bodies: [EARTH, MOON(-0.84, 6.78, 1.04, 5.05)], target: { at: [-0.48, 9.58], r: 0.5 }, aim: { angle: 120, charge: 10 } },
     { ...WORLD, id: "1-8", name: "High and wide", note: "The ring is high on the right and the Moon low on the left: a long arc, the Moon's pull bending its start.",
       bodies: [EARTH, MOON(-0.53, 7.5, 1.31, 6.64)], target: { at: [1.65, 11.2], r: 0.48 }, aim: { angle: 90, charge: 10 } },
-    { ...WORLD, id: "1-9", name: "Pebble moon", note: "The smallest Moon yet, out to the right with the ring beyond it at the edge: it hardly pulls, so pass close.",
-      site: 105, bodies: [EARTH, MOON(2.39, 7.67, 0.91, 3.03)], target: { at: [3.14, 10.21], r: 0.48 }, aim: { angle: 105, charge: 10 } },
+    { ...WORLD, id: "1-14", name: "Pebble moon", note: "The smallest Moon yet, the ring just above it: fire up past its left side and let it hook the shot round onto the ring. It hardly pulls, so pass close.",
+      dial: [2, 4.4], bodies: [EARTH, MOON(2.44, 8.23, 0.91, 3.03)], target: { at: [2.98, 10.57], r: 0.47 }, aim: { angle: 105, charge: 10 } },
   ] },
   { id: 2, name: "Behind the Moon", idea: "The ring is hidden by the Moon: there is no straight line, only a way round", levels: [
     { ...WORLD, ...S2, id: "2-1", name: "Eclipse", note: "Dead behind the Moon. Go round either side.", site: 60,
@@ -63,8 +63,8 @@ const CORE = [
       bodies: [EARTH, MOON(0.48, 7.09, 1.68, 12.3)], target: { at: [1.9, 10.22], r: 0.41 }, aim: { angle: 90, charge: 10 } },
     { ...WORLD, ...S2, id: "2-3", name: "Off the line", note: "Behind the Moon as the pad sees it, which is not straight up.", site: 75,
       bodies: [EARTH, MOON(1.79, 7.05, 1.7, 10.77)], target: { at: [2.57, 10.36], r: 0.4 }, aim: { angle: 75, charge: 10 } },
-    { ...WORLD, ...S2, id: "2-4", name: "Far behind", note: "A heavy Moon, low and close: the way round it is long.",
-      bodies: [EARTH, MOON(0.4, 7.41, 1.7, 12.21)], target: { at: [0.77, 10.35], r: 0.35 }, aim: { angle: 90, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-10", name: "Far behind", note: "A heavy Moon over the pad and a small ring tucked over its right shoulder: fire wide to the right and come round the back to it.",
+      dial: [2, 4.4], site: 105, bodies: [EARTH, MOON(-0.57, 7.19, 1.7, 12.21)], target: { at: [0.56, 9.78], r: 0.38 }, aim: { angle: 90, charge: 10 } },
     { ...WORLD, ...S2, id: "2-5", name: "Needle", note: "A small ring behind a heavy Moon, out at the edge.", site: 60,
       bodies: [EARTH, MOON(-1.05, 7.5, 1.7, 12.42)], target: { at: [-2.76, 9.6], r: 0.32 }, aim: { angle: 60, charge: 10 } },
     { ...WORLD, ...S2, id: "2-8", name: "Occultation", note: "A small ring right behind the Moon's top: a way round has to come back in to it.", site: 75,
@@ -91,10 +91,41 @@ const CORE = [
       bodies: [EARTH, MOON(-0.56, 8.78, 1.47, 9.6)], gates: [{ at: [1.77, 9.25], r: 0.62 }, HOME(0.68)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 8 }, aim: { angle: 75, charge: 10 } },
   ] },
 ];
-export const SECTIONS = [...CORE, ...FAR];
-// A level's id is its identity (stars, aims and the play log are kept by it) and never changes; its label is its place, chapter and number
-// (13 November 2026: new levels went in where their chapter's ramp needed them, so a chapter's ids are no longer in order).
+// The chapters (23 November 2026, Korbi: "We discussed a general template for fun level progression. Apply this to Columbiad": chapters as long
+// as their lessons, three to five levels each bringing one idea). The twelve worlds above and in columbiad-levels-far.js hold the levels; a
+// chapter is a run of one world's levels with one idea, in the order the worlds had them.
+const CHAPTERS = [
+  ["Beside the Moon", "The Moon pulls: aim past it and let it draw you in", "1-1 1-2 1-10 1-11"],
+  ["Close passes", "A Moon turns only a shot that passes close: the smaller it is, the closer", "1-12 1-13 1-7 1-8 1-14"],
+  ["Behind the Moon", "The ring is hidden by the Moon: there is no straight line, only a way round", "2-1 2-6 2-2 2-7"],
+  ["The long way round", "A heavy Moon and the ring far round its back", "2-3 2-10 2-5 2-8 2-9"],
+  ["Free return", "Out by one side of the Moon through the gate, and home to the pad", "3-1 3-4 3-5 3-6"],
+  ["Figure of eight", "Out one side, round the back, and home down the other", "3-2 3-3 3-7 3-8"],
+  ["Clockwork", "The Moon moves: set the countdown as well as the aim, and tweak a shot you have fired", "4-8 4-1 4-9 4-3"],
+  ["Moving targets", "Rings that ride and swing: meet them where they will be", "4-4 4-5 4-6 4-7"],
+  ["Moonrise", "Launch from the Moon: the Earth is the great pull now", "5-7 5-9 5-8 5-2"],
+  ["Round the Earth", "The Earth's pull as the engine: a second moon, a gate, an orbit", "5-3 5-10 5-5 5-6"],
+  ["Station", "Launch from a station in orbit: it carries you, so the countdown picks where it is", "6-7 6-9 6-10 6-11"],
+  ["Rendezvous", "From the station to a Moon on the move, and back", "6-12 6-5 6-13 6-14"],
+  ["Giants", "A gas giant pulls like nine Moons", "7-7 7-1 7-4 7-5"],
+  ["Ring planes", "The giant's rings burn a shot that crosses them: through a gap or over the top", "7-2 7-3 7-8 7-6"],
+  ["The Sun", "A star pulls the hardest and burns what comes close: round it, but not too near", "8-7 8-8 8-1 8-9"],
+  ["Two stars", "A pair of suns, a close pass and a cold dwarf", "8-3 8-11 8-5 8-10"],
+  ["The Belt", "Rocks fill the way: thread them, and the pull will help you do it", "9-6 9-12 9-2 9-9"],
+  ["Rubble", "Rock round the Moon and across the way", "9-7 9-10 9-5 9-11"],
+  ["Short tank", "Less powder than a full tank: let the Moon do the work", "10-1 10-9 10-2 10-10 10-5"],
+  ["Windows and air", "A ring that opens and shuts, and air that slows a shot", "10-3 10-4 10-6 10-7"],
+  ["Arrivals", "Not just a ring: land softly, orbit, meet a comet", "11-1 11-2 11-5 11-7"],
+  ["Rings in order", "Two rings, three, and a gate on the way: one shot through them all", "11-8 11-10 11-9 11-11"],
+  ["Apollo", "The Moon missions: land, orbit, and come home", "12-6 12-7 12-8 12-10"],
+  ["The planets", "Out among the worlds: a transfer, a slingshot, a grand tour", "12-12 12-3 12-4 12-9 12-11"],
+];
+const POOL = new Map([...CORE, ...FAR].flatMap(w => w.levels).map(l => [l.id, l]));
+export const SECTIONS = CHAPTERS.map(([name, idea, ids], c) => ({ id: c + 1, name, idea, levels: ids.split(" ").map(id => POOL.get(id)) }));
+// A level's id is its identity (stars, aims and the play log are kept by it) and never changes; its label is its place, chapter and number.
 for (const sec of SECTIONS) sec.levels.forEach((l, n) => { l.label = `${sec.id}-${n + 1}`; if (l.gates) l.target = l.gates[l.gates.length - 1]; });
+/** The Earth-and-Moon levels the game began with (the first six chapters). */
+export const MOON_LEVELS = CORE.flatMap(w => w.levels);
 
 /** Whether a level has anything that moves (a body on a rail, a Moon with no place given, a ring on a rail or a body): such a level has the launch countdown. */
 export const hasMovers = isMoving;

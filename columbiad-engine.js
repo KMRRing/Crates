@@ -156,7 +156,7 @@ export function worldOf(lvl) {
   // the launch body: the level's `from`, else the Earth, else the first
   let fi = bodies.findIndex(b => b.id === (lvl.from || "earth"));
   if (fi < 0) fi = 0;
-  w = { bodies, n: bodies.length, moving: bodies.some(b => b.rail), re: bodies[fi] ? bodies[fi].r : R, fi };
+  w = { bodies, n: bodies.length, moving: bodies.some(b => b.rail), re: bodies[fi] ? bodies[fi].r : R, fi, t0: NaN, t1: NaN, p0: new Float64Array(2 * bodies.length), p1: new Float64Array(2 * bodies.length) };
   worlds.set(lvl, w);
   return w;
 }
@@ -212,12 +212,22 @@ export function targetAt(lvl, t) { return lvl.target ? ringAt(lvl, lvl.target, t
 // ---------- the integrator ----------
 let AX = 0, AY = 0, SMIN = 0;
 /** Acceleration at (x, y) at time t into AX and AY, the squared distance to the nearest body's centre into SMIN. Softened: mu (r - r_i) / (|r - r_i|^2 + eps^2)^(3/2). */
+/** Where the bodies on rails are at time t, into w.at (x, y pairs): a step asks for the same three times over and over (the start, the middle
+ *  twice, the end, which is the next step's start), so the last two answers are kept. */
+function railsAt(w, t) {
+  if (t === w.t0) return w.p0;
+  if (t === w.t1) return w.p1;
+  const p = w.p0; w.p0 = w.p1; w.p1 = p; w.t0 = w.t1; w.t1 = t;
+  for (let i = 0; i < w.n; i++) { const b = w.bodies[i]; if (b.rail) { unit(turnsOf(b, t)); p[2 * i] = b.cx + b.a * UX; p[2 * i + 1] = b.cy + b.a * UY; } }
+  return p;
+}
 function accel(w, t, x, y) {
   let ax = 0, ay = 0, smin = Infinity;
+  const at = w.moving ? railsAt(w, t) : null;
   for (let i = 0; i < w.n; i++) {
     const b = w.bodies[i];
     let bx = b.x, by = b.y;
-    if (b.rail) { unit(turnsOf(b, t)); bx = b.cx + b.a * UX; by = b.cy + b.a * UY; }
+    if (b.rail) { bx = at[2 * i]; by = at[2 * i + 1]; }
     const dx = x - bx, dy = y - by, d2 = dx * dx + dy * dy, s = d2 + EPS2, k = b.mu / (s * Math.sqrt(s));
     ax -= k * dx; ay -= k * dy;
     if (d2 < smin) smin = d2;
@@ -251,7 +261,9 @@ function nearest(p0x, p0y, dx, dy) {
  *   o.record: a path for drawing, a point every this many Earth radii of travel (0 or none: no path).
  *   o.sample { out, n, t1 }: positions at n+1 equal times from the start to t1 into out (x, y pairs); after the flight ends it holds its last place.
  *   o.watch: keep flying after the target is entered, to the ring's far side (so the closest approach is known); default true.
- * Returns { end: "through" | "impact" | "lost" | "time", body (what it landed on), t, x, y, vx, vy, hit (the first entry into
+ *   o.step: the step as a share of the distance to the nearest body's centre over the speed (default 0.02; the preview's scattered shells take a
+ *   coarser one). o.reach: ends the flight ("reach") once it has travelled this far.
+ * Returns { end: "through" | "impact" | "lost" | "time" | "reach", body (what it landed on), t, x, y, vx, vy, hit (the first entry into
  * the target ring: { t, x, y, vx, vy, speed (relative to the target), ok (the arrival condition met) }, or null), won, tNear (when it came closest), gates (how many
  * gates of a gated goal were passed in order), sweep (radians swept round the body of an orbit goal), near (the closest the shell came to the
  * target's centre, whole flight), core (the closest approach inside the ring, in rings: 0 the middle, 1 the edge), path
@@ -259,7 +271,7 @@ function nearest(p0x, p0y, dx, dy) {
  */
 export function fly(lvl, ini, o = {}) {
   const w = worldOf(lvl), tg = lvl.target, goal = lvl.goal || { type: "hit" };
-  const tMax = o.tMax ?? lvl.tMax ?? 1.2, bound = o.bounds ?? lvl.bounds ?? 16, bound2 = bound * bound, dtMax = o.dtMax ?? lvl.dt ?? DT_MAX;
+  const tMax = o.tMax ?? lvl.tMax ?? 1.2, bound = o.bounds ?? lvl.bounds ?? 16, bound2 = bound * bound, dtMax = o.dtMax ?? lvl.dt ?? DT_MAX, fine = o.step ?? 0.02, reach = o.reach ?? Infinity;
   // the rings to pass: the target; or, for gates and a free return, the gates in order (the last is the target)
   const gated = goal.type === "gates" || goal.type === "return", rings = gated ? lvl.gates : tg ? [tg] : [], orbit = goal.type === "orbit" ? { i: w.bodies.findIndex(b => b.id === goal.body), rmax: goal.rmax, need: goal.sweep * 0.017453292519943295 } : null;
   let gi = 0, cur = rings[0] || tg || null, ring = cur ? cur.r : 0, swp = 0;
@@ -276,12 +288,12 @@ export function fly(lvl, ini, o = {}) {
   if (cur) { const p = ringAt(lvl, cur, t); tgx = p[0]; tgy = p[1]; wasIn = (x - tgx) * (x - tgx) + (y - tgy) * (y - tgy) < ring * ring; }
   const haz = hazardsOf(lvl), air = lvl.air || [], airI = air.map(a => w.bodies.findIndex(b => b.id === a.body));
   const moving = w.moving, bx0 = new Float64Array(w.n * 2), bx1 = moving ? new Float64Array(w.n * 2) : bx0;
-  const place = (arr, tt) => { for (let i = 0; i < w.n; i++) { const b = w.bodies[i]; if (b.rail) { unit(turnsOf(b, tt)); arr[2 * i] = b.cx + b.a * UX; arr[2 * i + 1] = b.cy + b.a * UY; } else { arr[2 * i] = b.x; arr[2 * i + 1] = b.y; } } };
+  const place = (arr, tt) => { const at = moving ? railsAt(w, tt) : null; for (let i = 0; i < w.n; i++) { const b = w.bodies[i]; if (b.rail) { arr[2 * i] = at[2 * i]; arr[2 * i + 1] = at[2 * i + 1]; } else { arr[2 * i] = b.x; arr[2 * i + 1] = b.y; } } };
   place(bx0, t);
   for (;;) {
     accel(w, t, x, y);
     const k1x = vx, k1y = vy, k1vx = AX, k1vy = AY, v = Math.sqrt(vx * vx + vy * vy);
-    let h = v > 1e-9 ? 0.02 * Math.sqrt(SMIN) / v : DT_MAX;
+    let h = v > 1e-9 ? fine * Math.sqrt(SMIN) / v : DT_MAX;
     h = h < DT_MIN ? DT_MIN : h > dtMax ? dtMax : h;
     const hh = h / 2;
     accel(w, t + hh, x + hh * k1x, y + hh * k1y);
@@ -399,6 +411,7 @@ export function fly(lvl, ini, o = {}) {
     } else if (hit && o.watch === false) { end = "through"; break; }
     if (x * x + y * y > bound2) { end = "lost"; break; }
     if (t >= tEnd) { end = "time"; break; }
+    if (length >= reach) { end = "reach"; break; }
   }
   if (smp) {
     for (; sk <= smp.n; sk++) { smp.out[2 * sk] = x; smp.out[2 * sk + 1] = y; }
@@ -442,7 +455,7 @@ export function shoot(lvl, mv, g = [0, 0], o = {}) {
 
 // ---------- the cone ----------
 // The envelope of 24 shells scattered by a fixed set of standard-normal draws, so it is the same from frame to frame.
-export const CONE_SHELLS = 24, CONE_STEPS = 64;
+export const CONE_SHELLS = 24, CONE_STEPS = 64, SHELL_STEP = 0.06;
 const CONE_SEED = 0xC01D;
 export const CONE_DRAWS = Array.from({ length: CONE_SHELLS }, (_, i) => [normal(CONE_SEED, 24 * i), normal(CONE_SEED, 24 * i + 12)]);
 /** How much the preview blurs the aim: a level's own scatter is too small to see, and a line that exact solves the level for the player
@@ -457,7 +470,11 @@ export function previewSpread(lvl) {
  * ("through", "impact"...), t1 (how long the band is), over (the central shell's end) }.
  */
 export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
-  const a = clampAim(lvl, aim), sp = previewSpread(lvl), mid = fly(lvl, muzzle(lvl, a, [0, 0], t), { record: lvl.cone?.rec ?? 0.02, dtMax: lvl.cone?.dt });
+  // (23 Nov 2026, Korbi: "check that the game doesn't lag": a moving world's preview took 30 to 100 ms an aim, so a drag stuttered.) The
+  // central path is flown only as far as the preview reaches, unless a ring that moves needs the closest pass of the whole flight; the
+  // scattered shells take a coarser step (a third of the work, a hundredth of a unit astray on the screen)
+  const a = clampAim(lvl, aim), sp = previewSpread(lvl), rides = [lvl.target, ...(lvl.gates || [])].some(tg => tg && (tg.body != null || tg.rail));
+  const mid = fly(lvl, muzzle(lvl, a, [0, 0], t), { record: lvl.cone?.rec ?? 0.02, dtMax: lvl.cone?.dt, reach: rides && MOVERS_ON ? Infinity : len * 1.01 });
   // the time at which the central shell has travelled `len`
   let t1 = Math.max(mid.t - t, 1e-4), acc = 0;
   const p = mid.path;
@@ -471,7 +488,7 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
   fly(lvl, muzzle(lvl, a, [0, 0], t), { sample: { out: c, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
   for (const g of CONE_DRAWS) {
     const out = new Float64Array(2 * (n + 1));
-    fly(lvl, muzzle(lvl, a, g, t, sp), { sample: { out, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
+    fly(lvl, muzzle(lvl, a, g, t, sp), { sample: { out, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt ?? 1 / 20, step: SHELL_STEP });
     shells.push(out);
   }
   // the band the shells' paths make round the central one: at each station of the central path, where the line across it is

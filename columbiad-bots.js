@@ -5,7 +5,7 @@
 // A "move" is { angle, charge, t }: the aim in degrees, the powder in barrels, the firing time. A level whose world stands
 // still has only angle and charge to try; where a moon moves the sweep has a third axis, the time, one layer for each of
 // `nt` moments of the world's period, and a solution is a place in all three.
-import { MOVERS_ON, shoot, normal, uniform, clampAim, apply, newGame, worldOf, BARRELS, DRAWS } from "./columbiad-engine.js";
+import { MOVERS_ON, shoot, normal, uniform, clampAim, apply, newGame, worldOf, bodyAt, padAt, BARRELS, DRAWS, DELAY_MAX } from "./columbiad-engine.js";
 
 /** The seconds after which the world repeats: its own `period`, else the longest rail's (40 s with the Moon), 0 where nothing moves. */
 export const periodOf = lvl => {
@@ -241,7 +241,7 @@ export function descend(lvl, mv, { steps = [1, 0.1, 0.5], floor = [0.05, 0.01, 0
       if (k === 2 && !timed) continue;
       for (const sg of [1, -1]) {
         const n = { ...best }; n[k === 0 ? "angle" : k === 1 ? "charge" : "t"] += sg * st[k];
-        n.angle = Math.round(n.angle * 100) / 100; n.charge = Math.round(n.charge * 100) / 100; n.t = Math.round(n.t * 10) / 10;       // a countdown is kept in tenths
+        n.angle = Math.round(n.angle * 100) / 100; n.charge = Math.round(n.charge * 100) / 100; n.t = Math.round(Math.min(lvl.delayMax ?? DELAY_MAX, Math.max(0, n.t)) * 10) / 10;       // a countdown is kept in tenths, from 0 to the level's longest
         const c = cost(lvl, n);
         if (c < bc - 1e-9) { best = n; bc = c; moved = true; }
       }
@@ -280,3 +280,47 @@ export { clampAim };
 export const hasMoon = lvl => (lvl.bodies || []).some(b => b.kind === "moon" || b.id === "moon" || b.id === "moon2");
 /** The level with every moon's pull zeroed (it stays where it is and a shell can still hit it): a shot that wins here was not using the Moon. */
 export const withoutPull = lvl => ({ ...lvl, bodies: lvl.bodies.map(b => (b.kind === "moon" || b.id === "moon" || b.id === "moon2") ? { ...b, mu: 0 } : b) });
+
+// ---------- what makes a level fun: Korbi's ratings as rules ----------
+/**
+ * 23 November 2026, Korbi: "Audit every Columbiad level and make sure it's fun". His ratings (16 and 23 November) and the audit of the
+ * whole dial say what the liked levels share, and these are the rules a level is held to:
+ *  - swing: a winning shot the pull of another body turns a long way (Beside the Moon's loop, every free return: 5/5). A shot that
+ *    only bends gently past the Moon (Low Moon, Sidelong) is a lob with a Moon beside it. In a moving world the clock is the puzzle
+ *    instead (Countdown, 5/5, barely bends), so there it is the countdown's window that is asked for.
+ *  - mid-gauge: that shot's power in the middle of the gauge. A Small moon (3/5) and Wide of the Moon (1/5) were won at its top, the
+ *    shell too fast for the Moon to do much.
+ *  - findable: its window, angle by power at no scatter, big enough for a thumb (Waiting for the Moon's, 10 degrees by a third of a
+ *    unit and a second of countdown, took him six minutes without a hit; Off the line's 1.5 units took six minutes with one).
+ *  - not given away: the share of the whole dial that wins is small.
+ *  - its own: its winning path is not another level's (a chapter of one picture over and over is what Far behind's 3/5 said).
+ */
+export const FUN = { swing: 60, gauge: [0.3, 0.8], area: 2, power: 0.3, angle: 1.5, time: 1, share: [0.002, 0.06], apart: 0.25 };
+
+/** The heading turned by the pull of the bodies a shot did not start from, up to where it wins (degrees, signed), and its path's shape:
+ *  `shape`, 24 points equally spaced along it, from the pad. */
+export function swingOf(lvl, mv) {
+  const r = shoot(lvl, mv, [0, 0], { record: 0.01 }), p = r.path, end = r.hit ? r.hit.t : r.t, w = worldOf(lvl);
+  let pulled = 0;
+  const pts = [];
+  for (let q = 3; q + 3 < p.length; q += 3) {
+    const t = p[q];
+    if (t > end) break;
+    pts.push([p[q + 1], p[q + 2]]);
+    const h = p[q + 3] - p[q - 3], vx = (p[q + 4] - p[q - 2]) / h, vy = (p[q + 5] - p[q - 1]) / h, v2 = vx * vx + vy * vy;
+    for (let b = 0; b < w.n; b++) {
+      if (b === w.fi) continue;
+      const [bx, by] = bodyAt(lvl, b, t), dx = bx - p[q + 1], dy = by - p[q + 2], d2 = dx * dx + dy * dy + 0.0025, k = w.bodies[b].mu / (d2 * Math.sqrt(d2));
+      pulled += (vx * k * dy - vy * k * dx) / v2 * h / 2;
+    }
+  }
+  // the shape: 24 points equally spaced along the path, from the pad
+  const pad = padAt(lvl, mv.t || 0), len = [0];
+  for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const L = len[len.length - 1] || 1, shape = [];
+  for (let k = 0, i = 0; k < 24; k++) { const at = L * k / 23; while (i < len.length - 2 && len[i + 1] < at) i++; const f = len[i + 1] > len[i] ? (at - len[i]) / (len[i + 1] - len[i]) : 0, a = pts[i] || [pad[0], pad[1]], b = pts[i + 1] || a; shape.push([a[0] + (b[0] - a[0]) * f - pad[0], a[1] + (b[1] - a[1]) * f - pad[1]]); }
+  return { pulled: rnd2(pulled * 180 / Math.PI), tFlight: rnd2(end - (mv.t || 0)), won: r.won, shape };
+}
+/** How far apart two paths' shapes are: the mean distance between their points (Earth radii over three). */
+export const apart = (a, b) => a.reduce((s, p, i) => s + Math.hypot(p[0] - b[i][0], p[1] - b[i][1]), 0) / a.length;
+const rnd2 = v => Math.round(v * 100) / 100;

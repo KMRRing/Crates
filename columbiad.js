@@ -136,7 +136,7 @@ function setupLevel() {
   view.setClock(stamp());
   view.setGhosts(ghosts);
   view.setWon(S.status === "won");
-  coneDirty = true;
+  coneDirty = true; coneAsked++;              // an answer still on its way is for the level before
   render();
   view.setAim(aim);
   view.wake();
@@ -155,7 +155,7 @@ function restart() {
   view.setClock(stamp());
   view.setGhosts([]);
   view.setWon(false);
-  coneDirty = true;
+  coneDirty = true; coneAsked++;
   render();
   view.setAim(aim);
   view.wake();
@@ -228,12 +228,22 @@ function say(words, ms = 2400) {
 const unsay = () => { clearTimeout(sayTimer); $("say").classList.remove("show"); };
 
 // ---------- the scene ----------
+// The preview is worked out in a worker (columbiad-cone-worker.js; 23 Nov 2026, Korbi: "check that the game doesn't lag"): one question in
+// flight at a time, the newest aim asked next, and an answer for an aim or a level that has since changed is drawn only until the next one comes.
+let coneWorker = null, coneAsked = 0, coneBusy = false;
+function askCone() {
+  if (!coneWorker) {
+    try { coneWorker = new Worker(new URL("./columbiad-cone-worker.js", import.meta.url), { type: "module" }); } catch { coneWorker = false; }
+    if (coneWorker) coneWorker.onmessage = ({ data }) => { coneBusy = false; if (data.n === coneAsked) view.setCone(data.cone); if (coneDirty) view.wake(); };
+  }
+  coneDirty = false;
+  if (aim.charge < 0.05) { coneAsked++; coneBusy = false; view.setCone(null); return; }
+  if (!coneWorker) { view.setCone(coneOf(lvl, aim, stamp(), assist(lvl))); return; }
+  coneBusy = true;
+  coneWorker.postMessage({ n: ++coneAsked, id: lvl.id, day: daily, aim: { ...aim }, t: stamp(), len: assist(lvl) });
+}
 const view = createView($("scene"), {
-  before() {
-    if (!coneDirty) return;
-    coneDirty = false;
-    view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, stamp(), assist(lvl)) : null);
-  },
+  before() { if (coneDirty && !coneBusy) askCone(); },
   onHit() { sound.play("chime"); },
   onEnter(en) {                                          // a gate passed, or a ring entered that does not count (and why, while it is still on the screen)
     sound.play(en.ok ? "ping" : "dull");

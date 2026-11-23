@@ -7,15 +7,18 @@
 // one), the cone is stable, the dial is monotone and fine at its top, and each level has a stored winning shot that must
 // still win. The bots' measures are in tests/columbiad-bots.mjs.
 import * as E from "../columbiad-engine.js";
-import { LEVELS, SECTIONS, dailyLevel, hasMovers } from "../columbiad-levels.js";
+import { LEVELS, SECTIONS, MOON_LEVELS, dailyLevel, hasMovers } from "../columbiad-levels.js";
 import { PROOFS, STRAIGHT } from "../columbiad-proofs.js";
-import { windowOf, hasMoon, withoutPull } from "../columbiad-bots.js";
+import { windowOf, hasMoon, withoutPull, FUN, swingOf, apart } from "../columbiad-bots.js";
 import * as A from "../columbiad-aim.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 const rad = (x, y) => Math.sqrt(x * x + y * y);
+// The hundred ids of 23 November 2026 before that day's redraws, and what each redrawn one is now
+const OLD_IDS = "1-1 1-2 1-10 1-11 1-5 1-6 1-7 1-8 1-9 2-1 2-6 2-2 2-7 2-3 2-4 2-5 2-8 2-9 3-1 3-4 3-5 3-6 3-2 3-3 3-7 3-8 4-8 4-1 4-2 4-3 4-4 4-5 4-6 4-7 5-7 5-1 5-8 5-2 5-3 5-4 5-5 5-6 6-7 6-1 6-2 6-3 6-4 6-5 6-8 6-6 7-7 7-1 7-4 7-5 7-2 7-3 7-8 7-6 8-7 8-8 8-1 8-2 8-3 8-4 8-5 8-6 9-6 9-1 9-2 9-3 9-7 9-4 9-5 9-8 10-1 10-9 10-2 10-8 10-5 10-3 10-4 10-6 10-7 11-1 11-2 11-5 11-7 11-8 11-3 11-4 11-6 12-6 12-7 12-8 12-1 12-2 12-3 12-4 12-9 12-5".split(" ");
+const REDRAWN_23 = { "1-5": "1-12", "1-6": "1-13", "1-9": "1-14", "2-4": "2-10", "5-1": "5-9", "5-4": "5-10", "8-2": "8-9", "8-6": "8-10", "9-3": "9-9", "9-4": "9-10", "9-8": "9-11", "9-1": "9-12", "10-8": "10-10", "11-4": "11-9", "11-3": "11-10", "11-6": "11-11", "12-1": "12-10", "6-1": "6-9", "6-2": "6-10", "6-3": "6-11", "6-4": "6-12", "6-8": "6-13", "6-6": "6-14", "8-4": "8-11", "4-2": "4-9", "12-5": "12-11", "12-2": "12-12" };
 const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { v: 0, deg: 0 }, barrels: 16, par: 1, cone: { len: 4 }, tMax: 1, bounds: 600 };
 
 // ---------- the doc's units ----------
@@ -146,21 +149,15 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
 
 // ---------- the levels ----------
 {
-  const CORE = SECTIONS.slice(0, 3).flatMap(s => s.levels), ids = LEVELS.map(l => l.id), bearingOf = (l, t = 0) => { const pad = E.padAt(l, t), p = E.ringAt(l, (l.gates || [l.target])[0], t); return Math.atan2(p[1] - pad[1], p[0] - pad[0]) * 180 / Math.PI; };
-  // Korbi, 13 November 2026: twelve chapters of eight or nine, a hundred levels; the 68 from before keep their ids (stars, aims and the
-  // play log are kept by id) and their order within their chapter, the 32 new ones (numbered on from them) going where the ramp needed them
-  const OLD = [4, 5, 3, 7, 6, 6, 6, 6, 5, 8, 7, 5], num = id => +id.split("-")[1];
-  check(SECTIONS.length === 12 && LEVELS.length === 100 && new Set(ids).size === LEVELS.length && SECTIONS.every(sec => sec.levels.length >= 8 && sec.levels.length <= 9 && sec.levels.every((l, n) => l.id.startsWith(`${sec.id}-`) && l.label === `${sec.id}-${n + 1}`)),
-    `${SECTIONS.length} chapters of eight or nine, ${LEVELS.length} levels, each id of its chapter and each label its chapter and place`);
-  // Korbi's ratings of 16 Nov 2026: an old level rated low is redrawn in its place under a new id, so its stars start over
-  const REDRAWN = { "1-3": "1-10", "1-4": "1-11" }, gone = new Set(Object.keys(REDRAWN)), redrawn = new Set(Object.values(REDRAWN));
-  check(SECTIONS.every((sec, c) => {
-    const kept = sec.levels.filter(l => !redrawn.has(l.id)), old = kept.map(l => num(l.id)).filter(k => k <= OLD[c]);
-    const want = Array.from({ length: OLD[c] }, (_, i) => i + 1).filter(k => !gone.has(`${sec.id}-${k}`));
-    return old.join() === want.join() && kept.every(l => num(l.id) <= sec.levels.length);
-  }) && Object.entries(REDRAWN).every(([was, now]) => !ids.includes(was) && ids.includes(now)),
-    "the 68 levels from before are all there but the two redrawn, each chapter's in its old order, and the new ones are numbered on from them");
-  check(SECTIONS.slice(0, 3).flatMap(s => s.levels).every(l => l.bodies[0].id === "earth" && l.bodies[1].id === "moon"), "the first three chapters are the Earth and its Moon");
+  const CORE = MOON_LEVELS, ids = LEVELS.map(l => l.id), bearingOf = (l, t = 0) => { const pad = E.padAt(l, t), p = E.ringAt(l, (l.gates || [l.target])[0], t); return Math.atan2(p[1] - pad[1], p[0] - pad[0]) * 180 / Math.PI; };
+  // Korbi, 23 November 2026, the template for a fun progression: chapters as long as their lessons, three to five levels each with one idea
+  check(SECTIONS.length === 24 && LEVELS.length === 100 && new Set(ids).size === LEVELS.length && SECTIONS.every(sec => sec.levels.length >= 3 && sec.levels.length <= 5 && sec.levels.every((l, n) => l.label === `${sec.id}-${n + 1}`)),
+    `${SECTIONS.length} chapters of three to five, ${LEVELS.length} levels, each id once and each label its chapter and place`);
+  // A level's id is its identity: a level redrawn after a low rating, or because it broke the rules of fun below, comes back under a new id, so its
+  // stars and its line in the play log start over (16 and 23 Nov 2026); every other id from before stays
+  const REDRAWN = { "1-3": "1-10", "1-4": "1-11", ...REDRAWN_23 }, gone = Object.keys(REDRAWN), kept = new Set(ids);
+  check(gone.every(id => !kept.has(id) && kept.has(REDRAWN[id])) && OLD_IDS.every(id => kept.has(id) || gone.includes(id)), "every level from before is there but the redrawn ones, and each of those is there under its new id");
+  check(CORE.every(l => l.bodies[0].id === "earth" && l.bodies[1].id === "moon") && SECTIONS.slice(0, 6).every(sec => sec.levels.every(l => CORE.includes(l))), "the first six chapters are the Earth and its Moon");
   check(LEVELS.every(l => E.validate(l).length === 0), `every level is valid${LEVELS.map(l => E.validate(l).map(m => `${l.id}: ${m}`)).flat().join("; ")}`);
   const mov = LEVELS.filter(l => E.isMoving(l));
   check(E.MOVERS_ON === true && mov.length >= 15 && CORE.every(l => !E.isMoving(l)) && mov.every(l => l.bodies.some(b => b.rail) || [l.target, ...(l.gates || [])].some(t => t.rail || t.body != null)), `movers are on: ${mov.length} levels have a body or a ring that moves, and only they have the launch countdown`);
@@ -173,8 +170,8 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   // Korbi, 8 November 2026: the first chapters' Moons vary in size, place and pull (a small one, a heavy one), found by search, no longer one picture
   check(CORE.every(l => { const w = E.worldOf(l), e = w.bodies[0], m = w.bodies[1]; return e.r >= 4 && m.r >= 0.9 && m.r / e.r > 0.2 && m.mu / e.mu > 0.08 && m.mu / e.mu < 0.4 && !m.rail; }), "the first chapters have a large Earth and a Moon of a fair size (Moons of every size since 8 Nov 2026, Korbi: no longer one picture; the pull between a twelfth and two fifths of the Earth's)");
   check(LEVELS.every(l => l.dial && l.dial[0] < l.dial[1] + 1e-9 && E.dialSpeed(l, 0) === 0 && E.dialSpeed(l, l.barrels) === l.dial[1] && E.dialSpeed(l, l.barrels * 0.5) < E.dialSpeed(l, l.barrels * 0.6)), "a level's dial is a straight line from its slowest to its fastest speed");
-  const sec = SECTIONS.slice(0, 2).map(s => s.levels.map(l => l.target.r));
-  check(sec[0].every((r, i) => i === 0 || r <= sec[0][i - 1]) && sec[1].every((r, i) => i === 0 || r <= sec[1][i - 1]) && Math.max(...sec[1]) < Math.min(...sec[0]), `a gentle ramp: rings shrink within a chapter (${sec[0].join(", ")}; ${sec[1].join(", ")}) and the second chapter's are smaller than the first's`);
+  const sec = [SECTIONS[0], SECTIONS[2]].map(s => s.levels.map(l => l.target.r));
+  check(sec[0].every((r, i) => i === 0 || r <= sec[0][i - 1]) && sec[1].every((r, i) => i === 0 || r <= sec[1][i - 1]) && Math.max(...sec[1]) < Math.min(...sec[0]), `a gentle ramp: rings shrink within a chapter (${sec[0].join(", ")}; ${sec[1].join(", ")}) and those behind the Moon are smaller than those beside it`);
   const days = [20261103, 20261104, 20261105, 20261231, 20270101], picks = days.map(d => dailyLevel(d).id);
   check(days.every(d => dailyLevel(d) === dailyLevel(d) && LEVELS.indexOf(dailyLevel(d)) >= 3) && new Set(picks).size >= 3, `the day's level is a pure function of the date, never one of the first three (${picks.join(", ")})`);
   // the new rules, each on a small level
@@ -213,6 +210,26 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
     check(proofs.length >= 1 && wins.every(Boolean) && w / 20 >= 0.7 && ends && tOk && p0.win.da > 0 && straightOk && usesMoon && !!first,
       `${lvl.id} ${lvl.name}: ${proofs.map(p => `${p.angle} degrees at power ${p.charge}${moving ? ` fired at T+${p.t}` : ""}`).join("; ")} win; holds ${(w / 20 * 100).toFixed(0)}% under the scatter, window ${p0 ? `${p0.win.da} degrees by ${p0.win.dc} power${moving ? ` by ${p0.tw} s` : ""}` : "?"}; straight shots win ${st}%${lvl.open ? " (open: the straight way is allowed)" : ""}${dry ? (usesMoon ? "; lose with the Moon's pull zeroed" : "; WIN WITHOUT THE MOON") : ""}`);
   }
+  // Korbi's ratings as rules (23 Nov 2026, columbiad-bots.js's FUN): every level has a stored winning shot that a body other than the one it
+  // leaves from turns a long way (in a world that moves, the countdown is the puzzle instead), won mid-gauge (a short tank is the exception:
+  // the shot has to be thrifty there), in a window a thumb can find; and no two levels of a chapter are won by the same path
+  const funShot = lvl => {
+    const cap = lvl.barrels ?? E.BARRELS, moving = E.isMoving(lvl);
+    for (const p of PROOFS[lvl.id] || []) {
+      const g = p.charge / cap, sw = swingOf(lvl, p);
+      if ((moving || Math.abs(sw.pulled) >= FUN.swing) && (cap < E.BARRELS || (g >= FUN.gauge[0] && g <= FUN.gauge[1])) && p.win.da >= FUN.angle && p.win.dc >= FUN.power && p.win.da * p.win.dc >= FUN.area && (!moving || p.tw >= FUN.time)) return { ...p, ...sw };
+    }
+    return null;
+  };
+  // the one level kept outside the rules until Korbi has rated it: a gravity assist off a moving giant is timed to a tenth or two of a second
+  // whatever the giant's speed, ring or powder (23 Nov 2026: a dozen layouts tried); it is that set piece or another in its place
+  const PENDING = { "12-3": "Slingshot" };
+  const funs = new Map(LEVELS.map(l => [l, funShot(l)]));
+  const dull = LEVELS.filter(l => !funs.get(l) && !PENDING[l.id]);
+  check(!dull.length, `every level has a fun winning shot: a long swing, mid-gauge, a window a thumb can find${dull.length ? `; not ${dull.map(l => `${l.id} ${l.name}`).join(", ")}` : ""}`);
+  const twins = [];
+  for (const sec of SECTIONS) sec.levels.forEach((a, i) => sec.levels.slice(i + 1).forEach(b => { const fa = funs.get(a), fb = funs.get(b); if (fa && fb && apart(fa.shape, fb.shape) < FUN.apart) twins.push(`${a.id} and ${b.id}`); }));
+  check(!twins.length, `no two levels of a chapter are won by the same path${twins.length ? `: ${twins.join(", ")}` : ""}`);
   // straight shots, fresh, on the first level of each chapter that stands still (the finder checks every level on a finer scan and stores the share; the stored share is what the proofs above hold to: 0 where it stands still, at most one in ten where a ring moves with a Moon)
   for (const sec of SECTIONS) {
     const lvl = sec.levels.find(l => !E.isMoving(l) && !l.open && l.goal?.type !== "orbit");
