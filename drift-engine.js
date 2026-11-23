@@ -12,9 +12,19 @@
 // (it ships every crate of its good). A squall's strays and a rock are drawn on the squares they will take, and no crate
 // can be laid there; lay() plays exactly what the forecast showed.
 //
+// Two more (the campaign of 23 Nov 2026): the warehouse, where one crate can be kept back and swapped in later (stow: no turn
+// passes, once between two crates laid), and light airs, a forecast wind's strength: a breeze moves every crate one square,
+// not as far as it goes.
+//
+// A campaign level is dealt from data, not drawn as it goes (Korbi, 23 Nov 2026: "drift campaign fixed deals that are winnable"):
+// rules.deal holds its quay, every crate and every turn's weather written out (dealOf makes one from a seed, drift-plan.mjs freezes
+// it in drift-book.js), so the crates and the weather never hang on the play and a replay is the same puzzle. Only where a squall's
+// strays and a rock land is drawn as the game goes, from the seed, as they must find empty squares.
+//
 // A game is one object, as saved: { v: 2, seed, n (draws made), shape, cells (a good 0-3, -1 empty, -2 water or rock,
 // row by row), stakes (the moored squares), rocks, next (the QUEUE crates to lay: { c, k: 0 plain, 1 moored, 2 sealed }),
-// plan (the QUEUE turns: { w (0 north, 1 east, 2 south, 3 west: the way it blows the crates), w2 (a second gust),
+// dealt (crates dealt so far), held (the warehouse's crate, or null) and stowed (a stow made since the last crate laid),
+// plan (the QUEUE turns: { w (0 north, 1 east, 2 south, 3 west: the way it blows the crates), f (1: a breeze), w2 (a second gust),
 // squall (how many strays), wave: { axis: 0 row 1 column, at, dir }, rock, fog }), strays ([{ at, colour }] this turn's
 // squall), reef (this turn's rock, a square, or -1), turns, sqAt (the turn of the next squall), score, shipped, status
 // "play" | "won" | "lost", why }. What a game is played by, its rules, is not saved with it: it is drift-levels.js's.
@@ -30,7 +40,7 @@ const paceAt = t => PACE.find(([until]) => t < until);
 
 /** Rules with their gaps filled: no events, four goods in equal measure, random winds. */
 export function rules(r) {
-  return { shape: "quay", mix: [1, 1, 1, 1], goods: GOODS, windMode: "random", start: 6, moor: 0, seal: 0, squall: null, gust: null, wave: null, fog: null, rock: null, orders: null, turns: null, runs: [], ...r };
+  return { shape: "quay", mix: [1, 1, 1, 1], goods: GOODS, windMode: "random", start: 6, moor: 0, seal: 0, squall: null, gust: null, wave: null, fog: null, rock: null, airs: null, hold: false, orders: null, turns: null, par: null, runs: [], deal: null, ...r };
 }
 
 function draw(seed, n) {
@@ -42,7 +52,7 @@ function draw(seed, n) {
 }
 const next = s => draw(s.seed, s.n++);
 const pick = (s, k) => Math.floor(next(s) * k);
-const clone = s => ({ ...s, cells: s.cells.slice(), stakes: s.stakes.slice(), rocks: s.rocks.slice(), next: s.next.map(x => ({ ...x })), plan: s.plan.map(p => ({ ...p, wave: p.wave && { ...p.wave } })), strays: s.strays.map(q => ({ ...q })), shipped: s.shipped.slice() });
+const clone = s => ({ ...s, cells: s.cells.slice(), stakes: s.stakes.slice(), rocks: s.rocks.slice(), next: s.next.map(x => ({ ...x })), plan: s.plan.map(p => ({ ...p, wave: p.wave && { ...p.wave } })), strays: s.strays.map(q => ({ ...q })), shipped: s.shipped.slice(), held: s.held ? { ...s.held } : null });
 
 // ---------- the quay: segments, the stretches of quay a crate can slide along or a line can run over ----------
 const geometry = new Map();
@@ -75,18 +85,20 @@ export const quayOf = shape => SHAPES[shape].open.flatMap((o, i) => (o ? [i] : [
 
 /**
  * The quay after the wind: every crate slid downwind as far as it goes, in order, to the edge of its segment, the next
- * crate or a moored one (stakes, the squares of the crates that stay put); and which crate went where.
+ * crate or a moored one (stakes, the squares of the crates that stay put); and which crate went where. A breeze (`breeze`)
+ * moves every crate one square at most: a crate moves if the square downwind of it is free once the crates ahead have moved.
  */
-export function blow(shape, cells, wind, stakes = []) {
+export function blow(shape, cells, wind, stakes = [], breeze = false) {
   const out = cells.map(c => (c === WATER ? WATER : EMPTY)), moved = [], fixed = new Set(stakes);
   for (const lane of lanes(geo(shape, cells), wind)) {
     let k = 0;
     lane.forEach((i, j) => {
       if (cells[i] < 0) return;
       if (fixed.has(i)) { out[i] = cells[i]; k = j + 1; return; }
-      out[lane[k]] = cells[i];
-      if (lane[k] !== i) moved.push([i, lane[k]]);
-      k++;
+      const to = breeze ? (j > 0 && j - 1 >= k && out[lane[j - 1]] === EMPTY ? j - 1 : j) : k;
+      out[lane[to]] = cells[i];
+      if (lane[to] !== i) moved.push([i, lane[to]]);
+      k = to + 1;
     });
   }
   return { cells: out, moved };
@@ -132,7 +144,33 @@ export function shove(shape, cells, wave, stakes = []) {
 }
 
 // ---------- the deal ----------
+// A deal written out: a crate is one character (its good, 0-3 plain, a-d moored, A-D sealed); a turn's weather is a string, its
+// wind's digit and then b (a breeze), g and a wind (a second gust), q and a count (a squall), r (a rock), f (fog), v, axis, row or
+// column and + or - (a rogue wave); the quay a character a square: ~ water, . empty, 0-3 a crate.
+const CRATES = "0123abcdABCD";
+export const crateCode = n => CRATES[n.k * GOODS + n.c];
+export const crateOf = ch => { const j = Math.max(0, CRATES.indexOf(ch)); return { c: j % GOODS, k: Math.floor(j / GOODS) }; };
+export function planCode(p) {
+  return `${p.w}${p.f ? "b" : ""}${p.w2 != null ? "g" + p.w2 : ""}${p.squall ? "q" + p.squall : ""}${p.rock ? "r" : ""}${p.fog ? "f" : ""}${p.wave ? `v${p.wave.axis}${p.wave.at}${p.wave.dir > 0 ? "+" : "-"}` : ""}`;
+}
+export function planOf(t) {
+  const p = { w: Number(t[0]) };
+  for (let j = 1; j < t.length; j++) {
+    const ch = t[j];
+    if (ch === "b") p.f = 1;
+    else if (ch === "g") p.w2 = Number(t[++j]);
+    else if (ch === "q") p.squall = Number(t[++j]);
+    else if (ch === "r") p.rock = true;
+    else if (ch === "f") p.fog = true;
+    else if (ch === "v") { p.wave = { axis: Number(t[j + 1]), at: Number(t[j + 2]), dir: t[j + 3] === "+" ? 1 : -1 }; j += 3; }
+  }
+  return p;
+}
+export const cellsCode = cells => cells.map(c => (c === WATER ? "~" : c === EMPTY ? "." : String(c))).join("");
+export const cellsOf = t => [...t].map(ch => (ch === "~" ? WATER : ch === "." ? EMPTY : Number(ch)));
+
 const crate = (s, r, m) => {
+  if (r.deal) return crateOf(r.deal.crates[m] ?? "0");
   const mix = r.mix.slice(0, r.goods), tot = mix.reduce((a, b) => a + b, 0);
   let x = next(s) * tot, c = mix.length - 1;
   for (let g = 0; g < mix.length; g++) if ((x -= mix[g]) < 0) { c = g; break; }
@@ -150,7 +188,9 @@ const sqCount = (r, t) => (r.squall.pace ? paceAt(t)[2] : r.squall.count || 1);
 const goes = (e, t, s) => e && t >= (e.from || 0) && next(s) < e.p;
 /** The plan of turn t (the rock and wave events only while there is room for them). */
 function planFor(s, r, t) {
+  if (r.deal) return planOf(r.deal.plan[t] ?? String(t % 4));
   const p = { w: windOf(s, r, lastWind(s)) };
+  if (r.airs && t >= (r.airs.from || 0) && next(s) < r.airs.p) p.f = 1;
   if (r.squall && t === s.sqAt) { p.squall = sqCount(r, t); s.sqAt = t + sqEvery(r, t + 1); return p; }
   const pendingRocks = s.plan.filter(q => q.rock).length;
   if (r.rock && s.rocks.length + pendingRocks < r.rock.max && goes(r.rock, t, s)) p.rock = true;
@@ -178,12 +218,23 @@ function omens(r, s) {
 /** A new game from a seed: `start` crates lying about, none in a line, the queue dealt. */
 export function newGame(r, seed) {
   const shape = SHAPES[r.shape];
-  const s = { v: 2, seed: seed >>> 0, n: 0, shape: shape.id, cells: shape.open.map(o => (o ? EMPTY : WATER)), stakes: [], rocks: [], next: [], plan: [], turns: 0, sqAt: r.squall ? sqEvery(r, 0) - 1 : -1, strays: [], reef: -1, score: 0, shipped: new Array(GOODS).fill(0), status: "play", why: "" };
-  for (let k = 0; k < r.start; k++) { const free = empties(s.cells), i = free[pick(s, free.length)]; s.cells[i] = quiet(s, s.cells, i, r.goods); }
+  const s = { v: 2, seed: seed >>> 0, n: 0, shape: shape.id, cells: shape.open.map(o => (o ? EMPTY : WATER)), stakes: [], rocks: [], next: [], plan: [], turns: 0, sqAt: r.squall ? sqEvery(r, 0) - 1 : -1, strays: [], reef: -1, score: 0, shipped: new Array(GOODS).fill(0), status: "play", why: "", dealt: QUEUE, held: null, stowed: false };
+  if (r.deal) s.cells = cellsOf(r.deal.cells);
+  else for (let k = 0; k < r.start; k++) { const free = empties(s.cells), i = free[pick(s, free.length)]; s.cells[i] = quiet(s, s.cells, i, r.goods); }
   for (let k = 0; k < QUEUE; k++) s.next.push(crate(s, r, k));
   for (let k = 0; k < QUEUE; k++) s.plan.push(planFor(s, r, k));
   omens(r, s);
   return s;
+}
+/**
+ * A level's deal written out from a seed, as an endless game would draw it (the quay, `crates` crates, `turns` turns of weather)
+ * but none of it hanging on the play: what drift-plan.mjs freezes. { cells, crates, plan }, in the codes above.
+ */
+export function dealOf(r, seed, turns, crates) {
+  const s = newGame({ ...r, deal: null }, seed);
+  for (let m = QUEUE; m < crates; m++) s.next.push(crate(s, r, m));
+  for (let t = QUEUE; t < turns; t++) s.plan.push(planFor(s, r, t));
+  return { cells: cellsCode(s.cells), crates: s.next.map(crateCode).join(""), plan: s.plan.map(planCode) };
 }
 /** A game saved before this one (v1: the square field of seven, tiles, three winds) made into this one. */
 export function upgrade(r, game) {
@@ -210,18 +261,18 @@ export const filled = s => s.cells.filter(c => c >= 0).length;
  * then the next wind of the turn, if there is one. runs[c] is the shortest line that counts for good c's order (3 unless
  * stated): ok counts the crates that qualify. { cells, stakes, gusts ([{ wind, moved, cleared }]), cleared, by, ok }.
  */
-export function gale(shape, cells, winds, stakes = [], runs = []) {
+export function gale(shape, cells, winds, stakes = [], runs = [], breeze = false) {
   let now = cells.slice(), cleared = 0, fixed = stakes.slice();
   const gusts = [], by = new Array(GOODS).fill(0), ok = new Array(GOODS).fill(0);
-  for (const wind of [].concat(winds)) for (;;) {
-    const b = blow(shape, now, wind, fixed), rl = lineRuns(shape, b.cells), found = [...rl.keys()].sort((a, c) => a - c);
+  [].concat(winds).forEach((wind, w) => { for (;;) {
+    const light = breeze && w === 0, b = blow(shape, now, wind, fixed, light), rl = lineRuns(shape, b.cells), found = [...rl.keys()].sort((a, c) => a - c);
     now = b.cells;
-    gusts.push({ wind, moved: b.moved, cleared: found });
+    gusts.push({ wind, moved: b.moved, cleared: found, breeze: light });
     if (!found.length) break;
     for (const j of found) { by[now[j]]++; if (rl.get(j) >= (runs[now[j]] || 3)) ok[now[j]]++; now[j] = EMPTY; }
     fixed = fixed.filter(j => now[j] >= 0);
     cleared += found.length;
-  }
+  } });
   return { cells: now, stakes: fixed, gusts, cleared, by, ok };
 }
 /** Ten times the square of the crates shipped in one turn, every gust of it together. */
@@ -248,7 +299,7 @@ export function lay(r, s0, i) {
   let wave = null;
   if (p.wave) { const w = shove(s.shape, s.cells, p.wave, s.stakes); s.cells = w.cells; wave = { ...p.wave, moved: w.moved }; }
   const start = s.cells.slice(), stakes0 = s.stakes.slice(), winds = [p.w, ...(p.w2 != null ? [p.w2] : [])];
-  const g = gale(s.shape, s.cells, winds, s.stakes, r.runs);
+  const g = gale(s.shape, s.cells, winds, s.stakes, r.runs, p.f === 1);
   s.cells = g.cells; s.stakes = g.stakes;
   const gusts = g.gusts, by = g.by.slice(), ok = g.ok.slice();
   let cleared = g.cleared, sealed = -1;
@@ -271,7 +322,9 @@ export function lay(r, s0, i) {
   for (let c = 0; c < GOODS; c++) s.shipped[c] += ok[c];
   const gain = cleared ? worth(cleared) : 0;
   s.score += gain; s.turns++;
-  s.next.shift(); s.next.push(crate(s, r, s.turns + QUEUE - 1));
+  s.next.shift(); s.next.push(crate(s, r, s.dealt ?? s.turns + QUEUE - 1));
+  s.dealt = (s.dealt ?? s.turns + QUEUE - 1) + 1;
+  s.stowed = false;
   s.plan.shift(); s.plan.push(planFor(s, r, s.turns + QUEUE - 1));
   omens(r, s);
   if (done(r, s)) s.status = "won";
@@ -279,9 +332,24 @@ export function lay(r, s0, i) {
   else if (!moves(s).length) { s.status = "lost"; s.why = "The quay is full."; }
   return { state: s, laid, squall, reef, wave, gusts, sealed, gain, by, ok, cleared, start, stakes0, winds };
 }
-/** Stars for a won level: 3 with a fifth of the turns to spare, 2 with a twelfth. */
+/**
+ * The warehouse (rules with hold): the crate to lay goes into it, and the one kept there (or, with none, the next in the queue)
+ * comes out to be laid instead. No turn passes and the weather stays; once between two crates laid. Pure; null if it can't.
+ */
+export function stow(r, s0) {
+  if (!r.hold || s0.status !== "play" || s0.stowed) return null;
+  const s = clone(s0), now = s.next[0];
+  if (s.held) s.next[0] = s.held;
+  else { s.next.shift(); s.next.push(crate(s, r, s.dealt)); s.dealt++; }
+  s.held = now;
+  s.stowed = true;
+  return s;
+}
+/** Stars for a won level: 3 within its par (the turns drift-solve.js's planner took), 2 within half the turns between par and the
+ *  limit; with no par, 3 with a fifth of the turns to spare, 2 with a twelfth. */
 export function stars(r, s) {
   if (s.status !== "won") return 0;
+  if (r.par) return s.turns <= r.par ? 3 : s.turns <= r.par + Math.ceil((r.turns - r.par) / 2) ? 2 : 1;
   const left = r.turns - s.turns;
   return left >= Math.ceil(r.turns * 0.2) ? 3 : left >= Math.ceil(r.turns * 0.08) ? 2 : 1;
 }

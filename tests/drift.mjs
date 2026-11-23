@@ -1,10 +1,13 @@
 // Drift's rules (drift-engine.js on the quays of drift-shapes.js, the levels of drift-levels.js): the shapes, the deal
 // from a seed, the wind on a quay of any shape (a slide stops at water and rocks, a line is broken by them), the turn,
 // every event (squall, rock, rogue wave, second gust, fog, moored and sealed crates), the orders, a game saved and opened
-// again, a game of the old square field made into the new, and the simple players clearing the early levels.
+// again, a game of the old square field made into the new, the warehouse and the breeze, a deal written out, and the campaign's
+// levels: each one's own deal, won in par by the planner's moves, and its chapter's twist in it and no later one.
 import { SHAPES, SHAPE_IDS } from "../drift-shapes.js";
-import { EMPTY, WATER, QUEUE, MOORED, SEALED, rules, newGame, upgrade, blow, shove, lineRuns, lines, gale, lay, moves, room, filled, worth, stars, foggy, validate, geo } from "../drift-engine.js";
-import { SECTIONS, LEVELS, levelRules, openRules, quayFor, QUAY_ODDS } from "../drift-levels.js";
+import { EMPTY, WATER, QUEUE, MOORED, SEALED, rules, newGame, upgrade, blow, shove, lineRuns, lines, gale, lay, moves, room, filled, worth, stars, foggy, validate, geo, stow, dealOf, planCode, planOf, crateCode, crateOf, cellsCode, cellsOf } from "../drift-engine.js";
+import { CHAPTERS, LEVELS, levelRules, openRules, quayFor, QUAY_ODDS } from "../drift-levels.js";
+import { problems } from "../campaign.js";
+import { step } from "../drift-solve.js";
 import { play } from "../drift-bots.js";
 import { readFileSync } from "node:fs";
 import { NAMES } from "../drift-engine.js";
@@ -39,7 +42,7 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
 
 // ---------- the deal ----------
 {
-  const rs = levelRules(LEVELS[1]), a = newGame(rs, 7), b = newGame(rs, 7), c = newGame(rs, 8);
+  const rs = rules({ shape: "hull", goods: 3, start: 6 }), a = newGame(rs, 7), b = newGame(rs, 7), c = newGame(rs, 8);
   check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.cells) !== JSON.stringify(c.cells), "the same seed deals the same quay, another seed another");
   check(a.cells.every((x, i) => SHAPES[a.shape].open[i] || x === WATER) && a.cells.filter(x => x >= 0).length === rs.start && lines(a.shape, a.cells).length === 0, "the crates lie on quay only, none in a line");
   check(a.next.length === QUEUE && a.plan.length === QUEUE && a.plan.every(p => p.w >= 0 && p.w < 4), `the next ${QUEUE} crates and winds are dealt`);
@@ -209,24 +212,66 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
   const three = T(long, h, 6, [3, 1, 1]);
   check(three.state.shipped[2] === 0 && three.by[2] === 3 && three.ok[2] === 0, "a line of three does not count for an order of lines of four: spent, and no use");
   check(stars({ turns: 30 }, { status: "won", turns: 20 }) === 3 && stars({ turns: 30 }, { status: "won", turns: 29 }) === 1 && stars({ turns: 30 }, { status: "lost", turns: 29 }) === 0, "stars for turns to spare");
+  const par = { turns: 30, par: 20 }, at = n => stars(par, { status: "won", turns: n });
+  check(at(18) === 3 && at(20) === 3 && at(21) === 2 && at(25) === 2 && at(26) === 1 && at(30) === 1, "with a par: three stars within it, two within half the turns between it and the limit, one for a win");
   const full = Array.from({ length: 7 }, (_, y) => [...Array(7).keys()].map(x => ((x + 2 * y) % 4)).join(""));
   full[0] = `.${full[0].slice(1)}`;
   const e = lay(rules({ shape: "t7", start: 0 }), game(rules({ shape: "t7", start: 0 }), "t7", full), 0);
   check(e.state.status === "lost" && /full/.test(e.state.why), "no room left after the wind: lost");
 }
 
-// ---------- the levels ----------
+// ---------- the warehouse and the breeze ----------
 {
-  const order = ["moor", "squall", "gust", "wave", "fog", "rock", "seal"];
-  const has = l => ({ moor: l.moor, squall: l.squall, gust: l.gust, wave: l.wave, fog: l.fog, rock: l.rock, seal: l.seal });
-  check(SECTIONS.length === 8 && LEVELS.length === 16 && new Set(LEVELS.map(l => l.id)).size === 16, "eight sections, sixteen levels, each id its own");
-  check(SECTIONS.every((sec, k) => sec.event === (k === 0 ? null : order[k - 1])), "one event is introduced to a section, in order: moorings, squalls, crosswinds, waves, fog, reefs, the harbour master");
-  const late = LEVELS.filter(l => order.some((ev, k) => has(l)[ev] && k + 2 > l.section));
-  check(!late.length, `no level has an event before its section introduces it${late.length ? ": " + late.map(l => l.id).join() : ""}`);
-  check(LEVELS.every(l => !validate(levelRules(l)).length) && new Set(LEVELS.map(l => l.shape)).size >= 5, `every level is valid, on at least five different quays (${[...new Set(LEVELS.map(l => l.shape))].join(", ")})`);
-  check(LEVELS.every(l => SECTIONS.find(s => s.id === l.section).levels.some(x => x.id === l.id)) && LEVELS.every(l => l.note && l.name), "each has a name and a note");
-  const evs = LEVELS.filter(l => l.section === 8).length;
-  check(evs === 2 && openRules("hull").shape === "hull" && openRules("nonsense").shape === "quay", "open sail plays the quay it is given");
+  const plain = rules({ shape: "t7", start: 0 }), held = rules({ shape: "t7", start: 0, hold: true });
+  const g = newGame(held, 5), first = g.next.map(n => n.c).join("");
+  check(stow(plain, g) === null && stow(held, g) !== null, "the warehouse is there only in rules that have it");
+  const a = stow(held, g);
+  check(a.held.c === g.next[0].c && a.next.map(n => n.c).join("").startsWith(first.slice(1)) && a.next.length === QUEUE && a.dealt === g.dealt + 1 && a.turns === 0 && a.stowed, "an empty warehouse takes the crate to lay, and the next in line comes up; no turn passes");
+  check(stow(held, a) === null && g.held === null, "once between two crates laid, and the game it came from is untouched");
+  const b = lay(held, a, moves(a)[0]).state;
+  check(!b.stowed && b.held.c === a.held.c, "laying a crate opens the warehouse again; what is in it stays");
+  const c = stow(held, b);
+  check(c.next[0].c === b.held.c && c.held.c === b.next[0].c && c.dealt === b.dealt && c.next.slice(1).map(n => n.c).join() === b.next.slice(1).map(n => n.c).join(), "a full warehouse swaps: its crate is the one to lay, and the crate to lay goes in");
+  const e = field("t7", [".0.1..2"]), f = field("t7", ["00....."]);
+  check(row("t7", blow("t7", e, 1, [], true).cells, 0) === "..0.1.2" && row("t7", blow("t7", f, 1, [], true).cells, 0) === ".00....", "a breeze moves every crate one square, if the square is free once the crates ahead have moved: a pair moves as one");
+  check(row("t7", blow("t7", field("t7", ["......2"]), 1, [], true).cells, 0) === "......2" && row("t7", blow("t7", field("t7", ["2.1...."]), 3, [2], true).cells, 0) === "2.1....", "and stops at the edge, or a moored crate");
+  const quay = () => Object.assign(game(base, "t7", ["11", "00", "..0"]), { next: [{ c: 1, k: 0 }, ...newGame(base, 1).next.slice(1)] });
+  const t = T(base, quay(), 48, [{ w: 0, f: 1 }]), gale = T(base, quay(), 48, [0]);
+  check(t.cleared === 3 && t.gusts[0].breeze && gale.cleared === 0 && row("t7", t.state.cells, 0) === "11.....", "a breeze can line up a shipment the wind would have run past");
+  const two = T(base, game(base, "t7", ["0......"]), 20, [{ w: 1, f: 1, w2: 2 }]);
+  check(two.gusts[0].breeze && !two.gusts.slice(1).some(x => x.breeze), "with a second gust, the breeze is the first wind only");
+}
+
+// ---------- a deal written out ----------
+{
+  const p = [{ w: 2 }, { w: 1, f: 1 }, { w: 0, w2: 3 }, { w: 3, squall: 2 }, { w: 1, rock: true }, { w: 2, fog: true }, { w: 0, wave: { axis: 1, at: 6, dir: -1 } }, { w: 3, f: 1, wave: { axis: 0, at: 2, dir: 1 } }];
+  check(p.every(x => JSON.stringify(planOf(planCode(x))) === JSON.stringify(x)), "a turn's weather written as a code and read back is the same weather");
+  check([0, 1, 2].every(k => [0, 1, 2, 3].every(c => JSON.stringify(crateOf(crateCode({ c, k }))) === JSON.stringify({ c, k }))), "and every crate, plain, moored or sealed");
+  const r = rules({ shape: "hull", goods: 3, moor: 6, seal: 8, squall: { every: 4, count: 1 }, airs: { p: .3 }, gust: { p: .2 }, wave: { p: .2 }, fog: { p: .1 }, rock: { p: .1, max: 2 }, hold: true, orders: [6, 6, 6, 0], turns: 30 });
+  const d = dealOf(r, 9, 40, 50), rd = { ...r, deal: d };
+  check(d.plan.length === 40 && d.crates.length === 50 && cellsOf(d.cells).join() === newGame(r, 9).cells.join() && cellsCode(cellsOf(d.cells)) === d.cells, "a deal is the quay as dealt, so many crates and so many turns of weather");
+  const runs = [0, 1].map(k => { let s = newGame(rd, 9); for (let n = 0; n < 12 && s.status === "play"; n++) s = lay(rd, s, moves(s)[(n * (3 + k * 4)) % moves(s).length]).state; return s; });
+  check(runs.every(s => s.plan.map(planCode).join() === d.plan.slice(s.turns, s.turns + QUEUE).join() && s.next.map(crateCode).join("") === d.crates.slice(s.turns, s.turns + QUEUE)), "played two ways, a dealt game brings the same crates and weather turn by turn: none of it hangs on the play");
+}
+
+// ---------- the campaign ----------
+{
+  check(!problems({ chapters: CHAPTERS, levels: LEVELS }).length && new Set(CHAPTERS.map(c => c.id)).size === CHAPTERS.length && CHAPTERS.every(c => c.name && c.rule), `the chapters and levels hold together (${problems({ chapters: CHAPTERS, levels: LEVELS }).join("; ") || "one road, each chapter its levels"})`);
+  check(CHAPTERS.length >= 12 && LEVELS.length >= 60 && LEVELS.every(L => L.name && L.tip && /^[a-z]+-\d+$/.test(L.id)), `${CHAPTERS.length} chapters, ${LEVELS.length} levels, each named, with a tip and an id that stays`);
+  check(LEVELS.every(L => !validate(levelRules(L)).length) && new Set(LEVELS.map(L => L.shape)).size >= 9, `every level is valid, on ${new Set(LEVELS.map(L => L.shape)).size} different quays`);
+  check(LEVELS.every(L => L.deal.plan.length >= L.turns + QUEUE && L.deal.crates.length >= L.turns + QUEUE + 1 && cellsOf(L.deal.cells).length === SHAPES[L.shape].w * SHAPES[L.shape].h && !lines(L.shape, cellsOf(L.deal.cells)).length), "each level's deal covers its turns, on its quay, with no line to begin with");
+  const won = LEVELS.map(L => { const r = levelRules(L); let s = newGame(r, L.seed); for (const m of L.moves.split(" ")) s = step(r, s, { stow: m[0] === "*", at: parseInt(m.replace("*", ""), 36) }); return s; });
+  const off = LEVELS.filter((L, k) => won[k].status !== "won" || won[k].turns !== L.par || !(L.par < L.turns));
+  check(!off.length, `every level is won in its par by the planner's moves, which see only the forecast, with turns to spare${off.length ? `: not ${off.map(L => L.id).join(", ")}` : ""}`);
+  const twist = { hold: L => L.hold, moor: L => /[a-d]/.test(L.deal.crates), long: L => (L.runs || []).some(Boolean), squall: L => L.deal.plan.some(t => t.includes("q")), airs: L => L.deal.plan.some(t => t.includes("b")),
+    gust: L => L.deal.plan.some(t => t.includes("g")), wave: L => L.deal.plan.some(t => t.includes("v")), fog: L => L.deal.plan.some(t => t.includes("f")), reef: L => L.deal.plan.some(t => t.includes("r")), seal: L => /[A-D]/.test(L.deal.crates) };
+  const early = LEVELS.filter(L => Object.entries(twist).some(([ch, has]) => has(L) && CHAPTERS.findIndex(c => c.id === ch) > L.chapter));
+  const without = LEVELS.filter(L => twist[CHAPTERS[L.chapter].id] && !twist[CHAPTERS[L.chapter].id]({ ...L, deal: { ...L.deal, plan: L.deal.plan.slice(0, L.par), crates: L.deal.crates.slice(0, L.par + QUEUE) } }));
+  check(!early.length && !without.length, `each chapter's twist comes in its levels before their par, and in no level before the chapter${early.length ? `; early in ${early.map(L => L.id)}` : ""}${without.length ? `; missing from ${without.map(L => L.id)}` : ""}`);
+  const caps = LEVELS.filter((L, k) => k === LEVELS.length - 1 || LEVELS[k + 1].chapter !== L.chapter);
+  const easy = caps.filter(L => ["greedy", "needy"].some(b => play(levelRules(L), L.seed, b).status === "won"));
+  check(caps.length === CHAPTERS.length && !easy.length, `no chapter's last level falls to laying for the most crates now, or for the wanted ones${easy.length ? `: ${easy.map(L => L.id)}` : ""}`);
+  check(openRules("hull").shape === "hull" && openRules("nonsense").shape === "quay", "open sail plays the quay it is given");
   const dealt = {}; for (let sd = 0; sd < 4000; sd++) { const q = quayFor(sd * 7919 + 13); dealt[q] = (dealt[q] || 0) + 1; }
   check(Object.keys(QUAY_ODDS).every(id => SHAPES[id]) && Object.keys(QUAY_ODDS).every(id => dealt[id] > 150) && Object.values(dealt).every(n => n <= dealt.hull) && quayFor(5) === quayFor(5), `each new game is dealt a quay at random from the seed, the hull most often (${JSON.stringify(dealt)})`);
 }
@@ -248,10 +293,6 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
 
 // ---------- whole games by simple players ----------
 {
-  const win = (l, bot, n) => { let w = 0; for (let sd = 1; sd <= n; sd++) if (play(levelRules(LEVELS.find(x => x.id === l)), sd, bot).status === "won") w++; return w / n; };
-  const p11 = win("1-1", "planner", 8), r11 = win("1-1", "random", 8), p12 = win("1-2", "planner", 8), r21 = win("2-1", "random", 8), p21 = win("2-1", "planner", 8);
-  check(p11 >= 0.5 && p12 >= 0.5 && p21 >= 0.5, `the planner clears the early levels (1-1 ${p11 * 100}%, 1-2 ${p12 * 100}%, 2-1 ${p21 * 100}%)`);
-  check(r11 <= p11 && r21 <= 0.3 && win("2-2", "random", 8) <= 0.3, `laying anywhere clears fewer (1-1 ${r11 * 100}%, 2-1 ${r21 * 100}%)`);
   const open = openRules("hull");
   let turns = [], anywhere = [];
   for (let sd = 1; sd <= 4; sd++) { const s = play(open, sd, "random", 400); anywhere.push(s.turns); }
@@ -266,7 +307,8 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
   check((page.match(/\blay\(/g) || []).length === 1 && !/\bshow\(/.test(page), "the page plays the turn once, on let go, and never shows its result beforehand (Korbi, 4 November 2026)");
   check(new Set(NAMES).size === 4 && ["salt", "herring", "furs", "amber"].every(n => NAMES.includes(n)), "the four goods are trade goods: salt, herring, furs, amber");
   check(!/SHAPE_IDS|pickShape/.test(page) && /quayFor\(seed\)/.test(page), "the quay is dealt at random, never chosen");
+  check(/newGame\(levelRules\(level\(\)\), level\(\)\.seed\)/.test(page), "a level is dealt from its own seed, so a replay is the same puzzle");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("drift: the shapes, the deal, the wind, lines, a turn, every event, the orders, the levels, saving, whole games");
+else console.log("drift: the shapes, the deal, the wind, lines, a turn, every event, the orders, the warehouse, the breeze, written deals, the campaign, saving, whole games");

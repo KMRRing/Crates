@@ -162,7 +162,7 @@ export function create3D(box_, opts = {}) {
   // ----- state of the drawing -----
   const recs = new Map();           // square -> a resting crate { c, k, x, z, ... }
   let rockRecs = [], ghostRecs = [], markRecs = [], arrowRecs = [], wind = 0;
-  const weather = { squall: 0, fog: 0, wave: 0, gust: 0, surge: 0, tSquall: 0, tFog: 0, tWave: 0, tGust: 0 };
+  const weather = { squall: 0, fog: 0, wave: 0, gust: 0, calm: 0, surge: 0, tSquall: 0, tFog: 0, tWave: 0, tGust: 0, tCalm: 0 };   // calm: a breeze
   let sea = null, seaBase = null, seaSize = 0, crane = null, lighter = null, flags = [], lamps = null;
   const cell = i => [(i % W) - W / 2 + 0.5, Math.floor(i / W) - H / 2 + 0.5];
   const newRec = (c, k, i) => { const [x, z] = cell(i); return { c, k, i, x, z, dy: 0, sx: 1, sy: 1, sz: 1, rx: 0, ry: 0, rz: 0, order: "XYZ", yAbs: null, hide: false }; };
@@ -373,7 +373,7 @@ export function create3D(box_, opts = {}) {
     const dir = Math.atan2(-wz, wx);
     for (const { f, segs } of flags) {
       f.rotation.y = dir;
-      segs.forEach((s, k) => { s.rotation.y = Math.sin(t * (5 + weather.gust * 3 + weather.squall * 4) - k * 0.9) * (0.18 + weather.gust * 0.12 + weather.squall * 0.1); s.rotation.z = Math.sin(t * 4 - k) * 0.05; });
+      segs.forEach((s, k) => { s.rotation.y = Math.sin(t * (5 + weather.gust * 3 + weather.squall * 4 - weather.calm * 3) - k * 0.9) * (0.18 + weather.gust * 0.12 + weather.squall * 0.1) * (1 - weather.calm * 0.55); s.rotation.z = Math.sin(t * 4 - k) * 0.05; });
     }
     lighter.boat.position.y = Math.sin(t * 1.1) * 0.03 - 0.1 - lighter.cargo * 0.01;
     lighter.boat.rotation.z = Math.sin(t * 0.9) * 0.025 + weather.surge * 0.1;
@@ -421,7 +421,7 @@ export function create3D(box_, opts = {}) {
     if (sh && sh !== shape) { shape = sh; W = sh.w; H = sh.h; edges = []; buildStatics(); lights(); }
     wind = extra.wind ?? wind;
     const sky = extra.sky || {};
-    weather.tSquall = sky.squall ? 1 : 0; weather.tFog = sky.fog ? 1 : 0; weather.tWave = sky.wave ? 1 : 0; weather.tGust = sky.gust ? 1 : 0;
+    weather.tSquall = sky.squall ? 1 : 0; weather.tFog = sky.fog ? 1 : 0; weather.tWave = sky.wave ? 1 : 0; weather.tGust = sky.gust ? 1 : 0; weather.tCalm = sky.breeze ? 1 : 0;
     const stakes = new Set(extra.stakes || []);
     recs.clear();
     cells.forEach((c, i) => { if (c >= 0) recs.set(i, newRec(c, stakes.has(i) ? MOORED : extra.sealAt === i ? SEALED : 0, i)); });
@@ -484,7 +484,7 @@ export function create3D(box_, opts = {}) {
       paint();
     }
     weather.squall += (weather.tSquall - weather.squall) * 0.06; weather.fog += (weather.tFog - weather.fog) * 0.06;
-    weather.wave += (weather.tWave - weather.wave) * 0.06; weather.gust += (weather.tGust - weather.gust) * 0.06;
+    weather.wave += (weather.tWave - weather.wave) * 0.06; weather.gust += (weather.tGust - weather.gust) * 0.06; weather.calm += (weather.tCalm - weather.calm) * 0.06;
     const ambient = ambientOn();
     if (moving || (ambient && now - lastAmbient > 62)) { lastAmbient = now; if (sea) { seaTick(t); lights(); } renderer.render(scene, cam); }
     else if (!ambient && !moving && dirty) renderer.render(scene, cam);

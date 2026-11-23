@@ -7,6 +7,11 @@ const quays = {
   basin: ["Harbour basin", ["###.###", "###.###", "#######", "#######", "#######", ".#####.", "..###.."]],
   eight: ["Figure of eight", ["..###..", ".#####.", ".##.##.", ".#####.", "..###..", ".#####.", ".##.##.", ".#####.", "..###.."]],
   lagoon: ["Lagoon", [".#####.", "#######", "##...##", "##...##", "##...##", "#######", ".#####."]],
+  // the campaign's (23 Nov 2026): a small dock to learn a twist on, a cog's round deck, a jetty's T and a Kontor's stepped quayside
+  dock: ["Small dock", ["#####", "#####", "#####", "#####", "#####"]],
+  cog: ["Cog's deck", ["..###..", ".#####.", "#######", "#######", "#######", ".#####.", "..###.."]],
+  jetty: ["Jetty", ["#########", "#########", "...###...", "...###...", "...###..."]],
+  kontor: ["Kontor quay", ["###....", "#####..", "#######", "#######", "#######", "..#####", "....###"]],
 };
 export const SHAPES = Object.fromEntries(Object.entries(quays).map(([id, [name, rows]]) => [id, {
   id, name, rows, w: rows[0].length, h: rows.length,
