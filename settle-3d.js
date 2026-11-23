@@ -1,53 +1,143 @@
-// Settle's foundry in 3D (rebuilt 23 November 2026, Korbi: "the 3D view needs to be rebuilt and beautiful and topical"), drawn with
-// three.js (vendor/three.js, kept on the device, so it works offline). A brick furnace room lit by its hearth: a bed of coals glowing
-// under a row of fired-clay crucibles, each cut away at the front as the old smelting books drew them, so the molten metal shows in
-// layers by weight, each glowing in its own colour with its alchemical sign; embers drift up past the soot-black wall. A pour lifts
-// the crucible over the one it pours into and tips it; a bright stream falls; what is heavier sinks through what is lighter. A cast
-// flares white-gold, throws sparks and drains away. The same scene as the 2D view (settle-draw.js), handed over each frame by the page.
-// Throws where there is no WebGL (the page then keeps the 2D foundry).
-// Frame cost: a few dozen meshes, two lights, one instanced mesh for sparks and embers, pixel ratio at most 2; nothing is made per frame.
+// Settle's foundry in 3D, drawn with three.js (vendor/three.js, kept on the device, so it works offline). Rebuilt twice on 23 November
+// 2026 (Korbi: "the 3D view needs to be rebuilt and beautiful and topical", then "3d settle: not pretty enough"): a furnace mouth in
+// a brick wall, its fire moving behind a stone hearth, and on the hearth a row of graphite crucibles turned on a lathe, glowing red
+// at the foot where the coals touch them, each cut away at the front as the old smelting books drew them (the cut hatched, as an
+// engraver's section is) so the molten metal shows in layers by weight, each in its own colour with its sign, its surface bright.
+// The fire lights the crucibles' edges from behind; embers drift up. A pour lifts the crucible over the one it pours into and tips it;
+// a bright stream falls; what is heavier sinks through what is lighter. A cast flares white-gold, throws sparks and drains away. The
+// same scene as the 2D view (settle-draw.js), handed over each frame by the page. Throws where there is no WebGL (the page then keeps
+// the 2D foundry).
+// Frame cost: a few dozen meshes, three lights and one shadow map, one instanced mesh for sparks and embers, pixel ratio at most 2;
+// nothing is made per frame but the fire's scroll.
 import * as THREE from "./vendor/three.js";
 import { CanvasTexture } from "./vendor/three-tex.js";
 import { METALS } from "./settle-alloys.js";
 
-const DOUBLE = 2, ADD = 2;                                    // THREE.DoubleSide and AdditiveBlending (not in the bundle's exports)
-const R = 0.5, SLAB = 0.52, BASE = 0.2, GAP = 0.3;            // a crucible's inner radius, a measure's height, its foot, the room between
+const DOUBLE = 2, ADD = 2, REPEAT = 1000;                     // THREE.DoubleSide, AdditiveBlending, RepeatWrapping (not in the bundle's exports)
+const R = 0.5, SLAB = 0.52, BASE = 0.2, GAP = 0.34;           // a crucible's inner radius, a measure's height, its foot, the room between
 const CUT = Math.PI * 0.62;                                   // how much of the front is cut away
+const WALL = 0.16;                                            // the crucible's wall at its belly
 
-function drawn(w, h, draw) {
+function drawn(w, h, draw, srgb = true) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   draw(c.getContext("2d"), w, h);
   const t = new CanvasTexture(c);
-  t.colorSpace = "srgb";
+  if (srgb) t.colorSpace = "srgb";
   return t;
 }
-/** Firebrick, sooty above, warmer where the hearth lights it. */
+const rnd = (() => { let z = 7; return () => ((z = (Math.imul(z, 1103515245) + 12345) & 0x7fffffff) / 0x7fffffff); })();
+/** Old firebrick, dark with soot, the mortar deep. */
 const bricks = () => drawn(512, 256, (c, w, h) => {
-  c.fillStyle = "#1c120d"; c.fillRect(0, 0, w, h);
+  c.fillStyle = "#120b08"; c.fillRect(0, 0, w, h);
   const bw = 64, bh = 28;
   for (let y = 0, row = 0; y < h; y += bh, row++) for (let x = -(row % 2) * bw / 2; x < w; x += bw) {
-    const k = ((x * 13 + y * 7) % 23) / 23, r = 96 + 46 * k, g = 44 + 20 * k, b = 30 + 10 * k;
-    c.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`; c.fillRect(x + 3, y + 3, bw - 6, bh - 6);
-    c.fillStyle = "rgba(255,190,120,.07)"; c.fillRect(x + 3, y + 3, bw - 6, 4);
+    const k = rnd(), r = 62 + 34 * k, g = 34 + 16 * k, b = 26 + 9 * k;
+    c.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`; c.fillRect(x + 2.5, y + 2.5, bw - 5, bh - 5);
+    for (let s = 0; s < 14; s++) { c.fillStyle = `rgba(0,0,0,${0.08 + rnd() * 0.12})`; c.fillRect(x + 3 + rnd() * (bw - 10), y + 3 + rnd() * (bh - 8), 2 + rnd() * 6, 1 + rnd() * 3); }
+    c.fillStyle = "rgba(255,180,110,.06)"; c.fillRect(x + 3, y + 3, bw - 6, 3);
+  }
+});
+/** Dressed stone for the hearth and the arch: big grey-brown blocks, worn. */
+const stone = () => drawn(256, 256, (c, w, h) => {
+  c.fillStyle = "#2a221d"; c.fillRect(0, 0, w, h);
+  for (let y = 0, row = 0; y < h; y += 64, row++) for (let x = -(row % 2) * 64; x < w; x += 128) {
+    const k = rnd(); c.fillStyle = `rgb(${86 + 24 * k | 0},${72 + 18 * k | 0},${60 + 14 * k | 0})`; c.fillRect(x + 2, y + 2, 124, 60);
+    for (let s = 0; s < 60; s++) { c.fillStyle = `rgba(${rnd() < 0.5 ? "0,0,0" : "255,230,200"},${0.03 + rnd() * 0.06})`; c.fillRect(x + 2 + rnd() * 120, y + 2 + rnd() * 56, 1 + rnd() * 5, 1 + rnd() * 3); }
+  }
+});
+/** Graphite clay: dark, mottled, the grain of a crucible fired many times. */
+const graphite = () => drawn(256, 256, (c, w, h) => {
+  c.fillStyle = "#4a403a"; c.fillRect(0, 0, w, h);
+  for (let s = 0; s < 2600; s++) { const k = rnd(); c.fillStyle = `rgba(${k < 0.5 ? "20,16,14" : "150,130,115"},${0.05 + rnd() * 0.12})`; c.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 3, 1 + rnd() * 2); }
+});
+/** The heat a crucible takes from the coals: bright at its foot, gone by half its height (v runs foot to rim). */
+const heat = () => drawn(4, 256, (c, w, h) => {
+  const g = c.createLinearGradient(0, h, 0, 0);
+  g.addColorStop(0, "#ffb35a"); g.addColorStop(0.1, "#e8501a"); g.addColorStop(0.32, "#5a1404"); g.addColorStop(0.55, "#000"); g.addColorStop(1, "#000");
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+});
+/** An engraver's section: the cut clay pale and hatched across. */
+const hatch = () => drawn(64, 64, (c, w, h) => {
+  c.fillStyle = "#cdb48c"; c.fillRect(0, 0, w, h);
+  c.strokeStyle = "rgba(92,58,32,.75)"; c.lineWidth = 3;
+  for (let k = -h; k < w + h; k += 12) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k - h, h); c.stroke(); }
+});
+/** The fire behind the furnace mouth: white-yellow at the grate, through orange to a dark red throat. */
+const fireBack = () => drawn(64, 256, (c, w, h) => {
+  const g = c.createLinearGradient(0, h, 0, 0);
+  g.addColorStop(0, "#f0a040"); g.addColorStop(0.2, "#c8460e"); g.addColorStop(0.5, "#6e1a06"); g.addColorStop(0.8, "#2a0803"); g.addColorStop(1, "#120402");
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+});
+/** Tongues of flame, tiled up and down so they can climb without a seam. */
+const flames = () => drawn(256, 256, (c, w, h) => {
+  c.fillStyle = "#000"; c.fillRect(0, 0, w, h);
+  c.globalCompositeOperation = "lighter";
+  for (let k = 0; k < 90; k++) {
+    const x = rnd() * w, y = rnd() * h, rx = 6 + rnd() * 14, ry = 22 + rnd() * 46, a = 0.12 + rnd() * 0.22;
+    for (const dy of [-h, 0, h]) for (const dx of [-w, 0, w]) {
+      const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, ry);
+      g.addColorStop(0, `rgba(255,170,70,${a})`); g.addColorStop(0.5, `rgba(230,80,20,${a * 0.5})`); g.addColorStop(1, "rgba(0,0,0,0)");
+      c.save(); c.translate(x + dx, y + dy); c.scale(rx / ry, 1); c.translate(-x - dx, -y - dy);
+      c.fillStyle = g; c.beginPath(); c.arc(x + dx, y + dy, ry, 0, Math.PI * 2); c.fill(); c.restore();
+    }
   }
 });
 const glowTex = () => drawn(128, 128, (c, w) => { const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,.45)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, w, w); });
 /** A metal's sign, stamped on a clear ground, for the cut face of each layer. */
 const signTex = m => drawn(128, 128, (c, w) => {
   c.translate(w / 2 - 36, w / 2 - 36); c.scale(3, 3);
-  c.strokeStyle = METALS[m].shine > 0.6 ? "rgba(30,20,14,.7)" : "rgba(255,236,210,.75)"; c.lineWidth = 2.2; c.lineCap = "round"; c.lineJoin = "round";
+  c.strokeStyle = METALS[m].shine > 0.6 ? "rgba(30,20,14,.72)" : "rgba(255,240,220,.8)"; c.lineWidth = 2.2; c.lineCap = "round"; c.lineJoin = "round";
   c.stroke(new Path2D(METALS[m].glyph));
 });
 // how much each metal glows as it stands molten
-const HEAT = { Pb: 0.32, Cu: 0.45, Sn: 0.28 };
+const HEAT = { Pb: 0.22, Cu: 0.32, Sn: 0.16 };
+
+/**
+ * A surface of revolution: `profile` [[r, y], …] turned about the upright axis from angle a0 through `span` (as three.js's cylinder:
+ * angle 0 faces the camera), u round it and v up it (y over `top`). The bundle has no lathe, so it is built here as three.js builds one.
+ */
+function lathe(profile, a0, span, top, seg = 48) {
+  const pos = [], uv = [], idx = [], n = profile.length;
+  for (let j = 0; j <= seg; j++) {
+    const a = a0 + span * j / seg, s = Math.sin(a), c = Math.cos(a);
+    for (const [r, y] of profile) { pos.push(r * s, y, r * c); uv.push(j / seg, y / top); }
+  }
+  for (let j = 0; j < seg; j++) for (let i = 0; i < n - 1; i++) {
+    const a = j * n + i, b = a + n, c = b + 1, d = a + 1;
+    idx.push(a, b, d, c, d, b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+/** A crucible's profile, foot to lip and down the inside: a swelling belly, a neck, a rolled lip; the inside straight, as the metal is.
+ *  The outside runs to `OUT` points; the rest is the sooted inside. */
+const profileOf = tall => [
+  [0, 0], [R + 0.02, 0], [R + 0.09, 0.05], [R + WALL, tall * 0.3], [R + WALL, tall * 0.62], [R + 0.11, tall - 0.15],
+  [R + 0.11, tall - 0.07], [R + 0.17, tall - 0.02], [R + 0.15, tall + 0.035], [R + 0.03, tall + 0.035], [R + 0.004, tall - 0.04],
+  [R + 0.004, BASE + 0.03], [R - 0.07, BASE], [0, BASE],
+];
+const OUT = 10;
+/** An arch: a rectangle `w` wide with a round head, its springing at `spring`; as a path, for a shape or a hole. */
+function arch(path, w, spring, cw = true) {
+  path.moveTo(-w / 2, 0); path.lineTo(-w / 2, spring);
+  path.absarc(0, spring, w / 2, Math.PI, 0, cw);
+  path.lineTo(w / 2, 0); path.lineTo(-w / 2, 0);
+  return path;
+}
 
 export function createFoundry(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
-  renderer.setClearColor(0x0d0806, 1);
+  renderer.toneMappingExposure = 1.15;
+  renderer.setClearColor(0x0a0605, 1);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const canvas = renderer.domElement;
   canvas.className = "st-canvas";
   canvas.setAttribute("role", "img");
@@ -58,14 +148,22 @@ export function createFoundry(host) {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
   camera.isOrthographicCamera = false; camera.isPerspectiveCamera = true; camera.updateProjectionMatrix = () => {};
   const FOV = 34 * Math.PI / 180;
-  const key = new THREE.DirectionalLight(0xffe2c0, 1.1), fire = new THREE.DirectionalLight(0xff7a2c, 2.2), sky = new THREE.HemisphereLight(0xffc896, 0x1a0c06, 0.45);
-  key.position.set(-3, 6, 5); fire.position.set(0.5, -2, 4);
-  scene.add(key, fire, sky);
+  // the room's light: a lamp high to the left that casts the shadows, the fire behind (it rims every edge), the coals' bounce below
+  const key = new THREE.DirectionalLight(0xfff4e6, 1.5), back = new THREE.DirectionalLight(0xff8a38, 1.8), coal = new THREE.DirectionalLight(0xff6a24, 0.7);
+  const sky = new THREE.HemisphereLight(0xffd8b0, 0x200c06, 0.35);
+  key.position.set(-4, 7, 6); back.position.set(0.6, 2.2, -5); coal.position.set(0, -3, 3);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -3, near: 1, far: 30 });
+  key.shadow.bias = -0.0008;
+  key.shadow.camera.updateProjectionMatrix();
+  scene.add(key, back, coal, sky);
 
-  // reflections of a furnace room: dark soot above, the hearth's orange glow below and in front
+  // reflections of a furnace room: dark soot above, the fire's glow behind and low
   const ENV = `vec3 stEnv(vec3 R, float soft) {
-      vec3 col = mix(vec3(0.05, 0.025, 0.015), vec3(0.22, 0.14, 0.1), smoothstep(-0.5, 0.9, R.y));
-      col += vec3(1.8, 0.75, 0.26) * smoothstep(0.3 + soft, 0.95, dot(R, normalize(vec3(0.0, -0.45, 0.89))));
+      vec3 col = mix(vec3(0.04, 0.02, 0.012), vec3(0.2, 0.13, 0.09), smoothstep(-0.5, 0.9, R.y));
+      col += vec3(2.2, 0.9, 0.3) * smoothstep(0.35 + soft, 0.95, dot(R, normalize(vec3(0.0, 0.15, -1.0))));
+      col += vec3(0.9, 0.35, 0.1) * smoothstep(0.3 + soft, 0.95, dot(R, normalize(vec3(0.0, -0.8, 0.6))));
       return col;
     }`;
   function envify(mat, k = 1) {
@@ -84,29 +182,34 @@ export function createFoundry(host) {
   }
   const std = o => new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0, ...o });
   const glow = glowTex();
-  const brickTex = bricks();
-  brickTex.wrapS = brickTex.wrapT = 1000;
+  const wrap = (t, x, y) => { t.wrapS = t.wrapT = REPEAT; t.repeat.set(x, y); return t; };
+  const brickTex = wrap(bricks(), 60 / 2.6, 40 / 1.3), stoneTex = wrap(stone(), 1, 1), clayTex = wrap(graphite(), 3, 2), heatTex = heat(), hatchTex = wrap(hatch(), 7, 7);
+  const fireTex = fireBack(), flameTex = wrap(flames(), 1, 1);
   const M = {
-    brick: std({ map: brickTex, roughness: 0.95, color: 0x8a6a5a }),
-    hearth: std({ color: 0x2a1910, roughness: 0.95 }),
-    clay: envify(std({ color: 0x8a5634, roughness: 0.8, metalness: 0.05 }), 0.35),
-    clayIn: std({ color: 0x140b07, roughness: 0.95, side: DOUBLE, emissive: 0xff4a10, emissiveIntensity: 0.05 }),
-    cutFace: std({ color: 0x6a3d24, roughness: 0.9, side: DOUBLE }),
-    rim: envify(std({ color: 0xb57a4c, roughness: 0.55, metalness: 0.1 }), 0.5),
+    brick: std({ map: brickTex, roughness: 0.95 }),
+    stone: std({ map: stoneTex, roughness: 0.9, color: 0xb8a898 }),
+    archStone: std({ map: wrap(stone(), 1, 1), roughness: 0.85, color: 0xd8c4b0 }),
+    clay: envify(std({ map: clayTex, color: 0x5e5650, roughness: 0.7, metalness: 0.15, emissiveMap: heatTex, emissive: 0xffffff, emissiveIntensity: 1.1, side: DOUBLE }), 0.45),
+    soot: std({ color: 0x1a1210, roughness: 0.95, side: DOUBLE, emissive: 0x5a1a06, emissiveIntensity: 0.25 }),
+    cut: std({ map: hatchTex, roughness: 0.9, side: DOUBLE, emissive: 0x3a1a08, emissiveIntensity: 0.4 }),
+    fire: new THREE.MeshBasicMaterial({ map: fireTex }),
+    flame: new THREE.MeshBasicMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: ADD, opacity: 0.9 }),
     coals: new THREE.MeshBasicMaterial({ map: glow, color: 0xff5a14, transparent: true, depthWrite: false, blending: ADD, opacity: 0.85 }),
-    ring: new THREE.MeshBasicMaterial({ map: glow, color: 0xffcf7a, transparent: true, depthWrite: false, blending: ADD, opacity: 0 }),
+    ring: new THREE.MeshBasicMaterial({ map: glow, color: 0xffd98a, transparent: true, depthWrite: false, blending: ADD, opacity: 0 }),
     spark: new THREE.MeshBasicMaterial({ map: glow, color: 0xffc070, transparent: true, depthWrite: false, blending: ADD }),
   };
-  const signs = Object.fromEntries(["Pb", "Cu", "Sn"].map(m => [m, new THREE.MeshBasicMaterial({ map: signTex(m), transparent: true, depthWrite: false })]));
-  /** A layer's own material (its opacity and heat change while it is cast), dressed as metal m. */
-  const layerMat = () => envify(std({}), 0.7);
-  // each metal keeps its own colour (lead blue-grey, copper red, tin silver) with a little heat of its own; a cast runs white-gold
-  const dress = (mat, m, hot = 0, a = 1) => {
-    const k = METALS[m];
-    mat.color.set(k.base).lerp(new THREE.Color(0xfff2c8), hot * 0.8);
-    mat.metalness = 0.55; mat.roughness = 0.38 - 0.18 * k.shine;
-    mat.emissive.set(k.base).lerp(new THREE.Color(0xff7a30), 0.25).lerp(new THREE.Color(0xffe0a0), hot);
-    mat.emissiveIntensity = (HEAT[m] ?? 0.2) + hot * 2.2;
+  const signs = Object.fromEntries(Object.keys(METALS).filter(m => METALS[m].glyph).map(m => [m, new THREE.MeshBasicMaterial({ map: signTex(m), transparent: true, depthWrite: false })]));
+  /** A layer's own materials, its side and its top (the molten surface); their opacity and heat change while it is cast. */
+  const layerMats = () => [envify(std({}), 0.5), envify(std({}), 0.55), envify(std({}), 0.5)];
+  // each metal keeps its own colour (lead blue-grey, copper red, tin silver) with a little heat of its own; the surface brighter; a cast
+  // runs white-gold
+  const white = new THREE.Color(0xfff2c8), ember = new THREE.Color(0xff8040), gold = new THREE.Color(0xffe0a0);
+  const dress = (mat, m, hot = 0, a = 1, top = false) => {
+    const k = METALS[m] || METALS.X;
+    mat.color.set(k.base).lerp(white, hot * 0.8);
+    mat.metalness = 0.75; mat.roughness = (top ? 0.18 : 0.34) - 0.1 * k.shine;
+    mat.emissive.set(top ? k.hi : k.base).lerp(ember, top ? 0 : 0.12).lerp(gold, hot);
+    mat.emissiveIntensity = (HEAT[m] ?? 0.18) * (top ? 1.2 : 1) + hot * 2.2;
     mat.opacity = a; mat.transparent = a < 0.99; mat.depthWrite = a > 0.98;
   };
 
@@ -114,70 +217,89 @@ export function createFoundry(host) {
   scene.add(world);
   const room = new THREE.Group();
   world.add(room);
-  // the wall and the hearth, well past the view whatever its shape
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(60, 40, 0.2), M.brick);
-  wall.position.set(0, 18, -1.6);
-  brickTex.repeat.set(60 / 2.6, 40 / 1.3);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(60, 0.3, 30), M.hearth);
-  floor.position.set(0, -0.15, 13);
-  room.add(wall, floor);
   const quad = new THREE.BoxGeometry(1, 1, 0.001);          // (the bundle has no PlaneGeometry: a thin box serves)
+  // the wall, well past the view whatever its shape, with soot darkening it upward away from the fire
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(60, 40, 0.2), M.brick);
+  wall.position.set(0, 18, -2.2);
+  const soot = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, map: drawn(4, 256, (c, w, h) => { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(6,3,2,.96)"); g.addColorStop(0.6, "rgba(6,3,2,.6)"); g.addColorStop(1, "rgba(6,3,2,0)"); c.fillStyle = g; c.fillRect(0, 0, w, h); }) }));
+  soot.position.z = -2.08;
+  // the hearth: a stone slab the crucibles stand on, its front edge catching the coals; the floor beyond it in shadow
+  const hearth = new THREE.Mesh(new THREE.BoxGeometry(1, 0.4, 2.6), M.stone);
+  hearth.receiveShadow = true;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(60, 0.3, 30), std({ color: 0x120b08, roughness: 1 }));
+  floor.position.set(0, -0.55, 14);
+  room.add(wall, soot, hearth, floor);
+  // the furnace: an arched mouth in the wall, a ring of stone round it, the fire inside with flames climbing it
+  const furnace = new THREE.Group();
+  room.add(furnace);
   const coals = [];
   for (let k = 0; k < 9; k++) {
     const c = new THREE.Mesh(quad, M.coals.clone());
-    c.rotation.x = -Math.PI / 2; c.position.set(0, 0.02, 0.4); coals.push(c); room.add(c);
+    c.rotation.x = -Math.PI / 2; coals.push(c); room.add(c);
   }
-  const wallGlow = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glow, color: 0xff7a2a, transparent: true, depthWrite: false, blending: ADD, opacity: 0.35 }));
-  // soot: the wall darkens upward, away from the fire, so the eye stays on the crucibles
-  const soot = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, map: drawn(4, 256, (c, w, h) => { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(8,4,3,.97)"); g.addColorStop(0.55, "rgba(8,4,3,.7)"); g.addColorStop(1, "rgba(8,4,3,0)"); c.fillStyle = g; c.fillRect(0, 0, w, h); }) }));
-  soot.scale.set(60, 8, 1); soot.position.set(0, 5.2, -1.45);
-  room.add(wallGlow, soot);
+  const wallGlow = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glow, color: 0xff7a2a, transparent: true, depthWrite: false, blending: ADD, opacity: 0.3 }));
+  room.add(wallGlow);
+  let archW = 0;
+  function buildFurnace(w, h) {
+    if (Math.abs(w - archW) < 0.05 && furnace.children.length) return;
+    archW = w;
+    for (const m of furnace.children) m.geometry.dispose();
+    furnace.clear();
+    const spring = Math.max(0.6, h - w / 2), shape = arch(new THREE.Shape(), w, spring);
+    const back = new THREE.Mesh(new THREE.ShapeGeometry(shape, 24), M.fire);
+    back.position.z = -2.0;
+    const front = new THREE.Mesh(new THREE.ShapeGeometry(shape, 24), M.flame);
+    front.position.z = -1.98;
+    // the stone ring: the arch a block wider all round, less the opening
+    const T = 0.36, ring = arch(new THREE.Shape(), w + 2 * T, spring);
+    ring.holes.push(arch(new THREE.Path(), w, spring, true));
+    const stoneRing = new THREE.Mesh(new THREE.ExtrudeGeometry(ring, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 28 }), M.archStone);
+    stoneRing.position.z = -2.1;
+    stoneRing.receiveShadow = true;
+    // a keystone at the crown
+    const keyStone = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.38), M.archStone);
+    keyStone.position.set(0, spring + w / 2 + T / 2, -1.92);
+    furnace.add(back, front, stoneRing, keyStone);
+    // the fire's textures in the shape's own units: its foot to its crown
+    for (const t of [fireTex]) { t.repeat.set(1 / w, 1 / (spring + w / 2)); t.offset.set(0.5, 0); }
+    flameTex.repeat.set(1.6 / w, 1.2 / (spring + w / 2));
+    M.archStone.map.repeat.set(0.9, 0.9);
+  }
 
   // sparks and embers: one instanced mesh of glowing quads facing the camera
-  const N_FX = 90;
+  const N_FX = 110;
   const fx = new THREE.InstancedMesh(quad, M.spark, N_FX);
   fx.frustumCulled = false;
   scene.add(fx);
-  const embers = Array.from({ length: 30 }, (_, i) => ({ x: Math.random() * 2 - 1, z: Math.random() * 0.8 - 0.6, s: 0.6 + Math.random() * 0.8, p: i * 1.7 }));
+  const embers = Array.from({ length: 44 }, (_, i) => ({ x: Math.random() * 2 - 1, z: Math.random() * 1.2 - 1.6, s: 0.6 + Math.random() * 0.8, p: i * 1.7 }));
   let sparks = [];
 
   let caps = [], pots = [], xs = [], tallOf = [], span = 1;
-  const slabGeo = new THREE.CylinderGeometry(R - 0.015, R - 0.015, 1, 40);
+  const slabGeo = new THREE.CylinderGeometry(R - 0.01, R - 0.01, 1, 48);
   const signGeo = new THREE.BoxGeometry(SLAB * 0.72, SLAB * 0.72, 0.001);
   function layout(c) {
     caps = c.slice();
-    for (const p of pots) world.remove(p.g);
+    for (const p of pots) { world.remove(p.g); p.g.traverse(o => { if (o.geometry && o.geometry !== slabGeo && o.geometry !== signGeo && o.geometry !== quad) o.geometry.dispose(); }); }
     pots = [];
-    const n = caps.length;
-    xs = caps.map((_, i) => (i - (n - 1) / 2) * (2 * R + 0.24 + GAP));
-    span = n * (2 * R + 0.24) + (n - 1) * GAP;
+    const n = caps.length, step = 2 * (R + WALL) + GAP;
+    xs = caps.map((_, i) => (i - (n - 1) / 2) * step);
+    span = n * 2 * (R + WALL) + (n - 1) * GAP;
     tallOf = caps.map(k => BASE + k * SLAB + 0.08);
     caps.forEach((k, i) => {
-      const g = new THREE.Group(), tall = tallOf[i];
-      // the crucible: a tapered shell of fired clay cut away in front (three.js puts theta 0 towards the camera), its dark inside,
-      // the clay's cut edges, a foot and a rolled rim
-      const th0 = CUT / 2, thL = Math.PI * 2 - CUT;
-      const shell = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.1, R + 0.02, tall, 40, 1, true, th0, thL), M.clay);
-      shell.position.y = tall / 2;
-      const inner = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.01, R - 0.04, tall - 0.02, 40, 1, true, th0, thL), M.clayIn);
-      inner.position.y = tall / 2 + 0.01;
-      /** The clay's section where the shell is cut, at angle a (its wall between the inside and the outside). */
-      const cut = a => {
-        const sh = new THREE.Shape();
-        sh.moveTo(R - 0.04, -tall / 2); sh.lineTo(R + 0.02, -tall / 2); sh.lineTo(R + 0.1, tall / 2); sh.lineTo(R + 0.01, tall / 2); sh.closePath();
-        const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), M.cutFace);
-        m.position.y = tall / 2; m.rotation.y = a - Math.PI / 2;     // the shape's x turned to the radius at a
-        return m;
-      };
-      const foot = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.02, R - 0.06, BASE, 40), M.clay);
-      foot.position.y = BASE / 2;
-      const rim = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.14, R + 0.12, 0.06, 40, 1, true, th0, thL), M.rim);
-      rim.position.y = tall;
+      const g = new THREE.Group(), tall = tallOf[i], th0 = CUT / 2, thL = Math.PI * 2 - CUT, prof = profileOf(tall);
+      // the crucible, cut away in front (three.js puts angle 0 towards the camera), and the hatched section where it is cut
+      const body = new THREE.Mesh(lathe(prof.slice(0, OUT), th0, thL, tall), M.clay), inside = new THREE.Mesh(lathe(prof.slice(OUT - 1), th0, thL, tall), M.soot);
+      body.castShadow = true; body.receiveShadow = true; inside.receiveShadow = true;
+      const section = new THREE.Shape();
+      prof.forEach(([r, y], j) => (j ? section.lineTo(r, y) : section.moveTo(r, y)));
+      const secGeo = new THREE.ShapeGeometry(section);
+      const cut = a => { const m = new THREE.Mesh(secGeo, M.cut); m.rotation.y = a - Math.PI / 2; return m; };   // the shape's x turned to the radius at a
       const ring = new THREE.Mesh(quad, M.ring.clone());
-      ring.rotation.x = -Math.PI / 2; ring.scale.set(R * 3.4, R * 2.2, 1); ring.position.set(0, tall + 0.02, 0);
-      g.add(shell, inner, cut(th0), cut(th0 + thL), foot, rim, ring);
+      ring.rotation.x = -Math.PI / 2; ring.scale.set(R * 3.6, R * 2.4, 1); ring.position.set(0, tall + 0.05, 0);
+      g.add(body, inside, cut(th0), cut(th0 + thL), ring);
       const layers = Array.from({ length: k + 2 }, () => {
-        const slab = new THREE.Mesh(slabGeo, layerMat()), sign = new THREE.Mesh(signGeo, signs.Sn);
+        const slab = new THREE.Mesh(slabGeo, layerMats()), sign = new THREE.Mesh(signGeo, signs.Sn);
+        slab.castShadow = true;
         g.add(slab, sign);
         return { slab, sign };
       });
@@ -185,28 +307,36 @@ export function createFoundry(host) {
       world.add(g);
       pots.push({ g, ring, layers, tall });
     });
-    // the coals under the row
-    coals.forEach((c, k) => { c.position.x = (k / (coals.length - 1) - 0.5) * span * 1.05; c.scale.set(1.2, 1.1, 1); });
-    wallGlow.scale.set(span * 2.2, 3.2, 1); wallGlow.position.set(0, 1.2, -1.45);
+    // the hearth and the coals under the row, the furnace behind it
+    hearth.scale.x = span + 2.4; hearth.position.set(0, -0.2, 0.1);
+    coals.forEach((c, k) => { c.position.set((k / (coals.length - 1) - 0.5) * span * 1.02, 0.015, 0.05 + (k % 2) * 0.12); c.scale.set(1.3, 1, 1); });
+    wallGlow.scale.set(span * 2.6, 4.2, 1); wallGlow.position.set(0, 1.4, -1.9);
     resize();
   }
 
   // the stream: short glowing segments along its curve
   const N_SEG = 14, segGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 10);
-  const streamMat = layerMat();
+  const streamMat = envify(std({}), 0.75);
   const segs = Array.from({ length: N_SEG }, () => { const s = new THREE.Mesh(segGeo, streamMat); s.visible = false; world.add(s); return s; });
 
   let w = 1, h = 1, look = new THREE.Vector3(), dist = 10;
+  const probe = new THREE.Vector3();
+  /** Where the top edge of the view meets the wall. */
+  function wallTop() {
+    probe.set(0, 1, 0.5).unproject(camera).sub(camera.position).normalize();
+    const t = (-2.0 - camera.position.z) / probe.z;
+    return camera.position.y + probe.y * t;
+  }
   function resize() {
     w = Math.max(1, host.clientWidth); h = Math.max(1, host.clientHeight);
     renderer.setSize(w, h, false);
     canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
     if (!caps.length) return;
     // fit the row and the room above it for a pour, looking down a little
-    const aspect = w / h, tall = Math.max(...tallOf), needW = span + 0.45, needH = tall + 1.5;
+    const aspect = w / h, tall = Math.max(...tallOf), needW = span + 0.5, needH = tall + 1.5;
     const t = Math.tan(FOV / 2), d = Math.max(needH / 2 / t, needW / 2 / (t * aspect)) + 1.2;
     dist = d;
-    // the hearth's floor a little above the foot of the view, whatever is left over above (a tall narrow view: the wall)
+    // the hearth's front a little above the foot of the view, whatever is left over above (a tall narrow view: the furnace and the wall)
     look.set(0, d * t * 0.78 - 0.1, 0);
     const tilt = 0.4;                                          // looking down into the crucibles a little
     camera.position.set(0, look.y + Math.sin(tilt) * d, Math.cos(tilt) * d);
@@ -215,6 +345,11 @@ export function createFoundry(host) {
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, 100);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     camera.updateMatrixWorld();
+    // the furnace mouth: as wide as the row and more, its crown well up the wall but clear of the view's top; soot above it
+    const top3 = wallTop(), aw = Math.max(span + 1.1, 3.2), crown = Math.min(top3 - 0.55, Math.max(tall + 1.4, aw * 0.85 + 0.6));
+    buildFurnace(aw, crown);
+    soot.scale.set(60, Math.max(2, top3 - crown + 1.6), 1);
+    soot.position.y = crown + soot.scale.y / 2 - 0.5;
   }
 
   /** Where crucible i stands: as the 2D view's poseOf, in the world (its foot's middle, its turn about the camera's axis). */
@@ -222,7 +357,7 @@ export function createFoundry(host) {
     const rest = { x: xs[i], y: (cup.lift || 0) * 0.12, turn: 0 };
     if (!cup.go) return rest;
     const j = cup.go.to, dir = Math.sign(xs[j] - xs[i]) || 1, k = cup.go.k, turn = -dir * 1.05, tall = pots[i].tall;
-    const mx = xs[j] - dir * (R + 0.55), my = pots[j].tall + 0.75;
+    const mx = xs[j] - dir * (R + 0.6), my = pots[j].tall + 0.8;
     const fx = mx - Math.sin(-turn) * tall, fy = my - Math.cos(turn) * tall;
     return { x: rest.x + (fx - rest.x) * k, y: rest.y + (fy - rest.y) * k, turn: turn * k };
   }
@@ -231,23 +366,27 @@ export function createFoundry(host) {
 
   function frame(sc, now) {
     if (!caps.length || !sc) return;
-    // the hearth breathes
+    // the fire moves: flames climb and waver, the light it throws breathes with it
+    flameTex.offset.y = (now / 2600) % 1; flameTex.offset.x = 0.5 + Math.sin(now / 1900) * 0.03;
+    M.flame.opacity = 0.55 + 0.12 * Math.sin(now / 310) + 0.06 * Math.sin(now / 97);
     coals.forEach((c, k) => { c.material.opacity = 0.55 + 0.3 * Math.sin(now / (430 + k * 37) + k); });
-    wallGlow.material.opacity = 0.28 + 0.07 * Math.sin(now / 1700);
-    fire.intensity = 2.0 + 0.35 * Math.sin(now / 520) + 0.15 * Math.sin(now / 173);
+    wallGlow.material.opacity = 0.24 + 0.06 * Math.sin(now / 1700);
+    back.intensity = 1.7 + 0.3 * Math.sin(now / 520) + 0.12 * Math.sin(now / 173);
+    coal.intensity = 0.65 + 0.12 * Math.sin(now / 640);
     sc.cups.forEach((cup, i) => {
       const P = pots[i], pose = poseOf(i, cup);
       P.g.position.set(pose.x, pose.y, cup.go ? 0.35 : 0);
       P.g.rotation.z = pose.turn;
       P.ring.material.opacity = cup.picked ? 0.75 + 0.2 * Math.sin(now / 160) : cup.target ? 0.3 : 0;
+      const topY = cup.bands.reduce((t, b) => Math.max(t, b.y + b.h), 0);
       P.layers.forEach((L, k) => {
         const b = cup.bands[k];
         L.slab.visible = L.sign.visible = !!b && b.h > 0.02 && (b.a ?? 1) > 0.02;
         if (!L.slab.visible) return;
-        const y = BASE + (b.y + b.h / 2) * SLAB;
+        const y = BASE + (b.y + b.h / 2) * SLAB, surface = b.y + b.h >= topY - 0.01, [side, top, foot] = L.slab.material;
         L.slab.scale.set(1, Math.max(0.01, b.h * SLAB * 0.985), 1); L.slab.position.set(0, y, 0);
-        dress(L.slab.material, b.m, b.hot || 0, b.a ?? 1);
-        L.sign.material = signs[b.m] || signs.Sn; L.sign.position.set(0, y, R + 0.01); L.sign.scale.set(1, Math.min(1, b.h * 1.2), 1);
+        dress(side, b.m, b.hot || 0, b.a ?? 1); dress(top, b.m, b.hot || 0, b.a ?? 1, surface); dress(foot, b.m, b.hot || 0, b.a ?? 1);
+        L.sign.material = signs[b.m] || signs.X; L.sign.position.set(0, y, R + 0.005); L.sign.scale.set(1, Math.min(1, b.h * 1.2), 1);
         L.sign.visible = L.sign.visible && b.h > 0.5 && (b.a ?? 1) > 0.5;
       });
     });
@@ -255,11 +394,11 @@ export function createFoundry(host) {
     const st = sc.stream;
     if (st) {
       const i = st.from, pose = poseOf(i, sc.cups[i]), dir = Math.sign(xs[st.to] - xs[i]) || 1, tall = pots[i].tall;
-      const lx = dir * (R + 0.12), ly = tall, c = Math.cos(pose.turn), s = Math.sin(pose.turn);
+      const lx = dir * (R + 0.17), ly = tall + 0.02, c = Math.cos(pose.turn), s = Math.sin(pose.turn);
       const a = new THREE.Vector3(pose.x + lx * c - ly * s, pose.y + lx * s + ly * c, 0.35), b = new THREE.Vector3(xs[st.to], pots[st.to].tall - 0.05, 0);
       const ctl = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 0.25, 0.2);
       const at = t => new THREE.Vector3((1 - t) ** 2 * a.x + 2 * (1 - t) * t * ctl.x + t * t * b.x, (1 - t) ** 2 * a.y + 2 * (1 - t) * t * ctl.y + t * t * b.y, (1 - t) ** 2 * a.z + 2 * (1 - t) * t * ctl.z + t * t * b.z);
-      dress(streamMat, st.m, 0.35, 1);
+      dress(streamMat, st.m, 0.35, 1, true);
       segs.forEach((sg, k) => {
         const t0 = st.t1 + (st.t0 - st.t1) * k / N_SEG, t1 = st.t1 + (st.t0 - st.t1) * (k + 1) / N_SEG, p = at(t0), q = at(t1), d = q.clone().sub(p), len = d.length();
         sg.visible = len > 0.001;
@@ -281,8 +420,8 @@ export function createFoundry(host) {
     }
     for (const e of embers) {
       if (n >= N_FX) break;
-      const t = (now / 9000 * e.s + e.p) % 1, size = 0.035 * (1 - t);
-      m4.compose(new THREE.Vector3(e.x * span * 0.7 + Math.sin(now / 1300 + e.p) * 0.15, t * 4.2, e.z), qCam, new THREE.Vector3(size, size, size));
+      const t = (now / 9000 * e.s + e.p) % 1, size = 0.04 * (1 - t);
+      m4.compose(new THREE.Vector3(e.x * archW * 0.45 + Math.sin(now / 1300 + e.p) * 0.15, 0.2 + t * 5, e.z), qCam, new THREE.Vector3(size, size, size));
       fx.setMatrixAt(n++, m4);
     }
     fx.count = n; fx.instanceMatrix.needsUpdate = true;
@@ -296,14 +435,14 @@ export function createFoundry(host) {
     frame,
     burst(i) {
       const top = pots[i].tall, x = pots[i].g.position.x;
-      sparks.push({ t0: performance.now(), x, y: top, parts: Array.from({ length: 28 }, () => { const a = Math.random() * Math.PI, v = 0.8 + Math.random() * 1.4; return { vx: Math.cos(a) * v * 0.7, vy: Math.sin(a) * v + 0.4, vz: (Math.random() - 0.5) * 0.6 }; }) });
+      sparks.push({ t0: performance.now(), x, y: top, parts: Array.from({ length: 30 }, () => { const a = Math.random() * Math.PI, v = 0.8 + Math.random() * 1.4; return { vx: Math.cos(a) * v * 0.7, vy: Math.sin(a) * v + 0.4, vz: (Math.random() - 0.5) * 0.6 }; }) });
     },
     cupAt(px, py) {
       const r = canvas.getBoundingClientRect(), x = px - r.left, y = py - r.top;
       if (y < 0 || y > r.height || !xs.length) return -1;
       let best = -1, bd = Infinity;
       xs.forEach((cx, i) => { const p = screen(cx, pots[i].tall / 2); const d = Math.abs(p.x - x); if (d < bd) { bd = d; best = i; } });
-      const half = Math.abs(screen(xs[0] + R + 0.3, 0).x - screen(xs[0], 0).x);
+      const half = Math.abs(screen(xs[0] + R + WALL + 0.17, 0).x - screen(xs[0], 0).x);
       return bd <= half * 1.3 ? best : -1;
     },
     mouthOnPage(i) { const r = canvas.getBoundingClientRect(), p = screen(xs[i], pots[i].tall); return { x: r.left + p.x, y: r.top + p.y }; },
