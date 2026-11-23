@@ -152,13 +152,16 @@ export const TUNE = { discardRate: 0.7, oppWin: 0.13, ready: 1, danger: 1, claim
 // No fan pays a win four to twelve points where the fan game's minimum pays thirty-two and more: the margins below that
 // are counted in points (a call's bonus, the discards alike enough to choose among, what's worth saying) shrink by this
 const UNIT = 0.15;
-// The two strengths, as what each adds to the knobs. hard: a discard win passed up when waiting for the self-draw is
+// The three strengths, as what each adds to the knobs. hard: a discard win passed up when waiting for the self-draw is
 // worth much more (wait), its discards nudged at random only among those within a quarter of a point (near); medium:
 // takes every win, defends at six tenths of hard's weight (defence), and wanders among discards within five points,
 // the better likelier (temper).
+// easy (Korbi, 8 Nov 2026: a game's computer players get all three levels): takes every win, hardly defends (a fifth of hard's
+// weight) and wanders among discards within fourteen points, the better only a little likelier.
 export const SKILLS = {
   hard: { wait: 1, near: 0.25, temper: 0 },
   medium: { wait: 0, near: 5, temper: 2.5, defence: 0.6 },
+  easy: { wait: 0, near: 14, temper: 7, defence: 0.2 },
 };
 
 // ---------- the table as a seat reads it ----------

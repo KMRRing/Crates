@@ -14,6 +14,7 @@ import "./pwa.js";
 import { part, choice, action, ticks } from "./menu.js";
 import { sure } from "./sure.js";
 import { seatRounds } from "./random.js";
+import { ramp } from "./ramp.js";
 import { noteStreak, IN_FRAME } from "./suite.js";
 import { scale } from "./wide.js";
 import { tableView } from "./table3d-view.js";
@@ -120,6 +121,9 @@ function onView(v) {
   if (mine && c.type === "proof") showProof(); else if ($("proofDlg").open) $("proofDlg").close();
   if (mine && c.type !== "proof") showChallenge(); else if ($("challengeDlg").open) $("challengeDlg").close();
 }
+// The computer players' level (Korbi, 8 Nov 2026: a game's computer players get all three levels): the shared row in the
+// menu, Auto climbing after a game won alone and falling after one lost; at a table together it is the host's.
+const levelNow = () => ramp("cartel", ["easy", "medium", "hard"], { start: "medium" });
 /** A game over: the streak counted once (for the seat you played), and how it went. */
 function onOver(v) {
   const key = `${v.code || "solo"}:${v.G.seq}:${v.G.started}`;
@@ -129,6 +133,7 @@ function onOver(v) {
     if (counted !== key) {
       try { localStorage.setItem(COUNTED, key); } catch { /* private mode */ }
       noteStreak("cartel", v.state.over.winner === v.seat);
+      if (!page.atTable) { levelNow(); v.state.over.winner === v.seat ? ramp.won(true) : ramp.lost(); }
     }
   }
   showOver();
@@ -777,6 +782,7 @@ function showOver() {
 // ---------- menu ----------
 // the menu: Play (a new game, its opponents drawn; Invite players, or the table's line)
 function openMenu() {
+  levelNow();   // the ramp read before the shared level row is made
   const body = $("menuBody");
   body.replaceChildren();
   const top = part(body, "play");
@@ -865,7 +871,7 @@ addEventListener("resize", () => { cancelAnimationFrame(refit); refit = requestA
 // the game itself, last: its first view is drawn as it's made, with everything above in place
 const randomRounds = seatRounds("cartel");   // random mode's round: a game
 const page = seatPage({
-  rules, id: "cartel", app: 1, pace: moveMs, toast,
+  rules, id: "cartel", app: 1, pace: moveMs, toast, level: () => levelNow(),
   botName: (s, G) => PERSONAS[G?.state?.players?.[s]?.persona]?.name || "Quant",
   onView, onOver, hold: holding, newGame: () => startGame(),
 });

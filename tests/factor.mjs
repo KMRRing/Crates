@@ -412,7 +412,7 @@ const ringE = ring.map(([a, b]) => edgeBetween(a, b)), ringV = HEXES[9].corners;
 
 // ---------- the computer players ----------
 {
-  check(LEVEL_NAMES.map(x => x[0]).join() === "medium,hard", "two strengths: Medium and Hard");
+  check(LEVEL_NAMES.map(x => x[0]).join() === "easy,medium,hard", "three strengths: Easy, Medium and Hard (Korbi, 8 Nov 2026)");
   // Hard against Medium players, its look-ahead at the setup off here for speed (a few games below have it on)
   LOOK.setup = LOOK.robber = false;
   let illegal = 0, stalled = 0, lost = 0, finished = 0, games = 0;
@@ -437,13 +437,19 @@ const ringE = ring.map(([a, b]) => edgeBetween(a, b)), ringV = HEXES[9].corners;
     order.forEach(l => played[l]++);
   };
   for (const seats of [3, 4]) for (let g = 0; g < 60; g++) run(seats, g, Array.from({ length: seats }, (_, i) => (i === g % seats ? "hard" : "medium")));
+  const hardMedium = { wins: { ...wins }, played: { ...played } };
+  wins.easy = played.easy = 0;
+  for (let g = 0; g < 40; g++) run(4, 300 + g, Array.from({ length: 4 }, (_, i) => (i === g % 4 ? "easy" : "medium")));
   LOOK.setup = LOOK.robber = true;
   for (let g = 0; g < 4; g++) run(4, 900 + g, ["hard", "hard", "medium", "hard"]);
   check(illegal === 0, `the computer's move is never refused (${games} games, 3 and 4 seats, Hard looking ahead in some)`);
   check(stalled === 0 && finished === games, `every game finishes: no one is left with nothing to do (${finished} of ${games})`);
   check(lost === 0, "the cards are conserved (never more than 19 of a resource in play, none below 0) and a winner has the points");
-  console.log(`     wins per seat played: medium ${(wins.medium / played.medium).toFixed(2)}, hard ${(wins.hard / played.hard).toFixed(2)}`);
-  check(wins.hard / played.hard > 1.3 * wins.medium / played.medium, "Hard wins clearly more often than Medium");
+  const rate = (r, l) => r.wins[l] / r.played[l], easyMedium = { wins, played: { ...played, medium: played.medium - hardMedium.played.medium }, };
+  easyMedium.wins = { ...wins, medium: wins.medium - hardMedium.wins.medium };
+  console.log(`     wins per seat played: easy ${rate(easyMedium, "easy").toFixed(2)}, medium ${rate(hardMedium, "medium").toFixed(2)}, hard ${rate(hardMedium, "hard").toFixed(2)}`);
+  check(rate(hardMedium, "hard") > 1.3 * rate(hardMedium, "medium"), "Hard wins clearly more often than Medium");
+  check(rate(easyMedium, "easy") < 0.6 * rate(easyMedium, "medium"), "Easy wins clearly less often than Medium");
   // the same seed and the same players make the same game
   const play = () => { let G = newRecord(rules, { seats: 4, seed: 77, now: 0 }); while (!rules.over(G.state)) { const seat = rules.toMove(G.state); G = applyMove(rules, G, seat, seatBot(rules, G, seat, "hard"), 0).G; } return JSON.stringify(G.state); };
   check(play() === play(), "a game from a seed is the same game every time");

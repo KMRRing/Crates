@@ -81,8 +81,8 @@ function startWorker() {
   } catch { worker = false; }
 }
 /** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
-const strength = () => ramp("hong", ["medium", "hard"], { start: OLD_BOTS });
-const skill = () => ((together.room ? S?.bots : strength()) === "medium" ? "medium" : "hard");
+const strength = () => ramp("hong", ["easy", "medium", "hard"], { start: OLD_BOTS });
+const skill = () => { const k = together.room ? S?.bots : strength(); return k === "easy" || k === "medium" ? k : "hard"; };
 /** What the computer would do in a seat now: { action, why, rows, threats }. A computer player plays at the strength
  *  chosen; the coach, in your seat, is always hard's, and gives the same answer every time it's asked. */
 const think = (state, seat) => ask(state, seat, { how: isHuman(seat) ? { skill: "hard", noise: false } : { skill: skill(), seed: seat + 1 } });
@@ -1160,6 +1160,7 @@ function toast(msg, ms = 2400) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 function openMenu() {
+  strength();   // the ramp read before the shared level row is made (no row until a game had read it)
   const body = $("menuBody");
   body.replaceChildren();
   const set = (k, v) => { opts[k] = v; write(OPTS, opts); applyLook(); render(); };

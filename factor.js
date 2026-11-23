@@ -37,7 +37,7 @@ const NAMES = ["Hinrich", "Gesa", "Claus", "Wiebke"];                  // the co
 
 let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, autoDecline: false, ...read(OPTS, {}) };
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
-if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
+if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. The classic length and four players, whatever an older
 // save chose (a game in hand keeps its own rules, in its state). The computer players' strength is the hidden ramp, its

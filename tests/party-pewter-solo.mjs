@@ -33,7 +33,7 @@ const stored = g => JSON.parse(JSON.stringify(g));                      // what 
   const apps = fs.readFileSync(new URL("../apps.js", import.meta.url), "utf8");
   check(/id: "pewter",[^\n]*players: \[1, 6\]/.test(apps), "its tile on the games screen says 1 to 6 players");
   const party = pewter.options.find(o => o.id === "level");
-  check(party?.value === "2" && party.choices.map(c => c[0]).join() === "1,2,3" && CHOICES.map(c => c[0]).join() === "1,2,3", "a table's Computer level option and the setup's agree: simple, medium, hard");
+  check(party?.value === "2" && party.choices.map(c => c[0]).join() === "1,2,3" && CHOICES.map(c => c[0]).join() === "1,2,3", "a table's Computer level option and the solo levels agree: easy, medium, hard");
 }
 
 // ---------- the loop the page runs ----------

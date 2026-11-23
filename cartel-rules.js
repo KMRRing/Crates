@@ -83,9 +83,9 @@ function plainest(s, seat) {
  * device can make it, the one that ran the table before having gone), on a random stream of this move's own. Its
  * free moves come first, as at the solo table: the Envoy's reroll before its move, the question before its bid.
  */
-function bot(st, seat, { rng }) {
+function bot(st, seat, { rng, level }) {
   const s = wet(clone(st)), persona = PERSONAS[s.players[seat]?.persona] ? s.players[seat].persona : "quant";
-  const ai = new Player(seat, s.players.length, persona, Math.floor(rng() * 2 ** 31));
+  const ai = new Player(seat, s.players.length, persona, Math.floor(rng() * 2 ** 31), level || "medium");
   ai.sync(s, E.seen);
   let m;
   try {

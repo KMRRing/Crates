@@ -7,6 +7,7 @@
 import { h, button, pickPlayer } from "./party-kit.js";
 import coup, { alive } from "./party-coup.js";
 import { coupBot, waiting } from "./party-coup-bot.js";
+import { ramp } from "./ramp.js";
 
 export const YOU = "you";
 export const FOES = ["Quill", "Sable", "Pip", "Wren"];                  // their seats are bot1…bot4, their tempers by seat
@@ -15,10 +16,10 @@ export const FOES = ["Quill", "Sable", "Pip", "Wren"];                  // their
 export const seatsOf = (n, name = "Player") => [{ uid: YOU, name, seat: 0 }, ...FOES.slice(0, n).map((f, i) => ({ uid: `bot${i + 1}`, name: f, seat: i + 1 }))];
 const clampFoes = n => Math.max(1, Math.min(FOES.length, Number(n) | 0 || 3));
 
-/** A new game: `foes` computer players, no clock (nobody is waiting on you), the inputs for the step in play empty. */
-export function deal(foes, rng, now = Date.now(), name = "Player") {
+/** A new game: `foes` computer players at a level, no clock (nobody is waiting on you), the inputs for the step in play empty. */
+export function deal(foes, rng, now = Date.now(), name = "Player", level = "medium") {
   const n = clampFoes(foes);
-  return { foes: n, state: coup.start({ players: seatsOf(n, name), options: { clock: "0" }, rng, now }), inputs: {}, seq: 1 };
+  return { foes: n, level, state: coup.start({ players: seatsOf(n, name), options: { clock: "0" }, rng, now }), inputs: {}, seq: 1 };
 }
 
 /** The game moved on if its step has all its answers, else null. */
@@ -50,7 +51,7 @@ export function safe(s, u) {
 export function botsAnswer(g, rng, now = Date.now()) {
   let next = g;
   for (const u of pending(g)) {
-    const answer = coupBot(g.state, u, rng);
+    const answer = coupBot(g.state, u, rng, g.level);
     next = { ...next, inputs: { ...next.inputs, [u]: answer } };
     if (["turn", "lose", "exchange"].includes(g.state.phase) && !move(next, rng, now)) next = { ...next, inputs: { ...next.inputs, [u]: safe(g.state, u) } };
   }
@@ -73,8 +74,14 @@ function wire() {
   return wired;
 }
 
+// The computer players' level is the shared row in Party's menu while this game is on (Korbi, 8 Nov 2026: a game's computer
+// players get all three levels); Auto climbs after a game won and falls after one lost.
+const levelNow = () => ramp("coup", ["easy", "medium", "hard"], { start: "medium" });
+
 /** On one phone, on Party's stage; back() returns to Party's games. */
-export function play(stage, { back }) {
+export function play(stage, { back: leave }) {
+  levelNow();
+  const back = () => { ramp.forget(); leave(); };
   const root = h("div", { class: "cp-solo fit-col" });
   stage.replaceChildren(root);                                          // one child: Party marks it, and draws again only if it's gone
   const saved = kept();
@@ -93,7 +100,7 @@ export function play(stage, { back }) {
 
   function begin(n = foes) {
     foes = clampFoes(n);
-    g = deal(foes, rng, Date.now(), nameOf());
+    g = deal(foes, rng, Date.now(), nameOf(), levelNow());
     save();
     pump();
   }
@@ -104,7 +111,11 @@ export function play(stage, { back }) {
     if (gone()) { if (current === control) current = null; return; }
     if (g && ready && !watching) {
       const m = move(g, rng, Date.now());
-      if (m) { g = m; save(); }
+      if (m) {
+        g = m;
+        if (g.state.phase === "over" && !g.counted) { g = { ...g, counted: true }; levelNow(); g.state.won === YOU ? ramp.won(true) : ramp.lost(); }
+        save();
+      }
     }
     show();
     if (!g || !ready || watching || paused || g.state.phase === "over" || !pending(g).length) return;

@@ -10,8 +10,17 @@
 //
 // A personality turns those probabilities into choices: how readily it calls, challenges and bluffs, how much
 // it trusts its own reads, how much noise it adds. The Quant plays the probabilities straight.
+//
+// The level (Korbi, 8 Nov 2026: a game's computer players get all three levels) is how well a personality plays its
+// part: Easy reads a quarter as many tables and wavers nearly a point more, so it often picks a worse move; Hard reads
+// twice as many, wavers half as much and leans halfway toward the Quant's straight play; Medium is the personality as it was.
 import { ABILITIES, RULES, rng, answer } from "./cartel-engine.js";
 
+export const LEVELS = {
+  easy: { reads: 0.25, noiseBy: 1, noisePlus: 0.9, toQuant: 0 },
+  medium: { reads: 1, noiseBy: 1, noisePlus: 0, toQuant: 0 },
+  hard: { reads: 2, noiseBy: 0.5, noisePlus: 0, toQuant: 0.5 },
+};
 export const PERSONAS = {
   quant: { name: "Quant", trait: "super rational", noise: 0.02, bidBluff: 0.05, bluffBias: -1, callBias: -0.04, challengeBias: 0.6,
     takeBias: 0.45, rerollBias: 0.35, askBias: 0.15, hitBias: -0.15, open: 0.75, raiseMin: 0.62 },
@@ -249,14 +258,20 @@ function chanceHolds(samples, p, role) {
 // ---------- decisions ----------
 /** A computer player: a personality, a mind and its own random stream. */
 export class Player {
-  constructor(seat, n, personaId, seed) {
+  constructor(seat, n, personaId, seed, level = "medium") {
     this.seat = seat;
-    this.persona = PERSONAS[personaId];
+    const k = LEVELS[level] || LEVELS.medium, own = PERSONAS[personaId] || PERSONAS.quant, Q = PERSONAS.quant;
+    // Hard keeps its personality's flavour but leans toward the Quant's straight play
+    this.persona = k.toQuant ? Object.fromEntries(Object.entries(own).map(([key, v]) => [key, typeof v === "number" ? v + (Q[key] - v) * k.toQuant : v])) : own;
+    this.reads = k.reads;
+    this.noise = this.persona.noise * k.noiseBy + k.noisePlus;
     this.mind = new Mind(seat, n);
     this.publicMind = new Mind(null, n);     // what everyone can know, to judge how believable its own claims are
     this.r = rng(seed);
   }
-  noisy(x) { return x + (this.r() - 0.5) * 2 * this.persona.noise; }
+  noisy(x) { return x + (this.r() - 0.5) * 2 * this.noise; }
+  /** Tables sampled for a question: n at Medium, fewer or more by the level. */
+  sample(n) { return this.mind.sample(this.r, Math.max(30, Math.round(n * this.reads))); }
   sync(game, see) {
     this.mind.follow(game, e => see(e, this.seat));
     this.publicMind.follow(game, e => ({ ...e, priv: undefined }));
@@ -279,7 +294,7 @@ export class Player {
     const myPlain = me.dice.filter(d => d.kind === "plain").length;
     const myGold = me.dice.filter(d => d.kind === "gold").map(d => d.face);
     const others = game.players.filter(p => !p.out && p.i !== this.seat);
-    const samples = m.sample(this.r, 200);
+    const samples = this.sample(200);
     const ladder = !!game.bid, doubt = game.bid ? chanceBid(samples, game.bid.q, game.bid.f) : 0.5;
     const unsure = ladder && doubt > 0.25 && doubt < 0.75;
     const options = [];
@@ -382,7 +397,7 @@ export class Player {
       const honest = myGold.find(d => x.blockers.includes(d.face));
       if (honest) return { block: honest.face };
     }
-    const holds = m.holds(chanceHolds(m.sample(this.r, 250), c.claimant, c.role), c.claimant, this.seat);
+    const holds = m.holds(chanceHolds(this.sample(250), c.claimant, c.role), c.claimant, this.seat);
     const harm = lossFrom(c.ability, me, aimedAtMe);
     const gain = (caughtCost(game.players[c.claimant]) + harm) * (1 - holds) - wrongCost(me) * holds;
     if (this.noisy(gain) > P.challengeBias) return "challenge";
@@ -398,7 +413,7 @@ export class Player {
   /** As the player blocked: whether to challenge the block. */
   challengeBlock(game) {
     const b = game.pending, P = this.persona, m = this.mind, me = game.players[this.seat];
-    const holds = m.holds(chanceHolds(m.sample(this.r, 250), b.claimant, b.role), b.claimant, this.seat);
+    const holds = m.holds(chanceHolds(this.sample(250), b.claimant, b.role), b.claimant, this.seat);
     const blocker = game.players[b.claimant];
     const worth = b.base.ability === "sanction" ? goldValue(blocker) : Math.min(RULES.steal, plainCount(blocker));
     const gain = (caughtCost(blocker) + worth) * (1 - holds) - wrongCost(me) * holds;
@@ -415,7 +430,7 @@ export class Player {
     const others = game.players.filter(p => !p.out && p.i !== this.seat);
     if (!others.length) return null;
     const f = game.bid?.f || bestFace(me);
-    const samples = m.sample(this.r, 150);
+    const samples = this.sample(150);
     const spread = p => {
       const counts = samples.map(x => (x.hands.find(h => h.p === p.i)?.faces || []).filter(v => v === f).length);
       const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
@@ -430,7 +445,7 @@ export class Player {
 
   /** Raises or calls: { q, f } or { call: true }. */
   bid(game) {
-    const P = this.persona, samples = this.mind.sample(this.r, 400), b = game.bid;
+    const P = this.persona, samples = this.sample(400), b = game.bid;
     const options = [], dice = game.players.reduce((n, p) => n + p.dice.length, 0);
     for (let f = 2; f <= 6; f++) {
       const q0 = !b ? 1 : f > b.f ? b.q : b.q + 1;

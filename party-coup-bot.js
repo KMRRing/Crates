@@ -32,7 +32,16 @@ export function waiting(s) {
 
 /** The temper of the computer player in seat `i`: [how readily it bluffs, how readily it believes a claim]. */
 export const TEMPER = [[1, 1], [1.15, .95], [.7, 1.1], [1, .9], [1.3, 1.1], [.85, 1]];
-const temper = (s, uid) => TEMPER[Math.max(0, s.seats.indexOf(uid)) % TEMPER.length];
+// The level (Korbi, 8 Nov 2026: a game's computer players get all three levels): Medium is each seat's own temper; Hard
+// plays at a temper of 1, the one measured to pay, and hardly wavers over its action; Easy bluffs a little more, believes
+// twice as readily and wavers eight times as much. Measured over 1,500 games, a Medium player in your seat wins 34% of
+// them against three Easy, 26% against three Medium and 23% against three Hard.
+export const LEVELS = { easy: { bold: 1.3, trust: 2, waver: 8 }, medium: { bold: 1, trust: 1, waver: 1 }, hard: { even: true, bold: 1, trust: 1, waver: .15 } };
+const levelOf = level => LEVELS[level] || LEVELS.medium;
+const temper = (s, uid, level) => {
+  const L = levelOf(level), [bold, trust] = L.even ? [1, 1] : TEMPER[Math.max(0, s.seats.indexOf(uid)) % TEMPER.length];
+  return [bold * L.bold, trust * L.trust];
+};
 
 /**
  * The chance that `who` holds at least one copy of `card`, as seen by `uid`: of the copies not face up and not in
@@ -61,8 +70,8 @@ function target(s, uid, rng) {
   return foes.reduce((best, u) => (score(u) > score(best) ? u : best), foes[0]);
 }
 
-function chooseAction(s, uid, rng) {
-  const coins = s.coins[uid], mine = hand(s, uid), foes = alive(s).filter(u => u !== uid), [bold] = temper(s, uid);
+function chooseAction(s, uid, rng, level) {
+  const coins = s.coins[uid], mine = hand(s, uid), foes = alive(s).filter(u => u !== uid), [bold] = temper(s, uid, level), waver = levelOf(level).waver;
   const aim = target(s, uid, rng);                                         // who an Oust or a sabotage goes at
   if (coins >= MUST_COUP) return { do: "coup", target: aim };
   const has = c => mine.includes(c);
@@ -84,7 +93,7 @@ function chooseAction(s, uid, rng) {
   options.push(["exchange", claim("ambassador", has("ambassador") ? 1.4 : .9)]);
   let best = null, bestV = -Infinity;
   for (const [kind, v] of options) {
-    const w = v + rng() * 1.1;
+    const w = v + rng() * 1.1 * waver;
     if (w > bestV) { best = kind; bestV = w; }
   }
   if (!ACTIONS[best].target) return { do: best };
@@ -98,8 +107,8 @@ function chooseAction(s, uid, rng) {
  */
 const RATE = { act: .37, block: .21 };
 const DOUBT = 1.2;                                                         // and a temper of 1 here challenges about as often as pays
-function challengeVote(s, uid, rng) {
-  const { by, card, on } = s.claim, mine = hand(s, uid), k = mine.length, [, trust] = temper(s, uid), act = s.act;
+function challengeVote(s, uid, rng, level) {
+  const { by, card, on } = s.claim, mine = hand(s, uid), k = mine.length, [, trust] = temper(s, uid, level), act = s.act;
   const pHas = holds(s, uid, card, by);
   if (pHas === 0) return { c: "challenge" };                              // every copy is in sight: a lie
   const liar = (1 - pHas) * RATE[on];
@@ -114,8 +123,8 @@ function challengeVote(s, uid, rng) {
   return { c: bluff + (rng() - .5) * .12 > need * trust * DOUBT ? "challenge" : "allow" };
 }
 
-function blockVote(s, uid, rng) {
-  const kind = s.act.kind, mine = hand(s, uid), [bold] = temper(s, uid);
+function blockVote(s, uid, rng, level) {
+  const kind = s.act.kind, mine = hand(s, uid), [bold] = temper(s, uid, level);
   const can = ACTIONS[kind].blockedBy.filter(c => mine.includes(c));
   if (can.length) return { b: can[Math.floor(rng() * can.length)] };
   const cards = ACTIONS[kind].blockedBy;
@@ -149,11 +158,11 @@ function exchangeVote(s, uid, rng) {
 }
 
 /** What seat `uid` sends for the step in play (only to be asked when it is one of `waiting(s)`). */
-export function coupBot(s, uid, rng) {
+export function coupBot(s, uid, rng, level = "medium") {
   switch (s.phase) {
-    case "turn": return chooseAction(s, uid, rng);
-    case "challenge": return challengeVote(s, uid, rng);
-    case "block": return blockVote(s, uid, rng);
+    case "turn": return chooseAction(s, uid, rng, level);
+    case "challenge": return challengeVote(s, uid, rng, level);
+    case "block": return blockVote(s, uid, rng, level);
     case "lose": return loseVote(s, uid, rng);
     case "exchange": return exchangeVote(s, uid, rng);
     default: return null;

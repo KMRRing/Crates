@@ -237,6 +237,18 @@ if (bad) process.exitCode = 1;
     }
   }
   check(done === 4 && !refusedAt, `four games at tables of three and four played out through the database (${moves} moves)${refusedAt ? `; refused: ${refusedAt}` : ""}`);
+  // three levels (Korbi, 8 Nov 2026): Easy reads fewer tables and wavers more, Hard reads more, wavers less and leans to the Quant
+  const { Player, PERSONAS } = await import("../cartel-ai.js");
+  const [e, m, h] = ["easy", "medium", "hard"].map(l => new Player(1, 4, "gambler", 5, l));
+  check(e.reads < m.reads && m.reads < h.reads && e.noise > m.noise && m.noise > h.noise && m.persona === PERSONAS.gambler
+    && h.persona.bluffBias < PERSONAS.gambler.bluffBias && h.persona.bluffBias > PERSONAS.quant.bluffBias, "three levels: Easy reads less and wavers more, Hard reads more, wavers less and leans toward the Quant");
+  let lv = 0;
+  for (let k = 0; k < 2; k++) {
+    let G = newRecord(rules, { seats: 4, options: { opponents: ["quant", "hedger", "wildcat"] }, seed: 7100 + k });
+    for (let guard = 0; guard < 3000 && !rules.over(G.state); guard++) { const seat = rules.toMove(G.state), r = applyMove(rules, G, seat, botMove(rules, G, seat, ["easy", "medium", "hard"][seat % 3])); if (r.error) break; G = r.G; }
+    if (rules.over(G.state)) lv++;
+  }
+  check(lv === 2, "games with players at every level play out");
   const G = newRecord(rules, { seats: 4, options: { opponents: ["hedger", "sceptic", "wildcat"] }, seed: 99 });
   check(G.state.players.slice(1).map(p => p.persona).join() === "hedger,sceptic,wildcat" && !["hedger", "sceptic", "wildcat"].includes(G.state.players[0].persona) && typeof G.state.rstate === "number" && !("r" in G.state),
     "the opponents chosen sit after you, your seat has a personality for when the computer plays it, and the random stream is kept as a number");

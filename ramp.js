@@ -77,3 +77,5 @@ ramp.pick = band => {
   if (band !== AUTO) write(last.key, String(last.steps[stepOf(band)]));
   return last.steps[index(last.steps, last.key, last.start)];
 };
+/** The page has left the game whose ramp it read (Party, back to its games from a game against the computer): no row now. */
+ramp.forget = () => { Object.assign(last, { key: null, steps: [], start: 0 }); };

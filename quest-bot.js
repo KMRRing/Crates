@@ -44,7 +44,11 @@
 // made; the computer's strike goes to the one most of them named. An Easy traitor half guesses.
 import { isEvil, knowledge, EVIL_COUNT, stances, named } from "./quest-rules.js";
 
-export const LEVEL_NAMES = [["easy", "Easy"], ["medium", "Sharp"]];
+// Korbi, 8 Nov 2026: a game's computer players get all three levels. Hard is Sharp (until 23 Nov 2026 the level was called
+// "medium"); Medium plays each move as Sharp or as Easy, at even odds.
+export const LEVEL_NAMES = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Sharp"]];
+/** Whether this move is made as an Easy player makes it. */
+const loose = (level, rng) => level === "easy" || (level === "medium" && rng() < 0.5);
 
 /** Every choice of k seats out of a list. */
 function choose(list, k) {
@@ -175,8 +179,8 @@ function approves(W, s, seat, team, rng, strict = 0.78) {
 /** The traitors this seat knows, itself included (the Smuggler knows only itself). */
 const ourSide = (s, seat) => new Set([seat, ...Object.keys(knowledge(s.roles, seat)).filter(() => isEvil(s.roles[seat])).map(Number)]);
 
-export function questBot(s, seat, level = "medium", rng = Math.random) {
-  const bad = isEvil(s.roles[seat]), easy = level === "easy";
+export function questBot(s, seat, level = "hard", rng = Math.random) {
+  const bad = isEvil(s.roles[seat]), easy = loose(level, rng);
   if (s.step === "assassin") return { t: "kill", seat: strike(s, seat, easy, rng) };
   if (s.step === "quest") return { t: "card", success: !bad || !shouldFail(s, seat, easy, rng) };
   if (s.step === "propose") return { t: "team", team: propose(s, seat, s.quests[s.q], easy, rng) };
@@ -313,7 +317,7 @@ function stable(s, a, b) {
 const seatList = s => [...Array(s.seats).keys()];
 
 /** What a computer player in this seat makes of everyone now: each one's odds of being a traitor, as it talks of them. */
-export const suspicion = (s, seat, level = "medium") => readOf(s, seat, level === "easy").odds;
+export const suspicion = (s, seat, level = "hard") => readOf(s, seat, level === "easy").odds;
 
 /** What this seat makes of everyone now, as it would talk of them: each one's odds of being a traitor; its own side. */
 function readOf(s, seat, easy) {
@@ -345,9 +349,9 @@ function whyTrust(s, seat, x) {
  * the strongest change in what it thinks of someone. `quiet`: the table has heard enough for now, only an answer.
  * While the traitors confer, a traitor names its pick for the Lookout.
  */
-export function questChat(s, seat, level = "medium", rng = Math.random, { quiet = false } = {}) {
+export function questChat(s, seat, level = "hard", rng = Math.random, { quiet = false } = {}) {
   if (s.step === "over") return null;
-  const easy = level === "easy", me = s.roles[seat], lines = s.talk || [];
+  const easy = loose(level, rng), me = s.roles[seat], lines = s.talk || [];
   if (s.step === "assassin") return isEvil(me) ? confer(s, seat, easy, rng) : null;
   // the latest accusation of it since it last spoke
   let hit = -1;

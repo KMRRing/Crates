@@ -8,7 +8,7 @@
 import { RES, HEXES, VERTS, EDGES, PORT_AT, pips, otherEnd, portVerts } from "./factor-board.js";
 import { rules, COSTS, MAX_OFFERS, answerOf, isExact, bankOf, cards, has, piecesLeft, postSpots, factorySpots, roadSpots, roadLength, pointsOf, playable, rates, victims, setupOrder } from "./factor-rules.js";
 
-export const LEVEL_NAMES = [["medium", "Medium"], ["hard", "Hard"]];
+export const LEVEL_NAMES = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]];
 const sum = a => a.reduce((t, x) => t + x, 0);
 const ZERO = () => [0, 0, 0, 0, 0];
 
@@ -330,7 +330,7 @@ function mainMove(s, seat) {
 /** A computer player's move for its seat at this state. */
 export function botMove(s, seat, { level = "medium", rng = Math.random } = {}) {
   let move;
-  try { move = level === "hard" ? think(s, seat, rng) : decide(s, seat, rng); } catch (e) { console.error(e); move = null; }
+  try { move = level === "hard" ? think(s, seat, rng) : level === "easy" ? beginner(s, seat, rng) : decide(s, seat, rng); } catch (e) { console.error(e); move = null; }
   const probe = () => { try { return move && typeof rules.act(JSON.parse(JSON.stringify(s)), seat, move, { rng: () => 0.5, now: 0 }) !== "string"; } catch { return false; } };
   return probe() ? move : plain(s, seat, rng);
 }
@@ -350,6 +350,25 @@ function decide(s, seat, rng) {
     case "pick": return pickAnswer(s, seat, false);
     default: return mainMove(s, seat);
   }
+}
+
+// ---------- Easy: Medium's moves, made as a beginner makes them ----------
+// Korbi, 8 Nov 2026: a game's computer players get all three levels (Easy had gone in October, when Medium became the old Hard).
+// Its first posts are among the better spots rather than the best, it blockades and robs anyone, plays no card before its roll,
+// says yes to two offers in five it can meet, and on a third of its turns builds nothing.
+const ITS_OWN = new Set(["setup", "roll", "discard", "blockade", "steal", "causeway", "offer", "pick"]);
+function beginner(s, seat, rng) {
+  switch (s.step) {
+    case "setup":
+      if (s.part === "post") { const owned = production(s, seat); return { t: "build", what: "post", at: pickTop(postSpots(s, seat, { setup: true }), w => spotScore(s, seat, w, owned), rng, 5) }; }
+      break;
+    case "roll": return { t: "roll" };
+    case "blockade": return { t: "blockade", hex: pick(HEXES.map((_, h) => h).filter(h => h !== s.robber), rng) };
+    case "steal": { const who = victims(s, s.robber, seat); if (who.length) return { t: "steal", from: pick(who, rng) }; break; }
+    case "offer": return { t: "answer", yes: rng() < 0.4 };
+  }
+  if (!ITS_OWN.has(s.step) && rng() < 1 / 3) return { t: "end" };
+  return decide(s, seat, rng);
 }
 
 /** The plainest legal move for the step, for when the one chosen is refused. */

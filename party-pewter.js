@@ -274,7 +274,7 @@ export default {
   ],
   options: [
     { id: "fill", label: "Computer players", choices: [["0", "None"], ["4", "Fill to 4"], ["5", "Fill to 5"], ["6", "Fill to 6"]], value: "0" },
-    { id: "level", hidden: true, label: "Computer level", choices: [["1", "Simple"], ["2", "Medium"], ["3", "Hard"]], value: "2" },
+    { id: "level", hidden: true, label: "Computer level", choices: [["1", "Easy"], ["2", "Medium"], ["3", "Hard"]], value: "2" },
     { id: "clock", hidden: true, label: "Clock", choices: [["0", "Off"], ["20", "20 s"], ["30", "30 s"], ["60", "60 s"]], value: "60" },
   ],
 
@@ -298,7 +298,7 @@ export default {
       first, turn: first, clock, log: [`${nameOf(all, first)} starts.`],
       say: `Counterfeit. Everyone lay a coin face down. ${nameOf(all, first)} starts.`,
     };
-    if (bots.length) s.bots = Object.fromEntries(bots.map(b => [b.uid, [1, 2, 3].includes(Number(options.level)) ? Number(options.level) : 2]));   // the level: 1 simple, 2 medium, 3 hard
+    if (bots.length) s.bots = Object.fromEntries(bots.map(b => [b.uid, [1, 2, 3].includes(Number(options.level)) ? Number(options.level) : 2]));   // the level: 1 easy, 2 medium, 3 hard
     if (!clock) delete s.clock; else s.deadline = now + clock;
     return s;
   },

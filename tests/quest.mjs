@@ -230,27 +230,27 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   let c = won([]).state;
   c = said(c, 2, { t: "name", seat: 3 }); c = said(c, 6, { t: "name", seat: 3 }); c = said(c, 4, { t: "name", seat: 1 });
   let follows = true;
-  for (let i = 0; i < 20; i++) if (questBot(c, 4, "medium", seeded(i)).seat !== 3) follows = false;
+  for (let i = 0; i < 20; i++) if (questBot(c, 4, "hard", seeded(i)).seat !== 3) follows = false;
   check(follows, "the computer's Mutineer strikes the one most of the traitors named");
 }
 
 // ---------- the computer players ----------
 {
-  check(LEVEL_NAMES.map(l => l[0]).join() === "easy,medium", "two levels: Easy and Sharp");
+  check(LEVEL_NAMES.map(l => l[0]).join() === "easy,medium,hard", "three levels: Easy, Medium and Hard, which is Sharp (Korbi, 8 Nov 2026)");
   const roles = ["seer", "loyal", "loyal", "assassin", "traitor", "loyal", "loyal"];
   const G = table(roles, 3);
-  const team = questBot(G.state, 3, "medium", seeded(1)).team;
+  const team = questBot(G.state, 3, "hard", seeded(1)).team;
   check(team.length === 2 && team.includes(3) && !team.includes(4), "a traitor leading takes itself along, not another traitor");
   // the fourth quest needs two fails: a traitor leading takes one more of its own
   const g4 = structuredClone(G.state);
   g4.q = 3; g4.quests.forEach((q, i) => { if (i < 3) Object.assign(q, { result: i === 1 ? "fail" : "success", fails: i === 1 ? 1 : 0, team: [0, 1] }); });
-  const t4 = questBot(g4, 3, "medium", seeded(2)).team;
+  const t4 = questBot(g4, 3, "hard", seeded(2)).team;
   check(t4.length === 4 && t4.includes(3) && t4.includes(4), "for the quest that needs two fails, it brings another of its own");
   // a quest with two of them on it, one fail enough: only one fails, the one the table suspects more (with nothing
   // to choose between them, the first round the table)
   const q = structuredClone(G.state);
   Object.assign(q, { step: "quest", q: 1, team: [0, 3, 4], cards: { 0: null, 3: null, 4: null } });
-  const fails = state => { let a = 0, b = 0; for (let i = 0; i < 200; i++) { if (!questBot(state, 3, "medium", seeded(i)).success) a++; if (!questBot(state, 4, "medium", seeded(i + 999)).success) b++; } return [a, b]; };
+  const fails = state => { let a = 0, b = 0; for (let i = 0; i < 200; i++) { if (!questBot(state, 3, "hard", seeded(i)).success) a++; if (!questBot(state, 4, "hard", seeded(i + 999)).success) b++; } return [a, b]; };
   const [first, second] = fails(q);
   check(first > 150 && second === 0, `two traitors on a quest one fail fails: only one fails it, the first round the table (${first} of 200), the other never`);
   const [spared, blamed] = fails([5, 6].reduce((s, by) => said(s, by, { t: "accuse", seat: 4 }), q));
@@ -259,23 +259,23 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   const vote = structuredClone(G.state);
   Object.assign(vote, { step: "vote", q: 1, team: [1, 2, 3], votes: Array(7).fill(null), leader: 1 });
   let yes = 0;
-  for (let i = 0; i < 200; i++) if (questBot(vote, 0, "medium", seeded(i)).yes) yes++;
+  for (let i = 0; i < 200; i++) if (questBot(vote, 0, "hard", seeded(i)).yes) yes++;
   check(yes < 160, `the Lookout doesn't wave a traitor's party through as a hand might (${yes} of 200)`);
-  check(questBot(vote, 2, "medium", seeded(3)).yes === true || questBot(vote, 2, "medium", seeded(4)).yes === true, "a hand with nothing to go on approves a first party with itself in it");
+  check(questBot(vote, 2, "hard", seeded(3)).yes === true || questBot(vote, 2, "hard", seeded(4)).yes === true, "a hand with nothing to go on approves a first party with itself in it");
   // everyone approves their own party: a traitor, and a hand at ten whose best party of five is all but hopeless
   const own = structuredClone(vote);
   Object.assign(own, { leader: 3, team: [3, 5, 6] });
   const ten = table(["loyal", "loyal", "traitor", "traitor", "loyal", "loyal", "traitor", "loyal", "traitor", "loyal"], 0, { seer: false }).state;
   Object.assign(ten, { step: "vote", q: 3, team: [0, 2, 3, 6, 8], votes: Array(10).fill(null) });
-  check([...Array(10).keys()].every(i => questBot(own, 3, "medium", seeded(i)).yes && questBot(ten, 0, "medium", seeded(i)).yes), "a leader approves its own party, traitor or hand");
+  check([...Array(10).keys()].every(i => questBot(own, 3, "hard", seeded(i)).yes && questBot(ten, 0, "hard", seeded(i)).yes), "a leader approves its own party, traitor or hand");
   // the fifth party: the loyal approve, the traitors refuse a clean one
   const fifth = structuredClone(vote);
   Object.assign(fifth, { rejects: 4, team: [0, 1, 2] });
-  check(questBot(fifth, 5, "medium", seeded(5)).yes === true && questBot(fifth, 4, "medium", seeded(6)).yes === false, "the fifth party: a hand approves it, a traitor refuses a clean one");
+  check(questBot(fifth, 5, "hard", seeded(5)).yes === true && questBot(fifth, 4, "hard", seeded(6)).yes === false, "the fifth party: a hand approves it, a traitor refuses a clean one");
   // the fourth clean party in a row with one of theirs to lead next: refused, the fifth is theirs, which the loyal must send
   const fourth = structuredClone(vote);
   Object.assign(fourth, { rejects: 3, leader: 2, team: [0, 1, 2] });
-  check([3, 4].every(p => [...Array(20).keys()].every(i => questBot(fourth, p, "medium", seeded(i)).yes === false)), "the fourth clean party in a row, one of theirs to lead next: the traitors refuse it");
+  check([3, 4].every(p => [...Array(20).keys()].every(i => questBot(fourth, p, "hard", seeded(i)).yes === false)), "the fourth clean party in a row, one of theirs to lead next: the traitors refuse it");
   // a party with one of their own: a Sharp traitor votes on it exactly as a hand in its seat would, so its votes
   // don't tie them together
   const caught = structuredClone(vote);
@@ -284,13 +284,13 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   caught.log = [{ q: 0, leader: 2, team: [2, 4], votes: Array(7).fill(true), approved: true, fails: 1 }];
   const hand = { ...caught, roles: caught.roles.map((r, p) => (p === 3 ? "loyal" : r)) };
   let same = 0, refused = 0;
-  for (let i = 0; i < 40; i++) { const a = questBot(caught, 3, "medium", seeded(i)).yes; if (a === questBot(hand, 3, "medium", seeded(i)).yes) same++; if (!a) refused++; }
+  for (let i = 0; i < 40; i++) { const a = questBot(caught, 3, "hard", seeded(i)).yes; if (a === questBot(hand, 3, "hard", seeded(i)).yes) same++; if (!a) refused++; }
   check(same === 40 && refused > 0, `a Sharp traitor votes on a party with its partner as a hand in its seat would (refusing it ${refused} times of 40)`);
   // the Mutineer names one it doesn't know for a traitor
   const end = structuredClone(G.state);
   end.step = "assassin";
   let fine = true;
-  for (let i = 0; i < 40; i++) { const k = questBot(end, 3, "medium", seeded(i)).seat; if (k === 3 || k === 4 || !(k >= 0 && k < 7)) fine = false; }
+  for (let i = 0; i < 40; i++) { const k = questBot(end, 3, "hard", seeded(i)).seat; if (k === 3 || k === 4 || !(k >= 0 && k < 7)) fine = false; }
   check(fine, "the Mutineer never names itself or another traitor");
 }
 {
@@ -300,7 +300,7 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   const accused = [5, 6].reduce((s, by) => said(s, by, { t: "accuse", seat: 1 }), s0);
   check(suspicion(accused, 2)[1] > suspicion(s0, 2)[1] + 0.03, `a hand suspects the one two others accuse more (${suspicion(s0, 2)[1].toFixed(2)} → ${suspicion(accused, 2)[1].toFixed(2)})`);
   let left = true;
-  for (let i = 0; i < 30; i++) if (questBot(accused, 2, "medium", seeded(i)).team.includes(1)) left = false;
+  for (let i = 0; i < 30; i++) if (questBot(accused, 2, "hard", seeded(i)).team.includes(1)) left = false;
   check(left, "and, leading, leaves them out of the party");
   // a player on a failed quest of two with the hand is all but caught: their accusation says next to nothing of its
   // target, since a traitor accuses the loyal and, once the table half suspects one of its own, that one too
@@ -320,12 +320,12 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   // their own talk: nothing before the first vote; accused, a word back decided once; a word of their own a party
   const roles = ["seer", "loyal", "loyal", "assassin", "traitor", "loyal", "loyal"];
   const s0 = table(roles, 2).state;
-  check([0, 1, 2, 3, 4, 5, 6].every(p => questChat(s0, p, "medium", seeded(p)) === null), "before the first party is voted on, nobody says anything of their own");
+  check([0, 1, 2, 3, 4, 5, 6].every(p => questChat(s0, p, "hard", seeded(p)) === null), "before the first party is voted on, nobody says anything of their own");
   let back = 0, same = true;
   for (let by = 0; by < 7; by++) for (let at = 0; at < 7; at++) {
     if (by === at) continue;
-    const s = said(s0, by, { t: "accuse", seat: at }), m = questChat(s, at, "medium", seeded(by * 7 + at));
-    if (JSON.stringify(m) !== JSON.stringify(questChat(s, at, "medium", seeded(99)))) same = false;
+    const s = said(s0, by, { t: "accuse", seat: at }), m = questChat(s, at, "hard", seeded(by * 7 + at));
+    if (JSON.stringify(m) !== JSON.stringify(questChat(s, at, "hard", seeded(99)))) same = false;
     if (m && !(m.t === "deny" || (m.t === "accuse" && m.seat === by && m.why === "back"))) same = false;
     if (m?.t === "accuse") back++;
   }
@@ -336,17 +336,17 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   g.quests[0] = { ...g.quests[0], result: "fail", fails: 1, team: [2, 4] };
   g.log = [{ q: 0, leader: 2, team: [2, 4], votes: [true, true, true, true, true, true, true], approved: true, fails: 1 }];
   let w = null;
-  for (let i = 0; i < 20 && !w; i++) w = questChat(g, 2, "medium", seeded(i));
+  for (let i = 0; i < 20 && !w; i++) w = questChat(g, 2, "hard", seeded(i));
   check(w?.t === "accuse" && w.seat === 4 && w.why === "fail", "the hand who was on a failed quest of two with a traitor accuses them, for the fail");
   const after = said(g, 2, w);
-  check([...Array(20).keys()].every(i => questChat(after, 2, "medium", seeded(i)) === null), "and says nothing more of its own until the next party");
+  check([...Array(20).keys()].every(i => questChat(after, 2, "hard", seeded(i)) === null), "and says nothing more of its own until the next party");
   // one of their own the table half suspects already: a Sharp traitor joins in against them; an Easy one doesn't
   const g1 = structuredClone(s0);
   Object.assign(g1, { leader: 5 });
   g1.log = [{ q: 0, leader: 4, team: [4, 5], votes: [false, false, false, false, true, true, false], approved: false }];
   const piled = [5, 6].reduce((s, by) => said(s, by, { t: "accuse", seat: 4 }), g1);
   const first3 = level => { for (let i = 0; i < 20; i++) { const m = questChat(piled, 3, level, seeded(i)); if (m) return m; } return null; };
-  check(first3("medium")?.t === "accuse" && first3("medium").seat === 4 && first3("easy")?.seat !== 4, "a Sharp traitor joins in against one of its own the table half suspects already; an Easy one doesn't");
+  check(first3("hard")?.t === "accuse" && first3("hard").seat === 4 && first3("easy")?.seat !== 4, "a Sharp traitor joins in against one of its own the table half suspects already; an Easy one doesn't");
 }
 {
   // the Lookout who named the traitors before any quest showed them is the one the traitors strike
@@ -360,21 +360,21 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   for (const x of [3, 4, 6]) loud = said({ ...loud, step: "propose" }, 0, { t: "accuse", seat: x });
   loud = { ...loud, step: "assassin" };
   let hitQuiet = 0, hitLoud = 0;
-  for (let i = 0; i < 40; i++) { if (questBot(quiet, 3, "medium", seeded(i)).seat === 0) hitQuiet++; if (questBot(loud, 3, "medium", seeded(i)).seat === 0) hitLoud++; }
+  for (let i = 0; i < 40; i++) { if (questBot(quiet, 3, "hard", seeded(i)).seat === 0) hitQuiet++; if (questBot(loud, 3, "hard", seeded(i)).seat === 0) hitLoud++; }
   check(hitLoud >= 36 && hitLoud > hitQuiet, `a Lookout who accused every traitor before a quest failed is struck (${hitLoud} of 40, against ${hitQuiet} of 40 kept quiet)`);
   // conferring, each computer traitor names one of the loyal, once (then agrees at most once); the loyal keep quiet
-  const names = [3, 4, 6].map(p => questChat(quiet, p, "medium", seeded(p)));
-  check(names.every(m => m?.t === "name" && !isEvil(roles[m.seat])) && [0, 1, 2, 5].every(p => questChat(quiet, p, "medium", seeded(p)) === null), "conferring, each traitor names one of the loyal; the loyal say nothing");
+  const names = [3, 4, 6].map(p => questChat(quiet, p, "hard", seeded(p)));
+  check(names.every(m => m?.t === "name" && !isEvil(roles[m.seat])) && [0, 1, 2, 5].every(p => questChat(quiet, p, "hard", seeded(p)) === null), "conferring, each traitor names one of the loyal; the loyal say nothing");
   const once = said(quiet, 3, names[0]);
-  const again = questChat(once, 3, "medium", seeded(5));
+  const again = questChat(once, 3, "hard", seeded(5));
   check(again === null, "a traitor names its pick once");
 }
 {
   // whole games with the table talking between the moves: every word fit to be said, the Lookout's never a lie, every game over
   let ok = true, games = 0, lines = 0, most = 0, seerLied = false;
   const t0 = Date.now();
-  for (const level of ["easy", "medium"]) for (const n of [5, 7, 10]) for (const options of [{ guardian: true, veiled: true, hermit: true }, { seer: false }]) {
-    let G = newRecord(rules, { seats: n, options, seed: n * 977 + (level === "easy" ? 1 : 2), now: T }), step = "", from = 0;
+  for (const level of ["easy", "medium", "hard"]) for (const n of [5, 7, 10]) for (const options of [{ guardian: true, veiled: true, hermit: true }, { seer: false }]) {
+    let G = newRecord(rules, { seats: n, options, seed: n * 977 + (level === "easy" ? 1 : level === "medium" ? 3 : 2), now: T }), step = "", from = 0;
     for (let i = 0; i < 1500 && G.state.step !== "over"; i++) {
       // a round of talk: each in turn may say a thing, three of their own a step at most
       const key = `${G.state.step}:${G.state.log.length}`;
@@ -405,7 +405,7 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   // whole games, every size, every role, both levels: every move legal, every game ends
   let ok = true, games = 0, good = 0, steps = 0;
   const sides = {};
-  for (const level of ["easy", "medium"]) for (let n = 5; n <= 10; n++) for (const options of [{}, { guardian: true, veiled: true, hermit: true }, { seer: false }]) for (let seed = 1; seed <= (n >= 9 ? 2 : 3); seed++) {
+  for (const level of ["easy", "medium", "hard"]) for (let n = 5; n <= 10; n++) for (const options of [{}, { guardian: true, veiled: true, hermit: true }, { seer: false }]) for (let seed = 1; seed <= (n >= 9 ? 2 : 3); seed++) {
     let G = newRecord(rules, { seats: n, options, seed: seed * 31 + n, now: T }), i = 0;
     for (; i < 800 && G.state.step !== "over"; i++) {
       const at = rules.wakeAt(G.state);

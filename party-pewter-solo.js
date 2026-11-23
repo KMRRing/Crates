@@ -7,12 +7,12 @@
 import { h, button, pickPlayer } from "./party-kit.js";
 import pewter, { alive } from "./party-pewter.js";
 import { PERSONAS } from "./party-pewter-bot.js";
+import { ramp } from "./ramp.js";
 
 export const YOU = "you";
 export const MOST = PERSONAS.length;                                   // their seats are bot1…bot5, named and tempered by seat
-export const LEVELS = [["1", "Simple"], ["2", "Medium"], ["3", "Hard"]];
+export const LEVELS = [["1", "Easy"], ["2", "Medium"], ["3", "Hard"]];
 
-const CHOICES_NAME = Object.fromEntries(LEVELS);
 const clampFoes = n => Math.max(1, Math.min(MOST, Number(n) | 0 || 3));
 const clampLevel = l => ([1, 2, 3].includes(Number(l)) ? Number(l) : 2);
 const people = name => [{ uid: YOU, name }];
@@ -58,15 +58,23 @@ function wire() {
   return wired;
 }
 
+// The computer players' level is the shared row in Party's menu while this game is on (Korbi, 8 Nov 2026: no picker of a
+// game's own; it was Simple / Medium / Hard on the page); Auto climbs after a game won and falls after one lost. The level
+// the page kept before is where the ramp starts.
+const levelOf = start => Number(ramp("pewter", LEVELS.map(([k]) => k), { start: String(start) }));
+
 /** On one phone, on Party's stage; back() returns to Party's games. */
-export function play(stage, { back }) {
+export function play(stage, { back: leave }) {
+  const back = () => { ramp.forget(); leave(); };
   const root = h("div", { class: "pw-solo fit-col" });
   stage.replaceChildren(root);                                          // one child: Party marks it, and draws again only if it's gone
   const saved = kept();
-  let foes = clampFoes(saved.foes), level = clampLevel(saved.level), g = usable(saved.g) ? saved.g : null;
+  let foes = clampFoes(saved.foes), g = usable(saved.g) ? saved.g : null;
+  const firstLevel = clampLevel(saved.level), levelNow = () => levelOf(firstLevel);
+  levelNow();
   let timer = 0, paused = false, ready = false, watching = false, sure = 0;
   const gone = () => !root.isConnected;
-  const save = () => keep({ foes, level, ...(g ? { g } : {}) });
+  const save = () => keep({ foes, level: firstLevel, ...(g ? { g } : {}) });
   const rng = Math.random;
 
   const control = {
@@ -81,7 +89,7 @@ export function play(stage, { back }) {
   Promise.all([wire(), import("./suite.js")]).then(([, s]) => { watching = !!s.IN_FRAME; ready = true; pump(); }).catch(() => { ready = true; pump(); });
 
   function begin() {
-    g = deal(foes, level, rng, Date.now(), nameOf());
+    g = deal(foes, levelNow(), rng, Date.now(), nameOf());
     save();
     pump();
   }
@@ -92,7 +100,11 @@ export function play(stage, { back }) {
     if (gone()) { if (current === control) current = null; return; }
     if (g && ready && !watching) {
       const m = move(g, rng, Date.now());
-      if (m) { g = m; save(); }
+      if (m) {
+        g = m;
+        if (g.state.phase === "over" && !g.counted) { g = { ...g, counted: true }; levelNow(); g.state.won === YOU ? ramp.won(true) : ramp.lost(); }
+        save();
+      }
     }
     show();
     if (!g || !ready || watching || paused) return;
@@ -126,15 +138,10 @@ export function play(stage, { back }) {
     const foesPick = pickPlayer([1, 2, 3, 4, 5].map(n => ({ uid: String(n), name: String(n) })),
       { picked: String(foes), label: "Opponents", onPick: u => { foes = clampFoes(u); save(); show(); } });
     foesPick.classList.add("five");
-    const levelPick = pickPlayer(LEVELS.map(([uid, name]) => ({ uid, name })),
-      { picked: String(level), label: "Level", onPick: u => { level = clampLevel(u); save(); show(); } });
-    levelPick.classList.add("three");
     root.replaceChildren(h("div", { class: "pa-home fit-col fit-grow" },
-      h("p", { class: "pa-intro" }, "Counterfeit against the computer: Quant, Gambler, Hedger, Sceptic and Wildcat each bid in their own way. Choose how many sit down with you, and how well they play."),
+      h("p", { class: "pa-intro" }, "Counterfeit against the computer: Quant, Gambler, Hedger, Sceptic and Wildcat each bid in their own way. Choose how many sit down with you."),
       h("p", { class: "pw-solo-label" }, foes === 1 ? "1 opponent" : `${foes} opponents`),
       foesPick,
-      h("p", { class: "pw-solo-label" }, `Level: ${CHOICES_NAME[level]}`),
-      levelPick,
       h("div", { class: "fit-grow" }),
       button("Deal", () => begin()),
       button("Invite friends instead", () => { location.href = "party.html?game=pewter&invite=1"; }, { primary: false }),
