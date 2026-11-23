@@ -507,7 +507,6 @@ function openMenu(tab = null) {
   body.replaceChildren();
   const play = part(body, "play");
   play.append(action(run.kind === "level" ? `Replay level ${levelNo()}` : run.kind === "endless" ? `Replay Endless ${run.n + 1}` : "Replay today's plate", () => replay(), "primary"));
-  if (!IN_FRAME) play.append(action(view.kind === "3d" ? "Play in 2D" : "Play in 3D", () => setView(view.kind !== "3d", true), "link"));
   const content = part(body, "content");
   const shown = tab || (mode === "daily" ? rest : mode);
   content.append(choice("Play", [["levels", "Levels"], ["endless", "Endless"]], shown, v => openMenu(v)));
@@ -527,6 +526,8 @@ function openMenu(tab = null) {
       if (on && !got) toast("The phone's tilt isn't available here.");
     }));
   }
+  // the view where every game with a 3D one has it: under Settings, 3D or Flat (Korbi, 23 Nov 2026: "standardize things where possible")
+  if (!IN_FRAME) settings.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], view.kind === "3d" ? "3d" : "flat", v => setView(v === "3d", true).then(() => openMenu(tab))));
   const t = camp.totals(), about = part(body, "about");
   about.append(line(`${plural(t.beaten, "level")} of ${t.levels} beaten, ${plural(t.stars, "star")} of ${t.levels * 3}${camp.endless.begun ? `; Endless ${camp.endless.at} beaten` : ""}.`));
   about.append(line("You never place a gear: the next one of the queue is shoved in from a lever at the edge of the plate, and pushes the gears in its way one step along. Gears of one pitch that touch mesh and turn opposite ways; a chain of three or more is a train. The goal asks for trains of a length (2 trains of 5+), and each star more for a gear more in each. A ring of an odd number of gears jams, and a jammed train doesn't count; a jewel counts under a train that turns. The idler meshes every pitch, a bridge two. The plate is judged when it is full or the queue is out."));
