@@ -133,7 +133,7 @@ function refMoves(p, side) {
   let G = G0(build([[0, "7", "e4"], [0, "F", "a1"], [0, "3", "j1"], [1, "4", "e5"], [1, "F", "e7"], [1, "B", "d7"], [1, "2", "j10", "m"]]));
   G = mv(G, 0, code("e4", "e5"));
   const p = positionOf(G.state);
-  check(p.pos[0] === sq("e5") && p.pos[ARMY] === -1 && p.seen[0] && G.state.fx.ak === "7" && G.state.fx.dk === "4" && G.state.fx.r === 1 && G.state.quiet === 0, "a Major attacking a Sergeant takes it and stands on its square, shown, and the attack is kept for drawing");
+  check(p.pos[0] === sq("e5") && p.pos[ARMY] === -1 && p.seen[0] && G.state.fx.ak === "7" && G.state.fx.dk === "4" && G.state.fx.r === 1 && G.state.fx.a === 0 && G.state.fx.d === ARMY && G.state.quiet === 0, "a Major attacking a Sergeant takes it and stands on its square, shown, and the attack is kept for drawing");
   G = mv(G, 1, code("j10", "j2"));
   check(positionOf(G.state).seen[ARMY + 3] === 1, "a Scout's run shows it");
   G = mv(G, 0, code("e5", "e6"));

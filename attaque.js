@@ -11,12 +11,15 @@ import { createBoard, glyph } from "./attaque-draw.js";
 import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { load3d } from "./loading.js";
 import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE, boardStage } from "./attaque-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -31,7 +34,10 @@ const at = sq => ({ f: Math.floor(sq / 100), t: sq % 100 });
 let opts = { mode: "computer", coach: "hints", ...read(OPTS, {}) };
 if (!["computer", "two"].includes(opts.mode)) opts.mode = "computer";
 if (!["off", "hints"].includes(opts.coach)) opts.coach = "hints";
-const levelNow = () => ramp("attaque", LEVEL_NAMES.map(([k]) => k), { start: "medium" });
+// a lesson's game plays the level it names, once; every other game the ramp's
+let lesson = null, lessonNext = null;
+const rampNow = () => ramp("attaque", LEVEL_NAMES.map(([k]) => k), { start: "medium" });
+const levelNow = () => lesson || rampNow();
 const levelName = () => LEVEL_NAMES.find(([k]) => k === levelNow())?.[1] || "Medium";
 const saveOpts = () => write(OPTS, opts);
 
@@ -70,7 +76,7 @@ let drawnGame = "";
 let ui = { key: "", sel: -1, hint: null };      // the move being made: the piece picked up, the coach's move
 let arr = null;                                 // the army being set up on this phone: { key, side, text (as it sees it), sel (a place) }
 let uncovered = -1;                             // two on one phone: the side the board was last shown to
-let clashSeen = "", clashTimer = 0;
+let clashSeen = "", clashTimer = 0, wasSetting = false;
 const pending = new Set();
 const randomRounds = seatRounds("attaque");     // random mode's round: a game
 
@@ -130,8 +136,36 @@ function work(v) {
 
 // ---------- the board ----------
 const board = createBoard($("board"), { onTap: sq => tap(sq) });
-const view = tableView("attaque", ["board", "Board"]);                // Menu, View: the flat board or the board tipped away from you (attaque-3d.css)
-const applyView = () => $("app").classList.toggle("at3", view.get() === "3d");
+// Menu, View: the flat board, or the 3D one (attaque-3d.js, loaded when it is wanted: a campaign map on a walnut table, the pieces
+// painted cards in brass stands). The flat board is drawn under it all the same, unseen, as the one record of the position; a
+// partner's watching frame, and a device without WebGL, see the flat board.
+const view = tableView("attaque", ["board", "Board"]);
+let board3d = null, making3d = false;
+async function make3d() {
+  if (making3d || board3d) return;
+  making3d = true;
+  try {
+    const { createBoard: create3d } = await load3d(import("./attaque-3d.js"));
+    if (view.get() === "3d" && !board3d) {
+      board3d = create3d($("board3"), { onTap: sq => tap(sq) !== false, onLost: () => { view.fail(); drop3d(); toast("3D stopped working here: the flat board."); draw(); } });
+      if (isPaused()) board3d.hold(true);
+    }
+  } catch (err) {
+    console.warn("L'Attaque: no 3D here, so the board is drawn flat.", err);
+    view.fail();
+    $("board3").replaceChildren();
+  }
+  making3d = false;
+  draw();
+}
+function drop3d() { board3d?.dispose(); board3d = null; }
+onPause(() => board3d?.hold(true), () => board3d?.hold(false));
+function applyView() {
+  const want = view.get() === "3d";
+  if (want && !board3d) make3d();
+  if (!want && board3d) drop3d();
+  $("app").classList.toggle("at3", want && !!board3d);
+}
 
 /** The army being set up here follows the game and the side: the last army this phone used, or the one dealt. */
 function syncArr(v, side) {
@@ -139,7 +173,7 @@ function syncArr(v, side) {
   const key = `${v.G.seq}:${v.G.started}:${side}`;
   if (arr?.key === key) return;
   const saved = read(SETUP, null), mine = !isTwo(v) || side === 0;
-  arr = { key, side, sel: -1, text: mine && validSetup(saved) ? saved : setupOf(v.state, side) };
+  arr = { key, side, sel: -1, text: mine && validSetup(saved) ? saved : setupOf(v.state, side), ids: Array.from({ length: ARMY }, (_, i) => side * ARMY + i) };
 }
 
 function draw() {
@@ -147,12 +181,15 @@ function draw() {
   if (!page) return;
   const v = V, s = v?.G ? v.state : null;
   const id = v?.G ? `${v.G.seq}:${v.G.started}:${v.mode}` : "";
-  const still = id !== drawnGame || !s;
+  let still = id !== drawnGame || !s;
   drawnGame = id;
   const key = gameKey(v);
   if (ui.key !== key) ui = { key, sel: -1, hint: null };
   const me = eyes(v), cover = covered(v), setting = arranger(v);
   syncArr(v, setting);
+  // an army put in is drawn from the game, its pieces numbered by place, not as they were shuffled about: no slide across the board
+  if (wasSetting && setting == null) still = true;
+  wasSetting = setting != null;
   const pieces = [];
   let legal = [], area = [], sel = -1, clash = -1, last = null;
   if (s && !cover) {
@@ -164,7 +201,7 @@ function draw() {
       pieces.push({ id: pid, sq: p.pos[pid], side, kind: mine || reveal || p.seen[pid] ? p.kind[pid] : -1, shown: mine && !reveal && !!p.seen[pid], moved: !mine && !reveal && !p.seen[pid] && !!p.moved[pid] });
     }
     if (setting != null) {
-      for (let i = 0; i < ARMY; i++) pieces.push({ id: setting * ARMY + i, sq: placeSquare(setting, i), side: setting, kind: kindOf(arr.text[i]) });
+      for (let i = 0; i < ARMY; i++) pieces.push({ id: arr.ids[i], sq: placeSquare(setting, i), side: setting, kind: kindOf(arr.text[i]) });
       area = Array.from({ length: ARMY }, (_, i) => placeSquare(setting, i));
       sel = arr.sel >= 0 ? placeSquare(setting, arr.sel) : -1;
     } else if (mover(v) != null && ui.sel >= 0) {
@@ -174,7 +211,12 @@ function draw() {
     if (s.moves.length) last = at(s.moves[s.moves.length - 1]);
     if (s.fx && s.fx.n === s.moves.length) clash = s.fx.t;
   }
-  board.draw({ pieces, flip: me === 1, sel, legal, last, hint: ui.hint, clash, area, still, tap: !cover && (mover(v) != null || setting != null) });
+  const shown = { pieces, flip: me === 1, sel, legal, last, hint: ui.hint, clash, area, still, tap: !cover && (mover(v) != null || setting != null) };
+  board.draw(shown);
+  if (board3d) {
+    const fx = s?.fx, fight = fx && fx.n === s.moves.length && fx.a != null && !cover ? { key: `${v.G.seq}:${v.G.started}:${fx.n}`, a: fx.a, d: fx.d, r: fx.r, t: fx.t } : null;
+    board3d.set({ ...shown, fight });
+  }
   drawCover(v, cover);
   drawSeats(v);
   drawStatus(v);
@@ -328,6 +370,7 @@ function tapSetup(sq, side) {
   else {
     const t = [...arr.text];
     [t[arr.sel], t[i]] = [t[i], t[arr.sel]];
+    [arr.ids[arr.sel], arr.ids[i]] = [arr.ids[i], arr.ids[arr.sel]];          // the two pieces change places (they slide)
     arr.text = t.join("");
     arr.sel = -1;
   }
@@ -335,11 +378,11 @@ function tapSetup(sq, side) {
 }
 function tap(sq) {
   const v = V;
-  if (covered(v)) return;
+  if (covered(v)) return false;
   const setting = arranger(v);
-  if (setting != null) { tapSetup(sq, setting); return; }
+  if (setting != null) { tapSetup(sq, setting); return true; }
   const side = mover(v);
-  if (side == null) return;
+  if (side == null) return false;
   const s = v.state, p = positionOf(s), pid = p.board[sq], ban = bannedOf(s.moves);
   ui.hint = null;
   if (pid >= 0 && (pid >= ARMY ? 1 : 0) === side) {
@@ -409,7 +452,7 @@ function onOver(v) {
     if (r.winner < 0) rec.drawn++;
     write(RECORD, rec);
     noteStreak("attaque", !!mine);
-    if (!page.atTable && !isTwo(v)) { levelNow(); mine ? ramp.won(true) : r.winner >= 0 ? ramp.lost() : ramp.won(false); }
+    if (!page.atTable && !isTwo(v) && !lesson) { rampNow(); mine ? ramp.won(true) : r.winner >= 0 ? ramp.lost() : ramp.won(false); }
   }
   setTimeout(() => { if (V?.over && V.G === v.G) showEnd(V); }, 1400);
 }
@@ -425,6 +468,7 @@ function showEnd(v) {
 }
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
+  lesson = lessonNext; lessonNext = null;
   ui = { key: "", sel: -1, hint: null };
   arr = null;
   ready.clear();
@@ -455,13 +499,26 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+const course = createCourse({
+  id: "attaque", course: COURSE, cls: "at", inFrame: IN_FRAME, onRules: showRules, stage: boardStage(),
+  onPlay: step => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.mode = "computer";
+    lessonNext = step?.level || "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
-  levelNow();                                     // the shared level row is for the ramp read last: this game's
+  rampNow();                                      // the shared level row is for the ramp read last: this game's
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("attaque", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn L'Attaque, from the rules", () => course.open()));
   if (!IN_FRAME) play.append(action("The rules on one page", showRules, "link"));
   if (V?.G && !V.over && !IN_FRAME && (isTwo(V) || V.seat != null)) {
     play.append(action("Resign", async () => {
@@ -498,6 +555,6 @@ document.querySelector(".at-mark").innerHTML = APPS.find(a => a.id === "attaque"
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-window.__attaque = { page, get view() { return V; }, opts, board, get ui() { return ui; }, get arr() { return arr; }, ready };
+window.__attaque = { page, get view() { return V; }, opts, board, get board3d() { return board3d; }, course, get ui() { return ui; }, get arr() { return arr; }, ready };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

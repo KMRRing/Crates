@@ -3,8 +3,8 @@
 //   { seats: 2, red (the seat playing Red, who moves first), phase ("setup", then "play"), rdy ("00": which sides are set up,
 //     Red's first), pk (80 kinds, a character each: Red's pieces, then Blue's), at (80 squares, two digits each, "--" once
 //     taken), sn and mv (80 flags each: shown to the other side, has moved), t (the side to move: 0 Red, 1 Blue), moves [every
-//     move in play, from * 100 + to], quiet (moves since the last attack), fx { n (the move it was), f, t, ak, dk (the kinds
-//     as characters), r (1 the attacker won, -1 lost, 0 both fell), by (the attacking side) } the last attack, over,
+//     move in play, from * 100 + to], quiet (moves since the last attack), fx { n (the move it was), f, t, a, d (the pieces), ak,
+//     dk (their kinds as characters), r (1 the attacker won, -1 lost, 0 both fell), by (the attacking side) } the last attack, over,
 //     result { winner (a side, or -1 for a draw), why: "flag" | "stuck" | "quiet" | "resign" } }
 // Both armies are dealt a setup; a side puts its own in with { setup } (its forty kinds as it sees them), and the game starts
 // when both have. Hidden pieces are hidden by the page and the computer, not the state: the computer plays from what its side
@@ -80,7 +80,7 @@ export const rules = {
     writePosition(s, next);
     s.moves = [...s.moves, m];
     s.quiet = fx ? 0 : (s.quiet || 0) + 1;
-    if (fx) s.fx = { n: s.moves.length, f: Math.floor(m / 100), t: m % 100, ak: KCH[fx.ak], dk: KCH[fx.dk], r: fx.r, by: p.t };
+    if (fx) s.fx = { n: s.moves.length, f: Math.floor(m / 100), t: m % 100, a: fx.a, d: fx.d, ak: KCH[fx.ak], dk: KCH[fx.dk], r: fx.r, by: p.t };
     if (fx?.flag) return end(s, p.t, "flag");
     // a side that cannot move on its turn loses; if neither can, it is a draw
     const ban = bannedOf(s.moves);
