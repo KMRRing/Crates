@@ -7,13 +7,15 @@ import { ramp } from "./ramp.js";
 import { LEVEL_NAMES, bestPlay, warm } from "./rack-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
+import { wants3D } from "./mode3d.js";
+import { load3d } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const OPTS = "rack:opts", RECORD = "rack:record";
+const OPTS = "rack:opts", RECORD = "rack:record", VIEW = "rack:view";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -105,6 +107,7 @@ function draw() {
   $("strip").innerHTML = Array.from({ length: s.seats }, (_, k) => `<span class="rk-pl${s.step === "play" && v.toMove === k ? " turn" : ""}"><b>${esc(who(k))}</b><span>${s.scores[k]}</span></span>`).join("")
     + `<span class="rk-bag">Bag ${s.bag.length}</span>`;
   drawBoard(v);
+  board3d?.draw({ board: s.board, pend: put(), last: s.step === "play" || s.step === "over" ? s.last?.cells || [] : [], seq: v.G.seq });
   drawRack(v);
   $("status").innerHTML = `<span>${statusLine(v)}</span>`;
   drawBar(v);
@@ -160,8 +163,11 @@ $("rack").addEventListener("click", e => {
 });
 $("board").addEventListener("click", e => {
   const c = e.target.closest("[data-i]");
-  if (!c || !myTurn(V)) return;
-  const i = Number(c.dataset.i);
+  if (c) tapCell(Number(c.dataset.i));
+});
+/** A tap on square i, on either board: the held tile laid there, or a tile laid this turn taken back. */
+function tapCell(i) {
+  if (!myTurn(V)) return;
   if (pend.has(i)) { pend.delete(i); draw(); return; }                       // take a laid tile back
   if (V.state.board[i] !== "." || sel == null) return;
   const slot = order[sel], tile = V.state.racks[V.seat][slot];
@@ -169,7 +175,7 @@ $("board").addEventListener("click", e => {
   pend.set(i, { ch: tile, slot });
   sel = null;
   draw();
-});
+}
 $("bar").addEventListener("click", e => {
   const b = e.target.closest("[data-act]");
   if (!b || b.disabled || !V?.G) return;
@@ -259,6 +265,33 @@ function newGame() {
 $("endAgain").addEventListener("click", newGame);
 $("endTable").addEventListener("click", () => $("endDlg").close());
 
+// ---------- 3D: the same board in wood on a table (rack-3d.js, loaded when first wanted) ----------
+// The view is the player's explicit choice (rack:view, written only when they pick one) or else the suite's default (mode3d.js: 3D
+// unless the main menu's battery saver is on). A watching frame always draws flat. Where there is no WebGL, or the context is lost,
+// the flat board is drawn for this visit and the choice is left alone. The rack and the buttons are the page's own in both.
+let board3d = null, making3d = false, lost3d = false, in3d = false, paused = false;
+const wants3d = () => !IN_FRAME && !lost3d && wants3D(read(VIEW, null), "3d");
+async function applyView() {
+  const want = wants3d();
+  if (want && !board3d && !making3d) {
+    making3d = true;
+    $("boardBox").classList.add("is3d");                         // no flash of the flat board while three.js loads
+    try {
+      board3d = (await load3d(import("./rack-3d.js"), "Setting out the board")).createBoard3d($("board3d"), { onTap: tapCell, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); applyView(); } });
+      if (paused) board3d.hold(true);
+    } catch (e) { console.warn("Rack: no 3D here.", e); lost3d = true; toast("This browser can't draw 3D: the flat board."); }
+    making3d = false;
+  }
+  in3d = want && !!board3d && !lost3d;
+  $("boardBox").classList.toggle("is3d", in3d);
+  $("board3d").hidden = !in3d;
+  board3d?.show(in3d);
+  draw();
+}
+const setView = v => { write(VIEW, v); applyView(); };
+addEventListener("settings:flat", () => { if (read(VIEW, null) == null) applyView(); });
+onPause(() => { paused = true; board3d?.hold(true); }, () => { paused = false; board3d?.hold(false); });
+
 // ---------- rules, menu ----------
 function showRules() {
   $("rulesBody").innerHTML = `
@@ -298,6 +331,7 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(choice("Players in a new game", [[2, "2"], [3, "3"], [4, "4"]], opts.players, v => { opts.players = Number(v); saveOpts(); }));
   set.append(line("The number of players applies from the next game."));
+  if (!IN_FRAME) set.append(choice("View", [["3d", "3D"], ["flat", "2D"]], in3d ? "3d" : "flat", v => { setView(v === "3d" ? "3d" : "flat"); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("rack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -310,7 +344,8 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
-window.__rack = { page, hint, get view() { return V; }, opts };
+window.__rack = { page, hint, tapCell, setView, get view() { return V; }, get board3d() { return in3d ? board3d : null; }, opts };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
+applyView();
 setTimeout(() => warm(levelNow()), 400);                                    // the computer's word list, built while you look at the board

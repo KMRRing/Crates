@@ -45,6 +45,22 @@ html[data-theme="office"][data-mode="night"] { --rk-in: #479EF5; }
 .rk-sq.t.pend { box-shadow: inset 0 0 0 2px var(--rk-in); background: color-mix(in srgb, var(--rk-in) 24%, var(--rk-wood)); cursor: pointer; }
 .rk-sq.t.last { box-shadow: inset 0 0 0 2px var(--rk-word); }
 
+/* 3D: the board drawn by rack-3d.js in the same box, which keeps its size (the flat board hidden, not removed); its two buttons and
+   first-visit tip over the picture, as Go's are */
+.rk-box { position: relative; }
+.rk-box.is3d { display: block; }
+.rk-box.is3d .rk-board { display: none; }
+.rk-3d { position: absolute; inset: 0; overflow: hidden; border-radius: 6px; background: var(--tile); }
+.rk-3d[hidden] { display: none; }
+.rk3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.rk3-bar { position: absolute; left: .5rem; bottom: .5rem; display: flex; gap: .4rem; }
+.rk3-btn { padding: .35rem .7rem; border-radius: 4px; border: 1px solid var(--tile-edge); background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink);
+  font: inherit; font-size: .75rem; font-weight: 800; font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
+.rk3-btn[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
+.rk3-tip { position: absolute; left: .5rem; right: .5rem; top: .5rem; margin: 0; padding: .3rem .5rem; border-radius: 4px; text-align: center; font-size: .72rem; line-height: 1.3; pointer-events: none;
+  background: color-mix(in srgb, var(--sheet) 85%, transparent); color: var(--ink-soft); }
+.rk3-tip[hidden] { display: none; }
+
 /* ---------- your rack and your buttons ---------- */
 .rk-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .45rem; }
 /* two lines kept, the words centred in them, so a longer line doesn't push the rack down as it comes and goes */
