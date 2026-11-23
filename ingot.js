@@ -78,6 +78,16 @@ function finish() {
 
 // ---------- drawing ----------
 const metalOf = e => Math.min(e - 1, 13);
+// A cast ingot seen from above: the top face, and the four faces sloping down to the wider foot, each lit its own way (the
+// light from the far left); its value struck into the top. One drawing for every bar, its metal from the tile's colours.
+const INGOT = `<svg viewBox="0 0 100 100" aria-hidden="true">
+  <path class="f-n" d="M5 17H95L83 28H17Z"/><path class="f-w" d="M5 17L17 28V74L5 86Z"/>
+  <path class="f-e" d="M95 17V86L83 74V28Z"/><path class="f-s" d="M5 86L17 74H83L95 86Z"/>
+  <rect class="f-top" x="17" y="28" width="66" height="46"/><rect class="f-sheen" x="17" y="28" width="66" height="46"/>
+  <path class="f-rim" d="M5 17H95V86H5ZM17 28V74H83V28Z"/>
+  <text class="f-deep" x="50" y="53"></text><text class="f-num" x="50" y="51.6"></text>
+  <rect class="f-heat" x="5" y="17" width="90" height="69"/>
+</svg>`;
 function tileEl(e, i) {
   const t = document.createElement("div");
   t.className = "ig-tile";
@@ -86,13 +96,11 @@ function tileEl(e, i) {
   t.dataset.d = String(value(e)).length;
   t.style.setProperty("--c", i % N);
   t.style.setProperty("--r", Math.floor(i / N));
-  const bar = document.createElement("div"), num = document.createElement("span"), stamp = document.createElement("i");
-  bar.className = "ig-bar";
-  num.className = "ig-num";
-  num.textContent = String(value(e));
+  t.innerHTML = INGOT;
+  for (const tx of t.querySelectorAll("text")) tx.textContent = String(value(e));
+  const stamp = document.createElement("i");
   stamp.className = "ig-stamp";
-  bar.append(num, stamp);
-  t.append(bar);
+  t.append(stamp);
   return t;
 }
 function drawBoard(born = -1, merged = []) {
@@ -104,8 +112,12 @@ function drawBoard(born = -1, merged = []) {
     const t = tileEl(e, i);
     box.append(t);
     tileEls[i] = t;
-    if (i === born) animate(t, [{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: POP, easing: "ease-out" });
-    else if (merged.includes(i)) animate(t, [{ transform: "scale(1)" }, { transform: "scale(1.16)" }, { transform: "scale(1)" }], { duration: POP, easing: "ease-out" });
+    // a new bar is set down in its pocket; two that meet are poured into one, which comes out glowing and cools
+    if (i === born) animate(t, [{ transform: "translateY(-6%) scale(.82)", opacity: 0 }, { transform: "translateY(0) scale(1)", opacity: 1 }], { duration: POP, easing: "ease-out" });
+    else if (merged.includes(i)) {
+      animate(t, [{ transform: "scale(1)" }, { transform: "scale(1.1)" }, { transform: "scale(1)" }], { duration: POP, easing: "ease-out" });
+      if (!calm()) t.classList.add("hot");
+    }
   });
   $("board").classList.toggle("over", S.over);
 }

@@ -1,12 +1,13 @@
-/* Ingot: a four-by-four board in a brass frame, a bar of metal on each square (lead, tin, copper, bronze, brass, silver,
-   electrum, gold, rose gold, platinum, then gilt at 2048 and steels beyond), the value always printed on the bar and a
-   small stamp on its top face, so colour is never the only thing that says what it is. Brass is the house colour; the
-   metals are the board's own colours, the same by day and by night. Sizes in cqw are of the board. */
+/* Ingot: a cast-iron ingot mould of four by four pockets in a brass frame, a bar of metal in each pocket (lead, tin, copper,
+   bronze, brass, silver, electrum, gold, rose gold, platinum, then gilt at 2048 and steels beyond), seen from above: its top face,
+   the four faces sloping to its foot, its value struck into the top and a small hallmark beside it, so colour is never the only
+   thing that says what it is. Two bars that meet are poured into one, which comes out glowing and cools. The mould and the
+   metals are the same by day and by night. Sizes in cqw are of the board. */
 :root {
   --ig-in: var(--brass-lo);
   --ig-soft: color-mix(in srgb, var(--ig-in) 15%, var(--sheet));
-  --ig-slot: color-mix(in srgb, var(--brass) 16%, var(--yard));
-  --ig-slot-edge: color-mix(in srgb, var(--brass) 38%, var(--yard));
+  --ig-iron: #24282C;
+  --ig-iron-hi: #3B4147;
 }
 
 #app.ingot { touch-action: none; }      /* a swipe is the game's, never the page's */
@@ -16,48 +17,66 @@
 .ig-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .ig-score b { font-size: 1.05rem; }
 
-/* the board: square, as large as its room allows */
+/* the mould: square, as large as its room allows; dark iron, a little lighter where the lamp falls, a rivet at each corner */
 .ig-field { position: relative; place-items: center; }
-.ig-board { --pad: 2.4cqw; position: relative; box-sizing: border-box; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); container-type: size;
-  border: 2px solid var(--brass); border-radius: 6px; background: color-mix(in srgb, var(--brass) 9%, var(--sheet));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
+.ig-board { --pad: 3.2cqw; position: relative; box-sizing: border-box; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); container-type: size;
+  border: 2px solid var(--brass); border-radius: 6px;
+  background: radial-gradient(circle at 1.6cqw 1.6cqw, #9C7A3C 0 .55cqw, transparent .7cqw), radial-gradient(circle at calc(100% - 1.6cqw) 1.6cqw, #9C7A3C 0 .55cqw, transparent .7cqw),
+    radial-gradient(circle at 1.6cqw calc(100% - 1.6cqw), #9C7A3C 0 .55cqw, transparent .7cqw), radial-gradient(circle at calc(100% - 1.6cqw) calc(100% - 1.6cqw), #9C7A3C 0 .55cqw, transparent .7cqw),
+    radial-gradient(120% 90% at 22% 12%, var(--ig-iron-hi), var(--ig-iron) 58%, #17191C);
+  box-shadow: 0 .4rem 1.2rem rgba(20, 16, 10, .28), inset 0 0 0 1px rgba(255, 255, 255, .06), inset 0 0 3cqw rgba(0, 0, 0, .45);
   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .ig-slots, .ig-tiles { position: absolute; inset: var(--pad); }
+.ig-defs { position: absolute; }
 .ig-slots { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); }
-.ig-slots i { margin: 1.5cqw; border-radius: 3px; background: var(--ig-slot); box-shadow: inset 0 0 0 1px var(--ig-slot-edge); }
+/* a pocket cast into the iron, the bar's shape a little larger: dark, its far wall in shadow and its near lip catching the light
+   (its margins are of its square: the squares are square) */
+.ig-slots i { margin: 14% 5% 12%; border-radius: 2px; background: linear-gradient(to bottom, #121417, #1E2226 70%, #262B30);
+  box-shadow: inset 0 .9cqw 1.3cqw rgba(0, 0, 0, .75), inset 0 -.25cqw 0 rgba(255, 255, 255, .07), 0 .2cqw 0 rgba(255, 255, 255, .05); }
 
-/* a bar of metal: a top face, a front face, a foot narrower than its shoulders */
+/* a bar: the faces of an ingot (ingot.js draws them), a soft shadow in its pocket */
 .ig-tile { --c: 0; --r: 0; position: absolute; left: calc(var(--c) * 25%); top: calc(var(--r) * 25%); width: 25%; height: 25%; will-change: transform; }
-.ig-tile::before { content: ""; position: absolute; left: 10%; right: 10%; bottom: 4%; height: 9%; background: radial-gradient(closest-side, rgba(28, 42, 52, .38), transparent); }
-.ig-bar { position: absolute; inset: 7% 4.5% 9%; background: var(--edge); clip-path: polygon(14% 0, 86% 0, 97% 26%, 90% 100%, 10% 100%, 3% 26%); }
-.ig-bar::before { content: ""; position: absolute; inset: .1rem; clip-path: polygon(14% 0, 86% 0, 97% 26%, 90% 100%, 10% 100%, 3% 26%);
-  background: linear-gradient(to bottom, var(--hi) 0 26%, color-mix(in srgb, var(--hi) 55%, var(--mid)) 26% 30%, var(--mid) 30%, var(--lo) 100%); }
-.ig-num { position: absolute; left: 0; right: 0; top: 24%; bottom: 0; display: grid; place-items: center; color: var(--ink-m); font-weight: 800; line-height: 1;
-  font-size: calc(var(--k, 9) * 1cqw); font-variant-numeric: tabular-nums; letter-spacing: -.02em; text-shadow: 0 .05em 0 var(--shine); }
-.ig-tile[data-d="3"] { --k: 7.6; }
-.ig-tile[data-d="4"] { --k: 6.2; }
-.ig-tile[data-d="5"] { --k: 5; }
-.ig-tile[data-d="6"] { --k: 4.2; }
-.ig-tile[data-d="7"] { --k: 3.6; }
-.ig-stamp { position: absolute; left: 50%; top: 7%; height: 13%; aspect-ratio: 1; translate: -50% 0; background: var(--ink-m); opacity: .5; }
+.ig-tile svg { position: absolute; inset: 4%; width: 92%; height: 92%; overflow: visible; filter: drop-shadow(0 .7cqw .6cqw rgba(0, 0, 0, .55)); }
+.ig-tile .f-top { fill: var(--mid); }
+.ig-tile .f-sheen { fill: url(#ig-sheen); }
+.ig-tile .f-n { fill: var(--hi); }
+.ig-tile .f-w { fill: color-mix(in srgb, var(--hi) 55%, var(--mid)); }
+.ig-tile .f-e { fill: color-mix(in srgb, var(--mid) 45%, var(--lo)); }
+.ig-tile .f-s { fill: var(--lo); }
+.ig-tile .f-rim { fill: none; stroke: var(--edge); stroke-width: 1.1; stroke-linejoin: round; opacity: .55; }
+.ig-tile text { text-anchor: middle; dominant-baseline: middle; font-weight: 800; font-size: calc(var(--k, 30) * 1px); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ig-tile .f-num { fill: var(--ink-m); }
+.ig-tile .f-deep { fill: var(--shine); }                   /* the light caught by the struck figure's lower edge */
+.ig-tile[data-d="3"] { --k: 25; }
+.ig-tile[data-d="4"] { --k: 19.5; }
+.ig-tile[data-d="5"] { --k: 15.5; }
+.ig-tile[data-d="6"] { --k: 13; }
+.ig-tile[data-d="7"] { --k: 11; }
+.ig-stamp { position: absolute; left: 21%; top: 30%; width: 7%; aspect-ratio: 1; background: var(--ink-m); opacity: .42; }
+/* fresh from the pour: white-hot, through orange, to the metal */
+.ig-tile .f-heat { fill: url(#ig-heat); opacity: 0; mix-blend-mode: screen; pointer-events: none; }
+.ig-tile.hot .f-heat { animation: ig-cool .9s ease-out; }
+.ig-tile.hot svg { animation: ig-glow .9s ease-out; }
+@keyframes ig-cool { 0% { opacity: .95; } 35% { opacity: .7; } 100% { opacity: 0; } }
+@keyframes ig-glow { 0% { filter: drop-shadow(0 0 2.6cqw rgba(255, 150, 40, .85)); } 100% { filter: drop-shadow(0 .7cqw .6cqw rgba(0, 0, 0, .55)); } }
 
 /* the metals: highlight, body, shade, edge, lettering, and the stamp's shape */
-.ig-tile { --edge: #3b4650; --ink-m: #1C2A34; --shine: rgba(255, 255, 255, .22); }
-.ig-tile[data-m="0"] { --hi: #BAC2CC; --mid: #929DAA; --lo: #727D8A; }
-.ig-tile[data-m="1"] { --hi: #DDE2E7; --mid: #B9C1CA; --lo: #9AA4AF; }
-.ig-tile[data-m="2"] { --hi: #EDB08C; --mid: #CF7F50; --lo: #A8603A; }
-.ig-tile[data-m="3"] { --hi: #E0B96F; --mid: #BA8B44; --lo: #94682C; }
-.ig-tile[data-m="4"] { --hi: #F4D87C; --mid: #DCB23C; --lo: #B68C22; }
-.ig-tile[data-m="5"] { --hi: #F6F8FA; --mid: #D8DDE2; --lo: #B9C0C7; }
-.ig-tile[data-m="6"] { --hi: #F7EAB0; --mid: #E6CD70; --lo: #C6A944; }
-.ig-tile[data-m="7"] { --hi: #FFE595; --mid: #F4C03E; --lo: #D49D20; }
-.ig-tile[data-m="8"] { --hi: #F8CAB6; --mid: #E99F83; --lo: #CB7B5E; }
-.ig-tile[data-m="9"] { --hi: #E8F1F8; --mid: #C1D3E1; --lo: #9DB4C8; }
-.ig-tile[data-m="10"] { --hi: #FFF3B8; --mid: #F8CF4A; --lo: #DCA61F; --edge: #6B4408; }
-.ig-tile[data-m="11"] { --hi: #8296AB; --mid: #5A6F86; --lo: #41546A; --ink-m: #F7F1E3; --shine: rgba(0, 0, 0, .3); --edge: #202C38; }
-.ig-tile[data-m="12"] { --hi: #655443; --mid: #44382B; --lo: #2D241B; --ink-m: #F3D98A; --shine: rgba(0, 0, 0, .4); --edge: #14100B; }
-.ig-tile[data-m="13"] { --hi: #7CC2A6; --mid: #479478; --lo: #2D6F58; --edge: #1B3F33; }
-.ig-tile[data-m="10"] .ig-bar { box-shadow: 0 0 1.6cqw color-mix(in srgb, #F8CF4A 70%, transparent); }
+.ig-tile { --edge: #1C2228; --ink-m: #1C2A34; --shine: rgba(255, 255, 255, .35); }
+.ig-tile[data-m="0"] { --hi: #BAC2CC; --mid: #929DAA; --lo: #66717E; }
+.ig-tile[data-m="1"] { --hi: #E6EAEE; --mid: #BDC5CD; --lo: #8F99A4; }
+.ig-tile[data-m="2"] { --hi: #F2BC98; --mid: #CF7F50; --lo: #94522F; }
+.ig-tile[data-m="3"] { --hi: #E8C47E; --mid: #BA8B44; --lo: #835C25; }
+.ig-tile[data-m="4"] { --hi: #F8E08C; --mid: #DCB23C; --lo: #A57E1C; }
+.ig-tile[data-m="5"] { --hi: #FBFCFD; --mid: #D8DDE2; --lo: #A7AFB7; }
+.ig-tile[data-m="6"] { --hi: #FAEFC0; --mid: #E6CD70; --lo: #B8993A; }
+.ig-tile[data-m="7"] { --hi: #FFEAA8; --mid: #F4C03E; --lo: #C48E1A; }
+.ig-tile[data-m="8"] { --hi: #FBD6C6; --mid: #E99F83; --lo: #BA6C50; }
+.ig-tile[data-m="9"] { --hi: #EEF5FA; --mid: #C1D3E1; --lo: #8CA4B9; }
+.ig-tile[data-m="10"] { --hi: #FFF6C8; --mid: #F8CF4A; --lo: #CC9618; --edge: #6B4408; }
+.ig-tile[data-m="11"] { --hi: #8EA2B6; --mid: #5A6F86; --lo: #3A4C60; --ink-m: #F7F1E3; --shine: rgba(0, 0, 0, .35); --edge: #141C25; }
+.ig-tile[data-m="12"] { --hi: #74624F; --mid: #44382B; --lo: #2A2119; --ink-m: #F3D98A; --shine: rgba(0, 0, 0, .45); --edge: #0E0B08; }
+.ig-tile[data-m="13"] { --hi: #8ACDB2; --mid: #479478; --lo: #2A664F; --edge: #163529; }
+.ig-tile[data-m="10"] svg { filter: drop-shadow(0 0 1.6cqw color-mix(in srgb, #F8CF4A 70%, transparent)); }
 .ig-tile[data-s="0"] .ig-stamp { clip-path: circle(50%); }
 .ig-tile[data-s="1"] .ig-stamp { clip-path: polygon(8% 8%, 92% 8%, 92% 92%, 8% 92%); }
 .ig-tile[data-s="2"] .ig-stamp { clip-path: polygon(50% 4%, 96% 92%, 4% 92%); }
@@ -70,7 +89,7 @@
 .ig-tile[data-s="9"] .ig-stamp { clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .ig-tile[data-s="10"] .ig-stamp { clip-path: polygon(50% 0, 100% 100%, 50% 72%, 0 100%); }
 .ig-tile[data-s="11"] .ig-stamp { clip-path: polygon(0 20%, 100% 20%, 100% 80%, 0 80%); }
-.ig-board.over .ig-tile { filter: saturate(.55); }
+.ig-board.over .ig-tile { filter: saturate(.55) brightness(.9); }
 
 /* the hint: a chevron on the edge the search would swipe to */
 .ig-hint { position: absolute; z-index: 3; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; pointer-events: none;
