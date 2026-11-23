@@ -36,6 +36,8 @@ html[data-mode="night"] { --so-in: #7FC2A8; --so-good: #7FC2A8; --so-bad: #E8806
 .so-board .cd-r { font-size: .95em; letter-spacing: -.07em; }
 .so-board .cd-s { font-size: .85em; margin: .03em 0 0; }
 .so-board .cd-pip { right: .1em; bottom: .04em; font-size: 1.55em; }
+/* a court's figure under the corner's rank and suit (they run across the top here, so it cannot stand beside them), the width of the card */
+.so-board .cd-ct { left: .12em; right: .12em; top: 1.02em; bottom: .1em; }
 .so-board .cd.back > * { visibility: hidden; }
 .so-board .cd.back { cursor: default; }
 .so-board.still .cd { transition: none; }

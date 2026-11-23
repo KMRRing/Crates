@@ -258,8 +258,8 @@ export function createView(host, opts = {}) {
       c.clearRect(0, 0, w, h);
       paper(c, w, h, e);
       const art = court ? picture(courtFile(rank, SUITS[suit]), key) : null;
-      if (art) {                                                    // the figure in the face's middle, clear of the corner index, as .cd-ct
-        const bx = 0.82 * e, by = 0.16 * e, bw2 = w - bx - 0.07 * e, bh2 = h - 2 * by, k = Math.min(bw2 / art.width, bh2 / art.height);
+      if (art) {                                                    // the figure under the corner's rank and suit, which run across the top, as .so-board .cd-ct
+        const bx = 0.12 * e, by = 1.02 * e, bw2 = w - 2 * bx, bh2 = h - by - 0.1 * e, k = Math.min(bw2 / art.width, bh2 / art.height);
         c.drawImage(art, bx + (bw2 - art.width * k) / 2, by + (bh2 - art.height * k) / 2, art.width * k, art.height * k);
       }
       rimLines(c, w, h, e, b);
