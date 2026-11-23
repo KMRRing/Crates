@@ -28,22 +28,19 @@
     <span id="stripA"></span>
     <span id="stripB"></span>
   </div>
-  <section id="orders" class="st-orders" aria-label="Standing orders"></section>
-  <section id="farm" class="st-farm fit-grow fit-box" aria-label="The crucibles">
-    <canvas id="board" class="st-board" role="img" aria-label="Crucibles of molten metal, the heaviest at the foot"></canvas>
-  </section>
+  <section id="moulds" class="st-moulds" aria-label="The moulds to cast"></section>
+  <section id="foundry" class="st-foundry fit-grow fit-box" aria-label="The crucibles"></section>
 
   <section class="st-side">
-    <p id="line" class="st-line"></p>
-    <div id="tray" class="st-tray">
-      <button class="st-card" type="button" data-slot="0"></button>
-      <button class="st-card" type="button" data-slot="1"></button>
-      <button class="st-card st-skim" type="button" data-slot="act" id="actBtn" hidden></button>
-      <button class="st-card st-skim" type="button" data-slot="skim" id="skimBtn"></button>
+    <p id="line" class="st-line" aria-live="polite"></p>
+    <div id="controls" class="st-controls">
+      <button class="btn" type="button" id="undoBtn">Undo</button>
+      <button class="btn" type="button" id="restartBtn">Restart</button>
+      <button class="btn" type="button" id="hintBtn">Hint</button>
     </div>
     <div id="result" class="st-result" hidden>
       <p id="verdict" class="st-verdict"></p>
-      <div class="st-btns"><button class="st-go" type="button" id="againBtn">New melt</button><button class="st-go" type="button" id="nextBtn" hidden>Next level</button></div>
+      <div class="st-btns"><button class="btn" type="button" id="againBtn">Play it again</button><button class="btn primary" type="button" id="nextBtn">Next level</button></div>
     </div>
   </section>
 </div>
@@ -53,7 +50,6 @@
   <div id="menuBody"></div>
 </dialog>
 
-<p id="toast" class="st-toast" role="status" aria-live="polite"></p>
 <script type="module" src="settle.js"></script>
 </body>
 </html>

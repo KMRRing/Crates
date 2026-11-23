@@ -1,163 +1,80 @@
-// Settle's rules (settle-engine.js): the deal from a seed, metals settling by real density, blocks cast when the parcels in
-// them are exactly an order's recipe (in any arrangement, a chain dropping what stood above), zinc on top aging to dross,
-// skimming, the end, a game saved as JSON, the five chapters' mechanics (the pot and decanting, solid copper and firing, stirring
-// bronze, charcoal over zinc, liquation), a level's fixed deal and its turns, and whole melts played out by the bot (settle-solve.js).
-import { newGame, draw, parcelAt, mixFor, valid, settles, poured, isRecipe, findBlock, ship, moves, skims, pour, skim, preview, worth, BURN, BURN_COST, decant, fire, stir, act, options, decants, fires, stirs } from "../settle-engine.js";
-import { METALS, RECIPES, heavier } from "../settle-alloys.js";
-import { playOut } from "../settle-solve.js";
+// Settle's rules (settle-engine.js, the redesign of 23 November 2026): metal lies by real density, a pour moves all the top metal
+// that fits and it sinks to its place, only the top comes out, a crucible holding exactly a mould's recipe casts at once (the
+// receiving one first), the solver's par and best move, stars; and the page wired to it (two views, sound, no limit on pours).
+// Run: node tests/settle.mjs
+import fs from "node:fs";
+import { levelOf, startOf, pour, pourOf, won, movesOf, solve, bestMove, starsFor, topOf, layersOf } from "../settle-engine.js";
+import { METALS, MOULDS, mouldOf, CHAPTERS } from "../settle-alloys.js";
+import { SOUNDS } from "../settle-sound.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const P = (...ms) => ms.map(m => ({ m, a: 0 }));
-/** A melt laid out by hand: crucibles as metal lists, bottom up. */
-const melt = (tanks, hand = ["Sn", "Sn"], extra = {}) => { const g = Object.assign(newGame({ cols: tanks.length, height: 7, orders: ["plumber"], goal: 4 }, 1), { tanks: tanks.map(t => P(...t)), hand }, extra); g.hot = Array(g.cols).fill(false); if (g.burn) g.feats = { ...g.feats, skim: true }; return g; };
+const root = new URL("../", import.meta.url).pathname, read = f => fs.readFileSync(root + f, "utf8");
+const T0 = Date.now();
 
-// ---------- the deal ----------
+// ---------- a crucible and a pour ----------
 {
-  const spec = { cols: 3, height: 8, orders: ["plumber", "fine"], goal: 4 };
-  const a = newGame(spec, 7), b = newGame(spec, 7), c = newGame(spec, 8);
-  check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(c), "the same seed deals the same melt, another seed another");
-  check(valid(a) && a.hand.length === 2 && a.tanks.length === 3 && a.n === 2 && !a.burn, "two parcels offered, empty crucibles, no zinc so nothing burns");
-  check(Array.from({ length: 200 }, (_, n) => draw(5, n)).every(x => x >= 0 && x < 1), "draws are between 0 and 1");
-  const mix = mixFor(["brass"]), seen = new Set(Array.from({ length: 200 }, (_, n) => parcelAt(3, n, mix)));
-  check([...seen].every(m => ["Cu", "Zn"].includes(m)) && seen.size === 2, "parcels are dealt from the metals the orders need");
-  check(newGame({ cols: 4, height: 7, orders: ["brass"], goal: 2 }, 1).burn, "zinc in the mix switches burning on");
-  check(!valid(JSON.parse(JSON.stringify({ ...a, v: 1 }))) && valid(JSON.parse(JSON.stringify(a))), "a saved melt of another version is not taken");
+  const L = levelOf({ caps: [4, 4, 4], fill: [["Pb", "Cu", "Sn"], ["Sn", "Sn"], []], moulds: [{ Pb: 1, Sn: 3 }, { Cu: 1 }] });
+  check(L.metals.join() === "Pb,Cu,Sn" && METALS.Pb.dens > METALS.Cu.dens && METALS.Cu.dens > METALS.Sn.dens, "metals are kept heaviest first: lead 11.3, copper 9.0, tin 7.3");
+  const s = startOf(L);
+  check(topOf(s.cups[0]) === 2 && layersOf(s.cups[0]).join() === "0,1,2" && topOf(s.cups[2]) === -1, "a crucible's top is its lightest metal; an empty one has none");
+  // the plan's example (settle-alloys' doc): tin across, copper casts, the three tin onto the lone lead casts pewter
+  const a = pour(L, s, 0, 1);
+  check(a.poured.metal === 2 && a.poured.n === 1 && layersOf(a.state.cups[1]).join() === "2,2,2", "a pour moves the top metal: one tin onto two");
+  const b = pour(L, a.state, 0, 2);
+  check(b.casts.length === 1 && b.casts[0].mould === 1 && b.state.cups[2].every(v => !v) && b.state.cast[1], "copper alone in a crucible is the copper mould's recipe: cast at once, the crucible empty");
+  const c = pour(L, b.state, 1, 0);
+  check(c.casts[0]?.mould === 0 && won(c.state), "three tin poured onto one lead lie on top of it, and pewter casts: won in three");
+  check(solve(L, s).par === 3 && bestMove(L, s) && won([[0, 1], [0, 2], [1, 0]].reduce((st, [x, y]) => pour(L, st, x, y).state, s)), "the solver's par is three, and its moves win");
+  // tin onto the lead first: only one measure fits, and the copper is buried
+  const wrong = pour(L, s, 1, 0);
+  check(wrong.poured.n === 1 && layersOf(wrong.state.cups[0]).join() === "0,1,2,2" && solve(L, wrong.state).par > 2, "a pour stops at the rim: the rest stays behind (and here the par is lost)");
 }
-
-// ---------- real densities ----------
 {
-  const dens = Object.fromEntries(Object.entries(METALS).map(([k, m]) => [k, m.dens]));
-  check(dens.Pb === 11.3 && dens.Cu === 9 && dens.Sn === 7.3 && dens.Zn === 7.1 && dens.X === 0, "lead 11.3, copper 9.0, tin 7.3, zinc 7.1, dross floats");
-  check(heavier("Pb", "Sn") && heavier("Sn", "Zn") && !heavier("Zn", "Cu") && !heavier("X", "Zn"), "heavier is by density");
-  check(Object.values(RECIPES).every(r => Object.values(r.parts).reduce((x, y) => x + y, 0) === r.w * r.k && r.real), "every recipe's parcels add up to its block, with the real alloy beside");
+  // lead poured onto tin slips under it
+  const L = levelOf({ caps: [4, 4], fill: [["Sn", "Sn"], ["Pb"]], moulds: [{ Pb: 1, Sn: 2 }] });
+  const r = pour(L, startOf(L), 1, 0);
+  check(layersOf(L.start[0]).join() === "1,1" && r.casts.length === 1 && r.casts[0].holds.join() === "1,2", "lead poured onto two tin sinks under them, and fine solder casts");
+  const L2 = levelOf({ caps: [3, 3], fill: [["Pb", "Sn"], ["Cu"]], moulds: [{ Pb: 2 }] });
+  const s2 = startOf(L2);
+  check(pourOf(L2, s2, 0, 1)?.metal === 2 && pourOf(L2, s2, 0, 1).n === 1 && !pourOf(L2, s2, 0, 0) && !pourOf(L2, { ...s2, cups: [[0, 0, 0], s2.cups[1]] }, 0, 1), "only the top comes out; nothing pours into itself or out of an empty crucible");
+  const full = levelOf({ caps: [2, 2], fill: [["Pb", "Sn"], ["Cu", "Cu"]], moulds: [{ Pb: 2 }] });
+  check(!pourOf(full, startOf(full), 0, 1), "nothing pours into a full crucible");
 }
-
-// ---------- settling ----------
 {
-  const t = [P("Pb", "Sn")];
-  check(settles(t[0], "Cu") === 1 && settles(t[0], "Pb") === 1 && settles(t[0], "Zn") === 2 && settles(t[0], "X") === 2, "a parcel sinks below what is lighter and lies on what is as heavy or heavier");
-  const r = poured([P("Pb", "Sn")], 0, "Cu");
-  check(r.tanks[0].map(p => p.m).join() === "Pb,Cu,Sn" && r.level === 1, "copper poured on lead and tin lands between them");
-  check(t[0].length === 2, "pouring shows the crucibles after without changing them");
+  // the receiving crucible casts first; the one poured from casts too when what is left is a recipe
+  const L = levelOf({ caps: [4, 4], fill: [["Pb", "Sn", "Sn", "Sn", "Sn"].slice(0, 4), ["Pb"]], moulds: [{ Pb: 1, Sn: 2 }, { Pb: 1, Sn: 1 }] });
+  const r = pour(L, startOf(L), 0, 1);
+  check(r.poured.n === 3 && r.casts.map(c => c.cup).join() === "", "a pour that leaves no recipe casts nothing");
+  const L2 = levelOf({ caps: [4, 3], fill: [["Pb", "Sn", "Sn", "Sn"], ["Pb", "Sn"]], moulds: [{ Pb: 1, Sn: 2 }, { Pb: 1, Sn: 2 }] });
+  const r2 = pour(L2, startOf(L2), 0, 1);
+  check(r2.casts.length === 2 && r2.casts[0].cup === 1 && won(r2.state), "the receiving crucible casts first, then the one poured from");
 }
-
-// ---------- casting blocks ----------
 {
-  check(isRecipe(P("Sn", "Pb"), RECIPES.plumber) && !isRecipe(P("Sn", "Sn"), RECIPES.plumber) && isRecipe(P("Sn", "Pb", "Sn"), RECIPES.fine), "a recipe is exactly its parcels, in any order");
-  const s = melt([[], []], ["Sn", "Sn"]), r = pour(s, 0, 1);
-  check(r.casts.length === 0 && r.state.tanks[1].length === 1, "tin beside nothing casts nothing");
-  const s2 = melt([["Pb"], ["Cu"]], ["Sn", "Sn"]);
-  check(pour(s2, 0, 1).casts.length === 0, "tin settling above copper stands at another level from lead: no block");
-  check(pour(melt([["Pb"], []], ["Pb", "Pb"]), 0, 1).casts.length === 0, "lead beside lead is not plumber's solder");
-  const s4 = melt([["Sn"], []], ["Pb", "Sn"]), r4 = pour(s4, 0, 1);
-  check(r4.casts.length === 1 && r4.casts[0].id === "plumber" && r4.gain === worth(2) && r4.state.score === 40 && r4.state.casts === 1, "lead beside tin at one level casts plumber's solder, worth 10 n²");
-  check(r4.state.tanks.every(t => t.length === 0), "a cast block drains out of its crucibles");
-  const s5 = melt([["Pb", "Sn"], []], ["Sn", "Sn"]), r5 = pour(s5, 0, 1);
-  check(r5.casts.length === 1 && r5.state.tanks[0].length === 1 && r5.state.tanks[1].length === 0, "what stood above a cast drops into its place");
-}
-
-// ---------- chains ----------
-{
-  const t3 = ship([P("Pb", "Sn", "Pb"), P("Sn", "Pb", "Sn")], ["plumber"]);
-  check(t3.casts.length === 3 && t3.tanks.every(x => !x.length), "a cast drops what stood above, and the next block is looked for: three casts in a chain");
-  const two = ship(P("Pb", "Pb").length ? [P("Pb", "Pb"), P("Sn", "Sn")] : [], ["plumber"]);
-  check(two.casts.length === 2 && two.tanks.every(x => !x.length), "two blocks one above the other both ship, the lower first");
-  const wide = ship([P("Pb", "Pb"), P("Sn", "Pb"), P("Sn", "Sn")], ["plumber", "fine"]);
-  check(wide.casts.map(c => c.id).join() === "fine,plumber" || wide.casts.map(c => c.id).join() === "plumber,fine" || wide.casts.length >= 1, "wider orders are found too");
-  const f = findBlock([P("Pb"), P("Sn"), P("Sn")], ["plumber", "fine"]);
-  check(f && f.order.id === "fine" && f.c === 0, "the biggest order wins when two fit, then the leftmost");
+  check(starsFor(6, 6) === 3 && starsFor(6, 5) === 3 && starsFor(6, 8) === 2 && starsFor(6, 9) === 1, "three stars at par, two within two pours of it, else one");
+  const L = levelOf({ caps: [3, 3, 3], fill: [["Pb", "Cu", "Sn"], ["Cu", "Sn"], ["Pb", "Sn"]], moulds: [{ Pb: 2 }, { Cu: 2 }, { Sn: 3 }] });
+  const all = solve(L, startOf(L));
+  check(all.complete && all.par === 6 && movesOf(L, startOf(L)).every(([a, b]) => pourOf(L, startOf(L), a, b)), "the solver searches every state of a level and finds its par");
 }
 
-// ---------- two-level orders ----------
+// ---------- the moulds ----------
 {
-  const tanks = [P("Sn", "Pb"), P("Sn", "Pb"), P("Sn", "Pb"), P("Sn", "Sn")];
-  const b = findBlock(tanks, ["solder"]);
-  check(b && b.order.id === "solder" && b.r === 0, "soft solder is 5 tin to 3 lead over a block four wide, two tall, in any arrangement");
-  const bad2 = [P("Sn", "Pb"), P("Sn", "Pb"), P("Sn", "Sn"), P("Sn", "Sn")];
-  check(!findBlock(bad2, ["solder"]), "one lead short is no block");
+  check(Object.values(MOULDS).every(m => m.name && m.real) && mouldOf("Cu3").parts.Cu === 3 && mouldOf("pewter").parts.Sn === 3 && mouldOf("pewter").parts.Pb === 1, "every mould has a name and a note of what the real thing is; pure bars by metal and measures");
+  check(mouldOf("bell").parts.Cu === 3 && mouldOf("speculum").parts.Cu === 2 && mouldOf("fine").parts.Sn === 2 && mouldOf("plumber").parts.Sn === 1, "bell metal 3:1 copper to tin, speculum 2:1, fine solder 2:1 tin to lead, plumber's 1:1");
+  check(CHAPTERS.length === 3 && CHAPTERS.map(c => c.name).join() === "Settling,Alloys,Measures", "three chapters first (Korbi, 23 Nov 2026): Settling, Alloys, Measures");
 }
 
-// ---------- zinc burns, skimming ----------
+// ---------- the page ----------
 {
-  const s = melt([["Cu", "Zn"], [], []], ["Cu", "Cu"], { orders: ["brass"], burn: true });
-  let st = s;
-  check(st.tanks[0][1].a === 0, "fresh zinc has stood on top for no pours");
-  for (let k = 0; k < BURN - 1; k++) st = pour(st, 0, 2).state;
-  check(st.tanks[0][1].m === "Zn" && st.tanks[0][1].a === BURN - 1, `zinc on top ages a pour at a time, ${BURN - 1} so far`);
-  const r = pour(st, 0, 1);
-  check(r.burnt.length === 1 && r.state.tanks[0][1].m === "X" && r.state.burned === 1, `at ${BURN} pours it burns to dross`);
-  check(r.lost === Math.min(st.score + r.gain, BURN_COST) && r.state.score === st.score - r.lost + r.gain, "a burn costs ten, never below nothing");
-  check(skims(r.state).join() === "0", "dross on top can be skimmed");
-  const k = skim(r.state, 0);
-  check(k.state.tanks[0].map(p => p.m).join() === "Cu" && k.state.pours === r.state.pours + 1 && k.state.n === r.state.n, "a skim removes the dross, costs a turn and uses no parcel");
-  let threw = false;
-  try { skim(k.state, 0); } catch { threw = true; }
-  check(threw && !skims({ ...s, burn: false }).length, "no skim where there is no dross, and none where zinc never burns");
-  const covered = melt([["Zn", "Cu"], []], ["Cu", "Cu"], { orders: ["brass"], burn: true });
-  const c2 = pour(pour(pour(pour(pour(pour(covered, 0, 1).state, 0, 1).state, 0, 1).state, 0, 1).state, 0, 1).state, 0, 1).state;
-  check(c2.tanks[0].every(p => p.m !== "X"), "zinc under another metal does not age");
-  const fresh = pour(melt([["Cu", "C"], []], ["Zn", "Cu"], { orders: ["brass"], burn: true }), 0, 0);
-  check(fresh.state.tanks[0].map(p => p.m).join() === "Cu,Zn,C" && fresh.state.tanks[0][1].a === 0, "zinc poured under charcoal sinks below it, and does not age");
+  const page = read("settle.js"), html = read("settle.html"), draw = read("settle-draw.js"), d3 = read("settle-3d.js"), css = read("settle.css");
+  check(/import\("\.\/settle-3d\.js"\)/.test(page) && /createFlat/.test(page) && /choice\("View", \[\["3d", "3D"\], \["flat", "2D"\]\]/.test(page), "both views, picked in Settings: the 2D foundry and the 3D one (loaded only when wanted)");
+  check(/export function createFlat/.test(draw) && /export function createFoundry/.test(d3) && ["layout", "frame", "cupAt", "burst", "mouthOnPage", "resize", "destroy"].every(k => draw.includes(`${k}(`) && d3.includes(k)), "the two views answer the same calls");
+  check(!/limit|turns left/i.test(page) && /par/.test(page) && /undo/.test(page) && /restart/.test(page) && /showHint/.test(page), "no limit on pours: a par, Undo, Restart and Hint");
+  check(["pick", "pour", "settle", "cast", "refuse", "hint", "undo", "win"].every(k => typeof SOUNDS[k] === "function") && /hearth\(/.test(page), "the sounds: pick, pour (by the metal's weight), settle, cast, refuse, hint, undo, win, and the hearth's roar");
+  check(/id="moulds"/.test(html) && /id="foundry"/.test(html) && /id="undoBtn"/.test(html) && /id="restartBtn"/.test(html) && /id="hintBtn"/.test(html), "the page: moulds, the foundry, Undo, Restart, Hint");
+  check(!/alert\(|confirm\(|prompt\(/.test(page) && /@media \(orientation: landscape\) and \(min-width: 700px\)/.test(css), "no browser dialogs; laid out beside on a wide screen");
 }
 
-// ---------- the end ----------
-{
-  const full = melt([["Pb", "Pb", "Pb", "Pb", "Pb", "Pb"], ["Pb", "Pb", "Pb", "Pb", "Pb", "Pb", "Pb"]], ["Pb", "Pb"], { orders: ["plumber"], height: 7 });
-  const r = pour(full, 0, 0);
-  check(r.state.over && !r.state.won && moves(r.state).length === 0, "every crucible full: the melt is lost");
-  let threw = false;
-  try { pour(r.state, 0, 0); } catch { threw = true; }
-  check(threw, "nothing is poured after the end");
-  const near = melt([["Sn"], []], ["Pb", "Sn"], { goal: 1 });
-  const w = pour(near, 0, 1).state;
-  check(w.won && w.over, "the goal of casts wins");
-  threw = false;
-  try { pour(melt([["Pb"], []]), 0, 5); } catch { threw = true; }
-  check(threw, "no such crucible is refused");
-  const a = pour(melt([["Pb"], []]), 0, 1);
-  check(JSON.stringify(preview(melt([["Pb"], []]), 0, 1)) === JSON.stringify(a) || preview(melt([["Pb"], []]), 0, 1).state.pours === a.state.pours, "a preview is the move without making it");
-  check(valid(JSON.parse(JSON.stringify(a.state))), "a melt survives being saved as JSON");
-}
-
-// ---------- the bot plays whole melts ----------
-{
-  let won = 0, total = 0;
-  for (const orders of [["plumber"], ["fine"], ["plumber", "fine"], ["hard"], ["finepewter"]]) for (const seed of [1, 2, 3]) {
-    const s = playOut(newGame({ cols: 4, height: 7, orders, goal: 3 }, seed), 120);
-    total++; if (s.won) won++;
-  }
-  check(won === total, `the bot wins ${won} of ${total} melts`);
-}
-// ---------- the chapters' mechanics (13 November 2026) ----------
-{
-  // Solder: every pour into the pot, the top of any crucible tipped into another
-  const pot = melt([["Pb", "Sn"], [], []], ["Sn", "Pb"], { feats: { pot: true, decant: true } });
-  check(moves(pot).every(m => m.c === 0) && decants(pot).some(([a, b]) => a === 0 && b === 2), "with the pot every parcel goes into the first crucible, and the top of one can be tipped into another");
-  const d = decant(pot, 0, 1);
-  check(d.casts.length === 1 && d.casts[0].id === "plumber" && d.state.tanks.every(t => !t.length) && d.state.pours === 1 && d.state.n === pot.n, "tipping the pot's tin beside its lead casts plumber's solder: a turn, no parcel used");
-  // Pewter: copper solid in a cold crucible, a floor, cast in nothing; firing melts it and keeps the crucible hot
-  const pw = melt([["Sn"], ["Sn"], ["Sn"]], ["Cu", "Cu"], { orders: ["hard"], solid: true, fuel: 1, feats: { fire: true } });
-  const cold = pour(pw, 0, 2).state;
-  check(cold.tanks[2].map(p => p.m + (p.s ? "!" : "")).join() === "Sn,Cu!" && !findBlock(cold.tanks, ["hard"]), "copper poured into a cold crucible stays solid on top, and casts in nothing");
-  const lit = fire(cold, 2);
-  check(lit.casts.length === 1 && lit.casts[0].id === "hard" && lit.state.tanks[2].map(p => p.m).join() === "Sn" && lit.state.hot[2] && lit.state.fuel === 0, "firing melts it under the tin, beside the other two tins: hard metal is cast; the crucible stays hot and the fuel is used");
-  check(!fires(lit.state).length && pour({ ...lit.state, hand: ["Cu", "Sn"] }, 0, 2).state.tanks[2][0].m === "Cu" && !pour({ ...lit.state, hand: ["Cu", "Sn"] }, 0, 2).state.tanks[2].some(p => p.s), "with no fuel there is no fire, and copper poured into a hot crucible melts at once");
-  // Bronze: three copper to one tin stirred is bronze; any other measure spoils
-  const br = melt([["Cu", "Cu", "Cu", "Sn"], ["Cu", "Sn"]], ["Cu", "Cu"], { orders: ["bar"], feats: { stir: true, skim: true } });
-  const good = stir(br, 0), spoilt = stir(br, 1);
-  check(good.state.tanks[0].every(p => p.m === "Bz") && !good.spoiled && spoilt.spoiled && spoilt.state.tanks[1].every(p => p.m === "X") && stirs(br).join() === "0,1", "three copper to one tin stirred turns to bronze; two to one spoils to dross");
-  check(skims(spoilt.state).join() === "1", "spoiled dross can be skimmed");
-  // Brass: zinc with no charcoal over it boils off at once
-  const bz = pour(melt([["Cu"], ["Cu", "C"]], ["Zn", "Zn"], { orders: ["brass"], burn: true }), 0, 0);
-  check(bz.burnt.length === 1 && bz.state.tanks[0].map(p => p.m).join() === "Cu,X", "zinc poured where there is no charcoal boils off to dross");
-  // Silver: lead sinking through black copper takes its silver
-  const sv = pour(melt([["Bk", "Bk"], []], ["Pb", "Pb"], { orders: ["saiger"] }), 0, 0);
-  check(sv.state.tanks[0].map(p => p.m).join() === "Pr,Cu,Cu" && sv.leached.length === 2, "lead sinking through black copper takes its silver: rich lead under plain copper");
-  // a level: its fixed deal, then none; its turns
-  const lv = newGame({ cols: 2, height: 4, orders: ["plumber"], goal: 1, deal: ["Pb", "Sn", "Sn"], limit: 2 });
-  check(lv.hand.join() === "Pb,Sn" && pour(lv, 0, 0).state.hand.join() === "Sn,Sn" && pour(pour(lv, 0, 0).state, 0, 0).state.hand[0] === null, "a level deals its own parcels, then none");
-  check(pour(pour(lv, 0, 0).state, 0, 0).state.over && !pour(pour(lv, 0, 0).state, 0, 0).state.won, "and gives so many turns: the fire goes out");
-  check(options(pot).every(mv => act(pot, mv).state.pours === 1), "every move listed can be made");
-}
-if (bad) { console.log(`${bad} failed`); process.exit(1); }
+check(Date.now() - T0 < 5000, `the whole file runs in under five seconds (${Date.now() - T0} ms)`);
+if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
+else console.log("settle: the pour, settling, casting, the solver, the moulds and the page hold");

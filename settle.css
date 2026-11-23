@@ -1,88 +1,67 @@
-/* Settle: a foundry. The standing orders across the top (each a small block of the metals it takes), the crucibles on a
-   canvas (metals in their own enamels, each parcel stamped with its alchemical sign), under them what the parcel held
-   would do, the two parcels offered and the skim. Cobalt (--c2) is the house colour; the metals keep their own colours. */
+/* Settle: a foundry. The moulds to cast across the top (each an ingot mould showing its recipe in the metals' own colours), the
+   crucibles below in the glow of the hearth (2D or 3D, always dark: it is a furnace room), under them the line and Undo, Restart,
+   Hint. Copper (--c1) is the house colour; the metals keep their own colours. */
 :root {
-  --st-in: var(--c2);
-  --st-soft: color-mix(in srgb, var(--st-in) 14%, var(--sheet));
+  --st-in: var(--c1);
+  --st-soft: color-mix(in srgb, var(--st-in) 12%, var(--sheet));
   --st-danger: #A8382B;
-  --st-vat: #2a2630;
+  --st-fire: #1a100b;
 }
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --st-danger: #E8806F; --st-vat: #0c1018; }
-}
-html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --st-danger: #E8806F; } }
+html[data-mode="night"] { --st-danger: #E8806F; }
 
 .st-mark { display: inline-block; }
 .st-mark svg { width: 100%; height: 100%; display: block; }
 .st-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
-.st-strip span { white-space: nowrap; }
-.st-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.st-strip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.st-strip span:first-child { font-weight: 700; color: var(--ink); }
 
-/* the standing orders: a card each, its block drawn as the parcels it takes (the heaviest at the foot) */
-.st-orders { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: .4rem; margin-bottom: .45rem; }
-.st-order { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .5rem; align-items: center; min-width: 0; padding: .35rem .45rem;
-  border: 1px solid var(--rule); border-radius: 6px; background: var(--st-soft); transition: border-color .2s, box-shadow .2s; }
-.st-order.hit { border-color: var(--st-in); box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-in) 40%, transparent); }
-.st-order h2 { grid-column: 1 / -1; margin: 0 0 .25rem; font-size: .66rem; line-height: 1.15; font-weight: 800; letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-block { display: grid; grid-template-columns: repeat(var(--w), 1.05rem); grid-auto-rows: 1.05rem; gap: 1px; padding: 1px; border: 1px solid var(--brass); border-radius: 2px; background: var(--st-vat); }
-.st-block i { display: grid; place-items: center; }
-.st-block svg, .st-card .st-stamp { width: 78%; height: 78%; display: block; fill: none; stroke: rgba(20, 16, 10, .72); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.st-order p { margin: 0; font-size: .72rem; line-height: 1.25; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.st-order .st-parts { color: var(--ink); font-weight: 650; }
+/* the moulds: an ingot mould each, its recipe as bands (the heaviest at the foot); cast, it shows the ingot, stamped */
+.st-moulds { display: flex; justify-content: center; gap: .45rem; margin-bottom: .45rem; }
+.st-mould { flex: 1 1 0; max-width: 7.5rem; min-width: 0; display: grid; justify-items: center; gap: .05rem; padding: .3rem .25rem .25rem;
+  border: 1px solid var(--rule); border-radius: 4px; background: var(--st-soft); transition: border-color .25s, box-shadow .25s; }
+.st-mould svg { width: 100%; max-width: 4.6rem; height: auto; display: block; }
+.st-mould b { font-size: .7rem; line-height: 1.1; min-height: 2.2em; display: grid; align-items: center; font-weight: 800; letter-spacing: calc(.04em * var(--track)); text-transform: var(--caps); text-align: center; max-width: 100%; overflow-wrap: anywhere; }
+.st-mould small { font-size: .66rem; line-height: 1.15; color: var(--ink-soft); text-align: center; }
+.st-mtray { fill: #3a3a3e; stroke: #18181a; stroke-width: 1.2; }
+.st-mband { opacity: .92; }
+.st-mingot { stroke: rgba(30, 20, 10, .5); stroke-width: .8; opacity: 0; transition: opacity .5s .2s; }
+.st-mstamp { font-size: .75rem; text-anchor: middle; fill: rgba(60, 40, 10, .7); opacity: 0; transition: opacity .4s .5s; }
+.st-mfill { transition: opacity .5s; }
+.st-mould.cast { border-color: var(--brass); }
+.st-mould.cast .st-mfill { opacity: .25; }
+.st-mould.cast .st-mingot, .st-mould.cast .st-mstamp { opacity: 1; }
+.st-mould.cast b::after { content: " ✓"; color: var(--brass); }
+.st-mould.hit { box-shadow: 0 0 0 3px color-mix(in srgb, #ffb050 55%, transparent), 0 0 1.2rem color-mix(in srgb, #ff9030 45%, transparent); }
 
-/* the crucibles: as large as the room allows */
-.st-farm { position: relative; place-items: center; }
-.st-board { width: 100cqw; height: 100cqh; display: block; touch-action: none; -webkit-user-select: none; user-select: none; }
+/* the foundry: as large as the room allows, dark in day and night alike */
+.st-foundry { position: relative; border-radius: 6px; overflow: hidden; background: var(--st-fire); touch-action: none; -webkit-user-select: none; user-select: none; }
+.st-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.st-foundry.shake { animation: st-shake .28s; }
+@keyframes st-shake { 25% { transform: translateX(-.25rem); } 50% { transform: translateX(.25rem); } 75% { transform: translateX(-.15rem); } }
+@media (prefers-reduced-motion: reduce) { .st-foundry.shake { animation: none; } }
 
-/* under the crucibles: what the pour held would do, and the two parcels; at the end, how it went */
-.st-side { display: grid; gap: .45rem; }
+/* under the crucibles: the line (the level's tip, what a pour did), the three controls; at the end, how it went */
+.st-side { display: grid; gap: .45rem; margin-top: .45rem; }
 .st-line { margin: 0; height: 2.4rem; overflow: hidden; font-size: .9rem; line-height: 1.3; color: var(--ink-soft); }
-.st-line[hidden] { display: none; }
-.st-tray { display: grid; grid-template-columns: 1fr 1fr 5rem; gap: .5rem; height: 4.4rem; }
-.st-tray[hidden] { display: none; }
-.st-tray.noskim { grid-template-columns: 1fr 1fr; }
-.st-tray.acts2 { grid-template-columns: 1fr 1fr 4.6rem 4.6rem; }
-.st-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: .5rem; align-content: center; align-items: center; min-width: 0;
-  padding: .4rem .5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--st-soft); color: var(--ink); font: inherit; text-align: left;
-  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
-.st-chip { grid-row: 1 / span 2; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .35); }
-.st-card b { font-size: 1rem; font-weight: 800; }
-.st-card span { font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.st-card.picked { border-color: var(--st-in); box-shadow: inset 0 0 0 2px var(--st-in); }
-.st-card.lifted { opacity: .35; }
-/* the skim: a ladle over its name and a word, narrow beside the parcels */
-.st-card.st-skim { grid-template-columns: 1fr; grid-template-rows: auto auto auto; justify-items: center; row-gap: .1rem; padding: .3rem .2rem; text-align: center; background: transparent; }
-.st-card.st-skim[hidden] { display: none; }
-.st-card.st-skim.ready { background: var(--st-soft); border-color: var(--st-in); }
-.st-card.st-skim:disabled { cursor: default; }
-.st-card.st-skim b { font-size: .7rem; white-space: nowrap; text-transform: var(--caps); letter-spacing: calc(.02em * var(--track)); }
-.st-card.st-skim span { font-size: .72rem; line-height: 1.1; white-space: normal; }
-.st-card.st-skim:disabled b, .st-card.st-skim:disabled .st-ladle { opacity: .55; }
-.st-ladle { width: 1.7rem; height: 1.26rem; }
-.st-ladle path, .st-ladle circle { fill: none; stroke: var(--ink-soft); stroke-width: .8; stroke-linecap: round; }
-.st-card.st-skim.ready .st-ladle path, .st-card.st-skim.ready .st-ladle circle { stroke: var(--st-in); }
-.st-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
-  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.st-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 7.25rem; }
-.st-result .st-go { padding: 0 1.3rem; }
+.st-line.warn { color: var(--st-danger); font-weight: 650; }
+.st-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.st-controls[hidden] { display: none; }
+.st-controls .btn:disabled { opacity: .4; }
+.st-result { display: grid; gap: .45rem; }
 .st-result[hidden] { display: none; }
 .st-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
-.st-btns { display: flex; gap: .5rem; }
-.st-result.two { grid-template-columns: 1fr; align-content: center; gap: .5rem; }
-.st-result.two .st-btns .st-go { flex: 1; padding: 0 .4rem; }
-.st-btns .st-go[hidden] { display: none; }
+.st-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.st-btns .btn[hidden] { display: none; }
 
-.st-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
-  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
-.st-toast.show { opacity: 1; }
-
-/* the menu: the levels as a grid by chapter, and the alloy cards of About */
+/* the menu: the levels as a grid by chapter, and the moulds' notes in About */
 .st-tier { margin: .55rem 0 .15rem; font-size: .72rem; font-weight: 800; letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .st-tier small { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-soft); }
-.st-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .2rem 0; }
-.st-lv { display: grid; justify-items: center; gap: .05rem; padding: .35rem 0 .3rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--st-soft); color: var(--ink); font: inherit; cursor: pointer; }
-.st-lv b { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.st-levels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin: .2rem 0; }
+.st-lv { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: .45rem; padding: .4rem .5rem; border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--st-soft); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.st-lv b { font-size: .9rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.st-lv span { font-size: .84rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st-lv i { font-style: normal; font-size: .62rem; letter-spacing: .05em; color: var(--brass-lo); }
 .st-lv.now { border-color: var(--st-in); box-shadow: inset 0 0 0 2px var(--st-in); }
 .st-lv:disabled { opacity: .4; cursor: default; background: transparent; }
@@ -90,31 +69,17 @@ html[data-mode="night"] { --st-danger: #E8806F; --st-vat: #0c1018; }
 .st-alloy b { font-weight: 800; }
 .st-alloy small { display: block; color: var(--ink-soft); }
 
-/* held sideways: the crucibles on the left with all the height; the score, the orders, the line and the parcels beside them */
+/* held sideways: the crucibles on the left with all the height; the score, the moulds, the line and the controls beside them */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.settle { --beside: 17rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
-  #app.settle .st-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
-  #app.settle .st-orders { grid-column: 2; grid-row: 3; grid-template-columns: 1fr; }
-  #app.settle .st-farm { grid-column: 1; grid-row: 2 / span 3; margin-top: .8rem; }
+  #app.settle { --beside: 18rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
+  #app.settle .st-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .3rem; margin-top: 1rem; }
+  #app.settle .st-moulds { grid-column: 2; grid-row: 3; flex-wrap: wrap; justify-content: flex-start; }
+  #app.settle .st-mould { flex: 0 0 calc(50% - .25rem); max-width: none; }
+  #app.settle .st-foundry { grid-column: 1; grid-row: 2 / span 3; margin-top: .8rem; }
   #app.settle .st-side { grid-column: 2; grid-row: 4; align-content: end; }
   #app.settle .st-line { height: 4rem; }
-  #app.settle .st-tray { grid-template-columns: 1fr; grid-template-rows: repeat(2, 4.4rem) 3.4rem; height: auto; }
-  #app.settle .st-tray.noskim { grid-template-rows: repeat(2, 4.4rem); }
-  #app.settle .st-tray.acts2 { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(2, 4.4rem) 3.4rem; }
-  #app.settle .st-tray.acts2 .st-card[data-slot="0"], #app.settle .st-tray.acts2 .st-card[data-slot="1"] { grid-column: 1 / -1; }
-  #app.settle .st-card.st-skim { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; justify-items: start; column-gap: .6rem; padding: .3rem .7rem; text-align: left; }
-  #app.settle .st-card.st-skim .st-ladle { grid-row: 1 / span 2; }
-  #app.settle .st-result { grid-template-columns: 1fr; height: auto; }
 }
-/* a phone on its side hasn't the height for the score in a column and the orders over the cards: the score along one line */
 @media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
   #app.settle .st-strip { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: .9rem; margin-top: .5rem; }
   #app.settle .st-line { height: 2.4rem; }
 }
-/* the next parcels of a level's deal, in the score line */
-.st-next { display: inline-grid; place-items: center; width: .95rem; height: .95rem; margin-left: .15rem; vertical-align: -.18rem; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .35); }
-.st-next svg { width: 80%; height: 80%; fill: none; stroke: rgba(20, 16, 10, .72); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-/* the foundry in 3D (settle-3d.js) fills the farm under the 2D canvas, which then draws only the sparks and figures over it */
-.st-farm { position: relative; }
-.st-gl { position: absolute; inset: 0; display: block; }
-#app.settle.view3d .st-board { position: relative; z-index: 1; }

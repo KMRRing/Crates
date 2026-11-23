@@ -2,8 +2,8 @@
 // percentage and guild name is from memory and needs the fact check before it ships"). Checked on 8 November 2026 against
 // the sources named beside each; a line that says "stylised" is the game's own.
 //
-// A parcel is one unit of metal, all parcels weigh the same, so a recipe's ratio is its mass ratio: 2 copper to 1 zinc is
-// 67 % copper. Metals settle by real density (g/cm³, rounded to one place), so the stacks are never the player's choice.
+// A measure is one unit of metal, all measures weigh the same, so a recipe's ratio is its mass ratio. Metals settle by real density
+// (g/cm³, rounded to one place), so the order in a crucible is never the player's choice.
 
 /**
  * The metals. glyph: the alchemists' sign, drawn on a 24-unit square as strokes (so it needs no font); shine: how bright a
@@ -26,74 +26,43 @@ export const METALS = {
   Bk: { name: "Black copper", dens: 9.0, planet: "Venus", glyph: "M12 3a5 5 0 1 0 0 10a5 5 0 1 0 0-10M12 13v9M8 18h8M9 8h6", shine: .35, base: "#5a3424", hi: "#a8705a" },
   Pr: { name: "Rich lead", dens: 11.3, planet: "Saturn", glyph: "M8 3v11M5 6h6M8 10c3-3 8-2 7 3c-.6 3-3 4-3 8M17 4a3 3 0 1 0 0 .1", shine: .55, base: "#7d86a0", hi: "#e4e8f2" },
 };
-export const DROSS = "X", CHAR = "C";
-/** The metals a player is ever dealt (dross comes from zinc burning or a spoiled stir, bronze from a stir, rich lead from liquation). */
-export const DEALT = ["Pb", "Cu", "Sn", "Zn", "C", "Bk"];
-/** Heavier first: where a parcel of each settles among the rest. */
-export const heavier = (a, b) => METALS[a].dens >= METALS[b].dens;
 
 /**
- * The orders. parts: the parcels of each metal (they add up to w × k); w crucibles wide by k levels tall. A block ships when
- * the parcels in it are exactly the parts, in any arrangement. real: what the real alloy is, from the sources:
- *  - plumber's solder, 50/50 tin–lead: the long-standing general plumbing and sheet-metal solder (Lucas-Milhaupt and Harris
- *    data sheets; US patent 4,758,407: "the most popular plumbing solder up until the present... 50% lead and 50% tin");
- *  - fine solder, two tin to one lead: tin–lead solders run from 5 % to 70 % tin (Wikipedia, Solder);
- *  - solder, 5:3 (62.5 % tin): the 60/40 and 63/37 tin–lead compositions are most of the lead solder in use (McCampbell
- *    catalogue); 63/37 is the eutectic;
- *  - lay pewter, 7:1 (87.5 % tin): the Pewterers' lay metal was tin with up to about 15 % lead for mugs and holloware, and
- *    pewter made outside London ran to 25 % (Wikipedia, English pewter; Material Intelligence, "Pewter, the advantageous
- *    alloy"; Magazine Antiques 2013); the 1860 Britannica gives 80 : 20 as the theoretical common pewter;
- *  - brass, 2:1 (67 % copper): yellow brass sits at 65–70 % copper; cartridge brass is 70/30 (Copper Development Assoc.);
- *  - Prince's metal, 3:1 (75 % copper): Ure, 1856, gives "3 parts copper and 1 part zinc" (Wikipedia, Tombac);
- *  - tombac, 5:1 (83 % copper): a high-copper brass with 5–20 % zinc; Ure's gilting tombac is 82 % copper, 18 % zinc.
+ * The moulds (23 November 2026, the redesign): each a recipe in measures, every measure the same weight, so a recipe's ratio is
+ * its mass ratio. A crucible holding exactly a recipe is cast. real: what the real thing is, from the sources:
+ *  - pig lead, copper ingots and block tin: the smelters' bars (pigs of lead; ingots; tin was cast in blocks and bars);
+ *  - plumber's solder, 50/50 tin and lead: the long-standing plumbing solder (Lucas-Milhaupt and Harris data sheets; US patent
+ *    4,758,407: "the most popular plumbing solder up until the present... 50% lead and 50% tin");
+ *  - fine solder, two tin to one lead: tin–lead solders run from 5 % to 70 % tin (Wikipedia, Solder); 63/37 is the eutectic;
+ *  - pewter, three tin to one lead: pewter made outside London ran to 25 % lead (Wikipedia, English pewter);
+ *  - bell metal, three copper to one tin: about 78 % copper and 22 % tin (Wikipedia, Bell metal);
+ *  - speculum, two copper to one tin: the mirror metal of the old telescopes, about 68 % copper (Wikipedia, Speculum metal);
+ *  - hard metal, two tin to one copper: the pewterers' tin hardened with copper, the ratio stylised (real hard metal held far
+ *    less copper: Wikipedia, Pewter).
  */
-// 13 November 2026, the chapters' new orders:
-//  - hard metal, two tin to one copper: the pewterers' "hard metal" was tin hardened with copper (and antimony); the ratio is stylised
-//    (real hard metal held far less copper: Wikipedia, Pewter; Hornsby, "Pewter of the Western World");
-//  - fine pewter, three tin to one copper: stylised the same way (the Pewterers' "fine metal" was tin with a little copper);
-//  - bronze and bell metal: bronze is what three copper to one tin becomes when stirred; bell metal is about 78 % copper and 22 % tin,
-//    near enough three to one (Wikipedia, Bell metal); a bar is three parcels of it, a bell four;
-//  - the liquation: argentiferous ("black") copper was melted with lead, which took the silver; the rich lead was drawn off and
-//    cupelled, the copper left was refined (Wikipedia, Liquation; Saigerhütte Grünthal). Saigerblei is the rich lead, Garkupfer
-//    the refined copper.
-export const RECIPES = {
-  hard: { name: "Hard metal", parts: { Sn: 2, Cu: 1 }, w: 3, k: 1, real: "tin hardened with copper (stylised: real hard metal held far less)" },
-  finepewter: { name: "Fine pewter", parts: { Sn: 3, Cu: 1 }, w: 2, k: 2, real: "tin with a little copper (stylised)" },
-  bar: { name: "Bronze bar", parts: { Bz: 3 }, w: 3, k: 1, real: "bronze, about three copper to one tin" },
-  bell: { name: "Bell", parts: { Bz: 4 }, w: 2, k: 2, real: "bell metal, about 78 % copper and 22 % tin" },
-  saiger: { name: "Saigerblei", parts: { Pr: 2 }, w: 2, k: 1, real: "the rich lead of the liquation, cupelled for its silver" },
-  gar: { name: "Garkupfer", parts: { Cu: 3 }, w: 3, k: 1, real: "the copper left once the lead has taken its silver, refined" },
-  plumber: { name: "Plumber's solder", parts: { Sn: 1, Pb: 1 }, w: 2, k: 1, real: "50/50 tin and lead, the old plumbing solder" },
-  fine: { name: "Fine solder", parts: { Sn: 2, Pb: 1 }, w: 3, k: 1, real: "about two parts tin to one of lead" },
-  solder: { name: "Soft solder", parts: { Sn: 5, Pb: 3 }, w: 4, k: 2, real: "about 63 % tin, the 63/37 solder" },
-  lay: { name: "Lay pewter", parts: { Sn: 7, Pb: 1 }, w: 4, k: 2, real: "tin with up to about 15 % lead, for mugs" },
-  brass: { name: "Brass", parts: { Cu: 2, Zn: 1 }, w: 3, k: 1, real: "about 65–70 % copper" },
-  prince: { name: "Prince's metal", parts: { Cu: 3, Zn: 1 }, w: 4, k: 1, real: "3 copper to 1 zinc, as Ure gave it" },
-  tombac: { name: "Tombac", parts: { Cu: 5, Zn: 1 }, w: 3, k: 2, real: "copper with 5–20 % zinc, for gilt trinkets" },
+export const MOULDS = {
+  pig: { name: "Pig of lead", real: "lead as the smelter cast it" },
+  ingot: { name: "Copper ingot", real: "copper as the smelter cast it" },
+  block: { name: "Block tin", real: "tin as the smelter cast it" },
+  plumber: { name: "Plumber's solder", parts: { Sn: 1, Pb: 1 }, real: "50/50 tin and lead, the old plumbing solder" },
+  fine: { name: "Fine solder", parts: { Sn: 2, Pb: 1 }, real: "about two parts tin to one of lead" },
+  pewter: { name: "Pewter", parts: { Sn: 3, Pb: 1 }, real: "tin with a quarter lead, as country pewter was" },
+  bell: { name: "Bell metal", parts: { Cu: 3, Sn: 1 }, real: "about 78 % copper and 22 % tin" },
+  speculum: { name: "Speculum", parts: { Cu: 2, Sn: 1 }, real: "the old telescopes' mirror metal, about two copper to one tin" },
+  hard: { name: "Hard metal", parts: { Sn: 2, Cu: 1 }, real: "tin hardened with copper (stylised: real hard metal held far less)" },
 };
-for (const [id, r] of Object.entries(RECIPES)) {
-  r.id = id;
-  r.n = r.w * r.k;
-  if (Object.values(r.parts).reduce((a, b) => a + b, 0) !== r.n) throw new Error(`${id}: the parcels must add up to ${r.w} × ${r.k}`);
+const PURE = { Pb: "pig", Cu: "ingot", Sn: "block" };
+/** A mould by its name in a level: a recipe's id ("pewter"), or a pure bar as metal and measures ("Cu3"). */
+export function mouldOf(id) {
+  const m = /^(Pb|Cu|Sn)(\d)$/.exec(id);
+  if (m) return { id, ...MOULDS[PURE[m[1]]], parts: { [m[1]]: Number(m[2]) } };
+  if (!MOULDS[id]?.parts) throw new Error(`no mould ${id}`);
+  return { id, ...MOULDS[id] };
 }
 
-/**
- * The chapters, one metal combination and one mechanic each (13 November 2026, Korbi: "settle is more like topple... maybe 5
- * different chapters and they each have different mechanics (these are the different metal combinations)"). feats: what the
- * player may do besides pouring: pot (every pour goes into the first crucible), decant (the top of a crucible into another), fire (melt the solid copper in a crucible, with
- * fuel), stir (make bronze), skim (the dross or charcoal off a top); solid: copper is poured solid; burn: zinc on top burns.
- */
+/** The chapters, one new idea each (the redesign's first three; charcoal and zinc, and the liquation, come after a playtest). */
 export const CHAPTERS = [
-  { id: 1, name: "Solder", metals: ["Pb", "Sn"], feats: { pot: true, decant: true }, orders: ["plumber", "fine", "solder"],
-    idea: "Everything is poured into the melting pot, where tin floats on lead: tip the top into the moulds.", how: "Drag the top of a crucible onto another to tip it in. Every tip is a turn." },
-  { id: 2, name: "Pewter", metals: ["Sn", "Cu"], feats: { fire: true }, solid: true, orders: ["hard", "finepewter"],
-    idea: "Copper goes into a cold crucible solid: it stays where it lands and casts in nothing, until the crucible is fired.", how: "Fire a crucible to melt its copper (it sinks under the tin) and keep it hot. The fuel is short." },
-  { id: 3, name: "Bronze", metals: ["Cu", "Sn"], feats: { stir: true, skim: true }, orders: ["bar", "bell"],
-    idea: "Stir three copper to one tin and the crucible turns to bronze; any other measure spoils it.", how: "Stir a crucible that holds exactly three copper to each tin. Skim spoiled dross off." },
-  { id: 4, name: "Brass", metals: ["Cu", "Zn", "C"], feats: { skim: true }, burn: true, burnAt: 2, orders: ["brass", "prince", "tombac"],
-    idea: "Zinc left on top boils off in two turns: keep it under charcoal, which floats on everything.", how: "Zinc on top burns to dross after two turns. Skim dross or charcoal off a top." },
-  { id: 5, name: "Silver", metals: ["Pb", "Bk", "Cu"], feats: { decant: true }, orders: ["saiger", "gar"],
-    idea: "Lead sinking through black copper draws its silver out: the copper is clean, the lead rich.", how: "Pour or decant lead into a crucible of black copper. Decanting costs a turn." },
+  { id: 1, name: "Settling", idea: "Metal lies by weight: lead at the foot, then copper, tin on top. Only the top pours out, and it sinks to its place wherever it lands." },
+  { id: 2, name: "Alloys", idea: "A mould can want a mix. Build it from the foot up: the heavy metal poured last slips under the light." },
+  { id: 3, name: "Measures", idea: "Crucibles of two to five measures: a pour stops at the rim and the rest stays behind, so a small crucible measures out one or two." },
 ];
-export const BURN = 6;       // pours zinc may stand on top before it burns
-export const SKIM_NOTE = "Skim takes the dross off a crucible's top. It costs a turn.";
