@@ -13,7 +13,8 @@
 // beats, quicker as the game goes on; when there is no place for one, it is over. The rules are orrery-engine.js's;
 // this file runs the clock, takes the taps, buttons and swipes and keeps the game. The clock starts at the first hoop
 // chosen or button pressed and stops with the menu, with the tab and with the game over.
-import { RINGS, STEP, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, TICK, newGame, valid, copy, setRing, setPlane, setTempo, setOthers, tapBeat, nextTempo, bpm, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
+import { RINGS, STEP, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, TICK, newGame, valid, copy, setRing, setPlane, setTempo, setOthers, tapBeat, nextTempo, bpm, step, between, room, multiplier, period, turnOf, planeOf, coloursOf } from "./orrery-engine.js";
+import { LEVELS } from "./orrery-levels.js";
 import { createOrrery } from "./orrery-3d.js";
 import { defaultIs3D } from "./mode3d.js";
 import { createFlat, planetSvg } from "./orrery-flat.js";
@@ -21,13 +22,16 @@ import { sound } from "./orrery-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, onPause, volume } from "./menu.js";
+import { part, action, line, toggle, choice, onPause, volume } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";                      // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
 const RUN = "orrery:run", BEST = "orrery:best", SEEN = "orrery:seen", VIEW = "orrery:view", ERA = "orrery:era", CHOSEN = "orrery:sel", TEMPO = "orrery:tempo";
+// the levels (orrery-levels.js), beside today's game, which is kept exactly as it plays (Korbi, 24 November 2026): the mode
+// on the screen, the level in play (its game kept apart), and the levels met
+const MODE = "orrery:mode", LEVEL_RUN = "orrery:run:levels", LEVEL = "orrery:level", MET = "orrery:levels";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => n.toLocaleString("en-GB");
@@ -45,6 +49,15 @@ let chosen = null;       // the hoop the buttons are for: { ring }, or null
 const swipes = new Map();// fingers down: pointer id -> { ring (-1: on the sky), x0, y0, x, y, moved, trail }
 let savedAt = 0;
 let frozen = false;      // for tests: the clock held while a picture is taken
+let mode = read(MODE, "orrery") === "levels" ? "levels" : "orrery";
+const met = () => read(MET, {}) || {};
+/** The levels open: every one met, and the first not yet met. */
+const openTo = () => { const m = met(), k = LEVELS.findIndex(L => !m[L.id]); return k < 0 ? LEVELS.length - 1 : k; };
+const levelNow = () => { const id = read(LEVEL, null), k = LEVELS.findIndex(L => L.id === id); return LEVELS[k >= 0 && k <= openTo() ? k : openTo()]; };
+const levelOf = g => LEVELS.find(L => L.id === g?.level);
+/** A level's goal, and how far a game has come to it: "4 of 6 lines". */
+const goalText = g => (g.goal.lines != null ? `${plural(g.goal.lines, "line")}` : g.goal.fours != null ? `${plural(g.goal.fours, "four")}` : `${fmt(g.goal.score)} points`);
+const progress = g => (g.goal.lines != null ? `${g.aligned} of ${plural(g.goal.lines, "line")}` : g.goal.fours != null ? `${g.fours} of ${plural(g.goal.fours, "four")}` : `${fmt(g.score)} of ${fmt(g.goal.score)} points`);
 
 // Bests from earlier orreries mean nothing here, so they go to keys of their own, by the era they were made in: the
 // turn-based game's to orrery:turns (era 2), the game of set speeds and five hoops (version 3) to orrery:speeds (era 3),
@@ -105,10 +118,11 @@ function curl(n, cw, x = 0, y = 0, k = 1) {
   return { arc, heads };
 }
 
-function save() { if (IN_FRAME) return; write(RUN, copy(S)); savedAt = performance.now(); }
+function save() { if (IN_FRAME) return; write(S.goal ? LEVEL_RUN : RUN, copy(S)); savedAt = performance.now(); }
 function newRun() {
   swipes.clear();
-  S = newGame(Math.floor(Math.random() * 2 ** 31), read(TEMPO, FIRST_TEMPO));      // (the engine takes a tempo of 1 to 20 and nothing else)
+  const L = mode === "levels" ? levelNow() : null;
+  S = L ? newGame(Math.floor(Math.random() * 2 ** 31), L.tempo, L) : newGame(Math.floor(Math.random() * 2 ** 31), read(TEMPO, FIRST_TEMPO));      // (the engine takes a tempo of 1 to 20 and nothing else)
   running = false;
   choose(-1);
   save();
@@ -137,8 +151,9 @@ function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
   over.setAttribute("viewBox", `0 0 ${w} ${h}`);
   if (!S || running || S.over || IN_FRAME) { plaqueG.replaceChildren(); return; }
-  const first = !read(SEEN, false), head = S.t > 0 ? "Tap a hoop to go on" : "Tap a hoop to begin", rows = first ? [...HINT, head] : [head];
-  const u = scale(), lh = 15 * u, bw = (first ? 338 : 216) * u, bh = rows.length * lh + 24 * u, y0 = h / 2 - bh / 2;
+  const first = !read(SEEN, false), head = S.t > 0 ? "Tap a hoop to go on" : "Tap a hoop to begin", L = levelOf(S);
+  const rows = L && S.t === 0 ? [`${L.n ?? LEVELS.indexOf(L) + 1}. ${L.name}`, ...L.words, head] : first && !L ? [...HINT, head] : [head];
+  const u = scale(), lh = 15 * u, bw = (rows.length > 1 ? 338 : 216) * u, bh = rows.length * lh + 24 * u, y0 = h / 2 - bh / 2;
   plaqueG.replaceChildren(
     el("rect", { class: "or-plaque", x: (w / 2 - bw / 2).toFixed(1), y: y0.toFixed(1), width: bw.toFixed(1), height: bh.toFixed(1), rx: 5 }),
     ...rows.map((t, k) => text(k === rows.length - 1 ? "or-hint head" : "or-hint", t, w / 2, y0 + 12 * u + (k + 1) * lh - 4 * u, k === rows.length - 1 ? 10.5 : 11)),
@@ -161,7 +176,8 @@ const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
 function drawStrip() {
   put("score", fmt(S.score));
-  put("best", fmt(Math.max(best, S.score)));
+  put("bestName", S.goal ? "Goal" : "Best");
+  put("best", S.goal ? (S.goal.lines != null ? `${S.aligned}/${S.goal.lines}` : S.goal.fours != null ? `${S.fours}/${S.goal.fours} fours` : `${Math.round(S.score / 100) / 10}k/${S.goal.score / 1000}k`) : fmt(Math.max(best, S.score)));
   put("room", String(room(S)));
   const on = S.combo > 1 && S.beat - S.lockBeat <= COMBO_WINDOW && !S.over;
   put("combo", on ? `×${multiplier(S.combo)}` : "");
@@ -241,6 +257,7 @@ function drawColours() {
   shown.colours = k;
   if (shown.lean !== side) { shown.lean = side; colourKeys.forEach((b, c) => { b.firstElementChild.innerHTML = planeGlyph(c, side); }); }
   colourKeys.forEach((b, c) => {
+    b.hidden = c >= coloursOf(S);                                          // a level with fewer colours has fewer planes to press
     const ins = inPlane(c), words = `${COLOUR[c].replace(/^./, x => x.toUpperCase())}'s plane, ${degrees(PLANE[c])}: tip ${one >= 0 ? "the chosen hoop" : "every hoop"} into it`;
     b.disabled = S.over;
     b.setAttribute("aria-pressed", String(one >= 0 ? ins.includes(one) : ins.length === RINGS));
@@ -265,17 +282,20 @@ function drawAim(force = false) {
     b.setAttribute("aria-label", words);
     b.title = words;
   });
-  if (!r) { $("line").textContent = S.over ? "" : "Tap a hoop to choose it, or a speed or colour for all four"; return; }
+  if (!r) { $("line").textContent = S.over ? "" : S.goal ? `${LEVELS.indexOf(levelOf(S)) + 1}. ${levelOf(S).name} · ${progress(S)}` : "Tap a hoop to choose it, or a speed or colour for all four"; return; }
   const c = planeOf(r.tip);
   $("line").innerHTML = `This hoop · ${spin > 0 ? "↻" : "↺"} ${SPEED[Math.abs(r.set)]} · ${c >= 0 ? `${degrees(r.tip)}, <span class="in k${c}">in ${COLOUR[c]}'s plane</span>` : r.tip ? `tipped ${degrees(r.tip)}` : "level"}`;
 }
 function drawSide() {
   drawAim();
   drawColours();
-  const k = `${S.over}|${S.score}`;
+  const k = `${S.over}|${S.score}|${S.level}`;
   if (shown.side === k) return;
   shown.side = k;
-  if (S.over) $("verdict").textContent = `No room left: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
+  const L = levelOf(S), next = L && LEVELS[LEVELS.indexOf(L) + 1];
+  $("againBtn").textContent = !L ? "New game" : S.won && next ? "Next level" : "Try again";
+  if (S.over) $("verdict").textContent = L ? (S.won ? `Met: ${goalText(S)} in ${Math.round(S.t / 60) || 1} minute${Math.round(S.t / 60) > 1 ? "s" : ""}.${next ? "" : " The last level: the orrery is yours."}` : `No room left: ${progress(S)}.`)
+    : `No room left: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
 }
 
 // ---------- events of the game ----------
@@ -302,7 +322,8 @@ function handle(ev) {
   }
 }
 function settle() {
-  if (S.score > best) { best = S.score; write(BEST, best); }
+  if (S.goal) { if (S.won && !IN_FRAME) write(MET, { ...met(), [S.level]: true }); }
+  else if (S.score > best) { best = S.score; write(BEST, best); }
   if (S.aligned >= 1) write(SEEN, true);
   save();
 }
@@ -397,7 +418,7 @@ function nudgeTempo(by) {
   sound.unlock();
   const to = nextTempo(bpm(S), by);
   if (to == null || !setTempo(S, to)) return;
-  write(TEMPO, to);
+  if (!S.goal) write(TEMPO, to);                                         // a level's tempo is its own
   sound.play("tempo", { up: by, rank: Math.log(to) / Math.log(20) });
   drawTempo();
   save();
@@ -479,7 +500,22 @@ addEventListener("pagehide", () => { if (!IN_FRAME) save(); });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("New game", newRun, "primary"));
+  part(body, "play").append(action(mode === "levels" ? "Restart this level" : "New game", newRun, "primary"));
+  const content = part(body, "content");
+  content.append(choice("Game", [["orrery", "The orrery"], ["levels", "Levels"]], mode, v => {
+    if (v === mode) return;
+    save();
+    mode = v;
+    write(MODE, v);
+    const kept = read(v === "levels" ? LEVEL_RUN : RUN, null);
+    if (valid(kept) && !!kept.goal === (v === "levels") && !kept.over) { S = kept; swipes.clear(); running = false; choose(-1); redrawOver(); drawTempo(); } else newRun();
+    openMenu();
+  }));
+  if (mode === "levels") {
+    const open = openTo(), m = met(), L = levelOf(S) || levelNow();
+    content.append(choice("Level", LEVELS.filter((x, i) => i <= open).map((x, i) => [x.id, `${i + 1}${m[x.id] ? " ✓" : ""}`]), L.id, v => { write(LEVEL, v); newRun(); openMenu(); }),
+      line(`${LEVELS.indexOf(L) + 1}. ${L.name}: ${goalText({ goal: L.goal })} before the orrery fills. Levels met: ${Object.keys(m).length} of ${LEVELS.length}.`));
+  } else content.append(line("Levels bring in the orrery's rules one at a time, two colours first; The orrery is the whole game, for the score."));
   const settings = part(body, "settings");
   settings.append(volume(v => { if (v) sound.play("land", { ring: 2 }); }));
   settings.append(action("Reset the view", () => { view.setView(0, null); write(VIEW, null); }, "link"));
@@ -494,7 +530,11 @@ bindSwitcher($("appsBtn"), "orrery");
 document.querySelector(".or-mark").innerHTML = APPS.find(a => a.id === "orrery").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("againBtn").addEventListener("click", newRun);
+$("againBtn").addEventListener("click", () => {
+  const L = levelOf(S), next = L && LEVELS[LEVELS.indexOf(L) + 1];
+  if (L && S.won && next) write(LEVEL, next.id);                         // on to the next level
+  newRun();
+});
 $("slowerBtn").addEventListener("click", () => nudgeTempo(-1));
 $("fasterBtn").addEventListener("click", () => nudgeTempo(1));
 $("metroBtn").addEventListener("click", strike);
@@ -517,8 +557,8 @@ window.__orrery = {
 };
 
 best = read(BEST, 0);
-S = read(RUN, null);
-if (!valid(S)) newRun();
+S = read(mode === "levels" ? LEVEL_RUN : RUN, null);
+if (!valid(S) || !!S.goal !== (mode === "levels") || (S.goal && !levelOf(S))) newRun();
 else { redrawOver(); drawTempo(); }
 { const c = read(CHOSEN, null); if (c && Number.isInteger(c.ring) && c.ring >= 0 && c.ring < S.rings.length && !S.over) choose(c.ring); else choose(-1); }
 requestAnimationFrame(tick);

@@ -22,6 +22,7 @@ import {
   FORETELL, PACE, CREEP, gap, creep, bpm, tempoAt, nextTempo, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, crowds, newGame, valid, copy, setRing,
   setTempo, tapBeat, setOthers, where, dueIn, nextDrift, driftTime, aims, VIABLE, step, look, strikeAt, setPlane, CAP, ALIKE, holds,
 } from "../orrery-engine.js";
+import { LEVELS as STEPS } from "../orrery-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { if (!MEASURE || !ok) console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -899,8 +900,8 @@ const PLAYERS = {
   quickgates: { name: "a quick player who never presses a colour", make: seed => careful(HANDS.quick, seed, { presses: false }) },
 };
 /** A game played out to its end (or LIMIT seconds) by a player at a tempo: what it came to. */
-function play(seed, tempo, who) {
-  const s = newGame(seed, tempo), p = PLAYERS[who].make(seed);
+function play(seed, tempo, who, level = null) {
+  const s = newGame(seed, tempo, level), p = PLAYERS[who].make(seed);
   let guard = 0, sane = true, gates = 0, spokes = 0, drifted = 0, lands = 0, short = 0, top = 0;
   while (!s.over && s.t < LIMIT && guard++ < 1e6) {
     const at = Math.min(LIMIT, Math.max(s.t, p.wake(s)));
@@ -917,7 +918,7 @@ function play(seed, tempo, who) {
   }
   if (MEASURE && !s.over && s.t < LIMIT) console.log(`(game ${seed} stalled at ${s.t}: wake ${p.wake(s)}, beat ${s.beat} at ${s.beatAt}, planet due ${s.next.due} in ${dueIn(s)} s)`);
   const st = p.stats, late = (st.pressAt || []).filter(t => t > s.t / 2).length;
-  return { seed, t: s.t, lands, short, top, beats: s.beat, score: s.score, aligned: s.aligned, fours: s.fours, over: s.over, sane, gates, spokes, drifted, late, ...st };
+  return { seed, t: s.t, lands, short, top, beats: s.beat, score: s.score, aligned: s.aligned, fours: s.fours, over: s.over, won: !!s.won, sane, gates, spokes, drifted, late, ...st };
 }
 {
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
@@ -925,6 +926,13 @@ function play(seed, tempo, who) {
   if (TRACE) {
     const who = process.argv.find(x => PLAYERS[x]) || "careful", r = play(Number(ARG("trace")), ARG("tempo") != null ? Number(ARG("tempo")) : FIRST_TEMPO, who);
     console.log(`${PLAYERS[who].name}: ${r.t.toFixed(0)} s, ${r.score} points, ${r.aligned} lines (${r.gates} at the gates, ${r.spokes} in planes), ${r.presses} presses (${r.represses} putting a drifted hoop back), ${r.misses} plans missed, ${r.drifted} drifts`);
+    process.exit(0);
+  }
+  if (MEASURE && ARG("levels") != null) {
+    // the levels (orrery-levels.js), each played by the players on `levels` seeds: how often each is met, and how long it takes
+    const n = Number(ARG("levels")) || 12, who = (process.argv.find(x => x.split(",").every(k => PLAYERS[k])) || "careful,quick").split(",");
+    for (const L of STEPS) console.log(`${L.name}: ` + who.map(w => { const list = Array.from({ length: n }, (_, g) => play(500 + g, L.tempo, w, L)), won = list.filter(r => r.won);
+      return `${w} ${won.length}/${n} met (${won.length ? median(won.map(r => r.t)).toFixed(0) : "–"} s; lost at ${list.filter(r => !r.won).map(r => r.goal ?? (L.goal.lines != null ? r.aligned : L.goal.fours != null ? r.fours : r.score)).join(",") || "–"})`; }).join("; "));
     process.exit(0);
   }
   if (MEASURE) {
@@ -958,6 +966,15 @@ function play(seed, tempo, who) {
   check(done.every(r => r.drifted >= 5 && r.fast > 0) && done.some(r => r.represses > 0), "the hoops drift under it all game, now and then out of a line it's making (pressed back), and it sets hoops fast");
   check(med(quick, "t") > med(done, "t") && med(quick, "score") > med(done, "score"), `a quicker one longer still (about ${med(quick, "t").toFixed(0)} seconds, ${med(quick, "score").toLocaleString("en-GB")} points)`);
   check([...idle, ...spin, ...done, ...gates, ...quick, ...quickGates].every(r => r.over && r.sane), "and every game ends, the hoops on whole places, never set still, tips and settings throughout");
+  // the levels (Korbi, 24 November 2026: a gentler way in, today's game kept as it is): every one met by a careful player,
+  // each ending on the beat that met it (`measure levels=12` plays more)
+  const meet = L => { let r = null; for (let g = 500; g < 503 && !r?.won; g++) r = play(g, L.tempo, "careful", L); return r; };   // in one of three games
+  const steps = STEPS.map(L => [L, meet(L)]), unmet = steps.filter(([, r]) => !r.won || !r.over || !r.sane);
+  check(STEPS.length >= 10 && new Set(STEPS.map(L => L.id)).size === STEPS.length && STEPS.every(L => L.words.every(w => w.length <= 50)) && !unmet.length,
+    `the ${STEPS.length} levels are each met by a careful player, in ${steps.map(([, r]) => r.t.toFixed(0)).join(", ")} seconds${unmet.length ? `: not ${unmet.map(([L]) => L.name).join(", ")}` : ""}`);
+  const two = newGame(7, 6, STEPS[0]), seen = new Set(two.rings.flatMap(r => r.places.filter(c => c >= 0)));
+  check(valid(two) && [...seen].every(c => c < 2) && two.rings.every(r => [PLANE[0], PLANE[1]].includes(r.tip)) && bpm(two) === 6,
+    "a level of two colours deals only those, the hoops in their planes, at the level's tempo");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

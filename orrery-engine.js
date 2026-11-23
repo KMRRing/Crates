@@ -34,6 +34,12 @@
 // counted in beats, not seconds, so a beat struck early by a tap is simply an early beat. Every change happens at an exact
 // time, whatever the steps of time it's played in, so a game goes on the same whether it's played a frame at a time or a
 // minute at once.
+//
+// Levels (Korbi, 24 November 2026: "orrery as it is right now, is quite fun ... I love the game as it plays right now, so this
+// should be preserved and maybe be one of many levels"; orrery-levels.js): a game may also carry `opts` { colours (2 to 4 in
+// play), drift (false: the hoops never tip by themselves), creep (false: the metronome stays where it is set), pace (the gap
+// between planets, times this), start (planets at the start) } and `goal` { lines | fours | score: so many } with `won`. A
+// game without them is today's game, exactly.
 
 export const VERSION = 9;
 export const RINGS = 4, PLACES = 12, COLOURS = 4, START = 11;
@@ -91,7 +97,7 @@ export const creep = b => gap(0) / gap(b);
  * is not matched to the planets and not held: a new setting simply replaces it and creeps on from there. A pure function
  * of the game (the beats counted, the pace), so a saved game, a partner's frame and the tests agree.
  */
-export const tempoAt = (s, b) => Math.min(s.tempo * creep(b) / creep(s.tempoBeat), Math.max(s.tempo, CREEP.cap));
+export const tempoAt = (s, b) => (s.opts?.creep === false ? s.tempo : Math.min(s.tempo * creep(b) / creep(s.tempoBeat), Math.max(s.tempo, CREEP.cap)));
 export const bpm = s => tempoAt(s, s.beat);
 /** Seconds from this beat to the next, at the tempo now. */
 export const period = s => 60 / bpm(s);
@@ -213,6 +219,9 @@ export const dueIn = s => Math.max(0, (s.next.due - where(s)) * (s.beatAt - s.la
  */
 export const CAP = PLACES / COLOURS;
 export const ALIKE = 0.5;
+/** The colours in play (a level may have fewer), and a hoop's share of one of them. */
+export const coloursOf = s => s.opts?.colours ?? COLOURS;
+const capOf = s => PLACES / coloursOf(s);
 /** How many planets of a colour a hoop holds. */
 export const holds = (r, c) => r.places.reduce((n, x) => n + (x === c ? 1 : 0), 0);
 /**
@@ -220,7 +229,7 @@ export const holds = (r, c) => r.places.reduce((n, x) => n + (x === c ? 1 : 0), 
  * null. For a colour, only hoops holding fewer than CAP of it, the one holding fewer of it first.
  */
 function spot(s, colour = -1) {
-  const open = s.rings.flatMap((r, ring) => (r.places.includes(-1) && (colour < 0 || holds(r, colour) < CAP) ? [ring] : []));
+  const open = s.rings.flatMap((r, ring) => (r.places.includes(-1) && (colour < 0 || holds(r, colour) < capOf(s)) ? [ring] : []));
   if (!open.length) return null;
   const free = ring => s.rings[ring].places.filter(c => c < 0).length;
   const fewer = ring => (colour < 0 ? 0 : holds(s.rings[ring], colour));
@@ -231,7 +240,7 @@ function spot(s, colour = -1) {
 }
 /** The hoops each colour has a planet on, as a set a colour. */
 const spread = s => {
-  const on = Array.from({ length: COLOURS }, () => new Set());
+  const on = Array.from({ length: coloursOf(s) }, () => new Set());
   s.rings.forEach((r, ring) => r.places.forEach(c => { if (c >= 0) on[c].add(ring); }));
   return on;
 };
@@ -250,6 +259,8 @@ export const aims = s => spread(s).filter(h => h.size >= 3).length;
  * count at exactly the floor, and kept a fourth colour from ever spreading).
  */
 export const VIABLE = 3;
+/** The floor for a game: one less than its colours (three of four; one of two). */
+const viableOf = s => Math.min(VIABLE, coloursOf(s) - 1);
 /**
  * The place and colour of the next planet. Below VIABLE colours on three hoops, steered: the planet that brings a colour
  * nearest to three hoops (the colour on most hoops short of three, onto a hoop it isn't on and that has room;
@@ -258,9 +269,9 @@ export const VIABLE = 3;
  * player sees them for as long as it takes to land.
  */
 function aimed(s) {
-  if (aims(s) < VIABLE) {
+  if (aims(s) < viableOf(s)) {
     const on = spread(s), reach = [];
-    for (let c = 0; c < COLOURS; c++) if (on[c].size < 3) for (let ring = 0; ring < RINGS; ring++) {
+    for (let c = 0; c < coloursOf(s); c++) if (on[c].size < 3) for (let ring = 0; ring < RINGS; ring++) {
       if (on[c].has(ring)) continue;                      // (a hoop without the colour holds none of it: the share is no limit)
       const free = s.rings[ring].places.flatMap((x, p) => (x < 0 ? [p] : []));
       if (free.length) reach.push({ colour: c, ring, free, size: on[c].size });
@@ -272,7 +283,7 @@ function aimed(s) {
 }
 /** How many planets of each colour the orrery holds. */
 function counts(s) {
-  const n = new Array(COLOURS).fill(0);
+  const n = new Array(coloursOf(s)).fill(0);
   for (const r of s.rings) for (const c of r.places) if (c >= 0) n[c]++;
   return n;
 }
@@ -293,7 +304,7 @@ function newcomer(s) {
   const weight = scarcity(counts(s)), options = [];
   s.rings.forEach((r, ring) => {
     const free = r.places.filter(c => c < 0).length;
-    if (free) for (let c = 0; c < COLOURS; c++) { const h = holds(r, c); if (h < CAP) options.push({ ring, colour: c, w: free * weight(c) * ALIKE ** h }); }
+    if (free) for (let c = 0; c < coloursOf(s); c++) { const h = holds(r, c); if (h < capOf(s)) options.push({ ring, colour: c, w: free * weight(c) * ALIKE ** h }); }
   });
   if (!options.length) return null;
   const { ring, colour } = weighted(s, options), places = s.rings[ring].places.flatMap((c, p) => (c < 0 ? [p] : []));
@@ -302,7 +313,7 @@ function newcomer(s) {
 /** A colour for a newcomer with no place yet (the orrery full as it's foretold), or for a hoop (`ring`): as newcomer() weighs it. */
 function colourFor(s, ring = -1) {
   const r = s.rings[ring], weight = scarcity(counts(s));
-  return weighted(s, [...Array(COLOURS).keys()].map(c => { const h = r ? holds(r, c) : 0; return { c, w: h >= CAP ? 0 : weight(c) * ALIKE ** h }; })).c;
+  return weighted(s, [...Array(coloursOf(s)).keys()].map(c => { const h = r ? holds(r, c) : 0; return { c, w: h >= capOf(s) ? 0 : weight(c) * ALIKE ** h }; })).c;
 }
 /**
  * Foretells the next planet, to land a gap (in beats) after `from`, the beat position the last one landed at. While fewer
@@ -310,7 +321,7 @@ function colourFor(s, ring = -1) {
  */
 function foretell(s, from) {
   const at = aimed(s) ?? { ring: -1, place: -1, colour: colourFor(s) };
-  s.next = { due: from + gap(s.beat) / (aims(s) < VIABLE ? 2 : 1), ring: at.ring, place: at.place, colour: at.colour };
+  s.next = { due: from + gap(s.beat) * (s.opts?.pace ?? 1) / (aims(s) < viableOf(s) ? 2 : 1), ring: at.ring, place: at.place, colour: at.colour };
 }
 /** The way a hoop at a tip drifts next: on as it was going, or back from 45 degrees. */
 const turned = (tip, way) => (Math.abs(tip + way) > TIP_MAX ? -way : way);
@@ -335,10 +346,13 @@ export function crowds(s) {
  * goes first; START planets in places, no three of a colour at one place round (so none in line, nor brought into one by
  * the turning); the first foretold.
  */
-export function newGame(seed, tempo = FIRST_TEMPO) {
+export function newGame(seed, tempo = FIRST_TEMPO, level = null) {
   const s = { v: VERSION, seed: seed >>> 0, n: 0, t: 0, tempo: clampTempo(tempo), tempoBeat: 0, beat: 0, lastBeat: 0, beatAt: 0, rings: [], next: null, locks: [], score: 0, cleared: 0, aligned: 0, fours: 0, combo: 0, lastLock: -1e9, lockBeat: -1e9, over: false };
+  if (level) Object.assign(s, { level: level.id, opts: { ...level.opts }, goal: { ...level.goal }, won: false });
   s.beatAt = period(s);
-  const tips = shuffle(s, [...PLANE]), paces = shuffle(s, [...DRIFT]);
+  const nc = coloursOf(s);
+  // with fewer colours in play, the hoops start in the planes of those that are (each as often as the others)
+  const tips = shuffle(s, nc < COLOURS ? Array.from({ length: RINGS }, (_, k) => PLANE[k % nc]) : [...PLANE]), paces = shuffle(s, [...DRIFT]);
   for (let r = 0; r < RINGS; r++) {
     s.rings.push({ a: pick(s, PLACES), set: FIRST_SET, tip: tips[r], places: new Array(PLACES).fill(-1), moved: -1e9, dir: 1, tipFrom: tips[r], tipAt: -1e9,
       drift: paces[r], driftAt: paces[r], way: turned(tips[r], pick(s, 2) ? 1 : -1) });
@@ -348,9 +362,9 @@ export function newGame(seed, tempo = FIRST_TEMPO) {
   const all = () => s.rings.flatMap((r, ring) => r.places.flatMap((c, place) => (c >= 0 ? [{ ring, place, c }] : [])));
   for (let tries = 0; tries < 80; tries++) {
     for (const r of s.rings) r.places.fill(-1);
-    for (let k = 0; k < START; k++) {
+    for (let k = 0; k < (s.opts?.start ?? START); k++) {
       const at = spot(s);
-      s.rings[at.ring].places[at.place] = k % COLOURS;
+      s.rings[at.ring].places[at.place] = k % nc;
     }
     // no three of a colour together at the start: swap colours with another planet until none are, which keeps the count of each
     for (let guard = 0; guard < 500 && crowds(s).length; guard++) {
@@ -359,7 +373,7 @@ export function newGame(seed, tempo = FIRST_TEMPO) {
       s.rings[m.ring].places[m.place] = o.c;
       s.rings[o.ring].places[o.place] = c.colour;
     }
-    if (!crowds(s).length && aims(s) >= VIABLE) break;
+    if (!crowds(s).length && aims(s) >= viableOf(s)) break;
   }
   foretell(s, 0);
   return s;
@@ -368,7 +382,9 @@ const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 export const valid = g => !!g && g.v === VERSION && Number.isFinite(g.tempo) && g.tempo >= TEMPOS[0] && g.tempo <= 1000 && Number.isInteger(g.tempoBeat) && [g.t, g.beatAt, g.lastBeat].every(Number.isFinite) && Number.isInteger(g.beat)
   && Array.isArray(g.rings) && g.rings.length === RINGS && g.rings.every(r => Array.isArray(r.places) && r.places.length === PLACES && isInt(r.a, 0, PLACES - 1) && isInt(r.set, -SPIN, SPIN) && r.set !== 0
     && isInt(r.tip, -TIP_MAX, TIP_MAX) && [r.moved, r.tipFrom, r.tipAt, r.driftAt].every(Number.isFinite) && r.drift > 0 && Math.abs(r.way) === 1)
-  && !!g.next && Number.isFinite(g.next.due) && Array.isArray(g.locks);
+  && !!g.next && Number.isFinite(g.next.due) && Array.isArray(g.locks) && (!g.goal || (typeof g.level === "string" && !!g.opts));
+/** Whether a level's goal is met: so many lines, fours or points. */
+export const met = s => !!s.goal && (s.goal.lines != null ? s.aligned >= s.goal.lines : s.goal.fours != null ? s.fours >= s.goal.fours : s.score >= s.goal.score);
 /** A copy of a game, to try something on. */
 export const copy = s => structuredClone(s);
 
@@ -477,6 +493,8 @@ function beat(s, events) {
     if (n === 4) s.fours++;
     events.push({ type: "lock", colour: c.colour, key: c.key, seat: c.seat, members: c.members, dir: c.dir, n, gain, combo: s.combo });
   }
+  // a level met ends there, on the beat that met it
+  if (due.length && met(s)) { s.won = true; s.over = true; s.locks = []; events.push({ type: "over", won: true }); return; }
   const stepped = [];
   s.rings.forEach((r, ring) => {
     const by = r.set;
@@ -489,7 +507,7 @@ function beat(s, events) {
   events.push({ type: "beat", beat: s.beat, stepped });
   if (stepped.length) look(s);
   // the hoops that are due drift now, once the steps have landed (a line they leave or make is looked for as the steps' are)
-  const drifting = s.rings.flatMap((r, ring) => (r.driftAt <= s.beat ? [ring] : [])).sort((a, b) => s.rings[a].driftAt - s.rings[b].driftAt);
+  const drifting = s.opts?.drift === false ? [] : s.rings.flatMap((r, ring) => (r.driftAt <= s.beat ? [ring] : [])).sort((a, b) => s.rings[a].driftAt - s.rings[b].driftAt);
   for (const ring of drifting) drift(s, ring, events);
 }
 function land(s, events) {
@@ -507,7 +525,7 @@ function land(s, events) {
     ({ ring, place } = at);
     // the room left is only on hoops holding CAP of its colour already: it comes as one they may take (rare: it was
     // foretold onto a full orrery, and the line that made room took its colour from each hoop)
-    if (holds(s.rings[ring], colour) >= CAP) colour = colourFor(s, ring);
+    if (holds(s.rings[ring], colour) >= capOf(s)) colour = colourFor(s, ring);
   }
   s.rings[ring].places[place] = colour;
   events.push({ type: "land", ring, place, colour });

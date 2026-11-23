@@ -11,7 +11,7 @@
 // overhead. The page (orrery.js) steps the game and draws it every frame: frame, event, select, pick, angleAt, at,
 // orbit; orrery-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, PLANE, FORETELL, TICK, dirOf, turnOf, tiltOf, strikeAt, dueIn, planeOf } from "./orrery-engine.js";
+import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, PLANE, FORETELL, TICK, dirOf, turnOf, tiltOf, strikeAt, dueIn, planeOf, coloursOf } from "./orrery-engine.js";
 
 const DEG = Math.PI / 180;
 // ---------- measures (units of the orrery; the sun is the middle, a place is a twelfth of a hoop) ----------
@@ -483,6 +483,7 @@ export function createOrrery(host) {
     clock += dt;
     LIGHT.uTime.value = clock;
     nBeams = 0; nGlows = 0; nMarks = 0;
+    for (let c = 0; c < COLOURS; c++) jewels[c].visible = c < coloursOf(s);   // a level with fewer colours shows only their planes
     for (let k = 0; k < RINGS; k++) {
       hoops[k].tilt.rotation.z = tiltOf(s.rings[k], s.t);                      // the three o'clock side up for a positive tip
       hoops[k].spin.rotation.y = -turnOf(s.rings[k], s.t) * STEP;              // our angles go clockwise, a positive turn about the vertical the other way
