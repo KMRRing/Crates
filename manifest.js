@@ -10,6 +10,7 @@ import { LIVES, ROUNDS, WARES, VIEWS, KINDS, legendRows, makeRound, priceOf, ski
 import { CARGO, CARRIES, UNDER, pieceWeight, pieceWorth, cellsOf } from "./manifest-rules.js";
 import { LEVELS, CHAPTERS, COUNT, seedOf, recipeAt, starsFor, mendCamp, isOpen } from "./manifest-levels.js";
 import { stage, wareIcon, playOut, ready, outroMs, skipIn } from "./manifest-art.js";
+import { glyphFor } from "./manifest-glyphs.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause, todayPart } from "./menu.js";
@@ -97,8 +98,8 @@ function drawOrders() {
       : "The tally: the questions to come. Answer any, pass any; a wrong answer costs a life.");
   go("Land the cargo", showStack);
 }
-/** The tally: a line of what's coming, then each entry's kind, what it asks about and its price, ruled like a ledger's
- *  page and numbered with the clerk's notches (|, ||, |||). */
+/** The tally: a line of what's coming, then each entry's kind, a little stack with what it asks about picked out
+ *  (manifest-glyphs.js), what it asks about and its price, ruled like a ledger's page and numbered with the clerk's notches. */
 function fillBook(intro) {
   const book = $("book");
   book.className = "mf-book";
@@ -108,9 +109,10 @@ function fillBook(intro) {
     notches.style.setProperty("--n", i + 1);
     notches.setAttribute("aria-hidden", "true");
     left.append(node("b", null, KINDS[o.type].name), node("span", null, o.posted));
-    const price = node("span", "mf-price", money(S.prices[i]));
+    const price = node("span", "mf-price", money(S.prices[i])), pic = node("i", "mf-glyph");
+    pic.innerHTML = glyphFor(o);
     if (S.trend[i]) price.appendChild(node("small", null, S.trend[i]));
-    row.append(notches, left, price);
+    row.append(notches, pic, left, price);
     book.appendChild(row);
   });
 }

@@ -51,13 +51,30 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-book { display: grid; gap: 0; }
 .mf-book:empty { display: none; }
 .mf-book .intro { margin: 0 0 .5rem; font-size: .86rem; color: var(--ink-soft); line-height: 1.35; }
-.mf-order { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: center; gap: .55rem; padding: .45rem .7rem .45rem .55rem; background: var(--yard); border: 1px solid var(--tile-edge); border-top: 0; }
+.mf-order { display: grid; grid-template-columns: 1.5rem 3.4rem minmax(0, 1fr) auto; align-items: center; gap: .55rem; padding: .45rem .7rem .45rem .55rem; background: var(--yard); border: 1px solid var(--tile-edge); border-top: 0; }
 .mf-book .intro + .mf-order { border-top: 1px solid var(--tile-edge); border-radius: 4px 4px 0 0; }
 .mf-order:last-child { border-radius: 0 0 4px 4px; }
 .mf-order b { display: block; font-size: .75rem; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--mf-in); }
 .mf-order span { font-weight: 700; line-height: 1.3; }
 /* n notches, as a clerk cuts a tally stick: |, ||, ||| */
 .mf-notch { display: block; width: calc(var(--n, 1) * .3rem); height: 1.1rem; background: repeating-linear-gradient(90deg, var(--ink-soft) 0 2px, transparent 2px .3rem); opacity: .75; }
+/* the question's picture: a little stack, what it asks about in brass (manifest-glyphs.js) */
+.mf-glyph { display: block; width: 3.4rem; height: 2.65rem; }
+.mf-glyph svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mf-glyph polygon { stroke: var(--ink-soft); stroke-width: .6; stroke-linejoin: round; }
+.mf-glyph .g-ink .t { fill: var(--sheet); }
+.mf-glyph .g-ink .l { fill: color-mix(in srgb, var(--ink) 9%, var(--sheet)); }
+.mf-glyph .g-ink .r { fill: color-mix(in srgb, var(--ink) 18%, var(--sheet)); }
+.mf-glyph .g-lit polygon { stroke: color-mix(in srgb, var(--brass) 55%, var(--ink)); }
+.mf-glyph .g-lit .t { fill: color-mix(in srgb, var(--brass) 70%, white); }
+.mf-glyph .g-lit .l { fill: var(--brass); }
+.mf-glyph .g-lit .r { fill: color-mix(in srgb, var(--brass) 78%, var(--ink)); }
+.mf-glyph .g-dim polygon { fill: none; stroke-width: .5; stroke-dasharray: 1 1; opacity: .7; }
+.mf-glyph .g-mark { fill: var(--ink); }
+.mf-glyph .g-line { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.mf-glyph .g-ghost { fill: none; stroke: var(--brass); stroke-width: .7; stroke-dasharray: 1.5 1.2; }
+.mf-glyph .g-solid { fill: var(--brass); stroke: color-mix(in srgb, var(--brass) 55%, var(--ink)); stroke-width: .6; }
+.mf-glyph .g-edge { fill: none; stroke: color-mix(in srgb, var(--brass) 55%, var(--ink)); stroke-width: .6; }
 .mf-order .mf-price { padding-left: .6rem; border-left: 3px double var(--brass); align-self: stretch; display: flex; align-items: center; }
 .mf-price { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; white-space: nowrap; }
 .mf-price small { font-size: .75rem; color: var(--ink-soft); margin-left: .15rem; }
