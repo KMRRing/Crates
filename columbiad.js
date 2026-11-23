@@ -337,12 +337,12 @@ function missWords(res) {
   if (res.hit && !res.hit.ok) {
     const lim = gated ? T : g.type === "soft" ? { soft: g.speed } : g.type === "fast" ? { fast: g.speed } : {};
     // the speed asked is checked before the window, as the engine does (a ring may ask for both)
-    if (lim.soft !== undefined && res.hit.speed > lim.soft) return `In the ring at ${unit(res.hit.speed)}: too fast (${unit(lim.soft)} at most)`;
-    if (lim.fast !== undefined && res.hit.speed < lim.fast) return `In the ring at ${unit(res.hit.speed)}: too slow (${unit(lim.fast)} at least)`;
-    if (T.win) return res.hit.t < T.win[0] ? `In the ring at T+${res.hit.t.toFixed(1)} s: too early (open from T+${T.win[0].toFixed(1)})` : `In the ring at T+${res.hit.t.toFixed(1)} s: too late (shut at T+${T.win[1].toFixed(1)})`;
+    if (lim.soft !== undefined && res.hit.speed > lim.soft) return `In the cloud at ${unit(res.hit.speed)}: too fast (${unit(lim.soft)} at most)`;
+    if (lim.fast !== undefined && res.hit.speed < lim.fast) return `In the cloud at ${unit(res.hit.speed)}: too slow (${unit(lim.fast)} at least)`;
+    if (T.win) return res.hit.t < T.win[0] ? `In the cloud at T+${res.hit.t.toFixed(1)} s: too early (open from T+${T.win[0].toFixed(1)})` : `In the cloud at T+${res.hit.t.toFixed(1)} s: too late (shut at T+${T.win[1].toFixed(1)})`;
   }
   const by = Math.max(0, res.near - T.r).toFixed(1);
-  if (gated && list.length > 1) return `${fell}${res.gates ? `Through ${res.gates} of ${list.length - 1} gates, ` : ""}${res.gates === list.length - 1 ? "ring" : `gate ${res.gates + 1}`} missed by ${by}`;
+  if (gated && list.length > 1) return `${fell}${res.gates ? `Through ${res.gates} of ${list.length - 1} gates, ` : ""}${res.gates === list.length - 1 ? "cloud" : `gate ${res.gates + 1}`} missed by ${by}`;
   return `${fell}Missed by ${by}`;
 }
 

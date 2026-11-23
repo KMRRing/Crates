@@ -11,6 +11,7 @@ import { createGlobe, loadEarth, warm, sunOf } from "./columbiad-globe.js";
 import { defaultIs3D } from "./mode3d.js";
 
 const INK = "233,223,198", BRASS = "217,164,65", BRASS_HI = "240,213,138", GOOD = "127,194,168", BAD = "232,128,111";
+const ION = "126,196,255", ION_HI = "206,236,255";            // a target's plasma: the glow of an ionised cloud
 /** The Moon's map, tinted: a red rocky moon and an icy one are the same craters in another colour (the maps are made once and tinted by the globe). */
 const TINTS = { red: [1.35, 0.62, 0.46], ice: [0.72, 0.94, 1.3] };
 const SKY_TOP = "#080d19", SKY_BOT = "#16213a";
@@ -254,6 +255,31 @@ export function createView(canvas, hooks = {}) {
     }
     list.forEach((T, i) => oneRing(T, i, list.length, goal));
   }
+  // A target is a cloud of ionised gas, a glowing bubble the shell must pass through (23 Nov 2026, Korbi: "the moon rings are still ugly so
+  // maybe should just be replaced with something else like an ion shield or something random that makes some astronomical sense"): it
+  // brightens toward its rim like a lit shell of plasma, with filaments drifting round it and a brighter heart, the inner third that is
+  // worth the bonus mark. No ticks or crosshair.
+  function plasma(x, y, R, col, hi, lit, seed) {
+    const t = now() * 0.6 + seed * 2.1;
+    let g = ctx.createRadialGradient(x, y, 0, x, y, R * 1.3);
+    g.addColorStop(0, `rgba(${col},${lit ? 0.3 : 0.08})`); g.addColorStop(0.62, `rgba(${col},${lit ? 0.28 : 0.12})`);
+    g.addColorStop(0.75, `rgba(${col},${lit ? 0.45 : 0.3})`); g.addColorStop(0.8, `rgba(${hi},${lit ? 0.6 : 0.45})`); g.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 1.3, 0, 6.2832); ctx.fill();
+    // the filaments: thin bright arcs of the rim, drifting round at their own speeds
+    ctx.save(); ctx.lineCap = "round";
+    for (let k = 0; k < 4; k++) {
+      const a = t * (k % 2 ? -0.7 : 0.5) + k * 1.7, len = 0.6 + 0.35 * Math.sin(t * 0.9 + k), rr = R * (1.02 + 0.05 * Math.sin(t * 1.3 + k * 2));
+      ctx.lineWidth = (k % 2 ? 1 : 1.6) * u; ctx.strokeStyle = `rgba(${hi},${0.55 + 0.25 * Math.sin(t + k)})`;
+      ctx.beginPath(); ctx.arc(x, y, rr, a, a + len); ctx.stroke();
+    }
+    // the heart: the inner third, a little brighter and drawn with a faint edge so it can be aimed for
+    g = ctx.createRadialGradient(x, y, 0, x, y, R / 3);
+    g.addColorStop(0, `rgba(${hi},.35)`); g.addColorStop(1, `rgba(${hi},.06)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R / 3, 0, 6.2832); ctx.fill();
+    ctx.lineWidth = 1; ctx.setLineDash([1.5 * u, 3 * u]); ctx.strokeStyle = `rgba(${hi},.55)`;
+    ctx.beginPath(); ctx.arc(x, y, R / 3, 0, 6.2832); ctx.stroke();
+    ctx.restore();
+  }
   function oneRing(T, i, n, goal) {
     if (T.rail) {                                                          // the loop a moving ring is on
       const c = T.rail.about || [0, 0];
@@ -262,19 +288,8 @@ export function createView(canvas, hooks = {}) {
     }
     const p = ringAt(lvl, T, now()), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
     if (x + R * 2 < 0 || x - R * 2 > W || y + R * 2 < 0 || y - R * 2 > H) return;
-    const last = i === n - 1, col = (won && last) || (!last && flight && i < passed) || (!last && live && i < passed) ? GOOD : BRASS, lim = n > 1 ? T : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
-    const g = ctx.createRadialGradient(x, y, 0, x, y, R);
-    g.addColorStop(0, `rgba(${col},${won && last ? 0.4 : 0.1})`); g.addColorStop(1, `rgba(${col},${won && last ? 0.22 : 0.05})`);
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
-    ctx.lineWidth = 2 * u; ctx.strokeStyle = `rgba(${col},.95)`; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.stroke();
-    ctx.save();
-    ctx.lineWidth = 1; ctx.setLineDash([3 * u, 3 * u]); ctx.strokeStyle = `rgba(${col},.7)`;                  // the inner third, where a shot is worth a bonus mark
-    ctx.beginPath(); ctx.arc(x, y, R / 3, 0, 6.2832); ctx.stroke();
-    ctx.restore();
-    ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${col},.8)`; ctx.beginPath();
-    for (let k = 0; k < 12; k++) { const a = k * 0.5236, c = Math.cos(a), s = Math.sin(a), r0 = R + 2 * u, r1 = R + (k % 3 === 0 ? 7 : 4) * u; ctx.moveTo(x + c * r0, y + s * r0); ctx.lineTo(x + c * r1, y + s * r1); }
-    ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x - 3 * u, y); ctx.lineTo(x + 3 * u, y); ctx.moveTo(x, y - 3 * u); ctx.lineTo(x, y + 3 * u); ctx.stroke();
+    const last = i === n - 1, done = (won && last) || (!last && flight && i < passed) || (!last && live && i < passed), lim = n > 1 ? T : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
+    plasma(x, y, R, done ? GOOD : ION, done ? "214,240,228" : ION_HI, won && last, i);
     // the speed band: a hatched green ring outside, and the limit in figures (the band is told by its pattern as well as its colour)
     if (lim.soft !== undefined || lim.fast !== undefined) {
       ctx.save();
@@ -291,7 +306,7 @@ export function createView(canvas, hooks = {}) {
       const q = ringAt(lvl, T, cone.tNear), gx = sx(q[0]), gy = sy(q[1]);
       if (Math.hypot(gx - x, gy - y) > R * 0.6) {
         ctx.save();
-        ctx.setLineDash([2 * u, 3 * u]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${BRASS_HI},.75)`;
+        ctx.setLineDash([2 * u, 3 * u]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${ION_HI},.6)`;
         ctx.beginPath(); ctx.arc(gx, gy, R, 0, 6.2832); ctx.stroke();
         ctx.restore();
       }
