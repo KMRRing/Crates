@@ -14,10 +14,12 @@ import { sound } from "./columbiad-sound.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, onPause, isPaused, todayPart, volume } from "./menu.js";
-import { IN_FRAME, today } from "./suite.js";
+import { IN_FRAME, today, soloCode } from "./suite.js";
 import { roundOver } from "./random.js";
 import { levelOn } from "./playlog.js";
 import { PROOFS } from "./columbiad-proofs.js";
+import { OWNER, waysOf } from "./columbiad-hint.js";
+import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 // CAMP: { at (the level being played, 0 on), stars (the most won in each), bull (whether the ring's inner third was struck) }.
@@ -129,6 +131,7 @@ function setupLevel() {
   lvl = levelNow();
   // each level its own line in the play log, so it can be rated (Korbi, 13 Nov 2026: until now all of Columbiad was one line, "Rounds")
   levelOn("columbiad", daily ? `d${daily}` : lvl.id, daily ? `Daily ${daily}` : `${lvl.label} · ${lvl.name}`);
+  tip = null;
   view.setLevel(lvl);
   buildGauge();
   loadRun();
@@ -147,6 +150,7 @@ function playLevel(n) {
   setupLevel();
 }
 function restart() {
+  tip = null;
   fresh();
   phase = "aim";
   stopWind();
@@ -201,16 +205,17 @@ function render() {
   $("stars").classList.toggle("bull", won && S.bull);
   $("stars").setAttribute("aria-label", won ? `${plural(earn, "star")} won${S.bull ? ", bullseye" : ""}` : `A hit with this shot earns ${plural(earn, "star")}`);
   renderAim();
-  const done = phase === "done", busy = phase !== "aim";
+  const done = phase === "done", locked = phase !== "aim";
   $("deck").classList.toggle("away", done);
   $("result").hidden = !done;
-  for (const id of ["fire", "angL", "angR", "powD", "powU", "tL", "tR", "tRange"]) $(id).disabled = busy;
+  for (const id of ["fire", "angL", "angR", "powD", "powU", "tL", "tR", "tRange"]) $(id).disabled = locked;
   if (done) {
     const i = camp.at, last = i + 1 >= LEVELS.length;
     $("verdict").innerHTML = `<span class="cb-big">${WON[lvl.goal?.type || "hit"]}</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last && !daily ? " · the last level so far" : ""}</small>`;
     $("nextBtn").hidden = !daily && last;
     $("nextBtn").textContent = daily ? "Share" : "Next level";
   }
+  renderTip();
   if (typeof measure === "function") measure();
   const seen = read(SEEN, false);
   $("hint").hidden = !!seen || IN_FRAME || phase !== "aim";
@@ -225,6 +230,52 @@ function say(words, ms = 2400) {
   sayTimer = setTimeout(() => n.classList.remove("show"), ms);
 }
 const unsay = () => { clearTimeout(sayTimer); $("say").classList.remove("show"); };
+
+// ---------- the owner's hint (columbiad-hint.js) ----------
+// Each press shows the level's next way: the aim set to it (a moving world's launch time to the middle of its seconds), its flight drawn
+// with the others found so far dashed, and its numbers said; the press after the last puts it away.
+const owner = !IN_FRAME && soloCode() === OWNER;
+let tip = null, tipWorker = null, tipAsked = 0;
+const tipWaits = new Map();
+function renderTip() {
+  const b = $("hintBtn"), n = owner && !daily ? waysOf(lvl).length : 0, on = !!tip && tip.id === lvl.id && tip.at >= 0;
+  b.hidden = !n;
+  $("top").classList.toggle("tipped", !!n);
+  b.classList.toggle("on", on);
+  b.textContent = on ? `Way ${tip.at + 1}/${tip.n}` : "Hint";
+  b.disabled = phase !== "aim";
+}
+function askTip(id, k) {
+  if (tipWorker === null) {
+    try { tipWorker = new Worker(new URL("./columbiad-hint-worker.js", import.meta.url), { type: "module" }); } catch { tipWorker = false; }
+    if (tipWorker) tipWorker.onmessage = ({ data }) => { tipWaits.get(data.n)?.(data.model); tipWaits.delete(data.n); };
+  }
+  if (!tipWorker) return import("./columbiad-hint-worker.js").then(m => m.modelOf(LEVELS.find(l => l.id === id), k));
+  return new Promise(ok => { const n = ++tipAsked; tipWaits.set(n, ok); tipWorker.postMessage({ n, id, k }); });
+}
+function dropTip() { tip = null; view.setModel(null); }
+async function nextTip() {
+  if (daily || phase !== "aim") return;
+  if (!tip || tip.id !== lvl.id) tip = { id: lvl.id, n: waysOf(lvl).length, got: [], at: -1 };
+  const t = tip, k = ++t.at;
+  if (k >= t.n) { dropTip(); unsay(); render(); return; }
+  renderTip();
+  if (!t.got[k]) { const done = busy("Working out the way"); try { t.got[k] = await askTip(t.id, k); } finally { done(); } }
+  if (tip !== t || t.at !== k || !t.got[k]) return;               // another press, or another level, meanwhile
+  const m = t.got[k];
+  touched();
+  aim = clampAim(lvl, { angle: m.aim.angle, charge: m.aim.charge, t: moving() ? m.aim.t : undefined });
+  view.setClock(stamp()); changed(); keepAim();
+  view.setModel({ ways: t.got, at: k });
+  say(tipWords(m), 12000);
+  renderTip();
+}
+function tipWords(m) {
+  const off = m.aim.angle - (lvl.site ?? 90), lean = off > 0.04 ? " ◀" : off < -0.04 ? " ▶" : "", w = m.win;
+  return [`Way ${m.k + 1} of ${tip.n}: ${(90 - Math.abs(off)).toFixed(1)}°${lean}, power ${m.aim.charge.toFixed(1)}${moving() ? `, T+${(m.aim.t || 0).toFixed(1)} s` : ""}`,
+    w ? `window ${(w.a1 - w.a0).toFixed(1)}° × ${(w.c1 - w.c0).toFixed(1)} power${m.times ? `, T+${m.times.t0.toFixed(1)} to ${m.times.t1.toFixed(1)} s` : ""}` : "",
+    m.rob != null ? `${Math.round(m.rob * 100)} of 100 scattered shots win` : ""].filter(Boolean).join(" · ");
+}
 
 // ---------- the scene ----------
 // The preview is worked out in a worker (columbiad-cone-worker.js; 23 Nov 2026, Korbi: "check that the game doesn't lag"): one question in
@@ -505,6 +556,7 @@ document.addEventListener("keydown", e => {
   e.preventDefault();
 });
 $("againBtn").addEventListener("click", restart);
+$("hintBtn").addEventListener("click", nextTip);
 $("nextBtn").addEventListener("click", () => { if (daily) share(); else if (camp.at + 1 < LEVELS.length) playLevel(camp.at + 1); });
 
 // ---------- the menu ----------

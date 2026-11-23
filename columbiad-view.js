@@ -47,7 +47,7 @@ export function createView(canvas, hooks = {}) {
   let W = 1, H = 1, dpr = 1, u = 1;                                   // css pixels, device ratio, the page's rem over 16
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const cam = { x: 0, y: 0, k: 100 }, goal = { x: 0, y: 0, k: 100 };
-  let lvl = null, aim = { angle: 90, charge: 0 }, cone = null, coneAlpha = 1, ghosts = [], rope = null, won = false, hitAt = null, flare = 0, passed = 0, pings = [];
+  let lvl = null, aim = { angle: 90, charge: 0 }, cone = null, coneAlpha = 1, ghosts = [], model = null, rope = null, won = false, hitAt = null, flare = 0, passed = 0, pings = [];
   let frame = null, coneBox = null, fresh = false;
   const ins = { t: 0, r: 0, b: 0, l: 0 };                             // what the page's controls cover, in css pixels: the world is fitted into the rest
   let clock = 0, bodies = [], sun = sunOf(135, 0.5), spin = 0;        // the game's time now; the bodies to draw; the Earth's turn (turns)
@@ -330,6 +330,33 @@ export function createView(canvas, hooks = {}) {
       ctx.beginPath(); ctx.moveTo(X - s, Y - s); ctx.lineTo(X + s, Y + s); ctx.moveTo(X + s, Y - s); ctx.lineTo(X - s, Y + s); ctx.stroke();
     });
   }
+  // The owner's hint (columbiad-hint.js): every way worked out so far, the one shown solid and the others dashed, and from the pad a
+  // cone of the angles that win at the shown way's power, so the size of the window can be seen as well as the line.
+  function modelLines() {
+    if (!model) return;
+    ctx.save();
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    model.ways.forEach((w, i) => {
+      if (!w?.pts || w.pts.length < 4 || i === model.at) return;
+      ctx.setLineDash([5 * u, 4 * u]); ctx.lineWidth = 1.4 * u; ctx.strokeStyle = `rgba(${BRASS},.5)`;
+      polyline(w.pts); ctx.stroke();
+    });
+    const w = model.ways[model.at];
+    if (w?.pts?.length >= 4) {
+      ctx.setLineDash([]); ctx.lineWidth = 2.2 * u; ctx.strokeStyle = `rgba(${BRASS_HI},.95)`;
+      polyline(w.pts); ctx.stroke();
+    }
+    if (w?.win) {
+      const [px, py] = padWorld(), X = sx(px), Y = sy(py), R = 96 * u, rad = Math.PI / 180;
+      const g = ctx.createRadialGradient(X, Y, 0, X, Y, R);
+      g.addColorStop(0, `rgba(${BRASS_HI},.42)`); g.addColorStop(1, `rgba(${BRASS_HI},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(X, Y); ctx.arc(X, Y, R, -w.win.a1 * rad, -w.win.a0 * rad); ctx.closePath(); ctx.fill();
+      ctx.lineWidth = 1 * u; ctx.strokeStyle = `rgba(${BRASS_HI},.7)`;
+      for (const a of [w.win.a0, w.win.a1]) { ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X + Math.cos(a * rad) * R, Y - Math.sin(a * rad) * R); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
   // The preview suggests where the shot goes and does not solve it (Korbi, 4 November 2026): a spray of dots, each on one of the sample
   // shells at its station (the shells are perturbed far more than a real shot, engine `previewSpread`), so the further they go the more they scatter;
   // they swell and fade. Chosen over a cone, a soft band and a fan of lines: a line of any kind still reads as the answer.
@@ -455,6 +482,7 @@ export function createView(canvas, hooks = {}) {
     moons(t);
     pad();
     ghostLines();
+    modelLines();
     ring();
     coneBand();
     trail();
@@ -608,7 +636,7 @@ export function createView(canvas, hooks = {}) {
           globe: textured ? createGlobe("moon", { tilt: v.tilt ?? 8, tint }) : null });
       });
       if (bodies.some(b => b.globe)) warm(() => { draw(); wake(); });
-      flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; passed = 0; pings = []; smoke.length = 0; sparks.length = 0; flash = 0; pulse = 0; settleAt = 0; coneAlpha = 1;
+      flight = null; live = null; cone = null; ghosts = []; model = null; rope = null; won = false; flare = 0; passed = 0; pings = []; smoke.length = 0; sparks.length = 0; flash = 0; pulse = 0; settleAt = 0; coneAlpha = 1;
       draw();
     },
     // these only note the change and ask for a frame; the page's hooks.before runs in that frame, ahead of the drawing
@@ -637,6 +665,8 @@ export function createView(canvas, hooks = {}) {
       fresh = false;
     },
     setGhosts(g) { ghosts = g; wake(); },
+    /** The owner's hint: { ways: [{ pts, win }], at } (the way shown), or null. */
+    setModel(m) { model = m; wake(); },
     setRope(r) { rope = r; wake(); },
     setWon(v) { won = v; wake(); },
     clearLive() { live = null; hitAt = null; wake(); },

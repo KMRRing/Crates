@@ -284,5 +284,15 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   check(/charge\(c, t, \{ dur/.test(snd) && /sound\.play\("charge"/.test(page), "the wind-up has a sound of its own");
   check(/function prepare\(res\)/.test(vw) && /pointerdown", \(\) => sound\.unlock\(\)/.test(page), "the flight's arrays are made in the wind-up, and the audio engine at the first touch, not at the first shot");
 }
+{
+  // 23 November 2026, Korbi: a Hint for KORBIRUN alone, showing the model answer and any other way as good (columbiad-hint.js)
+  const { OWNER, waysOf } = await import("../columbiad-hint.js"), { modelOf } = await import("../columbiad-hint-worker.js");
+  const { readFileSync } = await import("node:fs"), page = readFileSync(new URL("../columbiad.js", import.meta.url), "utf8");
+  check(OWNER === "KORBIRUN" && /owner = !IN_FRAME && soloCode\(\) === OWNER/.test(page) && /b\.hidden = !n/.test(page), "the Hint shows only for the owner's code, never in a watching frame");
+  check(LEVELS.every(l => waysOf(l).length >= 1 && waysOf(l).length <= (PROOFS[l.id] || []).length), "every level has at least one way to show, and no more than its stored shots");
+  const lvl = LEVELS[0], ways = waysOf(lvl), m = modelOf(lvl, 0);
+  check(m && E.shoot(lvl, m.aim, [0, 0], { watch: false }).won && m.aim.angle >= m.win.a0 && m.aim.angle <= m.win.a1 && m.pts.length >= 4,
+    `${lvl.id}'s first way, moved to the middle of its window (${m?.aim.angle}° in ${m?.win.a0} to ${m?.win.a1}), still wins, with its flight to draw (${ways.length} ways)`);
+}
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("columbiad: the doc's units and physics checks, a step that depends on the state alone, rings entered on the path, the dial, the cone, the contract, the levels with their winning shots, the drag-back control");

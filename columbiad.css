@@ -19,7 +19,7 @@
 .cb-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
 /* the top: what level this is and the stars a hit with this shot would earn; the menu's button */
-.cb-top { position: absolute; z-index: 3; top: var(--cb-t); left: var(--cb-l); right: var(--cb-r); display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; pointer-events: none; }
+.cb-top { position: absolute; z-index: 3; top: var(--cb-t); left: var(--cb-l); right: var(--cb-r); display: flex; align-items: flex-start; justify-content: flex-start; gap: .5rem; pointer-events: none; }
 .cb-top > * { pointer-events: auto; }
 .cb-chip { min-width: 0; max-width: calc(100% - var(--full-slot, 3.25rem) - .5rem); box-sizing: border-box; display: grid; gap: .1rem; padding: .32rem .7rem .38rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink);
   box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .5); pointer-events: none; }
@@ -30,6 +30,12 @@
 .cb-sub b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .cb-goal { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; font-weight: 700; color: var(--ink); }
 .cb-goal[hidden] { display: none; }
+/* the owner's hint (KORBIRUN only, columbiad-hint.js): a plate beside the level's, lit while a way is shown */
+.cb-top.tipped .cb-chip { max-width: calc(100% - var(--full-slot, 3.25rem) - 6.5rem); }
+.cb-tip { flex: none; min-height: 2rem; padding: 0 .65rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink); font: inherit; font-size: .7rem; font-weight: 800;
+  font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-variant-numeric: tabular-nums; box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .5); cursor: pointer; }
+.cb-tip[hidden] { display: none; }
+.cb-tip.on { background: var(--plate); border-color: var(--plate); color: var(--plate-ink); }
 .cb-stars { color: var(--brass); letter-spacing: .12em; font-size: .9rem; }
 .cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
 
