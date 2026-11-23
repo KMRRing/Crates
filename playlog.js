@@ -18,16 +18,32 @@ const page = (location.pathname.split("/").pop() || "index.html").replace(/\.htm
 const watching = new URLSearchParams(location.search).has("watch");
 const fresh = () => ({ v: 1, games: {}, levels: {} });
 const valid = v => v && v.v === 1 && typeof v.games === "object" && typeof v.levels === "object";
+// A game's time is kept under its id on the games screen (apps.js), which names it in the log. Two pages' files differ from
+// their ids, and Party and the trick-taking page hold several games, named in the address (?game=): the log showed "slate",
+// "almanac" and "trumps" (the 23 Nov 2026 audit). Time kept under a page's file before then moves to the id on reading.
+const ID_OF_PAGE = { slate: "glyph", almanac: "lexicon" };
 /** The log as kept: { v, games: { game: { ms } }, levels: { "game/id": { game, id, name, ms, plays, rating, at } } }. */
 export function readLog() {
-  try { const v = JSON.parse(localStorage.getItem(KEY)); return valid(v) ? v : fresh(); } catch { return fresh(); }
+  let v;
+  try { v = JSON.parse(localStorage.getItem(KEY)); } catch { /* unreadable: start again */ }
+  if (!valid(v)) return fresh();
+  for (const [file, id] of Object.entries(ID_OF_PAGE)) if (v.games[file]) { (v.games[id] ??= { ms: 0 }).ms += v.games[file].ms || 0; delete v.games[file]; }
+  return v;
 }
 
 let log = null, level = null;          // level: { game, id, name }, the one in hand
 let pending = { game: 0, level: 0 };    // time not yet written
 let lastInput = Date.now(), lastTick = Date.now(), lastSave = Date.now();
 const levelKey = (game, id) => `${game}/${id}`;
-const gameOfPage = () => (page === "index" ? "" : page);
+/** The games screen's id for a page (its file's name, without .html) and its address's query. */
+export function gameOf(file, search = "") {
+  if (file === "index") return "";
+  const q = new URLSearchParams(search);
+  if ((file === "party" || file === "trumps") && q.get("game")) return q.get("game");
+  if (file === "stow" && q.get("mode") === "loose") return "loose";
+  return ID_OF_PAGE[file] || file;
+}
+const gameOfPage = () => gameOf(page, location.search);
 
 function flush() {
   if (watching || (!pending.game && !pending.level)) return;

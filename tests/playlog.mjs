@@ -76,4 +76,12 @@ W.levelOn("pipes", "wa1", "1");
 W.rate("pipes", "wa1", 3);
 check(!store.has("playlog:v1"), "a partner's watching page keeps no log");
 
+// every game is logged under its id on the games screen, which names it in the log (the 23 Nov 2026 audit: "slate", "almanac", "trumps")
+{
+  const apps = fs.readFileSync(new URL("../apps.js", import.meta.url), "utf8");
+  const wrong = [...apps.matchAll(/\{ id: "([a-z0-9-]+)", (?:sec|within): "[a-z]+", name: "[^"]+", href: "\.\/([a-z0-9-]+)\.html(\?[^"]*)?"/g)]
+    .filter(([, id, file, q]) => P.gameOf(file, q || "") !== id).map(([, id]) => id);
+  check(!wrong.length, `every app on the games screen is logged under its own id${wrong.length ? `: not ${wrong.join(", ")}` : ""}`);
+}
+
 process.exit(bad ? 1 : 0);
