@@ -67,13 +67,26 @@ export const ROWS = [
   {"n": 97, "name": "Astronomical", "power": "Mech", "themes": ["Full plate", "Complications", "Layers+ratios", "Turning", "Duos"], "brief": "Three dials at three speeds on a full two-layer face", "face": "6×6 round (28), symmetric", "pieces": 24, "mix": "13S 7D 4K", "extras": "—"},
   {"n": 98, "name": "Westminster chime", "power": "Arbor", "themes": ["Full plate", "Several trains", "Switch", "Loads", "Jams", "Trios"], "brief": "Two trains and a pusher, every square filled", "face": "6×6 soft corners (32)", "pieces": 28, "mix": "15S 13T", "extras": "L2"},
   {"n": 99, "name": "Grande sonnerie", "power": "Mech", "themes": ["Full plate", "Complications", "Several trains", "Spares", "Fixed gears", "Duos", "Trios"], "brief": "Three trains, one with two dials, one crossing another, from a tray with spares", "face": "6×6 square (36)", "pieces": 28, "mix": "16S 6D 6T +2", "extras": "F1"},
-  {"n": 100, "name": "Supercomplication", "power": "Mech", "themes": ["Full plate", "Complications", "Several trains", "Switch", "Layers+ratios", "Turning", "Spares", "Loads", "Jams"], "brief": "Everything, on the one 7×7 face", "face": "7×7 round (37), symmetric", "pieces": 32, "mix": "17S 6D 5T 4K +3", "extras": "L2"}
+  {"n": 100, "name": "Supercomplication", "power": "Mech", "themes": ["Full plate", "Complications", "Several trains", "Switch", "Layers+ratios", "Turning", "Spares", "Loads", "Jams"], "brief": "Everything, on the one 7×7 face", "face": "7×7 round (37), symmetric", "pieces": 32, "mix": "17S 6D 5T 4K +3", "extras": "L2"},
+  // 24 Nov 2026, Korbi: "three layers can be chapter specific but not recurring theme": Three storeys, the trains one to a layer
+  {"n": 101, "name": "Mezzanine", "power": "Quartz", "themes": ["Three storeys", "Several trains"], "brief": "The third layer: one train on the bottom, one on the top, crossing where the top passes over", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "18S 4D", "extras": "—"},
+  {"n": 102, "name": "Three storeys", "power": "Quartz", "themes": ["Three storeys", "Several trains"], "brief": "Three trains, one to a layer: side by side they never mesh, so they fill the plate between them", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "18S 4D", "extras": "—"},
+  {"n": 103, "name": "Stairwell", "power": "Quartz", "themes": ["Three storeys", "Several trains", "Duos"], "brief": "Three trains on three layers: the top one crosses the bottom one", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "16S 6D", "extras": "—"},
+  {"n": 104, "name": "Two landings", "power": "Arbor", "themes": ["Three storeys", "Several trains"], "brief": "The middle train crosses the bottom one, and the top one crosses the middle", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "18S 4D", "extras": "—"},
+  {"n": 105, "name": "Every way", "power": "Quartz", "themes": ["Three storeys", "Several trains", "Trios"], "brief": "Each train crosses each other once: three crossings, three pairs of layers", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "16S 6T", "extras": "—"},
+  {"n": 106, "name": "Tower clock", "power": "Mech", "themes": ["Three storeys", "Several trains"], "brief": "Wound, three trains climb over one another: the top one crosses both below", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "18S 4D", "extras": "—"},
+  {"n": 107, "name": "Three loads", "power": "Quartz", "themes": ["Three storeys", "Several trains", "Loads"], "brief": "Three trains crossing, a load on each to turn the right way", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "18S 4D", "extras": "L3"},
+  {"n": 108, "name": "Campanile", "power": "Arbor", "themes": ["Three storeys", "Several trains", "Trios", "Duos"], "brief": "Three trains, three crossings, off the arbor: the bell tower", "face": "6×5 rectangle (30)", "pieces": 22, "mix": "14S 4D 4T", "extras": "—"}
 ];
 const ENDS = { 61: 1, 62: 2, 63: 1, 64: 1, 65: 1, 66: 1, 67: 2, 68: 1, 69: 2, 77: 1, 79: 1, 85: 1, 89: 1, 94: 2, 97: 2, 99: 1, 100: 1 };
-const TRAINS = { 70: [5, 5], 71: [5, 4], 72: [5, 5], 73: [5, 5], 74: [5, 5], 75: [5, 5], 76: [5, 5], 77: [5, 5], 78: [5, 5, 5], 79: [5, 4, 5], 86: [5, 5], 89: [5, 5], 95: [5, 5], 98: [5, 5], 99: [5, 5, 4], 100: [5, 5] };
+const TRAINS = { 70: [5, 5], 71: [5, 4], 72: [5, 5], 73: [5, 5], 74: [5, 5], 75: [5, 5], 76: [5, 5], 77: [5, 5], 78: [5, 5, 5], 79: [5, 4, 5], 86: [5, 5], 89: [5, 5], 95: [5, 5], 98: [5, 5], 99: [5, 5, 4], 100: [5, 5],
+  101: [5, 5], 102: [5, 5, 5], 103: [5, 5, 5], 104: [5, 5, 5], 105: [5, 5, 5], 106: [5, 5, 5], 107: [5, 5, 5], 108: [5, 5, 5] };
 // [a, b]: train b crosses train a once, at a pinned crossing, b on the upper layer (b after a: a route crosses those drawn before it) (23 Nov 2026, Korbi: "multiple trains on multiple layers
 // so you can have trains go on top/below each other. even up to 3 trains"); a crossing's two wheels are of one size, so the two trains are too
-const CROSS = { 72: [[0, 1]], 74: [[0, 1]], 76: [[0, 1]], 77: [[0, 1]], 78: [[0, 2], [1, 2]], 79: [[0, 2]], 99: [[0, 1]] };
+const CROSS = { 72: [[0, 1]], 74: [[0, 1]], 76: [[0, 1]], 77: [[0, 1]], 78: [[0, 2], [1, 2]], 79: [[0, 2]], 99: [[0, 1]],
+  101: [[0, 1]], 103: [[0, 2]], 104: [[0, 1], [1, 2]], 105: [[0, 1], [0, 2], [1, 2]], 106: [[0, 2], [1, 2]], 107: [[0, 1], [1, 2]], 108: [[0, 1], [0, 2], [1, 2]] };
+// Three storeys: each train's own layer, the lowest first (a crossing train is drawn after the trains it crosses, so it is higher)
+const STOREYS = { 101: [1, 3], 102: [1, 2, 3], 103: [1, 2, 3], 104: [1, 2, 3], 105: [1, 2, 3], 106: [1, 2, 3], 107: [1, 2, 3], 108: [1, 2, 3] };
 // themes the maker could not fit with the rest (20 Nov 2026: nothing in 150 s): left out of those levels
 export const DROP = { 51: ["Spares", "Turning"], 76: ["Spares"], 54: ["Turning"], 57: ["Turning"], 60: ["Turning", "Spares"], 69: ["Turning", "Spares"], 84: ["Turning"],
   87: ["Turning"], 89: ["Turning"], 93: ["Turning"] };
@@ -98,7 +111,7 @@ const count = (s, k) => { const m = new RegExp(`(\\d+)${k}\\b`).exec(s); return 
 // two trains side by side, the second on the upper layer, so they may run beside each other unmeshed (23 Nov 2026: kept a row apart,
 // two trains on a 6×5 plate left five to nine squares idle; on one layer, even teeth of two sizes clash)
 const TOUCH = new Set([70, 71, 75]);
-export const ROOMY = new Set([49, 51, 62, 64, 68, 70, 71, 74, 75, 77, 79, 85]);
+export const ROOMY = new Set([49, 51, 62, 64, 68, 70, 71, 74, 75, 77, 79, 85, 101, 102, 103, 104, 106]);
 function denseFace(row, nT, ends, sw) {
   if (ROOMY.has(row.n)) return "6×5 rectangle (30)";
   if (nT > 1 || ends > 1 || sw) return "6×5 soft corners (26)";
@@ -125,13 +138,13 @@ export function recipeOf(row, extra = {}, less = 0) {
     // risers and stacks bring it down to the lower one (23 Nov 2026, Korbi: "multiple trains on multiple layers so you can have trains
     // go on top/below each other")
     const over = (!!CROSS[row.n]?.some(([, b]) => b === k) && !(DROP[row.n] || []).includes("Crossing")) || (TOUCH.has(row.n) && k > 0);
-    const t = { m, l: over ? 2 : 1, pieces: perTrain, bends: Math.min(4, Math.floor(perTrain / 3)), fams: { S: 2, D: nD ? 1 : 0, T: nTr ? 1 : 0 }, mix };
+    const t = { m, l: STOREYS[row.n]?.[k] ?? (over ? 2 : 1), pieces: perTrain, bends: Math.min(4, Math.floor(perTrain / 3)), fams: { S: 2, D: nD ? 1 : 0, T: nTr ? 1 : 0 }, mix };
     if (P === "A") t.barrelN = 12;
     if (nK) { t.fams.K = 2; t.stacks = share(nK) || 0; t.layers = [1, 2]; t.mods = [m]; t.adapt = false; }
     if (nX && k === 0 && !CROSS[row.n] && !(DROP[row.n] || []).includes("Crossing")) { t.self = true; t.fams.R = 0.4; t.layers = [1, 2]; t.pieces = Math.max(t.pieces, 9); }
     // where trains cross, each keeps to its own layer (the crossing train above), so they may run side by side and pass at the crossing
     // without ever meshing; a stack or riser would bring one into the other's layer
-    if ((CROSS[row.n] && !(DROP[row.n] || []).includes("Crossing")) || TOUCH.has(row.n)) { t.fams = { ...t.fams, R: 0, K: 0 }; t.stacks = 0; t.mix = t.mix.filter(x => x !== "K"); t.layers = [t.l]; if (over) t.pieces = Math.max(t.pieces, 7); }
+    if ((CROSS[row.n] && !(DROP[row.n] || []).includes("Crossing")) || TOUCH.has(row.n) || STOREYS[row.n]) { t.fams = { ...t.fams, R: 0, K: 0 }; t.stacks = 0; t.mix = t.mix.filter(x => x !== "K"); t.layers = [t.l]; if (over) t.pieces = Math.max(t.pieces, 7); }
     if (k === 0 && ends) t.ends = Array.from({ length: ends }, () => ({ len: 3, type: "hands" }));
     if (k === 0 && (ends || has("Switch"))) t.branchFams = { S: 4, D: nD ? 1 : 0, T: nTr ? 1 : 0 };   // branches mostly singles: half a level's pieces are
     if (k === 0 && has("Switch")) t.clutch = { len: 4 };
@@ -139,7 +152,7 @@ export function recipeOf(row, extra = {}, less = 0) {
   });
   return { ...faceOf(face), power: { Q: "quartz", M: "mech", A: "arbor" }[P], arbor: P === "A", turn: has("Turning"), spares: 0, spareWant: spares, spareFam: (/\+\d*([SDTK])?/.exec(row.mix) || [])[1] || "", loads, fixed,
     // a full plate has no free squares to hold a pillar, so up to two fixed pieces and two clicks settle it on one answer (23 Nov 2026)
-    full: false, touch: nT === 1 || has("Jams") || has("Full plate") || !!CROSS[row.n], beside: TOUCH.has(row.n),
+    full: false, touch: nT === 1 || has("Jams") || has("Full plate") || !!CROSS[row.n], beside: TOUCH.has(row.n) || !!STOREYS[row.n],
     extras: { pins: has("Full plate") ? 2 : fixed ? 1 : 0, clicks: has("Full plate") ? 2 : loads ? 1 : 0, bridges: /Low bridge|Bridge/.test(row.name + row.brief) ? 2 : 0 },
     lastResortPins: false, minimal: true, strict: true, trains, cross: has("Crossing") || !(DROP[row.n] || []).includes("Crossing") ? CROSS[row.n] || [] : [], limit: 4e5, nodes: 1500 + 300 * row.pieces, ...extra };
 }

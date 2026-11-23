@@ -207,7 +207,10 @@ export function forgeLevel(seed, o) {
     // a skeleton of a few kinds per channel, as a hand of every different piece has a factorial of ways to be laid
     const chanKey = p => { const q = parseKind(p.kind); return `${q.m}.${q.l}`; };
     const chans = [...new Set(pal.filter(p => p.fam !== "K" && p.fam !== "R").map(chanKey))];
-    const crossKind = `X[${t.m}.1,${t.m}.2]`;
+    // a crossing joins the two trains' own layers, the lower train's wheel below (24 Nov 2026: three storeys, so not always 1 and 2);
+    // a train that crosses itself goes from layer 1 to 2 by its risers
+    const selfKind = `X[${t.m}.1,${t.m}.2]`, crossing = (a, b) => `X[${o.trains[a].m}.${o.trains[a].l},${o.trains[b].m}.${o.trains[b].l}]`;
+    const under = c => (o.cross || []).find(([a, b]) => b === ti && routes[a]?.main.passes.some(q => q.c === c))?.[0];
     let d = null, clutchAt = -1, junctions = [];
     for (let k = 0; k < 40 && !d; k++) {
       const sub = [];
@@ -227,8 +230,9 @@ export function forgeLevel(seed, o) {
       // what the themes force: crossings, the clutch at a bend, singles where branches leave
       const passes = R.main.passes;
       const crossIdx = passes.map((p, i) => (p.cross || (t.self && passes.some(q => q.cross && q.c === p.c)) ? i : -1)).filter(i => i >= 0);
-      const crossedByOther = new Set();
-      for (const [a, b] of o.cross || []) if (a === ti) for (const p of routes[b]?.main.passes || []) if (p.cross) crossedByOther.add(p.c);
+      const crossedByOther = new Map();                                  // square -> the crossing piece there, this train's wheel the lower
+      for (const [a, b] of o.cross || []) if (a === ti) for (const p of routes[b]?.main.passes || []) if (p.cross && R.main.passes.some(q => q.c === p.c)) crossedByOther.set(p.c, crossing(a, b));
+      const crossKindAt = i => { const p = passes[i], a = under(p.c); return a === undefined || t.self ? selfKind : crossing(a, ti); };
       clutchAt = -1;
       if (t.clutch) {
         const bendsAt = passes.map((p, i) => (i > 0 && i < passes.length - 1 && p.b !== back(p.a) && !p.cross ? i : -1)).filter(i => i >= 0);
@@ -246,7 +250,7 @@ export function forgeLevel(seed, o) {
       // beside a crossing a piece keeps to the layer it crosses on (a riser there would mesh the other layer too)
       const nextTo = new Map();
       passes.forEach((p, i) => {
-        const x = crossIdx.includes(i) ? (p.cross ? 2 : 1) : crossedByOther.has(p.c) ? 1 : 0;
+        const x = crossIdx.includes(i) ? (t.self ? (p.cross ? 2 : 1) : t.l) : crossedByOther.has(p.c) ? t.l : 0;
         if (x) for (const j of [i - 1, i + 1]) if (j >= 0 && j < passes.length && !crossIdx.includes(j)) nextTo.set(j, x);
       });
       // an exact mix: its pieces on passes drawn at random, singles on the rest
@@ -258,15 +262,16 @@ export function forgeLevel(seed, o) {
       const force = i => {
         if (mixAt.has(i)) return mixAt.get(i);
         if (t.mix && !crossIdx.includes(i) && i !== clutchAt) return { fam: "S" };
-        if (crossIdx.includes(i)) return { kind: crossKind, rot: 0, layer: passes[i].cross ? 2 : 1 };
-        if (crossedByOther.has(passes[i].c)) return { kind: crossKind, rot: 0, layer: 1 };
+        if (crossIdx.includes(i)) return { kind: crossKindAt(i), rot: 0, layer: t.self ? (passes[i].cross ? 2 : 1) : t.l };
+        if (crossedByOther.has(passes[i].c)) return { kind: crossedByOther.get(passes[i].c), rot: 0, layer: t.l };
         if (nextTo.has(i)) return { notFam: "R", layer: nextTo.get(i) };
         if (i === clutchAt) { const p = passes[i]; return { kind: clutchKind, rot: p.b === (p.a + 1) % 4 ? p.a : (p.a + 3) % 4 }; }
         if (junctions.includes(i)) return { fam: "S" };
         return null;
       };
       const start = { m: t.m, l: t.l, n: t.barrelN || Math.round(45 / t.m), w: F.ONE };
-      d = dressRun(passes, start, sub.length ? [...sub, ...(t.self || crossedByOther.size ? [{ kind: crossKind, fam: "X", weight: 0 }] : [])] : pal, r, force, t.end || null);
+      const xs = [...new Set([...(t.self ? [selfKind] : []), ...crossIdx.map(crossKindAt), ...crossedByOther.values()])].map(kind => ({ kind, fam: "X", weight: 0 }));
+      d = dressRun(passes, start, sub.length ? [...sub, ...xs] : pal, r, force, t.end || null);
       if (d && t.stacks && d.filter(p => p.fam === "K" || p.fam === "R").length < (t.minStacks ?? 1)) d = null;
     }
     if (!d) return no(`dress ${ti}`);
@@ -362,7 +367,7 @@ export function forgeLevel(seed, o) {
   for (const e of ends) for (const p of e.run) trainAt.set(p.c, e.train);
   // crossings and clutches are pinned; the ends are pinned with their goals
   const crossSq = new Map();
-  dressed.forEach((D, ti) => D.pieces.forEach(p => { if (p.fam === "X" || /^X/.test(p.kind)) { if (!crossSq.has(p.c)) crossSq.set(p.c, { kind: p.kind, trains: [ti, ti] }); const wh = p.shape.wheels[p.entry]; crossSq.get(p.c).trains[wh.l === 1 ? 0 : 1] = ti; } }));
+  dressed.forEach((D, ti) => D.pieces.forEach(p => { if (p.fam === "X" || /^X/.test(p.kind)) { if (!crossSq.has(p.c)) crossSq.set(p.c, { kind: p.kind, trains: [ti, ti] }); const wh = p.shape.wheels[p.entry]; crossSq.get(p.c).trains[wh.l === parseKind(p.kind).l1 ? 0 : 1] = ti; } }));
   // where train b crosses train a, the crossing's lower wheel is a's even when a was dressed before b's route was drawn (and so laid an
   // ordinary piece there, which the crossing replaces): else both wheels were b's and the two trains met in it (23 Nov 2026)
   for (const [a, b] of o.cross || []) for (const p of routes[b]?.main.passes || []) if (p.cross && crossSq.has(p.c) && routes[a].main.passes.some(q => q.c === p.c)) crossSq.get(p.c).trains = [a, b];
