@@ -280,7 +280,9 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806
 .sw-undo:disabled { opacity: .35; cursor: default; }
 
 /* a line: what matters now (a hint, dead space, a rule broken); and the orders, each rule with how it stands */
-.sw-say { margin: 0; height: 1.3rem; font-size: .88rem; font-weight: 650; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* two lines, always (the longest hints, Antwerp's order, were cut off on a phone: 23 Nov 2026 audit), so the hold keeps its size */
+.sw-say { margin: 0; height: 2.3rem; font-size: .84rem; line-height: 1.15rem; font-weight: 650; color: var(--ink-soft); overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .sw-say.bad { color: var(--sw-bad); }
 .sw-orders { display: flex; flex-wrap: wrap; gap: .3rem .375rem; }
 .sw-orders[hidden] { display: none; }

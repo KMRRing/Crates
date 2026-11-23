@@ -22,6 +22,8 @@ html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8
 .brg-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 /* the penalty's room is kept from the start, so the strip wraps (or not) the same way before and after a hint and the board never changes size */
 .brg-time small { display: inline-block; min-width: 3.6rem; margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--brg-bad); font-variant-numeric: tabular-nums; }
+.brg-kind.long { font-size: .6rem; line-height: 1.15; letter-spacing: calc(.05em * var(--track)); white-space: pre-line; text-align: right; }   /* the level's name on a line of its own: no taller than the time beside it */
+@media (orientation: landscape) and (min-width: 700px) { .brg-kind.long { text-align: left; } }   /* beside the board, under the time */
 .brg-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 /* a race's line (the others' scores) takes a row of the strip's own, and the strip wraps once for it before the board is drawn */

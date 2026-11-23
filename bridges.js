@@ -769,12 +769,19 @@ new ResizeObserver(() => applyView()).observe($("board"));          // the scree
 
 // ---------- drawing the rest ----------
 const shown = {};
-const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
+const put = (id, v) => {
+  if (shown[id] === v) return;
+  shown[id] = v;
+  const el = $(id);
+  el.textContent = v;
+  // a long label is set smaller, as Moor's is (a level's name was cut off on a phone, 23 Nov 2026 audit)
+  if (id === "kind") el.classList.toggle("long", v.length > 26);
+};
 function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", isLevel(S) ? `Level ${S.lv + 1} · Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText(kindOfRun(S))}`);
+  put("kind", isLevel(S) ? `Level ${S.lv + 1} · Par ${fmt(parOf(forStars()))}\n${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText(kindOfRun(S))}`);
 }
 function drawLine() {
   const l = $("line");

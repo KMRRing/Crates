@@ -68,7 +68,7 @@ html[data-theme="office"][data-mode="night"] { --cr-in: #479EF5; }
 .cr-port.rim { opacity: .55; }
 .cr-ctl { position: absolute; left: .4rem; bottom: .4rem; z-index: 2; display: flex; flex-direction: column; align-items: stretch; gap: .25rem; }
 .cr-ctl-btn { min-width: 3.2rem; min-height: 1.9rem; padding: .2rem .4rem; border: 1.5px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink); font: inherit; font-size: .6rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
-.cr-ctl-btn[hidden] { display: none; }
+.cr-ctl[hidden], .cr-ctl-btn[hidden] { display: none; }   /* (the map's buttons wait for a map: with none drawn yet they stood above the page, 23 Nov 2026 audit) */
 .cr-ctl-btn.on { background: var(--cr-in); color: var(--sheet); border-color: var(--cr-in); }
 /* the panel folded away: the map takes the room, and the tabs and the one button stay */
 #app.carrack.cr-min .cr-panel { display: none; }

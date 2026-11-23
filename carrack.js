@@ -178,6 +178,7 @@ function drawBoard(s, seat) {
   $("board").classList.toggle("globe", onGlobe);
   $("flat").hidden = onGlobe;
   $("globe").hidden = !onGlobe;
+  $("mapCtl").hidden = false;
   $("mapReset").hidden = !onGlobe;
   $("app").classList.toggle("cr-min", look.min);
   $("panelBtn").setAttribute("aria-expanded", String(!look.min));
