@@ -51,6 +51,9 @@ Object.assign(opts, { colour: "either", coords: true });
 const fixed = () => (opts.strength && opts.strength !== "auto" && LEVELS.some(l => l.id === opts.strength) ? opts.strength : null);
 const levelNow = () => levelById(opts.forceLevel || fixed() || ramp("gambit", LEVELS.map(l => l.id), { start: OLD_LEVEL })).id;
 const saveOpts = () => write(OPTS, opts);
+// The Strength row is this page's level row: menu.js adds the shared Easy / Medium / Hard one only where a page has none, and the two
+// stood one under the other, the shared one doing nothing once a strength was kept (the 23 Nov 2026 audit).
+const strengthRow = row => { row.dataset.level = "1"; return row; };
 /**
  * the game in play: gambit-rules.js's state and the page's: { v, start, moves, result, white, mode ("engine" or "two"),
  * level, created, hint, lesson, marks, review, counted }. With the computer, seat 0 is you and 1 the computer, `white`
@@ -573,7 +576,7 @@ function openMenu() {
     ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     part(body, "content").append(
       choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
-      choice("Strength", [["auto", "Adaptive"], ...LEVELS.map(l => [l.id, `${l.name} · ${l.rating}`])], opts.strength || "auto", v => { opts.strength = v; saveOpts(); }));
+      strengthRow(choice("Strength", [["auto", "Adaptive"], ...LEVELS.map(l => [l.id, `${l.name} · ${l.rating}`])], opts.strength || "auto", v => { opts.strength = v; saveOpts(); })));
   }
   const set = part(body, "settings");
   if (!inRoom()) set.append(toggle("Coach", opts.coach !== "off", on => setCoach(on ? "hints" : "off")));

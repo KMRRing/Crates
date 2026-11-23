@@ -437,7 +437,10 @@ function openMenu() {
   const cp = progressOf("go", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Go, from the rules", () => course.open()));
   const content = part(body, "content");
-  content.append(choice("Strength", [["auto", "Adaptive"], ...LEVELS.map(l => [l.id, l.name])], opts.strength || "auto", v => { opts.strength = v; saveOpts(); }));
+  // the Strength row is this page's level row (Korbi, 8 Nov 2026), so menu.js adds no shared Easy / Medium / Hard one under it
+  const strength = choice("Strength", [["auto", "Adaptive"], ...LEVELS.map(l => [l.id, l.name])], opts.strength || "auto", v => { opts.strength = v; saveOpts(); });
+  strength.dataset.level = "1";
+  content.append(strength);
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
   content.append(choice("You play", [["b", "Black"], ["w", "White"], ["two", "Two on this phone"]], opts.side, v => { opts.side = v; saveOpts(); openMenu(); }));
   content.append(choice("Coach", [["off", "Off"], ["hints", "Hint button"], ["always", "Always show"]], opts.coach, v => { opts.coach = v; saveOpts(); hint = null; draw(); wantCoach(); }));

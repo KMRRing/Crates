@@ -313,6 +313,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 
 /* 9 Nov 2026, Korbi: "the interface at the bottom is cluttered". One quiet strip of text controls under the hand: no boxes round the chips or the buttons, no "Layers" label, one status line. */
 .pi-workings .pi-w, .pi-workings .pi-w-id { box-shadow: none; background: transparent; padding-inline: .15rem; }
+.pi-workings .pi-w-id { color: var(--ink); }   /* off its brass chip, the dial's letter is the page's ink: dark on the night page it was unseen (23 Nov 2026 audit) */
 .pi-workings .pi-w:is(.slow, .fast, .wrong) { box-shadow: none; }
 .pi-layers-row > small:not(.pi-turns) { display: none; }
 .pi-layers-row .pi-turns { display: none; }

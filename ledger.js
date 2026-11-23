@@ -6,7 +6,7 @@ import { stats, reset, GAPS, STAKES, GRADES, weekOf, actualKnowledge } from "./l
 import { review, span, daysAgo } from "./ledger-review.js";
 import * as pile from "./pile.js";
 import { PILES } from "./pile.js";
-import { part, action, line } from "./menu.js";
+import { part, action } from "./menu.js";
 import { sure } from "./sure.js";
 import { bindSwitcher, APPS, SECTIONS } from "./apps.js";
 import { codexTabs } from "./codex-tabs.js";
@@ -332,13 +332,20 @@ function openMenu() {
     if (!(await sure("Clear the Ledger's record and start again from today? Your piles stay as they are.", { yes: "Clear record" }))) return;
     reset(); draw(); $("menuDlg").close();
   }, "link"));
-  part(body, "about").append(
-    line("Recall: every item from the pile that comes back, right or wrong, sorted by how long it was away. Away a week or more is the measure that matters: what lasts."),
-    line("Confidence: a commitment in Punt read backwards through Kelly's rule (the share of your purse that a sound strategy commits at a given chance). Committing a share f of the purse at a return of o times the share (2 for Punt's doubling), you act as if your chance were (1 + f(o − 1)) / o. Dots on the diagonal mean you know what you know."),
-    line("Brier score: the average squared gap between that chance and what happened (1 right, 0 wrong)."),
-    line("Knowledge: that chance, less what a pure guess would get (one in the number of options; for several right ones, one in the ways to pick them; nothing, typed), over what's left: the share of the answer your commitment claimed to know (a hold claims none; at a fair price it's the share itself). Your hit rate corrected the same way is what you knew: right half the time on four options is knowing a third."),
-    line("Markets: in Quote, how often the truth lay inside your bid and ask, and the grades."),
-    line("The headline compares the last whole ISO week with the one before. Subjects, days and streaks come from the pile and the saved keys of each game; where a game keeps no date, none is shown. Weeks are ISO weeks. The record syncs with your solo code, like everything else."));
+  // what each measure means, all in the menu's closed "How it works" (menu.js keeps it at the bottom): six paragraphs of it stood
+  // open under About (the 23 Nov 2026 audit)
+  const note = text => Object.assign(document.createElement("p"), { className: "note", textContent: text });
+  const how = document.createElement("details");
+  how.className = "menu-how";
+  how.innerHTML = "<summary>How it works</summary>";
+  body.append(how);
+  how.append(
+    note("Recall: every item from the pile that comes back, right or wrong, sorted by how long it was away. Away a week or more is the measure that matters: what lasts."),
+    note("Confidence: a commitment in Punt read backwards through Kelly's rule (the share of your purse that a sound strategy commits at a given chance). Committing a share f of the purse at a return of o times the share (2 for Punt's doubling), you act as if your chance were (1 + f(o − 1)) / o. Dots on the diagonal mean you know what you know."),
+    note("Brier score: the average squared gap between that chance and what happened (1 right, 0 wrong)."),
+    note("Knowledge: that chance, less what a pure guess would get (one in the number of options; for several right ones, one in the ways to pick them; nothing, typed), over what's left: the share of the answer your commitment claimed to know (a hold claims none; at a fair price it's the share itself). Your hit rate corrected the same way is what you knew: right half the time on four options is knowing a third."),
+    note("Markets: in Quote, how often the truth lay inside your bid and ask, and the grades."),
+    note("The headline compares the last whole ISO week with the one before. Subjects, days and streaks come from the pile and the saved keys of each game; where a game keeps no date, none is shown. Weeks are ISO weeks. The record syncs with your solo code, like everything else."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
