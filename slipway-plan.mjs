@@ -44,7 +44,7 @@ const ALL = ["chisel", "saw", "bore"], GLUED = ["chisel", "saw", "bore", "glue"]
 export const PLAN = [
   // 1 Planks: one cube thick, cut only by the saw (whole planes), every piece numbered. The shapes get wider, then bend, then stand up.
   { ch: 1, name: "Batten", shape: slab(4, 1), cut: "saw", planes: 1, tools: ["saw"], clues: "rich", seed: 1,
-    rule: "The block is cubes glued together. The saw cuts right through it, just behind the face you tap." },
+    rule: "The block is cubes glued together. Tap a seam, a line between two faces: the saw cuts straight through the block along it." },
   { ch: 1, name: "Board", shape: slab(3, 2), cut: "saw", planes: 1, tools: ["saw"], clues: "rich", seed: 2 },
   { ch: 1, name: "Thirds", shape: slab(5, 2), cut: "saw", planes: 2, tools: ["saw"], clues: "rich", seed: 3 },
   { ch: 1, name: "Cross-cut", shape: slab(4, 3), cut: "saw", planes: 2, tools: ["saw"], clues: "rich", seed: 4 },
@@ -54,7 +54,7 @@ export const PLAN = [
   { ch: 1, name: "Two boards", shape: slab(4, 2, 2), cut: "saw", planes: 2, tools: ["saw"], clues: "rich", seed: 8 },
   // 2 The chisel: flat shapes cut into pieces of any shape; the chisel alone first, then with the saw
   { ch: 2, name: "Split", shape: slab(3, 2), pieces: 2, tools: ["chisel"], clues: "rich", seed: 11,
-    rule: "The chisel splits one joint: the first glued one it meets, going in from the face you tap." },
+    rule: "The chisel splits one joint: tap the seam over it, the line between two faces." },
   { ch: 2, name: "Hook", shape: slab(3, 3), pieces: 2, tools: ["chisel", "saw"], clues: "rich", seed: 12 },
   { ch: 2, name: "Steps", shape: slab(4, 2), pieces: 3, tools: ["chisel", "saw"], clues: "rich", seed: 13 },
   { ch: 2, name: "Dovetail", shape: slab(4, 3), pieces: 3, tools: ["chisel", "saw"], clues: "rich", seed: 14 },

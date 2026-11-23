@@ -23,7 +23,7 @@ const letters = text => [...text].map(c => c.charCodeAt(0) - 65);
 export const TOOLS = ["chisel", "saw", "bore", "glue"];
 const CUBES = [
   { id: "s7", name: "Top cut", n: 3, maxSize: 18, gauge: { 19: 9, 10: 18 }, census: { plank: 1, block: 1 }, tools: ["saw"],
-    rule: "The block is cubes glued together. The saw cuts right through it, just behind the face you tap.",
+    rule: "The block is cubes glued together. Tap a seam, a line between two faces: the saw cuts straight through the block along it.",
     sol: rows("BBB BBB BBB", "BBB BBB BBB", "AAA AAA AAA") },
   { id: "s8", name: "Corner", n: 2, maxSize: 7, gauge: { 4: 7, 5: 1 }, census: { cube: 1, knot: 1 }, tools: ["chisel"],
     rule: "The chisel splits one joint: the first glued one it meets, going in from the face you tap.",
@@ -156,36 +156,38 @@ export function judge(level, cuts) {
 }
 /**
  * What a tool does when used on cube k from the outside of a face (axis, dir: +1 for the face looking up the axis): { add, remove }
- * (joints to break, joints to glue back), or null when it would change nothing. A chisel goes on a seam, the edge of that face
- * toward `side` (a step across the face), and splits the joint under it, between cube k and its neighbour there (22 Nov 2026,
- * Korbi: on a face it went straight in and could not reach the joint between the two bends of Steps; "if chisel was placed on the
- * borders instead it would work"). A saw breaks the first plane that still has a whole joint going in; a bore the sides of the whole
- * line of cubes through k; glue mends the first broken joint going in.
+ * (joints to break, joints to glue back), or null when it would change nothing. The chisel and the saw go on a seam, the edge of
+ * that face toward `side` (a step across the face), which lies over the joint between cube k and its neighbour there (22 Nov 2026,
+ * Korbi: on a face the chisel went straight in and could not reach the joint between the two bends of Steps; "if chisel was placed
+ * on the borders instead it would work"). The chisel splits that one joint; the saw the whole plane of joints it lies in, straight
+ * through the block (23 Nov 2026, Korbi: "make it so saw of slipway is also applied to seams not faces"; it cut the plane just
+ * behind a face, so a deep plane needed every shallower one cut first). A bore breaks the sides of the whole line of cubes through
+ * k; glue mends the first broken joint going in.
  */
 export function useTool(g, tool, axis, dir, k, cuts, side = null) {
-  const { n, solid } = geo(g), step = [0, 0, 0]; step[axis] = -dir;
-  const there = p => p.every(v => v >= 0 && v < n) && (!solid || solid[at(n, ...p)]), inside = there, c = xyz(n, k), nb = neighbours(g);
-  if (tool === "chisel") {
+  const { n, solid } = geo(g), there = p => p.every(v => v >= 0 && v < n) && (!solid || solid[at(n, ...p)]), c = xyz(n, k), nb = neighbours(g);
+  if (tool === "chisel" || tool === "saw") {
     if (!side || side[axis]) return null;
     const q = c.map((v, i) => v + side[i]);
     if (!there(q)) return null;
-    const key = joint(k, at(n, ...q));
-    return cuts.has(key) ? null : { add: [key], remove: [] };
-  }
-  const along = [];                                // the cubes from k going in, as far as the timber goes
-  for (let p = c.slice(); there(p); p = p.map((v, i) => v + step[i])) along.push(at(n, ...p));
-  if (tool === "glue") {
-    for (let i = 0; i + 1 < along.length; i++) { const key = joint(along[i], along[i + 1]); if (cuts.has(key)) return { add: [], remove: [key] }; }
-    return null;
-  }
-  if (tool === "saw") {
-    for (let i = 0; i + 1 < along.length; i++) {
-      const layerOf = cell => { const q = xyz(n, cell); return q[axis]; };
-      const here = layerOf(along[i]), keys = [];
-      for (let cell = 0; cell < n ** 3; cell++) if ((!solid || solid[cell]) && layerOf(cell) === here) { const q = xyz(n, cell); q[axis] -= dir; if (inside(q)) { const key = joint(cell, at(n, ...q)); if (!cuts.has(key)) keys.push(key); } }
-      if (keys.length) return { add: keys, remove: [] };
+    if (tool === "chisel") { const key = joint(k, at(n, ...q)); return cuts.has(key) ? null : { add: [key], remove: [] }; }
+    const across = side.findIndex(Boolean), add = [];
+    for (let cell = 0; cell < n ** 3; cell++) {
+      const p = xyz(n, cell);
+      if (p[across] !== c[across] || !there(p)) continue;
+      p[across] += side[across];
+      if (there(p)) { const key = joint(cell, at(n, ...p)); if (!cuts.has(key)) add.push(key); }
     }
-    return null;
+    return add.length ? { add, remove: [] } : null;
+  }
+  if (tool === "glue") {
+    const step = [0, 0, 0]; step[axis] = -dir;
+    for (let p = c.slice(); ; p = p.map((v, i) => v + step[i])) {   // the cubes from k going in, as far as the timber goes
+      const q = p.map((v, i) => v + step[i]);
+      if (!there(p) || !there(q)) return null;
+      const key = joint(at(n, ...p), at(n, ...q));
+      if (cuts.has(key)) return { add: [], remove: [key] };
+    }
   }
   // bore: the line through k along the axis, cut loose from everything beside it
   const add = [];
@@ -201,7 +203,7 @@ export function useTool(g, tool, axis, dir, k, cuts, side = null) {
 /**
  * A way to cut a level's answer with the tools it offers (Korbi, 22 Nov 2026: "some levels are actually impossible to solve"; one
  * answer was all the proof checked): { ok, chisel (the joints left for the chisel, one stroke each) }. The saw and the bore first,
- * every use from every outer face that breaks only joints the answer needs broken, over and over; then, with glue, a use that
+ * every use from every outer face or seam that breaks only joints the answer needs broken, over and over; then, with glue, a use that
  * breaks more, if glue can mend each extra joint straight after (in fewer strokes than the chisel would take, unless the chisel cannot reach); what is left goes to the chisel, if it reaches each joint (a seam
  * on the surface lies over it). Greedy, so `chisel` is enough, perhaps one or two more than the fewest.
  */
@@ -209,18 +211,24 @@ export function plan(level, tools = toolsOf(level)) {
   const { n } = level, nb = neighbours(level), cubes = cubesOf(level), timber = solidOf(level), inside = q => q.every(v => v >= 0 && v < n) && timber[at(n, ...q)];
   const need = new Set();
   for (const c of cubes) for (const o of nb[c]) if (c < o && level.sol[c] !== level.sol[o]) need.add(joint(c, o));
-  const uses = [], seams = new Set();
+  const uses = [], seams = new Set(), planes = new Set();
   for (const k of cubes) {
     const c = xyz(n, k);
     for (const [axis, dir] of [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]]) {
       const q = c.slice(); q[axis] += dir;
       if (inside(q)) continue;                                   // a face against another cube is no outer face
-      for (const t of tools) if (t !== "chisel") uses.push({ t, axis, dir, k });
-      for (const u of [0, 1, 2].filter(i => i !== axis)) for (const s of [1, -1]) { const p = c.slice(); p[u] += s; if (inside(p)) seams.add(joint(k, at(n, ...p))); }
+      for (const t of tools) if (t === "bore" || t === "glue") uses.push({ t, axis, dir, k });
+      for (const u of [0, 1, 2].filter(i => i !== axis)) for (const s of [1, -1]) {
+        const p = c.slice(); p[u] += s;
+        if (!inside(p)) continue;
+        seams.add(joint(k, at(n, ...p)));
+        const plane = `${u}:${c[u] + Math.min(0, s)}`;            // a saw cuts the same plane from every seam on it
+        if (tools.includes("saw") && !planes.has(plane)) { planes.add(plane); const side = [0, 0, 0]; side[u] = s; uses.push({ t: "saw", axis, dir, k, side }); }
+      }
     }
   }
   let cuts = new Set();
-  const opOf = (u, set) => useTool(level, u.t, u.axis, u.dir, u.k, set);
+  const opOf = (u, set) => useTool(level, u.t, u.axis, u.dir, u.k, set, u.side);
   for (let moved = true; moved;) {
     moved = false;
     for (const u of uses) {

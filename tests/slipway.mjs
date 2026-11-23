@@ -39,8 +39,10 @@ for (const lv of R.LEVELS) {
   check(R.useTool(n, "chisel", 2, 1, top, new Set(chisel.add), [1, 0, 0]) === null, "tools: and then has nothing left to break there");
   check(R.useTool(n, "chisel", 2, 1, top, none) === null && R.useTool(n, "chisel", 2, 1, top, none, [0, 0, 1]) === null, "tools: a chisel needs a seam across the face");
   check(R.useTool(n, "chisel", 2, 1, R.at(n, 2, 1, 2), none, [1, 0, 0]) === null, "tools: a seam on the block's own edge is no joint");
-  const saw = R.useTool(n, "saw", 2, 1, top, none);
-  check(saw.add.length === 9 && saw.add.every(k => { const [a, b] = k.split("-").map(Number); return Math.abs(R.xyz(n, a)[2] - R.xyz(n, b)[2]) === 1; }), "tools: a saw breaks the nine joints of a plane");
+  // the saw goes on a seam too (23 Nov 2026) and cuts the whole plane under it, however deep, straight through the block
+  const saw = R.useTool(n, "saw", 2, 1, top, none, [1, 0, 0]);
+  check(saw.add.length === 9 && saw.add.every(k => { const [a, b] = k.split("-").map(Number).map(c => R.xyz(n, c)); return Math.min(a[0], b[0]) === 1 && Math.abs(a[0] - b[0]) === 1; }), "tools: a saw on a seam of the top face breaks the nine joints of the plane through it");
+  check(R.useTool(n, "saw", 2, 1, top, new Set(saw.add), [1, 0, 0]) === null && R.useTool(n, "saw", 2, 1, top, none) === null && R.useTool(n, "saw", 2, 1, beside, none, [1, 0, 0]) === null, "tools: a saw needs a seam over a joint, and a plane not yet cut");
   const bore = R.useTool(n, "bore", 2, 1, c, none);
   check(bore.add.length === 12, `tools: a bore through the middle of a 3-block breaks the 12 joints beside its rod (${bore.add.length})`);
   check(R.pieces(n, new Set(bore.add)).length === 2 && R.pieces(n, new Set(bore.add)).some(p => p.length === 3), "tools: after a bore the rod is a piece of its own");
@@ -61,8 +63,8 @@ for (const lv of R.LEVELS) {
   check(R.toolsOf(R.LEVELS[0]).length === 1, "the first level has one tool");
   check(met.size === R.TOOLS.length, "every tool is met");
   // the two cube tutorials are still cut with their one tool in a tap or three (since 13 Nov 2026 they come after the shaped book)
-  const top = R.LEVELS.find(l => l.id === "s7"), corner = R.LEVELS.find(l => l.id === "s8"), n3 = top.n, saw = R.useTool(n3, "saw", 2, 1, R.at(n3, 1, 1, 2), new Set());
-  check(R.judge(top, new Set(saw.add)).done, `${top.id}: one saw from the top cuts it`);
+  const top = R.LEVELS.find(l => l.id === "s7"), corner = R.LEVELS.find(l => l.id === "s8"), n3 = top.n, saw = R.useTool(n3, "saw", 0, -1, R.at(n3, 0, 1, 2), new Set(), [0, 0, -1]);
+  check(R.judge(top, new Set(saw.add)).done, `${top.id}: one saw on the seam under the top row cuts it`);
   let c = new Set();
   for (const side of [[-1, 0, 0], [0, 1, 0]]) for (const k of R.useTool(corner.n, "chisel", 2, 1, R.at(2, 1, 0, 1), c, side).add) c.add(k);
   for (const k of R.useTool(corner.n, "chisel", 1, -1, R.at(2, 1, 0, 1), c, [0, 0, -1]).add) c.add(k);

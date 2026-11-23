@@ -1,5 +1,5 @@
 // Slipway: a block of cubes to be cut into pieces, worked out from numbers on it (a cube's number is how many cubes its piece has) and
-// a census of the kinds of piece. The block starts whole, its cubes glued; a chisel breaks one joint, a saw a whole plane of them, a
+// a census of the kinds of piece. The block starts whole, its cubes glued; a chisel breaks one joint, a saw the whole plane through a seam, a
 // bore a row's worth, glue mends one. A broken joint shows as a slit, the joints a tap would change are outlined while you hover or
 // press, and the ones it changed flash; the pieces are the runs of cubes still joined, each its own colour, drifting apart a little
 // as they come free. It is done when every clue holds. The rules are slipway-rules.js's, the drawing slipway-view.js's; this file
@@ -195,7 +195,7 @@ function marksOf(cubes) {
   if (peek) {
     const c = byCell.get(peek.face.k), f = peek.face, q = [c.x + (c.ox || 0), c.y + (c.oy || 0), c.z + (c.oz || 0)];
     if (peek.op) lit(peek.op, 1, true);
-    // what is aimed at, on the cube's outer side: for the chisel the seam (the face's edge toward the joint), else the face's square
+    // what is aimed at, on the cube's outer side: for the chisel and the saw the seam (the face's edge toward the joint), else the face's square
     const [u, v] = [0, 1, 2].filter(i => i !== f.axis), base = q.slice(); base[f.axis] += f.dir > 0 ? 1 : 0;
     const corner = ([du, dv]) => { const p = base.slice(); p[u] += du; p[v] += dv; return p; };
     if (f.side) {
@@ -239,11 +239,11 @@ function aim(e) {
   if (!S || S.done) return null;
   const r = cube.getBoundingClientRect(), h = faceAt(hits, e.clientX - r.left, e.clientY - r.top);
   if (!h) return null;
-  const k = at(N(), h.cube.x, h.cube.y, h.cube.z), side = tool === "chisel" ? seamAt(h, e.clientX - r.left, e.clientY - r.top) : null;
+  const k = at(N(), h.cube.x, h.cube.y, h.cube.z), side = tool === "chisel" || tool === "saw" ? seamAt(h, e.clientX - r.left, e.clientY - r.top) : null;
   return { face: { k, axis: h.axis, dir: h.dir, side }, op: tool === "chisel" && chiselLeft() <= 0 ? null : useTool(level, tool, h.axis, h.dir, k, cuts(), side) };
 }
 /**
- * The seam a chisel tap means: of the tapped face's edges that have a joint under them, the one nearest the point, as the step
+ * The seam a chisel or saw tap means: of the tapped face's edges that have a joint under them, the one nearest the point, as the step
  * across it to the next cube (22 Nov 2026, Korbi: the chisel goes on the borders, so it can split the joint between two faces side
  * by side). The block's own outer edges have none, so a tap near one goes to the nearest seam that has.
  */
@@ -327,7 +327,7 @@ function openMenu() {
   }, "link"));
   }
   part(body, "settings").append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
-  part(body, "about").append(line("The block is cubes glued together. A chisel goes on a seam, the line between two faces, and splits the joint under it; it has only so many strokes where a saw or a bore is to hand. The others work in from the face you tap: a saw the whole plane of joints just behind it, a bore the joints round the row of cubes through it, glue mends the first cut it meets. Press and hold (or hover) to see what a tap will do; a cut shows as a slit. Undo gives a chisel stroke back."));
+  part(body, "about").append(line("The block is cubes glued together. The chisel and the saw go on a seam, the line between two faces: the chisel splits the one joint under it, the saw cuts straight through the block along it. The chisel has only so many strokes where a saw or a bore is to hand. The bore and glue work in from the face you tap: a bore the joints round the row of cubes through it, glue mends the first cut it meets. Press and hold (or hover) to see what a tap will do; a cut shows as a slit. Undo gives a chisel stroke back."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
