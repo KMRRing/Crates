@@ -4,6 +4,16 @@
 // is the same map for every seat, ranked from each player's own taps.
 const S = await import("../spot-engine.js");
 let bad = 0;
+/** What a sum's text makes, read the way a player reads it: 437 − 412, 412 + 18, 25% of 64, €40 × 1.25, 25bp of 40k. */
+const worth = text => {
+  let m;
+  if ((m = /^(\d+) − (\d+)$/.exec(text))) return +m[1] - +m[2];
+  if ((m = /^(\d+) \+ (\d+)$/.exec(text))) return +m[1] + +m[2];
+  if ((m = /^(\d+)% of (\d+)$/.exec(text))) return +m[1] * +m[2] / 100;
+  if ((m = /^€(\d+) × ([\d.]+)$/.exec(text))) return +m[1] * +m[2];
+  if ((m = /^(\d+)bp of (\d+)k$/.exec(text))) return +m[1] * +m[2] * 1000 / 10000;
+  return NaN;
+};
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 // the solo timeline: what the shelf shows (the answer as modified) never clashes with another sum's or a fake's
@@ -14,7 +24,7 @@ for (let seed = 1; seed <= 30; seed++) {
     total++;
     if (s.mod) modded++;
     if (!(Number.isInteger(s.answer) && s.answer > 0)) { bad++; console.log("not a whole positive answer", s); }
-    if (s.kind === "div") { const [a, b] = s.text.split(" ÷ ").map(Number); if (a / b !== s.answer) { bad++; console.log("division not exact", s); } }
+    if (Math.abs(worth(s.text) - s.answer) > 1e-9) { bad++; console.log("the sum doesn't make its answer", s.text, s.answer); }
     if (s.value !== S.applyMod(s.mod, s.answer)) { bad++; console.log("the value isn't the modified answer", s); }
     const together = sums.filter(o => o !== s && Math.abs(o.at - s.at) < Math.max(o.life, s.life));
     const lately = sums.filter(o => o !== s && o.at > s.at - S.NEAR && o.at <= s.at);          // the engine's own window
@@ -24,11 +34,11 @@ for (let seed = 1; seed <= 30; seed++) {
     if (s.at < 45000 && s.mod) { bad++; console.log("a modifier before 45 s"); }
   }
 }
-check(bad === 0, `solo timelines: whole positive answers, exact divisions, modified values never clash, the unmodified answer is planted as a fake (${modded} of ${total} sums under a modifier)`);
+check(bad === 0, `solo timelines: whole positive answers, each sum making its answer, modified values never clash, the unmodified answer is planted as a fake (${modded} of ${total} sums under a modifier)`);
 // the pace: a slow rise in difficulty, with cheap sums coming quickly and dear ones buying time (over twenty runs: one
 // run's thirty seconds hold only a dozen sums)
 {
-  const BASE = { add: 1, sub: 1, mul: 2, div: 3 };
+  const BASE = S.COST, dear = s => BASE[s.kind] === 3;
   const costOf = s => { const mod = s.mod ? 1 : 0, big = s.points - mod - BASE[s.kind]; return BASE[s.kind] + big + mod; };   // the engine's: kind, bigger numbers, modifier
   const avg = xs => xs.reduce((t, x) => t + x, 0) / xs.length;
   let loadEarly = 0, loadLate = 0, nEarly = 0, nLate = 0, divEarly = 0;
@@ -38,13 +48,13 @@ check(bad === 0, `solo timelines: whole positive answers, exact divisions, modif
     const gapAfter = s => { const n = sums.find(o => o.at > s.at); return n ? n.at - s.at : null; };
     const early = sums.filter(s => s.at < 30000), late = sums.filter(s => s.at > 180000 && s.at < 210000);
     loadEarly += early.reduce((t, s) => t + costOf(s), 0) / 30 / 20; loadLate += late.reduce((t, s) => t + costOf(s), 0) / 30 / 20;
-    nEarly += early.length / 20; nLate += late.length / 20; divEarly += early.filter(s => s.kind === "div").length;
-    gapsCostly.push(...sums.filter(s => s.kind === "div" && gapAfter(s)).map(gapAfter));
-    gapsCheap.push(...sums.filter(s => s.kind === "add" && !s.mod && gapAfter(s)).map(gapAfter));
+    nEarly += early.length / 20; nLate += late.length / 20; divEarly += early.filter(dear).length;
+    gapsCostly.push(...sums.filter(s => dear(s) && gapAfter(s)).map(gapAfter));
+    gapsCheap.push(...sums.filter(s => s.kind === "spread" && !s.mod && gapAfter(s)).map(gapAfter));
   }
   const gapCostly = avg(gapsCostly), gapCheap = avg(gapsCheap);
-  console.log(`pace: ${nEarly.toFixed(1)} sums in the first 30 s, ${nLate.toFixed(1)} in 180–210 s; difficulty a second ${loadEarly.toFixed(2)} then ${loadLate.toFixed(2)}; after a division the next sum waits ${(gapCostly / 1000).toFixed(1)} s, after a plain addition ${(gapCheap / 1000).toFixed(1)} s`);
-  check(loadLate > loadEarly * 1.8 && nLate >= nEarly * 0.7 && nLate <= nEarly * 3 && gapCostly > gapCheap * 1.8 && divEarly === 0, "pace: difficulty a second roughly doubles by three minutes without the count exploding, divisions buy time, none in the first 30 s");
+  console.log(`pace: ${nEarly.toFixed(1)} sums in the first 30 s, ${nLate.toFixed(1)} in 180–210 s; difficulty a second ${loadEarly.toFixed(2)} then ${loadLate.toFixed(2)}; after FX or basis points the next sum waits ${(gapCostly / 1000).toFixed(1)} s, after a plain spread ${(gapCheap / 1000).toFixed(1)} s`);
+  check(loadLate > loadEarly * 1.8 && nLate >= nEarly * 0.7 && nLate <= nEarly * 3 && gapCostly > gapCheap * 1.8 && divEarly === 0, "pace: difficulty a second roughly doubles by three minutes without the count exploding, FX and basis points buy time, none in the first 30 s");
 }
 
 // replays are deterministic and depend only on seed and taps

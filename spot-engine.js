@@ -1,4 +1,4 @@
-// Spot: sums fly across the screen.
+// Spot: sums fly across the screen, a trader's working (spreads, premiums, percentages, FX, basis points).
 //
 // Alone, their answers sit on a shelf among fakes: tap an answer before its sum runs out. Each number comes onto the
 // shelf at a moment of its own, up to a few seconds before its sum flies in, in a free slot picked at random, so
@@ -40,10 +40,10 @@ const pickWeighted = (r, weights) => {
 };
 
 // ---------- the pace: a slowly rising budget of difficulty ----------
-// Every sum has a cost (how hard it is: 1 for a small addition, up to 4 for a big division, +1 with a modifier),
-// and the run has a budget of difficulty per second that rises slowly. A cheap sum is followed quickly by the
-// next; an expensive one buys a few seconds. So you might get four easy sums in a row, or one division with time
-// to think. Lifetimes scale with cost too, and shorten a little over time.
+// Every sum has a cost (how hard it is: 1 for a spread or a premium, 2 for a percentage, 3 for an FX rate or basis points,
+// +1 with bigger figures, +1 with a modifier), and the run has a budget of difficulty per second that rises slowly. A cheap
+// sum is followed quickly by the next; an expensive one buys a few seconds. So you might get four spreads in a row, or one
+// basis-point sum with time to think. Lifetimes scale with cost too, and shorten a little over time.
 const rate = ms => 0.45 + 0.85 * Math.min(1, ms / 240000) + 0.12 * Math.max(0, ms - 240000) / 60000;   // difficulty points a second: 0.45, 1.3 at 4 min
 const lifeFor = (cost, ms) => (3600 + 1700 * cost) * (1 - 0.22 * Math.min(1, ms / 240000));
 const MAX_LIFE = 11000;
@@ -52,15 +52,17 @@ export const NEAR = MAX_LIFE * 1.1 + LEAD[1];
 /** The difficulty level shown to the player: up one every 30 seconds. */
 export const levelAt = ms => 1 + Math.floor(ms / 30000);
 const ramp = (ms, from, to) => Math.min(1, Math.max(0, (ms - from) / (to - from)));
-/** What can come up, and how often, this far into the run: plus and minus, then times, then division, then bigger. */
+/** What can come up, and how often, this far into the run: spreads and premiums, then percentages, then FX and basis points,
+ *  then bigger figures. */
 function mixAt(ms) {
   return {
-    kinds: [["add", 3], ["sub", 2], ["mul", 3 * ramp(ms, 12000, 72000)], ["div", 2 * ramp(ms, 35000, 110000)]].filter(([, w]) => w > 0),
+    kinds: [["spread", 3], ["prem", 2], ["pct", 3 * ramp(ms, 12000, 72000)], ["fx", 1.3 * ramp(ms, 35000, 110000)], ["bp", 1 * ramp(ms, 50000, 140000)]].filter(([, w]) => w > 0),
     big: 0.7 * ramp(ms, 60000, 200000),                             // the chance of bigger numbers
     fakes: ms < 20000 ? [1, 1] : ms < 75000 ? [1, 2] : [2, 2],
   };
 }
-const COST = { add: 1, sub: 1, mul: 2, div: 3 };
+/** What each kind of sum costs, before bigger figures and a modifier. */
+export const COST = { spread: 1, prem: 1, pct: 2, fx: 3, bp: 3 };
 const cost = (kind, big) => COST[kind] + (big ? 1 : 0);
 
 // ---------- modifiers: from 45 s in, an operation to apply to every result before anything else ----------
@@ -80,46 +82,55 @@ export const applyMod = (m, v) => (!m ? v : m.op === "+" ? v + m.k : m.op === "�
 const unMod = (m, v) => { const r = !m ? v : m.op === "+" ? v - m.k : m.op === "−" ? v + m.k : v % m.k === 0 ? v / m.k : null; return r != null && r >= 2 ? r : null; };
 export const modText = m => (!m ? "" : `${m.op}${m.k}`);
 
-/** A sum of a kind: { text, answer, points }. Results are whole and positive; divisions come out exactly. */
+// Korbi, 24 November 2026: Spot's sums are a trader's working, "the trader one", in place of bare arithmetic; the game stays
+// as it is. A spread (437 − 412), a premium on futures (412 + 18), a percentage (25% of 64), an FX rate (€40 × 1.25) and
+// basis points of a sum in thousands (25bp of 40k: a basis point is a hundredth of a percent, so 25 bp of 40,000 is 100).
+const PCT = [10, 20, 25, 50], PCT_BIG = [5, 15, 30, 40, 60, 75];
+const FX = [1.1, 1.2, 1.5], FX_BIG = [1.05, 1.25, 1.3, 0.8, 0.9];
+const BP = [10, 20, 25, 50], BP_BIG = [5, 15, 30, 40, 75];
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+/** The whole numbers a rate can be applied to and stay whole: n × rate is whole when n is a multiple of this. */
+const fxStep = x => { const h = Math.round(x * 100); return 100 / gcd(h, 100); };
+const fxText = x => (Number.isInteger(x * 10) ? x.toFixed(1) : x.toFixed(2));
+
+/** A sum of a kind: { text, answer, points, ... }. Results are whole and positive. */
 function makeSum(r, kind, big) {
   switch (kind) {
-    case "add": { const a = big ? int(r, 12, 59) : int(r, 2, 15), b = big ? int(r, 11, 39) : int(r, 2, 12); return { a, b, text: `${a} + ${b}`, answer: a + b, points: big ? 2 : 1 }; }
-    case "sub": { const b = big ? int(r, 11, 39) : int(r, 2, 12), c = big ? int(r, 5, 49) : int(r, 1, 12); return { a: b + c, b, text: `${b + c} − ${b}`, answer: c, points: big ? 2 : 1 }; }
-    case "mul": { const a = big ? int(r, 3, 12) : int(r, 2, 9), b = big ? int(r, 6, 12) : int(r, 2, 9); return { a, b, text: `${a} × ${b}`, answer: a * b, points: big ? 3 : 2 }; }
-    case "div": { const d = big ? int(r, 3, 12) : int(r, 2, 9), q = big ? int(r, 4, 12) : int(r, 2, 10); return { a: d * q, b: d, text: `${d * q} ÷ ${d}`, answer: q, points: big ? 4 : 3 }; }
+    case "spread": { const b = big ? int(r, 500, 950) : int(r, 120, 480), d = big ? int(r, 11, 49) : int(r, 2, 15); return { a: b + d, b, text: `${b + d} − ${b}`, answer: d, points: big ? 2 : 1 }; }
+    case "prem": { const f = big ? int(r, 500, 940) : int(r, 120, 480), p = big ? int(r, 11, 49) : int(r, 2, 15); return { a: f, b: p, text: `${f} + ${p}`, answer: f + p, points: big ? 2 : 1 }; }
+    case "pct": { const p = (big ? PCT_BIG : PCT)[int(r, 0, (big ? PCT_BIG : PCT).length - 1)], step = 100 / gcd(p, 100), base = step * int(r, Math.ceil(10 / step), Math.floor((big ? 400 : 120) / step)); return { a: base, b: p, text: `${p}% of ${base}`, answer: base * p / 100, points: big ? 3 : 2 }; }
+    case "fx": { const x = (big ? FX_BIG : FX)[int(r, 0, (big ? FX_BIG : FX).length - 1)], step = fxStep(x), a = step * int(r, Math.ceil(10 / step), Math.floor((big ? 160 : 80) / step)); return { a, b: x, text: `€${a} × ${fxText(x)}`, answer: Math.round(a * x), points: big ? 4 : 3 }; }
+    case "bp": { const b = (big ? BP_BIG : BP)[int(r, 0, (big ? BP_BIG : BP).length - 1)], step = 10 / gcd(b, 10), k = step * int(r, Math.ceil(10 / step), Math.floor((big ? 300 : 120) / step)); return { a: k, b, text: `${b}bp of ${k}k`, answer: k * b / 10, points: big ? 4 : 3 }; }
   }
 }
 
-/** A sum of a kind that makes exactly n, or null if that kind can't (say, a product for a prime). */
+/** A sum of a kind that makes exactly n, or null if that kind can't (a premium for a small number, an FX rate for a prime). */
 function sumMaking(r, kind, n, big) {
+  const any = xs => (xs.length ? xs[Math.floor(r() * xs.length)] : null);
   switch (kind) {
-    case "add": { if (n < 3) return null; const a = int(r, 1, n - 1); return { text: `${a} + ${n - a}`, answer: n, points: big ? 2 : 1 }; }
-    case "sub": { const b = big ? int(r, 11, 39) : int(r, 2, 12); return { text: `${n + b} − ${b}`, answer: n, points: big ? 2 : 1 }; }
-    case "mul": {
-      const pairs = [];
-      for (let a = 2; a <= 12; a++) if (n % a === 0 && n / a >= 2 && n / a <= 12) pairs.push([a, n / a]);
-      if (!pairs.length) return null;
-      const [a, b] = pairs[Math.floor(r() * pairs.length)];
-      return { text: `${a} × ${b}`, answer: n, points: big ? 3 : 2 };
-    }
-    case "div": { const d = big ? int(r, 3, 12) : int(r, 2, 9); return n <= 15 ? { text: `${n * d} ÷ ${d}`, answer: n, points: big ? 4 : 3 } : null; }
+    case "spread": { const b = big ? int(r, 500, 950) : int(r, 120, 480); return { text: `${n + b} − ${b}`, answer: n, points: big ? 2 : 1 }; }
+    case "prem": { if (n < 110) return null; const p = int(r, 2, Math.min(big ? 49 : 15, n - 100)); return { text: `${n - p} + ${p}`, answer: n, points: big ? 2 : 1 }; }
+    case "pct": { const p = any([...PCT, ...PCT_BIG].filter(q => (n * 100) % q === 0 && n * 100 / q <= 999)); return p == null ? null : { text: `${p}% of ${n * 100 / p}`, answer: n, points: big ? 3 : 2 }; }
+    case "fx": { const x = any([...FX, ...FX_BIG].filter(q => Number.isInteger(Math.round(n / q * 1e6) / 1e6) && n / q <= 400)); return x == null ? null : { text: `€${Math.round(n / x)} × ${fxText(x)}`, answer: n, points: big ? 4 : 3 }; }
+    case "bp": { const b = any([...BP, ...BP_BIG].filter(q => (n * 10) % q === 0 && n * 10 / q <= 999)); return b == null ? null : { text: `${b}bp of ${n * 10 / b}k`, answer: n, points: big ? 4 : 3 }; }
   }
   return null;
 }
 
 /**
- * A fake for a sum: an answer you'd get by slipping. Times-table neighbours and adding instead of multiplying for
- * products; off by one or ten, and swapped digits, for anything. n is the value the fake should sit near (the
- * answer as modified, when there's a modifier).
+ * A fake for a sum: an answer you'd get by slipping. A basis point taken for a tenth of a percent (ten times out), the
+ * currency left unconverted or converted the wrong way, a neighbouring percentage, a carry dropped; off by one or ten, and
+ * swapped digits, for anything. n is the value the fake should sit near (the answer as modified, when there's a modifier).
  */
 function fakeFor(r, sum, kind, n) {
-  const swapped = n >= 10 && n % 10 !== Math.floor(n / 10) ? Number(String(n).split("").reverse().join("")) : null;
+  const swapped = n >= 10 && n % 10 !== Math.floor(n / 10) % 10 ? Number(String(n).split("").reverse().join("")) : null;
   const options = [n + 1, n - 1, n + 2, n - 2, n + 10, n - 10, swapped];
-  if (kind === "mul") options.push(sum.a * (sum.b + 1), sum.a * (sum.b - 1), (sum.a + 1) * sum.b, sum.a + sum.b);
-  if (kind === "add") options.push(sum.a * sum.b > 0 && sum.a * sum.b < 100 ? sum.a * sum.b : null, sum.a - sum.b);
-  if (kind === "sub") options.push(sum.a + sum.b);
-  if (kind === "div") options.push(sum.b, n * 2, Math.floor(sum.a / 10));
-  const ok = options.filter(v => v != null && v > 0 && v !== n);
+  if (kind === "pct") options.push(sum.a * sum.b * 2 / 100, sum.a * sum.b / 200, sum.a / 10);
+  if (kind === "fx") options.push(sum.a, Math.round(sum.a / sum.b), sum.a + 10);
+  if (kind === "bp") options.push(n * 10, n / 10, sum.a * sum.b);
+  if (kind === "prem") options.push(n - 100, n + 100);
+  if (kind === "spread") options.push(n + 20);
+  const ok = options.filter(v => v != null && Number.isInteger(v) && v > 0 && v !== n && v < 10000);
   return ok[Math.floor(r() * ok.length)];
 }
 
@@ -156,7 +167,7 @@ export function timeline(seed, seats, t) {
       if (v != null && !values.has(v) && !wanted.includes(v)) wanted.push(v);
     }
     // when each number comes onto the shelf: from a stream of the sum's own, so drawing them leaves the sums' stream be
-    const lr = rng((seed ^ Math.imul(id + 1, 0x27D4EB2F)) >>> 0), shown = () => Math.max(0, Math.round(at - LEAD[0] - lr() * (LEAD[1] - LEAD[0])));
+    const lr = rng((seed ^ Math.imul(id + 1, 0x27D4EB2F)) >>> 0), shown = () => Math.max(0, Math.min(Math.floor(at - LEAD[0]), Math.max(Math.ceil(at - LEAD[1]), Math.round(at - LEAD[0] - lr() * (LEAD[1] - LEAD[0])))));
     const fakes = wanted.map((v, k) => ({ id: `f${id}.${k}`, value: v, life: life * (0.75 + 0.25 * r()), shown: shown() }));
     tl.sums.push({ id, at, life, kind, text: sum.text, answer: sum.answer, mod, value, points: sum.points + (mod ? 1 : 0), seat: 0, shelf: 0, shown: shown(), fakes });
     tl.next = at + 1000 * (cost(kind, big) + (mod ? 1 : 0)) / rate(at);
@@ -202,7 +213,7 @@ export function duoTimeline(seed, t, seats = 2) {
       // the partner sum: a different way to that value, after the partner's own modifier, preferably a different kind
       let other = null;
       for (let tries = 0; tries < 30 && (!other || (other.text === made.text && modSecond === modFirst)); tries++) other = sumMaking(r, pickWeighted(r, mix.kinds), raw, big);
-      if (!other) other = { text: `${raw + 1} − 1`, answer: raw, points: 1 };
+      if (!other) other = sumMaking(r, "spread", raw, big);                       // a spread makes anything
       const pair = tl.pairs++;
       push(at, first, made, modFirst, pair);
       push(later, second, other, modSecond, pair);

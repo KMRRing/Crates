@@ -434,8 +434,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
       });
     }
     if (!D) content.append(mirror("Mode", $("mode")));
-    if (P.ranges) content.append(ticks("Sprint operations", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
-    else content.append(ticks("Topics", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
+    content.append(ticks(P.ranges ? "Sprint topics" : "Topics", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
     const bests = read(KEY.bests, {}) || {}, about = part(body, "about");
     const top = [["sprint", "Sprint"], ["estimate", "Estimate"], ["chains", "Chains"]].map(([k, t]) => [t, k === "sprint" ? bests[`sprint:${P.range ?? ""}:${ALL.join(",")}`] : bests[k]]).filter(([, v]) => v != null);
     const days = read(KEY.daily, {}) || {};
@@ -455,9 +454,9 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
   // ---------- the rules, from the engine's own numbers ----------
   function showRules() {
     const pc = x => `${Number((x * 100).toFixed(1))}%`;
-    const exact = `<p><b>Exact sums.</b> A plain sum has one right answer, and it goes in by itself the moment you type it. ${P.ranges ? "The menu chooses the operations and how far the numbers reach; they reach further as a run goes on." : "The menu chooses the topics."}</p>`;
+    const exact = `<p><b>Exact sums.</b> A plain sum has one right answer, and it goes in by itself the moment you type it. The menu chooses the topics.${P.ranges ? " The figures grow as a run goes on, and from round ones to a desk's to big ones as you get them right." : ""}</p>`;
     $("rulesBody").innerHTML = `
-      <p>${pool === "fuels" ? "The arithmetic of a fuel desk against the clock: barrels and tonnes, energy, carbon intensity, prices and the long chains that join them. The figures are the desk's, written into every sum that uses them." : "Mental arithmetic against the clock: plain sums, then the everyday figures of a shop, a kitchen and a road. Any rate a sum needs is written in it."}</p>
+      <p>${pool === "fuels" ? "The arithmetic of a fuel desk against the clock: barrels and tonnes, energy, carbon intensity, prices and the long chains that join them. The figures are the desk's, written into every sum that uses them." : "A trader's working against the clock: percentages, basis points (a hundredth of a percent), dollars a tonne and a cubic metre, FX crosses and P&L, then the exchanges' units, freight, financing and hedging. Any rate a sum needs is written in it."}</p>
       <p><b>Modes.</b> Sprint, ${MODES.sprint.secs} seconds of one-step sums. Estimate, ${MODES.estimate.secs} seconds of figures typed to one or two significant figures. Chains, ${MODES.chains.secs} seconds of a figure and three steps or more. Today's, ${MODES.daily.secs} seconds of all three, the same for everyone and new at midnight UTC; it counts once.</p>
       ${exact}
       <p><b>Estimates and chains.</b> A significant figure (s.f.) is a digit that carries the size of a number: 4,031 to 2 s.f. is 4,000, and 0.0137 to 1 s.f. is 0.01. A sum that asks for 1 s.f. accepts an answer within ${pc(BAND[1])} of the exact figure, one that asks for 2 s.f. within ${pc(BAND[2])}, or exactly the exact figure rounded to that many. A chain is let off a little more for each step past the third (${pc(chainRel(2, 5))} for five steps at 2 s.f.), since the honest shortcuts pile up. The page says "close enough" when that is what it was, and shows the exact figure after every answer. A figure with a zero too many or too few is wrong, and the page says so.</p>

@@ -101,13 +101,13 @@ for (const pool of Object.keys(POOLS)) {
   check(Array.from({ length: 60 }, (_, i) => problemAt(r, i)).every(p => p.kind === "sum" && p.sf === 0 && p.worth === 1), "a sprint is exact one-step sums");
   const kinds = new Set(Array.from({ length: 80 }, (_, i) => problemAt(r, i).id));
   check(kinds.size === SUM_KINDS.length, "a sprint on everything deals every operation");
-  const only = startRun({ pool: "mercantile", mode: "sprint", seed: 5, opts: { kinds: ["mul", "div"], range: 20 } });
-  check(Array.from({ length: 60 }, (_, i) => problemAt(only, i).id).every(k => k === "mul" || k === "div") && same(only.opts, { kinds: ["mul", "div"], range: 20 }), "ticked operations are the only ones dealt");
-  const small = startRun({ pool: "mercantile", mode: "sprint", seed: 9, opts: { kinds: ["add"], range: 20 } }), big = startRun({ pool: "mercantile", mode: "sprint", seed: 9, opts: { kinds: ["add"], range: 1000 } });
+  const only = startRun({ pool: "mercantile", mode: "sprint", seed: 5, opts: { kinds: ["bp", "fx"], range: 20 } });
+  check(Array.from({ length: 60 }, (_, i) => problemAt(only, i).id).every(k => k === "bp" || k === "fx") && same(only.opts, { kinds: ["bp", "fx"], range: 20 }), "ticked topics are the only ones dealt");
+  const small = startRun({ pool: "mercantile", mode: "sprint", seed: 9, opts: { kinds: ["pct"], range: 20 } }), big = startRun({ pool: "mercantile", mode: "sprint", seed: 9, opts: { kinds: ["pct"], range: 1000 } });
   const top = run => Math.max(...Array.from({ length: 40 }, (_, i) => problemAt(run, i).answer));
-  check(top(small) <= 40 && top(big) > 200, "the range sets how far the numbers reach (to 20: nothing past 40; to 1,000: well past 200)");
-  const early = Array.from({ length: 6 }, (_, i) => problemAt(startRun({ pool: "mercantile", mode: "sprint", seed: 100 + i, opts: { kinds: ["mul"] } }), 0).answer);
-  const late = Array.from({ length: 6 }, (_, i) => problemAt(startRun({ pool: "mercantile", mode: "sprint", seed: 100 + i, opts: { kinds: ["mul"] } }), 40).answer);
+  check(top(small) * 3 < top(big), `the range sets how far the numbers reach (round figures: ${top(small)} at most; big figures: up to ${top(big)})`);
+  const early = Array.from({ length: 6 }, (_, i) => problemAt(startRun({ pool: "mercantile", mode: "sprint", seed: 100 + i, opts: { kinds: ["pct"] } }), 0).answer);
+  const late = Array.from({ length: 6 }, (_, i) => problemAt(startRun({ pool: "mercantile", mode: "sprint", seed: 100 + i, opts: { kinds: ["pct"] } }), 40).answer);
   check(Math.max(...early) < Math.max(...late) && early.reduce((a, b) => a + b) < late.reduce((a, b) => a + b), "the sums reach for bigger numbers as a run goes on");
   const est = startRun({ pool: "mercantile", mode: "estimate", seed: 5 });
   check(Array.from({ length: 30 }, (_, i) => problemAt(est, i)).every(p => p.kind === "chain" && p.n <= 2 && p.sf >= 1), "an estimate is one or two steps, typed to significant figures");
@@ -124,13 +124,13 @@ for (const pool of Object.keys(POOLS)) {
   const a = dailyRun("mercantile", 20261103), b = dailyRun("mercantile", 20261103), c = dailyRun("mercantile", 20261104), f = dailyRun("fuels", 20261103);
   check(a.seed === dailySeed("mercantile", 20261103) && a.seed === b.seed && a.seed !== c.seed && a.seed !== f.seed, "today's seed is the day's, and each pool has its own");
   check(same(texts(a, 30), texts(b, 30)) && !same(texts(a, 30), texts(c, 30)) && !same(texts(a, 30), texts(f, 30)), "the same day deals the same sums on any device, another day or pool others");
-  const mine = startRun({ pool: "mercantile", mode: "daily", seed: dailySeed("mercantile", 20261103), opts: { kinds: ["add"], range: 20 }, day: 20261103 });
+  const mine = startRun({ pool: "mercantile", mode: "daily", seed: dailySeed("mercantile", 20261103), opts: { kinds: ["pct"], range: 20 }, day: 20261103 });
   check(same(texts(a, 30), texts(mine, 30)) && same(mine.opts, a.opts), "your menu's operations and range are not in today's: it is comparable");
 }
 
 // ---------- a match at a table: everyone gets the same ----------
 {
-  const m = { seed: 4242, pool: "mercantile", opts: normOpts("mercantile", { kinds: ["add", "mul"], range: 100 }), secs: 60 };
+  const m = { seed: 4242, pool: "mercantile", opts: normOpts("mercantile", { kinds: ["pct", "fx"], range: 100 }), secs: 60 };
   const mine = matchRun(m), theirs = matchRun(JSON.parse(JSON.stringify(m)));
   check(same(texts(mine, 40), texts(theirs, 40)) && mine.secs === 60 && mine.mode === "sprint", "a match deals the same sums to every phone, through the database's JSON");
   check(same(normOpts("mercantile", { kinds: [], range: 7 }), { kinds: SUM_KINDS.map(([k]) => k), range: 100 }) && same(normOpts("fuels", {}).kinds, POOLS.fuels.kinds.map(([k]) => k)) && normOpts("fuels", {}).range === null,
@@ -172,7 +172,7 @@ for (const pool of Object.keys(POOLS)) {
 
 // ---------- kept and picked up again ----------
 {
-  const run = startRun({ pool: "mercantile", mode: "estimate", seed: 99, opts: { kinds: ["add", "sub"], range: 100 } });
+  const run = startRun({ pool: "mercantile", mode: "estimate", seed: 99, opts: { kinds: ["pct", "bp"], range: 100 } });
   for (let i = 0; i < 5; i++) submit(run, String(problemAt(run).answer), (i + 1) * 3000);
   run.typed = "12"; run.used = 16000;
   const saved = JSON.parse(JSON.stringify(run));
@@ -230,8 +230,8 @@ for (const [id, P] of Object.entries(POOLS)) {
   // and a shortcut too coarse is not: 7.45 rounded to 7 is 6% out, which two figures do not take
   const d = POOLS.fuels.defs.find(x => x.id === "t-bbl"), p = chainProblem(d, { kt: 60, fuel: { name: "diesel", bbl: 7.45 } });
   check(ok(p, String(60 * 7.5)) && !ok(p, String(60 * 7)), "7.5 barrels a tonne is a fair shortcut for 7.45 at two figures, and 7 is not");
-  const g = POOLS.mercantile.defs.find(x => x.id === "gal-l"), q = chainProblem(g, { gal: 15 });
-  check(ok(q, String(15 * 3.8)) && ok(q, "57") && !ok(q, "60") && !ok(q, "45"), "15 gallons: 15 × 3.8 or 57 is right; 60 and 45 are not");
+  const g = POOLS.mercantile.defs.find(x => x.id === "bu-t"), q = chainProblem(g, { c: { n: "wheat", bu: 36.74, px: [6] }, i: 0 });
+  check(ok(q, String(6 * 37)) && ok(q, "220") && !ok(q, String(6 * 36)) && !ok(q, String(6 * 40)), "wheat at $6 a bushel: 6 × 37 or 220 is right a tonne; 6 × 36 and 6 × 40 are not");
 }
 
 // ---------- a chain's words and its arithmetic are one thing ----------
@@ -262,9 +262,9 @@ for (const [id, P] of Object.entries(POOLS)) {
   }
   check(ids.length >= 30 && ids.every(i => seen.has(i)), `the sprint deals every one of its ${ids.length} situations`);
   check(!problems.length, `every sprint sum is a sentence of at most ${MAX_CHARS} characters with a whole answer and no figure past its realistic top, the answer accepted and a zero slip refused${problems.length ? `: ${problems[0]}` : ""}`);
-  check(SCENARIOS.pct.every(s => s.ps.every(p => p >= 2 && p <= 50)), "percentages dealt are ones met: 2% to 50%");
-  const short = Array.from({ length: 60 }, (_, i) => SUM("pct", rng(i + 1), 0.3, 20).scenario);
-  check(short.every(s => /tip|vat|off/.test(s)), "a short range deals only the small bills (no deposit on £20)");
+  const rates = (range, n) => Array.from({ length: n }, (_, i) => SUM("pct", rng(i + 1), 1, range).prompt).flatMap(t => [...t.matchAll(/(\d+)%/g)].map(x => Number(x[1])));
+  check(rates(1000, 300).every(p => p >= 1 && p <= 90), "percentages dealt are ones a desk meets: 1% to 90%");
+  check(rates(20, 120).every(p => p % 5 === 0), "round figures deal round rates: every percentage a multiple of 5");
 }
 {
   // estimates and chains: the figures are ones that occur, in lines that fit a phone
