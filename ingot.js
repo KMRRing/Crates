@@ -4,18 +4,25 @@
 // The game in play is kept (`ingot:run`) and opens again where it was; the best is `ingot:best`, the daily's results
 // `ingot:daily` by the day (counted the moment a game on the day's board ends). A first visit gets a short lesson first
 // (`ingot:taught` once it is done or skipped).
-import { N, SIZE, DIRS, WIN, newGame, daySeed, move, undo, end, valid, hint, play, value } from "./ingot-engine.js";
+import { SLAG, MODES, DIRS, WIN, newGame, daySeed, move, undo, end, valid, hint, play, value, commission } from "./ingot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, onPause, isPaused, todayPart } from "./menu.js";
+import { part, action, line, choice, onPause, isPaused, todayPart } from "./menu.js";
 import { roundOver } from "./random.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, IN_FRAME } from "./suite.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "ingot:run", BEST = "ingot:best", DAILY = "ingot:daily";
+const DAILY = "ingot:daily", MODE = "ingot:mode", COMMISSIONS = "ingot:commission";
+// a game in play and a best for each mode (the classic's keys as they always were); Today's is the classic's board
+const runKey = m => (m === "ingot" ? "ingot:run" : `ingot:run:${m}`), bestKey = m => (m === "ingot" ? "ingot:best" : `ingot:best:${m}`);
+const BEST_NOW = () => bestKey(S?.mode || "ingot");
+/** The bars a commission asks for, one after another as they are met: 128, 256, 512, 1024, then 2048 each time. */
+const LADDER = [7, 8, 9, 10, 11];
+const commissionsDone = () => read(COMMISSIONS, { done: 0 }).done || 0;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+let mode = MODES[read(MODE, "ingot")] ? read(MODE, "ingot") : "ingot";
 const fmt = n => n.toLocaleString("en-GB");
 const SLIDE = 110, POP = 160, HINT_MS = 2600;
 
@@ -25,19 +32,25 @@ let pending = null;       // a swipe made meanwhile, played when this one is don
 let hintTimer = 0;
 let teach = null;         // the first game's lesson, while it runs: { step, real (the game it stands in front of) }
 let teachTimer = 0;
-const tileEls = new Array(SIZE).fill(null);
+let tileEls = [];
+const sideNow = () => Math.round(Math.sqrt(S.grid.length));
 const pars = new Map();   // seed -> the search's score, worked out once
 
 const dayDone = (day = today()) => read(DAILY, {})[day] != null;
 const started = () => !!S && S.moves > 0 && !S.over;
-const save = () => { if (!teach) write(RUN, S); };   // (the lesson's boards are never kept)
+const save = () => { if (!teach) write(runKey(S.mode || "ingot"), S); };   // (the lesson's boards are never kept)
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- a game ----------
 function newRun(kind = "random") {
   if (teach) quitLesson();
   const day = kind === "daily" ? today() : null;
-  S = { ...newGame(kind === "daily" ? daySeed(day) : Math.floor(Math.random() * 2 ** 31)), kind, day, par: null };
+  const seed = kind === "daily" ? daySeed(day) : Math.floor(Math.random() * 2 ** 31);
+  if (kind === "daily" && mode !== "ingot") { mode = "ingot"; write(MODE, mode); }        // Today's board is the classic's
+  if (kind !== "daily" && mode === "commission") {
+    const c = commission(seed, LADDER[Math.min(commissionsDone(), LADDER.length - 1)]);
+    S = { ...newGame(c.seed, "commission", c.goal), kind, day, par: null };
+  } else S = { ...newGame(seed, kind === "daily" ? "ingot" : mode), kind, day, par: null };
   busy = false;
   pending = null;
   save();
@@ -48,9 +61,9 @@ function newRun(kind = "random") {
  *  background in small slices, so the page never waits for it. */
 function ensurePar() {
   const seed = S.seed;
-  if (S.par != null || IN_FRAME) return;
+  if (S.par != null || IN_FRAME || S.goal) return;
   if (pars.has(seed)) { S.par = pars.get(seed); save(); drawLine(); return; }
-  let g = newGame(seed);
+  let g = newGame(seed, S.mode);
   const slice = () => {
     if (!S || S.seed !== seed) return;
     const t = performance.now();
@@ -66,8 +79,9 @@ function ensurePar() {
 /** A game that has ended counts once: its best, and for the day's board the day's result (the first game on it). */
 function settle() {
   if (!S.over || IN_FRAME) return;
-  if (S.score > read(BEST, 0)) write(BEST, S.score);
+  if (S.score > read(BEST_NOW(), 0)) write(BEST_NOW(), S.score);
   if (S.kind === "daily" && S.day && !dayDone(S.day)) write(DAILY, { ...read(DAILY, {}), [S.day]: S.score });
+  if (S.goal && S.won && !S.counted) { S.counted = true; write(COMMISSIONS, { done: commissionsDone() + 1 }); save(); }
 }
 function finish() {
   save();
@@ -88,14 +102,18 @@ const INGOT = `<svg viewBox="0 0 100 100" aria-hidden="true">
   <text class="f-deep" x="50" y="53"></text><text class="f-num" x="50" y="51.6"></text>
   <rect class="f-heat" x="5" y="17" width="90" height="69"/>
 </svg>`;
+/** A lump of slag: dark, pitted, no value; it blocks its pocket until two bars merged beside it knock it loose. */
+const LUMP = `<svg viewBox="0 0 100 100" aria-hidden="true"><path class="s-lump" d="M14 58C10 44 20 30 34 27C40 18 58 16 68 25C82 26 92 38 89 52C94 64 86 79 72 80C62 89 42 88 33 81C20 82 10 72 14 58Z"/>
+  <path class="s-hi" d="M30 34C38 27 52 24 62 29"/><circle class="s-pit" cx="40" cy="52" r="4.5"/><circle class="s-pit" cx="60" cy="44" r="3.2"/><circle class="s-pit" cx="64" cy="64" r="5"/><circle class="s-pit" cx="45" cy="70" r="2.6"/></svg>`;
 function tileEl(e, i) {
-  const t = document.createElement("div");
+  const t = document.createElement("div"), side = sideNow();
   t.className = "ig-tile";
+  t.style.setProperty("--c", i % side);
+  t.style.setProperty("--r", Math.floor(i / side));
+  if (e === SLAG) { t.classList.add("slag"); t.innerHTML = LUMP; return t; }
   t.dataset.m = metalOf(e);
   t.dataset.s = (e - 1) % 12;
   t.dataset.d = String(value(e)).length;
-  t.style.setProperty("--c", i % N);
-  t.style.setProperty("--r", Math.floor(i / N));
   t.innerHTML = INGOT;
   for (const tx of t.querySelectorAll("text")) tx.textContent = String(value(e));
   const stamp = document.createElement("i");
@@ -103,9 +121,18 @@ function tileEl(e, i) {
   t.append(stamp);
   return t;
 }
+/** The mould's pockets, as many as the board has, and its side for the drawing. */
+function drawSlots() {
+  const side = sideNow(), slots = $("slots");
+  $("board").style.setProperty("--n", side);
+  $("board").dataset.side = side;
+  if (slots.children.length !== side * side) slots.replaceChildren(...Array.from({ length: side * side }, () => document.createElement("i")));
+}
 function drawBoard(born = -1, merged = []) {
   const box = $("tiles");
+  drawSlots();
   box.replaceChildren();
+  tileEls = new Array(S.grid.length).fill(null);
   S.grid.forEach((e, i) => {
     tileEls[i] = null;
     if (!e) return;
@@ -122,13 +149,14 @@ function drawBoard(born = -1, merged = []) {
   $("board").classList.toggle("over", S.over);
 }
 function drawLine() {
-  const where = S.kind === "daily" ? "Today's board" : "Random board";
+  if (S.goal) { $("line").textContent = `Commission: cast a ${fmt(value(S.goal.e))} in ${S.goal.swipes} swipes · ${S.moves} swiped`; return; }
+  const where = S.kind === "daily" ? "Today's board" : S.mode === "ingot" ? "Random board" : MODES[S.mode].name;
   $("line").textContent = `${where} · ${S.moves} swipe${S.moves === 1 ? "" : "s"} · par ${S.par == null ? "…" : fmt(S.par)}`;
 }
 function drawStrip() {
   $("score").textContent = fmt(S.score);
   $("topBar").textContent = fmt(value(S.top));
-  $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
+  $("best").textContent = fmt(Math.max(read(BEST_NOW(), 0), S.score));
 }
 function drawSide() {
   $("coach").hidden = !teach;
@@ -140,7 +168,11 @@ function drawSide() {
   $("undoBtn").disabled = !S.prev || S.undos <= 0 || S.over;
   $("hintBtn").disabled = S.hints <= 0 || S.over;
   if (!S.over) { drawLine(); return; }
-  const best = read(BEST, 0), parts = [S.ended ? "Ended" : "No swipe left"];
+  if (S.goal) {
+    $("verdict").textContent = S.won ? `Commission met: a ${fmt(value(S.goal.e))} in ${S.moves} swipes of ${S.goal.swipes}.` : S.ended ? "Commission given up." : S.moves >= S.goal.swipes ? `Out of swipes: the ${fmt(value(S.goal.e))} wasn't cast.` : `No swipe left: the ${fmt(value(S.goal.e))} wasn't cast.`;
+    return;
+  }
+  const best = read(BEST_NOW(), 0), parts = [S.ended ? "Ended" : "No swipe left"];
   let v = `${parts[0]}: ${fmt(S.score)}`;
   if (S.score >= best && S.score > 0) v += ", your best";
   if (S.par != null) v += `. Par ${fmt(S.par)}: ${S.score >= S.par ? "beaten" : `${fmt(S.par - S.score)} short`}`;
@@ -158,7 +190,7 @@ function animate(node, frames, opts) {
 /** Every bar that moves slides to its square; a bar that merges slides on under the one it joins. */
 function slideAll(slides) {
   return Promise.all(slides.filter(s => s.to !== s.from && tileEls[s.from]).map(s => {
-    const dx = (s.to % N) - (s.from % N), dy = Math.floor(s.to / N) - Math.floor(s.from / N);
+    const side = sideNow(), dx = (s.to % side) - (s.from % side), dy = Math.floor(s.to / side) - Math.floor(s.from / side);
     tileEls[s.from].style.zIndex = s.into ? 0 : 1;
     return animate(tileEls[s.from], [{ transform: "translate(0, 0)" }, { transform: `translate(${dx * 100}%, ${dy * 100}%)` }], { duration: SLIDE, easing: "cubic-bezier(.25, .8, .3, 1)" });
   }));
@@ -172,15 +204,20 @@ async function swipeTo(dir) {
   hideHint();
   S = r.state;
   save();
-  if (!teach && S.score > read(BEST, 0)) write(BEST, S.score);
+  if (!teach && S.score > read(BEST_NOW(), 0)) write(BEST_NOW(), S.score);
   if (r.gain) navigator.vibrate?.(8);
   await slideAll(r.slides);
+  if (r.loose?.length) await crack(r.loose);
   render(r.bar.at, r.slides.filter(s => s.into).map(s => s.to));
   if (r.made) toast(`${fmt(2 ** WIN)}: gilt. Play on`);
   busy = false;
   if (teach) { learned(); return; }
   if (r.over) { finish(); return; }
   if (pending) { const d = pending; pending = null; swipeTo(d); }
+}
+/** Slag knocked loose: the lumps crack and fall away before the board is drawn again. */
+function crack(at) {
+  return Promise.all(at.map(i => animate(tileEls[i], [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(1.15) rotate(8deg)", opacity: 0 }], { duration: 220, easing: "ease-in" })));
 }
 /** A swipe that moves nothing: the board gives a little, so it's known to have been heard. */
 function nudge(dir) {
@@ -260,7 +297,7 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
-  play.append(action("New game", () => fresh("random"), "primary"));
+  play.append(action(mode === "commission" ? "New commission" : "New game", () => fresh("random"), "primary"));
   if (!IN_FRAME && !teach) play.append(action("How to play", () => { $("menuDlg").close(); startLesson(); }, "link"));
   const day = read(DAILY, {})[today()];
   todayPart(body, { done: dayDone(), result: day != null ? fmt(day) : "", play: () => fresh("daily"), playing: S.kind === "daily" && S.day === today() && !S.over });   // fresh asks before it leaves a game
@@ -269,11 +306,28 @@ function openMenu() {
     S = end(S);
     finish();
   }, "link"));
-  const best = read(BEST, 0);
-  part(body, "about").append(line(`This game: ${fmt(S.score)} in ${S.moves} swipe${S.moves === 1 ? "" : "s"}, the top bar ${fmt(value(S.top))}${best ? `; your best ${fmt(best)}` : ""}`),
-    line("Today's board is the same for everyone: the same bars land where the same swipes make room. A second go is practice."));
+  // the modes (Korbi, 23 Nov 2026: "sure try some I'll test them"): each keeps its own game in play and its own best
+  part(body, "content").append(choice("Mode", Object.entries(MODES).map(([k, m]) => [k, m.name]), mode, async v => {
+    if (teach) quitLesson();
+    if (!(await leaveOk())) { openMenu(); return; }
+    mode = v;
+    write(MODE, v);
+    const kept = read(runKey(v), null);
+    if (valid(kept) && (kept.mode || "ingot") === v) { S = kept; render(); ensurePar(); } else newRun("random");
+    openMenu();
+  }), line(MODE_WORDS[mode]));
+  const best = read(BEST_NOW(), 0);
+  part(body, "about").append(line(S.goal ? `Commissions met: ${commissionsDone()}` : `This game: ${fmt(S.score)} in ${S.moves} swipe${S.moves === 1 ? "" : "s"}, the top bar ${fmt(value(S.top))}${best ? `; your best ${fmt(best)}` : ""}`),
+    line("Today's board is the same for everyone, the classic four by four: the same bars land where the same swipes make room. A second go is practice."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
+
+const MODE_WORDS = {
+  ingot: "Four by four: merge your way up to a 2048 and on, for the score.",
+  great: "Five by five: the long game, the score running on and on.",
+  slag: "Every ninth pour is a lump of slag that blocks its pocket; two bars merged beside it knock it loose.",
+  commission: "An order to cast one bar in so many swipes: met once, the next asks for a bigger one.",
+};
 
 // ---------- the first game's lesson ----------
 // Korbi, 22 Nov 2026: "When user first opens up 2048 without having played the tutorial, add a quick interactive tutorial
@@ -299,7 +353,7 @@ function lessonStep() {
   const L = LESSON[teach.step], last = teach.step === LESSON.length - 1;
   if (L.grid) {
     const g = newGame(7);
-    S = { ...g, grid: L.grid.slice(), top: Math.max(...L.grid), undos: 0, hints: 0 };
+    S = { ...g, grid: L.grid.slice(), top: Math.max(...L.grid), undos: 0, hints: 0, kind: "random" };
     render();
     const a = $("hintArrow");
     a.dataset.dir = L.show;
@@ -337,7 +391,6 @@ $("undoBtn").addEventListener("click", takeBack);
 $("hintBtn").addEventListener("click", showHint);
 $("coachSkip").addEventListener("click", quitLesson);
 $("coachPlay").addEventListener("click", quitLesson);
-$("slots").append(...Array.from({ length: SIZE }, () => document.createElement("i")));
 $("app").addEventListener("pointerdown", down);
 addEventListener("pointermove", drag);
 addEventListener("pointerup", up);
@@ -348,11 +401,11 @@ addEventListener("keydown", key);
 window.__ingot = { get state() { return S; }, get lesson() { return teach && teach.step; }, swipeTo, newRun, DIRS };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's board, still to play
-S = read(RUN, null);
-if (!valid(S)) newRun(dayDone() ? "random" : "daily");
+S = read(runKey(mode), null);
+if (!valid(S) || (S.mode || "ingot") !== mode) { S = null; newRun(mode === "ingot" && !dayDone() ? "daily" : "random"); }
 else { render(); settle(); ensurePar(); }
 if (forToday && !IN_FRAME && !(S.kind === "daily" && S.day === today()) && !dayDone()) {
   if (!started() || await sure("Today's board is waiting. Leave the game you've started?", { yes: "Leave it" })) newRun("daily");
 }
 // a first visit (nothing kept, no swipe made yet): the lesson first
-if (!IN_FRAME && !read(TAUGHT, false) && !started() && !read(BEST, 0)) startLesson();
+if (!IN_FRAME && !read(TAUGHT, false) && !started() && !read(bestKey("ingot"), 0)) startLesson();

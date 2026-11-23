@@ -28,14 +28,19 @@
   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .ig-slots, .ig-tiles { position: absolute; inset: var(--pad); }
 .ig-defs { position: absolute; }
-.ig-slots { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); }
+.ig-slots { display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); grid-template-rows: repeat(var(--n, 4), 1fr); }
 /* a pocket cast into the iron, the bar's shape a little larger: dark, its far wall in shadow and its near lip catching the light
    (its margins are of its square: the squares are square) */
 .ig-slots i { margin: 14% 5% 12%; border-radius: 2px; background: linear-gradient(to bottom, #121417, #1E2226 70%, #262B30);
   box-shadow: inset 0 .9cqw 1.3cqw rgba(0, 0, 0, .75), inset 0 -.25cqw 0 rgba(255, 255, 255, .07), 0 .2cqw 0 rgba(255, 255, 255, .05); }
 
 /* a bar: the faces of an ingot (ingot.js draws them), a soft shadow in its pocket */
-.ig-tile { --c: 0; --r: 0; position: absolute; left: calc(var(--c) * 25%); top: calc(var(--r) * 25%); width: 25%; height: 25%; will-change: transform; }
+.ig-tile { --c: 0; --r: 0; position: absolute; left: calc(var(--c) * 100% / var(--n, 4)); top: calc(var(--r) * 100% / var(--n, 4)); width: calc(100% / var(--n, 4)); height: calc(100% / var(--n, 4)); will-change: transform; }
+/* a lump of slag (the Slag mode): dark and pitted, no value; two bars merged beside it knock it loose */
+.ig-tile.slag svg { filter: drop-shadow(0 .5cqw .5cqw rgba(0, 0, 0, .6)); }
+.ig-tile .s-lump { fill: #3A3430; stroke: #191513; stroke-width: 2; }
+.ig-tile .s-hi { fill: none; stroke: #6B615A; stroke-width: 3; stroke-linecap: round; }
+.ig-tile .s-pit { fill: #1E1A17; }
 .ig-tile svg { position: absolute; inset: 4%; width: 92%; height: 92%; overflow: visible; filter: drop-shadow(0 .7cqw .6cqw rgba(0, 0, 0, .55)); }
 .ig-tile .f-top { fill: var(--mid); }
 .ig-tile .f-sheen { fill: url(#ig-sheen); }

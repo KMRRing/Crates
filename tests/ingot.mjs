@@ -3,7 +3,7 @@
 // the day's seed is one for a date, the score is the merged values, undo (a few, one swipe, the draw taken back), the end
 // when no swipe moves anything, the 2048 bar noted with play going on, a game saved and opened again, and the search
 // (a hint that takes the merge in front of it, a whole game played by it, the same twice).
-import { N, SIZE, WIN, UNDOS, HINTS, swipe, alive, legal, bar, daySeed, newGame, move, undo, end, valid, hint, play, value } from "../ingot-engine.js";
+import { N, SIZE, WIN, UNDOS, HINTS, SLAG, MODES, swipe, alive, legal, bar, knocked, daySeed, newGame, move, undo, end, valid, hint, play, value, commission } from "../ingot-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -123,8 +123,38 @@ const show = g => g.map(e => value(e));
   check(steps.length === 2 && steps.every(st => st.grid.length === SIZE && st.want.every(d => {
     const r = move({ ...newGame(7), grid: st.grid }, d); return r && r.gain > 0;
   })), "every lesson board merges with the swipe it asks for");
-  check(/if \(!IN_FRAME && !read\(TAUGHT, false\) && !started\(\) && !read\(BEST, 0\)\) startLesson\(\);/.test(page) && /write\(TAUGHT, true\)/.test(page),
+  check(/if \(!IN_FRAME && !read\(TAUGHT, false\) && !started\(\) && !read\(bestKey\("ingot"\), 0\)\) startLesson\(\);/.test(page) && /write\(TAUGHT, true\)/.test(page),
     "the lesson opens on a first visit only, and is kept as done");
+}
+
+
+// the modes (Korbi, 23 Nov 2026: "sure try some I'll test them"): the Great mould five by five, Slag's lumps, the Commission
+{
+  const g = newGame(3, "great");
+  check(g.grid.length === 25 && valid(g) && g.grid.filter(Boolean).length === 2, "the Great mould is five by five, two bars down");
+  const r = swipe([1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left");
+  check(r.grid.slice(0, 5).join() === "2,2,0,0,0" && r.gain === 8, "on it a row of five slides and merges as a row of four does");
+  // slag: a wall the bars slide up against, never across; a merge beside it knocks it loose
+  const row = [1, 0, SLAG, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const w = swipe(row, "left");
+  check(w.grid.slice(0, 4).join() === `1,0,${SLAG},1` && !w.moved, "a lump of slag stays put and nothing slides or merges across it");
+  const m = swipe([0, SLAG, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left");
+  check(m.grid.slice(0, 4).join() === `0,${SLAG},2,0` && knocked(m.grid, m.slides).join() === "1", "two bars merged beside a lump knock it loose");
+  const st = { ...newGame(5, "slag"), grid: [0, SLAG, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  const mv = move(st, "left");
+  check(mv.loose.join() === "1" && mv.state.grid[1] !== SLAG && valid(mv.state), "in a game the lump goes, and the pocket is free");
+  let lumps = 0;
+  for (let n = 0; n < 90; n++) if (bar(new Array(16).fill(0), 9, n, "slag").e === SLAG) lumps++;
+  check(lumps === 10 && bar(new Array(16).fill(0), 9, 8, "ingot").e !== SLAG, `in Slag every ninth pour is a lump (${lumps} in 90), in the others never`);
+  // a commission: met by the search on the same pours within its swipes, and the game ends when it is met or the swipes run out
+  const c = commission(77, 8);
+  let s = newGame(c.seed, "commission", c.goal);
+  while (!s.over) { const h = hint(s.grid, 2); if (!h.dir) break; s = move(s, h.dir).state; }
+  check(c.goal.e === 8 && s.won && s.over && s.moves <= c.goal.swipes && valid(s), `a commission (cast a 256 in ${c.goal.swipes} swipes) is met by the search on its pours, in ${s.moves}, and the game ends there`);
+  let t = newGame(c.seed, "commission", { e: 11, swipes: 5 });
+  for (let k = 0; k < 5 && !t.over; k++) t = move(t, legal(t.grid)[0]).state;
+  check(t.over && !t.won, "and out of swipes, it ends unmet");
+  check(Object.keys(MODES).join() === "ingot,great,slag,commission", "four modes: Ingot, the Great mould, Slag, the Commission");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
