@@ -34,6 +34,19 @@
 .ig-slots i { margin: 14% 5% 12%; border-radius: 2px; background: linear-gradient(to bottom, #121417, #1E2226 70%, #262B30);
   box-shadow: inset 0 .9cqw 1.3cqw rgba(0, 0, 0, .75), inset 0 -.25cqw 0 rgba(255, 255, 255, .07), 0 .2cqw 0 rgba(255, 255, 255, .05); }
 
+/* the Foundry's pockets: a cold one frosted blue, its iron rimed; the hallmark struck into the iron with the bar it wants */
+.ig-slots i { position: relative; }
+.ig-slots i.cold { background: repeating-linear-gradient(135deg, rgba(200, 230, 255, .12) 0 .5cqw, transparent .5cqw 1.6cqw), linear-gradient(to bottom, #102030, #1B3550 70%, #24476A);
+  box-shadow: inset 0 .9cqw 1.3cqw rgba(0, 0, 0, .6), inset 0 0 0 .25cqw rgba(150, 205, 255, .45); }
+.ig-slots i.mark { box-shadow: inset 0 .9cqw 1.3cqw rgba(0, 0, 0, .75), inset 0 0 0 .35cqw var(--brass); }
+.ig-slots i.mark::after { content: attr(data-v); position: absolute; inset: 0; display: grid; place-items: center; color: var(--brass); opacity: .8;
+  font-weight: 800; font-size: calc(30cqw / var(--n, 4)); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+/* an anvil, part of the mould: dark worked iron, its face polished */
+.ig-tile.anvil svg { filter: drop-shadow(0 .6cqw .5cqw rgba(0, 0, 0, .7)); }
+.ig-tile .a-body { fill: #2C3136; stroke: #0E1012; stroke-width: 2; }
+.ig-tile .a-face { fill: #5C646C; }
+.ig-tile .a-hole { fill: #15181B; }
+
 /* a bar: the faces of an ingot (ingot.js draws them), a soft shadow in its pocket */
 .ig-tile { --c: 0; --r: 0; position: absolute; left: calc(var(--c) * 100% / var(--n, 4)); top: calc(var(--r) * 100% / var(--n, 4)); width: calc(100% / var(--n, 4)); height: calc(100% / var(--n, 4)); will-change: transform; }
 /* a lump of slag (the Slag mode): dark and pitted, no value; two bars merged beside it knock it loose */

@@ -16,9 +16,15 @@
 // mould, five by five, the long game; Slag, where every ninth thing poured is a lump of slag that blocks its pocket, bars sliding up
 // against it, until two bars merged beside it knock it loose; and the Commission, an order to cast one bar in so many swipes, the
 // swipes the search took to cast it on the same pours and a quarter more, so every commission is one that can be met.
+//
+// The Foundry (Korbi, 24 Nov 2026: "ingot needs twists ... make it and have me review them via playing them"): written levels
+// (ingot-levels.js), each a commission on a mould of its own, proved by the search. Its twists: anvils, part of the mould, that
+// bars slide up against and nothing ever knocks loose; a hallmark, the square the bar must be cast on; cold squares, where a bar
+// that stands on one when a swipe starts is quenched hard and cannot merge on that swipe; and slag poured at a level's own rate.
+// A level's game also carries { level, cold (squares), slag (every so many pours, 0 none) } and its goal { e, at?, swipes, par }.
 
 export const N = 4, SIZE = N * N, WIN = 11, UNDOS = 3, HINTS = 3;
-export const SLAG = -1;
+export const SLAG = -1, ANVIL = -2;
 export const DIRS = ["left", "up", "right", "down"];
 export const value = e => (e > 0 ? 2 ** e : 0);
 /** The modes: their board's side, and for Slag how often a lump is poured. */
@@ -27,6 +33,7 @@ export const MODES = {
   great: { name: "Great mould", side: 5 },
   slag: { name: "Slag", side: 4, slag: 9 },
   commission: { name: "Commission", side: 4 },
+  foundry: { name: "Foundry", side: null },
 };
 export const modeOf = s => MODES[s?.mode] || MODES.ingot;
 const sideOf = grid => Math.round(Math.sqrt(grid.length));
@@ -59,18 +66,20 @@ function linesOf(side) {
 /**
  * A swipe on a grid: { grid (the result), gain, moved, slides: [{ from, to, e (the bar that moves), into (true if it
  * merges into the bar already there) }] }. Every bar that is anywhere has a slide, even if it stays put (from === to).
- * A lump of slag stays where it is and is a wall to the bars: they slide up against it, and nothing merges across it.
+ * A lump of slag or an anvil stays where it is and is a wall to the bars: they slide up against it, and nothing merges across it.
+ * cold (a Set of squares, or null): a bar standing on one when the swipe starts slides but merges with nothing.
  */
-export function swipe(grid, dir) {
+export function swipe(grid, dir, cold = null) {
   const out = new Array(grid.length).fill(0), slides = [];
   let gain = 0, moved = false;
   for (const line of linesOf(sideOf(grid))[dir]) {
     let at = 0, last = -1;                       // where the next bar goes; the square of the last bar placed, if it can still merge
     for (let j = 0; j < line.length; j++) {
       const from = line[j], e = grid[from];
-      if (e === SLAG) { out[from] = SLAG; at = j + 1; last = -1; continue; }
+      if (e < 0) { out[from] = e; at = j + 1; last = -1; continue; }
       if (!e) continue;
-      if (last >= 0 && out[last] === e) {        // meets an equal bar that hasn't merged yet
+      const hard = !!cold && cold.has(from);
+      if (last >= 0 && !hard && out[last] === e) {        // meets an equal bar that hasn't merged yet
         out[last] = e + 1;
         gain += value(e + 1);
         slides.push({ from, to: last, e, into: true });
@@ -79,7 +88,7 @@ export function swipe(grid, dir) {
       } else {
         const to = line[at++];
         out[to] = e;
-        last = to;
+        last = hard ? -1 : to;
         slides.push({ from, to, e, into: false });
         if (to !== from) moved = true;
       }
@@ -89,15 +98,15 @@ export function swipe(grid, dir) {
 }
 const empties = grid => { const r = []; for (let i = 0; i < grid.length; i++) if (!grid[i]) r.push(i); return r; };
 /** Whether any swipe moves anything. */
-export const alive = grid => DIRS.some(d => swipe(grid, d).moved);
+export const alive = (grid, cold = null) => DIRS.some(d => swipe(grid, d, cold).moved);
 /** The swipes that move something. */
-export const legal = grid => DIRS.filter(d => swipe(grid, d).moved);
+export const legal = (grid, cold = null) => DIRS.filter(d => swipe(grid, d, cold).moved);
 
-/** The bar the draw numbered n lands: { at, e }, or null on a full board. In Slag every ninth is a lump of slag (e SLAG). */
-export function bar(grid, seed, n, mode = "ingot") {
+/** The bar the draw numbered n lands: { at, e }, or null on a full board. In Slag every ninth is a lump of slag (e SLAG); a
+ *  Foundry level says its own rate (every, 0 none). */
+export function bar(grid, seed, n, mode = "ingot", every = MODES[mode]?.slag) {
   const free = empties(grid);
   if (!free.length) return null;
-  const every = MODES[mode]?.slag;
   return { at: free[Math.floor(unit(seed, 2 * n) * free.length)], e: every && n % every === every - 1 ? SLAG : unit(seed, 2 * n + 1) < 0.9 ? 1 : 2 };
 }
 /** The lumps of slag that two bars merged beside knock loose: every lump next to a square a merge made. */
@@ -124,21 +133,34 @@ export function newGame(seed, mode = "ingot", goal = null) {
   return { v: 1, seed, mode: MODES[mode] ? mode : "ingot", n, grid, score: 0, moves: 0, undos: UNDOS, hints: HINTS, prev: null, top: top(grid), reached: false, over: false, ended: false, ...(goal ? { goal, won: false } : {}) };
 }
 
+/** A level's game from its writing (ingot-levels.js): the mould with its anvils, any bars set in it, then the first pours. */
+export function newLevel(L) {
+  let grid = new Array(L.side * L.side).fill(0), n = 0;
+  for (const i of L.anvils || []) grid[i] = ANVIL;
+  for (const [i, e] of Object.entries(L.start || {})) grid[i] = e;
+  for (let k = 0; k < (L.pours ?? 2); k++) { const b = bar(grid, L.seed, n++, "foundry", 0); grid = grid.slice(); grid[b.at] = b.e; }
+  return { v: 1, seed: L.seed, mode: "foundry", level: L.id, n, grid, score: 0, moves: 0, undos: UNDOS, hints: HINTS, prev: null, top: top(grid), reached: false,
+    over: false, ended: false, goal: { ...L.goal }, won: false, cold: [...(L.cold || [])], slag: L.slag || 0 };
+}
+const coldOf = state => (state.cold?.length ? new Set(state.cold) : null);
+/** Whether a game's goal is met on a grid: its bar cast (on the hallmark, if it has one). */
+const met = (goal, grid) => (goal.at != null ? grid[goal.at] >= goal.e : top(grid) >= goal.e);
+
 /**
  * A swipe played: { state, slides, gain, bar (the new bar: { at, e }), made (the 2048 bar made by this swipe, the first time),
  * over }, or null if it moves nothing (or the game is over). The state it leaves is a new object.
  */
 export function move(state, dir) {
   if (state.over) return null;
-  const r = swipe(state.grid, dir);
+  const cold = coldOf(state), r = swipe(state.grid, dir, cold);
   if (!r.moved) return null;
   const grid = r.grid.slice(), loose = knocked(grid, r.slides);
   for (const i of loose) grid[i] = 0;
-  const b = bar(grid, state.seed, state.n, state.mode);
+  const b = bar(grid, state.seed, state.n, state.mode, state.mode === "foundry" ? state.slag : undefined);
   grid[b.at] = b.e;
   const t = top(grid), made = !state.reached && t >= WIN, moves = state.moves + 1;
-  const won = !!state.goal && t >= state.goal.e;
-  const over = won || (state.goal && moves >= state.goal.swipes) || !alive(grid);
+  const won = !!state.goal && met(state.goal, grid);
+  const over = won || (state.goal && moves >= state.goal.swipes) || !alive(grid, cold);
   const prev = { grid: state.grid, score: state.score, n: state.n, moves: state.moves, top: state.top, reached: state.reached };
   return {
     state: { ...state, grid, n: state.n + 1, score: state.score + r.gain, moves, prev, top: t, reached: state.reached || made, over, ...(state.goal ? { won } : {}) },
@@ -154,13 +176,18 @@ export function undo(state) {
 /** The game ended by hand: what's on the board stands. */
 export const end = state => (state.over ? state : { ...state, over: true, ended: true, prev: null });
 /** A saved game fit to open. */
-export const valid = g => !!g && g.v === 1 && Array.isArray(g.grid) && g.grid.length === modeOf(g).side ** 2 && (g.mode == null || !!MODES[g.mode])
-  && g.grid.every(e => Number.isInteger(e) && e >= SLAG && e < 30) && Number.isFinite(g.score) && Number.isInteger(g.n) && Number.isInteger(g.seed)
+export const valid = g => !!g && g.v === 1 && Array.isArray(g.grid) && (modeOf(g).side ? g.grid.length === modeOf(g).side ** 2 : [16, 25].includes(g.grid.length))
+  && (g.mode == null || !!MODES[g.mode]) && (g.mode !== "foundry" || (!!g.goal && typeof g.level === "string"))
+  && g.grid.every(e => Number.isInteger(e) && e >= ANVIL && e < 30) && Number.isFinite(g.score) && Number.isInteger(g.n) && Number.isInteger(g.seed)
   && (!g.goal || (Number.isInteger(g.goal.e) && Number.isInteger(g.goal.swipes)));
 
 // ---------- the search ----------
+// What the search is playing on, set by hint() for the length of one search: the cold squares (a Set, or null) and the
+// hallmark to build the biggest bar on (a square, or null).
+let ON = { cold: null, aim: null };
 // How good a board is, for the swipe that leads to it: room to move, the big bars lined up along a wall (a row or a
-// column that only rises or only falls), neighbours close in size, equal neighbours ready to merge, the biggest in a corner.
+// column that only rises or only falls), neighbours close in size, equal neighbours ready to merge, the biggest in a corner
+// (or, with a hallmark, on it).
 function worth(grid) {
   const side = sideOf(grid), L = linesOf(side), last = side - 1;
   let free = 0, bad = 0, pairs = 0, big = 0, slag = 0;
@@ -176,6 +203,10 @@ function worth(grid) {
   };
   for (const row of L.left) line(row);
   for (const col of L.up) line(col);
+  if (ON.aim != null) {
+    const at = grid.indexOf(big), far = Math.abs((at % side) - (ON.aim % side)) + Math.abs(Math.floor(at / side) - Math.floor(ON.aim / side));
+    return free * 24 - bad + pairs * 5 + (grid[ON.aim] === big ? big * 14 : -far * big * 3) - slag * 30;
+  }
   const corner = [0, last, last * side, side * side - 1].some(i => grid[i] === big);
   return free * 24 - bad + pairs * 5 + (corner ? big * 9 : 0) - slag * 30;
 }
@@ -185,7 +216,7 @@ function best(grid, plies) {
   if (plies === 0) return worth(grid);
   let top = DEAD;
   for (const d of DIRS) {
-    const r = swipe(grid, d);
+    const r = swipe(grid, d, ON.cold);
     if (!r.moved) continue;
     const v = r.gain * 0.5 + landing(r.grid, plies - 1);
     if (v > top) top = v;
@@ -211,21 +242,27 @@ function landing(grid, plies) {
 /**
  * The search's choice on a grid: { dir, scores: { dir: worth } }, or dir null if nothing moves. `plies` is how many
  * swipes it looks ahead (3 for a hint, one more when the board is nearly full; 2 is quick enough to play a whole game).
+ * on: what a level's game plays on, { cold (squares), aim (the hallmark) }, as searchOn(state) gives it.
  */
-export function hint(grid, plies = 3) {
+export function hint(grid, plies = 3, on = null) {
   const free = empties(grid).length;
   const deep = free <= 3 ? plies + 1 : plies;
   const scores = {};
   let dir = null, top = -Infinity;
-  for (const d of DIRS) {
-    const r = swipe(grid, d);
-    if (!r.moved) continue;
-    const v = r.gain * 0.5 + landing(r.grid.slice(), deep - 1);
-    scores[d] = v;
-    if (v > top) { top = v; dir = d; }
-  }
+  ON = { cold: on?.cold?.length ? new Set(on.cold) : null, aim: on?.aim ?? null };
+  try {
+    for (const d of DIRS) {
+      const r = swipe(grid, d, ON.cold);
+      if (!r.moved) continue;
+      const v = r.gain * 0.5 + landing(r.grid.slice(), deep - 1);
+      scores[d] = v;
+      if (v > top) { top = v; dir = d; }
+    }
+  } finally { ON = { cold: null, aim: null }; }
   return { dir, scores };
 }
+/** What a game's search plays on: its cold squares and its hallmark. */
+export const searchOn = state => ({ cold: state.cold || [], aim: state.goal?.at ?? null });
 /**
  * A commission on a seed: { seed, goal: { e, swipes } }, the bar to cast and the swipes allowed, a quarter more than the search
  * took to cast it on the same pours (rounded up to five). A seed the search could not cast it on gives way to the next, so a
@@ -244,7 +281,7 @@ export function commission(seed, e) {
 export function play(state, moves = Infinity, plies = 2) {
   let s = state;
   for (let k = 0; k < moves && !s.over; k++) {
-    const h = hint(s.grid, plies);
+    const h = hint(s.grid, plies, searchOn(s));
     if (!h.dir) { s = end(s); break; }
     s = move(s, h.dir).state;
   }

@@ -3,8 +3,10 @@
 // this file draws the board, plays each swipe out (the slide, then the merges and the new bar) and keeps the game.
 // The game in play is kept (`ingot:run`) and opens again where it was; the best is `ingot:best`, the daily's results
 // `ingot:daily` by the day (counted the moment a game on the day's board ends). A first visit gets a short lesson first
-// (`ingot:taught` once it is done or skipped).
-import { SLAG, MODES, DIRS, WIN, newGame, daySeed, move, undo, end, valid, hint, play, value, commission } from "./ingot-engine.js";
+// (`ingot:taught` once it is done or skipped). The Foundry's levels are ingot-levels.js's; the stars each has earned are
+// `ingot:foundry` ({ stars: { id: 1 to 3 } }), and the level being played `ingot:level`.
+import { SLAG, ANVIL, MODES, DIRS, WIN, newGame, newLevel, daySeed, move, undo, end, valid, hint, searchOn, play, value, commission } from "./ingot-engine.js";
+import { LEVELS, CHAPTERS } from "./ingot-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, choice, onPause, isPaused, todayPart } from "./menu.js";
@@ -13,13 +15,21 @@ import { sure } from "./sure.js";
 import { today, arrivedForToday, IN_FRAME } from "./suite.js";
 
 const $ = id => document.getElementById(id);
-const DAILY = "ingot:daily", MODE = "ingot:mode", COMMISSIONS = "ingot:commission";
+const DAILY = "ingot:daily", MODE = "ingot:mode", COMMISSIONS = "ingot:commission", FOUNDRY = "ingot:foundry", LEVEL = "ingot:level";
 // a game in play and a best for each mode (the classic's keys as they always were); Today's is the classic's board
 const runKey = m => (m === "ingot" ? "ingot:run" : `ingot:run:${m}`), bestKey = m => (m === "ingot" ? "ingot:best" : `ingot:best:${m}`);
 const BEST_NOW = () => bestKey(S?.mode || "ingot");
 /** The bars a commission asks for, one after another as they are met: 128, 256, 512, 1024, then 2048 each time. */
 const LADDER = [7, 8, 9, 10, 11];
 const commissionsDone = () => read(COMMISSIONS, { done: 0 }).done || 0;
+// the Foundry: a level's stars (3 at or under the search's par, 2 within half the slack, 1 within the swipes allowed)
+const starsOf = g => (!g.won ? 0 : g.moves <= g.goal.par ? 3 : g.moves <= (g.goal.par + g.goal.swipes) / 2 ? 2 : 1);
+const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
+const earned = () => read(FOUNDRY, { stars: {} }).stars || {};
+/** The levels open: every one met, and the first not yet met. */
+const openTo = () => { const st = earned(), k = LEVELS.findIndex(L => !st[L.id]); return k < 0 ? LEVELS.length - 1 : k; };
+const levelNow = () => { const id = read(LEVEL, null), k = LEVELS.findIndex(L => L.id === id); return LEVELS[k >= 0 && k <= openTo() ? k : openTo()]; };
+const levelOf = g => LEVELS.find(L => L.id === g?.level);
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 let mode = MODES[read(MODE, "ingot")] ? read(MODE, "ingot") : "ingot";
@@ -47,7 +57,8 @@ function newRun(kind = "random") {
   const day = kind === "daily" ? today() : null;
   const seed = kind === "daily" ? daySeed(day) : Math.floor(Math.random() * 2 ** 31);
   if (kind === "daily" && mode !== "ingot") { mode = "ingot"; write(MODE, mode); }        // Today's board is the classic's
-  if (kind !== "daily" && mode === "commission") {
+  if (kind !== "daily" && mode === "foundry") S = { ...newLevel(levelNow()), kind, day: null, par: null };
+  else if (kind !== "daily" && mode === "commission") {
     const c = commission(seed, LADDER[Math.min(commissionsDone(), LADDER.length - 1)]);
     S = { ...newGame(c.seed, "commission", c.goal), kind, day, par: null };
   } else S = { ...newGame(seed, kind === "daily" ? "ingot" : mode), kind, day, par: null };
@@ -81,6 +92,11 @@ function settle() {
   if (!S.over || IN_FRAME) return;
   if (S.score > read(BEST_NOW(), 0)) write(BEST_NOW(), S.score);
   if (S.kind === "daily" && S.day && !dayDone(S.day)) write(DAILY, { ...read(DAILY, {}), [S.day]: S.score });
+  if (S.mode === "foundry") {
+    const st = earned(), n = starsOf(S);
+    if (n > (st[S.level] || 0)) write(FOUNDRY, { stars: { ...st, [S.level]: n } });
+    return;
+  }
   if (S.goal && S.won && !S.counted) { S.counted = true; write(COMMISSIONS, { done: commissionsDone() + 1 }); save(); }
 }
 function finish() {
@@ -111,6 +127,7 @@ function tileEl(e, i) {
   t.style.setProperty("--c", i % side);
   t.style.setProperty("--r", Math.floor(i / side));
   if (e === SLAG) { t.classList.add("slag"); t.innerHTML = LUMP; return t; }
+  if (e === ANVIL) { t.classList.add("anvil"); t.innerHTML = ANVIL_SVG; return t; }
   t.dataset.m = metalOf(e);
   t.dataset.s = (e - 1) % 12;
   t.dataset.d = String(value(e)).length;
@@ -121,12 +138,19 @@ function tileEl(e, i) {
   t.append(stamp);
   return t;
 }
-/** The mould's pockets, as many as the board has, and its side for the drawing. */
+/** The mould's pockets, as many as the board has, and its side for the drawing; a Foundry level's cold pockets frosted and
+ *  its hallmark struck with the bar it wants. */
 function drawSlots() {
   const side = sideNow(), slots = $("slots");
   $("board").style.setProperty("--n", side);
   $("board").dataset.side = side;
   if (slots.children.length !== side * side) slots.replaceChildren(...Array.from({ length: side * side }, () => document.createElement("i")));
+  const cold = new Set(S.cold || []), at = S.goal?.at;
+  [...slots.children].forEach((x, i) => {
+    x.classList.toggle("cold", cold.has(i));
+    x.classList.toggle("mark", i === at);
+    if (i === at) x.dataset.v = fmt(value(S.goal.e)); else delete x.dataset.v;
+  });
 }
 function drawBoard(born = -1, merged = []) {
   const box = $("tiles");
@@ -149,6 +173,11 @@ function drawBoard(born = -1, merged = []) {
   $("board").classList.toggle("over", S.over);
 }
 function drawLine() {
+  if (S.mode === "foundry") {
+    const L = levelOf(S), want = `Cast a ${fmt(value(S.goal.e))}${S.goal.at != null ? " on the hallmark" : ""}`;
+    $("line").textContent = S.moves === 0 ? `${L.n}. ${L.name}: ${L.note} ${want} in ${S.goal.swipes} swipes.` : `${L.n}. ${L.name} · ${want} · ${S.moves} of ${S.goal.swipes} swipes`;
+    return;
+  }
   if (S.goal) { $("line").textContent = `Commission: cast a ${fmt(value(S.goal.e))} in ${S.goal.swipes} swipes · ${S.moves} swiped`; return; }
   const where = S.kind === "daily" ? "Today's board" : S.mode === "ingot" ? "Random board" : MODES[S.mode].name;
   $("line").textContent = `${where} · ${S.moves} swipe${S.moves === 1 ? "" : "s"} · par ${S.par == null ? "…" : fmt(S.par)}`;
@@ -156,7 +185,9 @@ function drawLine() {
 function drawStrip() {
   $("score").textContent = fmt(S.score);
   $("topBar").textContent = fmt(value(S.top));
-  $("best").textContent = fmt(Math.max(read(BEST_NOW(), 0), S.score));
+  const foundry = S.mode === "foundry";
+  $("bestName").textContent = foundry ? "Par" : "Best";
+  $("best").textContent = foundry ? `${S.goal.par} swipes` : fmt(Math.max(read(BEST_NOW(), 0), S.score));
 }
 function drawSide() {
   $("coach").hidden = !teach;
@@ -167,7 +198,14 @@ function drawSide() {
   $("hintLeft").textContent = S.hints;
   $("undoBtn").disabled = !S.prev || S.undos <= 0 || S.over;
   $("hintBtn").disabled = S.hints <= 0 || S.over;
+  $("againBtn").textContent = S.mode === "foundry" ? (S.won && LEVELS[levelOf(S).n] ? "Next level" : "Try again") : "New game";
   if (!S.over) { drawLine(); return; }
+  if (S.mode === "foundry") {
+    const want = `${fmt(value(S.goal.e))}${S.goal.at != null ? " on the hallmark" : ""}`;
+    $("verdict").textContent = S.won ? `Cast: a ${want} in ${S.moves} swipes, par ${S.goal.par}. ${starText(starsOf(S))}${LEVELS[levelOf(S).n] ? "" : " The last level: the Foundry is done."}`
+      : S.ended ? "Level given up." : S.moves >= S.goal.swipes ? `Out of swipes: the ${want} wasn't cast.` : `No swipe left: the ${want} wasn't cast.`;
+    return;
+  }
   if (S.goal) {
     $("verdict").textContent = S.won ? `Commission met: a ${fmt(value(S.goal.e))} in ${S.moves} swipes of ${S.goal.swipes}.` : S.ended ? "Commission given up." : S.moves >= S.goal.swipes ? `Out of swipes: the ${fmt(value(S.goal.e))} wasn't cast.` : `No swipe left: the ${fmt(value(S.goal.e))} wasn't cast.`;
     return;
@@ -237,7 +275,7 @@ function takeBack() {
 }
 function showHint() {
   if (busy || IN_FRAME || S.over || S.hints <= 0) return;
-  const h = hint(S.grid, 3);
+  const h = hint(S.grid, 3, searchOn(S));
   if (!h.dir) return;
   S = { ...S, hints: S.hints - 1 };
   save();
@@ -297,7 +335,7 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
-  play.append(action(mode === "commission" ? "New commission" : "New game", () => fresh("random"), "primary"));
+  play.append(action(mode === "commission" ? "New commission" : mode === "foundry" ? "Restart this level" : "New game", () => fresh("random"), "primary"));
   if (!IN_FRAME && !teach) play.append(action("How to play", () => { $("menuDlg").close(); startLesson(); }, "link"));
   const day = read(DAILY, {})[today()];
   todayPart(body, { done: dayDone(), result: day != null ? fmt(day) : "", play: () => fresh("daily"), playing: S.kind === "daily" && S.day === today() && !S.over });   // fresh asks before it leaves a game
@@ -307,7 +345,8 @@ function openMenu() {
     finish();
   }, "link"));
   // the modes (Korbi, 23 Nov 2026: "sure try some I'll test them"): each keeps its own game in play and its own best
-  part(body, "content").append(choice("Mode", Object.entries(MODES).map(([k, m]) => [k, m.name]), mode, async v => {
+  const content = part(body, "content");
+  content.append(choice("Mode", Object.entries(MODES).map(([k, m]) => [k, m.name]), mode, async v => {
     if (teach) quitLesson();
     if (!(await leaveOk())) { openMenu(); return; }
     mode = v;
@@ -316,18 +355,38 @@ function openMenu() {
     if (valid(kept) && (kept.mode || "ingot") === v) { S = kept; render(); ensurePar(); } else newRun("random");
     openMenu();
   }), line(MODE_WORDS[mode]));
-  const best = read(BEST_NOW(), 0);
-  part(body, "about").append(line(S.goal ? `Commissions met: ${commissionsDone()}` : `This game: ${fmt(S.score)} in ${S.moves} swipe${S.moves === 1 ? "" : "s"}, the top bar ${fmt(value(S.top))}${best ? `; your best ${fmt(best)}` : ""}`),
+  if (mode === "foundry") foundryMenu(content);
+  const best = read(BEST_NOW(), 0), st = earned();
+  part(body, "about").append(line(S.mode === "foundry" ? `Foundry levels met: ${Object.keys(st).length} of ${LEVELS.length}, ${Object.values(st).reduce((a, b) => a + b, 0)} of ${3 * LEVELS.length} stars`
+    : S.goal ? `Commissions met: ${commissionsDone()}` : `This game: ${fmt(S.score)} in ${S.moves} swipe${S.moves === 1 ? "" : "s"}, the top bar ${fmt(value(S.top))}${best ? `; your best ${fmt(best)}` : ""}`),
     line("Today's board is the same for everyone, the classic four by four: the same bars land where the same swipes make room. A second go is practice."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
+/** The Foundry's chapter and level, as far as they are open: a pick starts that level. */
+function foundryMenu(box) {
+  const open = openTo(), st = earned(), L = levelOf(S) || levelNow(), chapter = CHAPTERS.find(c => c.id === L.chapter);
+  const chapters = CHAPTERS.filter(c => LEVELS.findIndex(x => x.chapter === c.id) <= open);
+  const go = async id => {
+    if (!(await leaveOk())) return;
+    write(LEVEL, id);
+    newRun("random");
+    openMenu();
+  };
+  box.append(choice("Chapter", chapters.map(c => [c.id, c.name]), chapter.id, v => go(LEVELS.find(x => x.chapter === v).id)),
+    choice("Level", LEVELS.filter((x, i) => x.chapter === chapter.id && i <= open).map(x => [x.id, `${x.n}${st[x.id] ? ` ${starText(st[x.id])}` : ""}`]), L.id, v => go(v)),
+    line(`${chapter.idea} This level, ${L.n}. ${L.name}: ${L.note}`));
+}
 const MODE_WORDS = {
   ingot: "Four by four: merge your way up to a 2048 and on, for the score.",
   great: "Five by five: the long game, the score running on and on.",
   slag: "Every ninth pour is a lump of slag that blocks its pocket; two bars merged beside it knock it loose.",
   commission: "An order to cast one bar in so many swipes: met once, the next asks for a bigger one.",
+  foundry: "Written levels, a twist to each chapter: anvils, hallmarks, slag, cold squares. Cast the bar in the swipes allowed; stars for doing it in fewer.",
 };
+// an anvil seen from above: the face, the horn tapering to one side, the heel square to the other, the hardy hole in the heel
+const ANVIL_SVG = `<svg viewBox="0 0 100 100" aria-hidden="true"><path class="a-body" d="M8 50C18 38 30 33 40 32H86V68H40C30 67 18 62 8 50Z"/>
+  <path class="a-face" d="M40 37H81V63H40C33 62 24 58 18 50C24 42 33 38 40 37Z"/><rect class="a-hole" x="70" y="45" width="7" height="7"/></svg>`;
 
 // ---------- the first game's lesson ----------
 // Korbi, 22 Nov 2026: "When user first opens up 2048 without having played the tutorial, add a quick interactive tutorial
@@ -386,7 +445,10 @@ bindSwitcher($("appsBtn"), "ingot");
 document.querySelector(".ig-mark").innerHTML = APPS.find(a => a.id === "ingot").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("againBtn").addEventListener("click", () => fresh("random"));
+$("againBtn").addEventListener("click", () => {
+  if (S.mode === "foundry" && S.won && LEVELS[levelOf(S).n]) write(LEVEL, LEVELS[levelOf(S).n].id);   // on to the next level
+  fresh("random");
+});
 $("undoBtn").addEventListener("click", takeBack);
 $("hintBtn").addEventListener("click", showHint);
 $("coachSkip").addEventListener("click", quitLesson);

@@ -3,7 +3,8 @@
 // the day's seed is one for a date, the score is the merged values, undo (a few, one swipe, the draw taken back), the end
 // when no swipe moves anything, the 2048 bar noted with play going on, a game saved and opened again, and the search
 // (a hint that takes the merge in front of it, a whole game played by it, the same twice).
-import { N, SIZE, WIN, UNDOS, HINTS, SLAG, MODES, swipe, alive, legal, bar, knocked, daySeed, newGame, move, undo, end, valid, hint, play, value, commission } from "../ingot-engine.js";
+import { N, SIZE, WIN, UNDOS, HINTS, SLAG, ANVIL, MODES, swipe, alive, legal, bar, knocked, daySeed, newGame, newLevel, searchOn, move, undo, end, valid, hint, play, value, commission } from "../ingot-engine.js";
+import { LEVELS, CHAPTERS } from "../ingot-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -154,8 +155,33 @@ const show = g => g.map(e => value(e));
   let t = newGame(c.seed, "commission", { e: 11, swipes: 5 });
   for (let k = 0; k < 5 && !t.over; k++) t = move(t, legal(t.grid)[0]).state;
   check(t.over && !t.won, "and out of swipes, it ends unmet");
-  check(Object.keys(MODES).join() === "ingot,great,slag,commission", "four modes: Ingot, the Great mould, Slag, the Commission");
+  check(Object.keys(MODES).join() === "ingot,great,slag,commission,foundry", "five modes: Ingot, the Great mould, Slag, the Commission, the Foundry");
+}
+
+// ---------- the Foundry (Korbi, 24 Nov 2026: "ingot needs twists") ----------
+{
+  const w = swipe([1, ANVIL, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left");
+  check(w.grid.slice(0, 4).join() === `1,${ANVIL},1,0` && !w.moved, "an anvil stays put, and nothing slides or merges across it");
+  const m = swipe([0, ANVIL, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left");
+  check(m.grid.slice(0, 4).join() === `0,${ANVIL},2,0` && knocked(m.grid, m.slides).length === 0, "two bars merged beside an anvil leave it where it is: only slag is knocked loose");
+  const cold = new Set([0]), c = swipe([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left", cold), c2 = swipe([0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left", cold);
+  check(c.grid.slice(0, 4).join() === "1,1,0,0" && !c.moved && c2.grid.slice(0, 4).join() === "2,0,0,0", "a bar on a cold square merges with nothing that swipe, and nothing merges into it; off the cold square, bars merge as ever");
+  const d = swipe([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], "left", new Set([5]));
+  check(d.grid.slice(4, 8).join() === "1,1,0,0" && d.moved, "a quenched bar still slides, and the bar behind it stops against it unmerged");
+  // a hallmark: the goal is met only on its square
+  const base = { ...newLevel(LEVELS[0]), goal: { e: 3, at: 0, swipes: 50, par: 10 }, grid: [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  const right = move(base, "right"), left = move(base, "left");
+  check(!right.state.won && left.state.won && left.state.over, "a bar cast off the hallmark doesn't count; on it, the level is met");
+  check(CHAPTERS.length === 6 && LEVELS.length === 24 && LEVELS.every((L, i) => L.n === i + 1 && CHAPTERS.some(c => c.id === L.chapter)), "six chapters, 24 levels in order");
+  let proved = 0, worst = null;
+  for (const L of LEVELS) {
+    let g = newLevel(L);
+    if (!valid(g) || g.grid.length !== L.side ** 2) { worst ??= `${L.id}: a bad start`; continue; }
+    while (!g.over) { const h = hint(g.grid, 2, searchOn(g)); if (!h.dir) break; g = move(g, h.dir).state; }
+    if (g.won && g.moves === L.goal.par && L.goal.swipes >= L.goal.par + 5) proved++; else worst ??= `${L.id}: ${g.won ? `met in ${g.moves}, par ${L.goal.par}` : "not met"}`;
+  }
+  check(proved === LEVELS.length, `every level is met by the search on its own pours, in its par, with room to spare (${proved} of ${LEVELS.length})${worst ? `: ${worst}` : ""}`);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("ingot: sliding, merging, the draw, a swipe, undo, the end, 2048, saving, the search, the lesson");
+else console.log("ingot: sliding, merging, the draw, a swipe, undo, the end, 2048, saving, the search, the lesson, the Foundry");
