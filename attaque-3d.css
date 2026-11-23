@@ -1,0 +1,23 @@
+/* L'Attaque's 3D view (Menu, View: 3D): the board a slab tipped away from you, its far side further and smaller, and the
+   pieces stood up on it as the wooden ones are, leaning back a little, each a few thin slabs thick: yours show you their
+   ranks, theirs their backs. Only the picture changes: the board, its taps and the pieces' sliding are the flat board's own,
+   and the compositor does the tilt (nothing is redrawn). Safari keeps a 3D scene only while every box between the tilted
+   board and the slabs says preserve-3d and none clips. */
+#app.at3 { --at-lift: -2.5%; }
+
+/* the table the board stands on: a soft pool of light from above on the page's own colour */
+.at3 .at-stage { background: radial-gradient(ellipse 62% 46% at 50% 50%, color-mix(in srgb, var(--sheet) 60%, var(--yard)), transparent 100%); margin-block: -1.6rem; }
+.at3 .at-board { transform-origin: 50% 50%; transform: perspective(calc(min(100cqw, 100cqh) * 2.7)) translateY(var(--at-lift)) rotateX(32deg) scale(.88); border-radius: .4rem;
+  box-shadow: 0 .45rem 0 -.1rem #2E1608, 0 1.6rem 1.6rem -.7rem rgba(0, 0, 0, .5); }
+.at3 :is(.at-board, .at-grid, .at-pieces, .at-pc) { transform-style: preserve-3d; -webkit-transform-style: preserve-3d; }
+/* a piece stands on its square's middle, leaning back from you; its slabs lie behind its face */
+.at3 .at-pc { width: 8%; aspect-ratio: .8; transform-origin: 50% 100%; transform: translate(-50%, -78%) rotateX(-60deg) scale(var(--s, 1)); }
+.at3 .at-slab { display: block; position: absolute; inset: 0; border-radius: 3px; box-sizing: border-box; }
+.at3 .at-pc[data-side="0"] .at-slab { background: var(--at-red-lo); }
+.at3 .at-pc[data-side="1"] .at-slab { background: var(--at-blue-lo); }
+.at3 .at-slab:nth-child(1) { transform: translateZ(-.24rem); box-shadow: 0 .3rem .5rem rgba(0, 0, 0, .45); }
+.at3 .at-slab:nth-child(2) { transform: translateZ(-.16rem); }
+.at3 .at-slab:nth-child(3) { transform: translateZ(-.08rem); }
+.at3 .at-pc::before { transform: translateZ(.05rem); }
+.at3 .at-rule { stroke-width: 1.4px; }
+@media (orientation: landscape) and (min-width: 700px) { .at3 .at-stage { margin-block: 0; } }

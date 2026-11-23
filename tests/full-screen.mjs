@@ -23,7 +23,7 @@ const TITLED = new Set(`crates punt quote census dispatch origin order crossing 
 // (tribute: Guandan became titled on 7 Nov 2026, Korbi: it should state its name and logo, which go back to the games)
 // (the card and dice games became titled on 7 Nov 2026, Korbi: "implement it across the board"; Shoe stays full)
 // FULL alone: board games, idle and ambient games, pictures (Manifest, Almanac)
-const FULL = new Set(`shoe carrack hong bones factor gambit flank morris crown go river gammon carrom
+const FULL = new Set(`shoe carrack hong bones factor gambit flank attaque crown go river gammon carrom
   columbiad drift landfall orrery settle topple ingot
   almanac manifest `.split(/\s+/).filter(Boolean).map(n => n + ".html"));
 

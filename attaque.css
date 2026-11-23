@@ -1,0 +1,154 @@
+/* L'Attaque: a campaign map for a board (parchment ruled in sepia, its two lakes in slate water) in a walnut frame, and two
+   enamelled armies, vermilion Red and cobalt Blue. A piece you may read shows its rank in cream (a numeral, or a mark for the
+   Spy, the Bomb and the Flag); a hidden one its army's back with a brass lozenge. Upright: the other side's bar, the board,
+   your bar, their army left and the buttons under it. Sideways: the board on the left, the rest beside it. */
+:root {
+  --at-in: #A33A2C;                                              /* the game's enamel: vermilion */
+  --at-red: #A33A2C; --at-red-hi: #C85A49; --at-red-lo: #6E2219;
+  --at-blue: #2D5480; --at-blue-hi: #4B76A6; --at-blue-lo: #1A3352;
+  --at-cream: #F7EDD5; --at-brass: #E2B865;
+  --at-field: #E2D3A9; --at-field-hi: #EEE2BE; --at-field-lo: #CDB98A; --at-rule: rgba(92, 64, 30, .38);
+  --at-water: #7F9FAF; --at-water-hi: #A3BFCB; --at-shore: #5C7482;
+  --at-hint: #FFD66B; --at-good: #2F7D5B; --at-bad: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --at-in: #E07D6B; --at-red: #9A3A2E; --at-red-hi: #BC5A4A; --at-blue: #2E5584; --at-blue-hi: #4C79AA;
+    --at-field: #4E4632; --at-field-hi: #5A5139; --at-field-lo: #3E3726; --at-rule: rgba(226, 184, 101, .28);
+    --at-water: #34505F; --at-water-hi: #456777; --at-shore: #22343E; --at-good: #7FC2A8; --at-bad: #E8806F; }
+}
+html[data-mode="night"] { --at-in: #E07D6B; --at-red: #9A3A2E; --at-red-hi: #BC5A4A; --at-blue: #2E5584; --at-blue-hi: #4C79AA;
+  --at-field: #4E4632; --at-field-hi: #5A5139; --at-field-lo: #3E3726; --at-rule: rgba(226, 184, 101, .28);
+  --at-water: #34505F; --at-water-hi: #456777; --at-shore: #22343E; --at-good: #7FC2A8; --at-bad: #E8806F; }
+html[data-theme="office"] { --at-field: #DCE3EA; --at-field-hi: #E8EDF2; --at-field-lo: #C6D0DA; --at-rule: rgba(31, 51, 71, .3); --at-water: #8FB2C9; --at-water-hi: #B3CCDC; --at-shore: #5D7F96; }
+html[data-theme="office"][data-mode="night"] { --at-field: #2A3644; --at-field-hi: #324152; --at-field-lo: #212B36; --at-rule: rgba(164, 184, 204, .25); --at-water: #2F4D63; --at-water-hi: #3D5F77; --at-shore: #1C3142; }
+
+.at-mark { display: inline-block; }
+.at-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the table: the other side, the board, you ---------- */
+.at-table { display: flex; flex-direction: column; justify-content: center; gap: .4rem; min-height: 0; padding-top: .5rem; }
+.at-seat { display: flex; align-items: center; gap: .5rem; padding: .3rem .6rem; border: 1.5px solid #CFA24E; border-radius: 4px; color: #F5F0E2; background: linear-gradient(180deg, #3E2616, #24140B); box-shadow: inset 0 0 0 .18rem #2E1A0E, inset 0 0 0 calc(.18rem + 1px) rgba(207, 162, 78, .5), 0 .2rem .35rem -.15rem rgba(0, 0, 0, .5); min-height: 2.3rem; box-sizing: border-box; }
+.at-seat.turn { border-color: #F2D58B; box-shadow: inset 0 0 0 .18rem #2E1A0E, inset 0 0 0 calc(.18rem + 1px) #F2D58B, 0 0 .8rem rgba(233, 196, 106, .4); }
+.at-seat.turn .at-name { color: #F2D58B; }
+.at-seat .at-name { flex: none; font-weight: 800; white-space: nowrap; }
+.at-seat small { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: rgba(245, 240, 226, .72); font-size: .78rem; white-space: nowrap; }
+.at-count { margin-left: auto; font-weight: 800; font-size: 1.1rem; font-variant-numeric: tabular-nums; min-width: 1.4rem; text-align: right; }
+.at-swatch { flex: none; width: 1.05rem; height: 1.05rem; border-radius: 3px; box-sizing: border-box; border: 1.5px solid var(--at-brass); }
+.at-swatch[data-side="0"] { background: var(--at-red); }
+.at-swatch[data-side="1"] { background: var(--at-blue); }
+
+/* the board fills the room the bars leave, never more than a square */
+.at-stage { position: relative; flex: 0 1 auto; aspect-ratio: 1; width: 100%; min-height: 0; display: grid; place-items: center; container-type: size; }
+.at-board { width: min(100cqw, 100cqh); aspect-ratio: 1; }
+.at-frame { display: grid; box-sizing: border-box; padding: .3rem; border-radius: 6px; user-select: none; -webkit-user-select: none;
+  background: repeating-linear-gradient(90deg, rgba(255, 205, 150, .07) 0 2px, rgba(0, 0, 0, .09) 2px 5px), linear-gradient(180deg, #7C4025, #5C2D19 56%, #43200F);
+  box-shadow: inset 0 0 0 1.5px #CFA24E, inset 0 0 0 .22rem #4A2412, inset 0 0 0 calc(.22rem + 1px) rgba(207, 162, 78, .6), 0 .5rem .8rem -.4rem rgba(0, 0, 0, .55); }
+.at-grid { position: relative; min-width: 0; min-height: 0; border: 1.5px solid #CFA24E; box-shadow: inset 0 .15rem .5rem rgba(0, 0, 0, .3);
+  background: radial-gradient(ellipse 70% 60% at 50% 42%, rgba(255, 255, 255, .16), transparent 75%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 58%, rgba(60, 35, 10, .22)), linear-gradient(180deg, var(--at-field-hi), var(--at-field) 50%, var(--at-field-lo)); }
+.at-field { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.at-rule { fill: none; stroke: var(--at-rule); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.at-lake { fill: var(--at-water); stroke: var(--at-shore); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+
+/* the squares: a button over each; where the piece picked up may go is ringed, the army's own rows tinted while it sets up */
+.at-sqs { position: absolute; inset: 0; }
+.at-sq { position: absolute; width: 10%; height: 10%; transform: translate(-50%, -50%); padding: 0; margin: 0; border: 0; border-radius: 2px; background: transparent; cursor: pointer; font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.at-sq.lake { cursor: default; }
+.at-grid.shut .at-sq { cursor: default; }
+.at-sq:focus-visible { outline: 2px solid var(--at-hint); outline-offset: -3px; }
+.at-sq.area { background: color-mix(in srgb, var(--at-brass) 16%, transparent); }
+.at-sq.legal::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; background: color-mix(in srgb, var(--at-good) 30%, transparent); border: 2px solid var(--at-good); }
+.at-sq.from::before { content: ""; position: absolute; inset: 18%; border: 2px dashed color-mix(in srgb, var(--at-brass) 80%, #000); border-radius: 3px; }
+.at-sq.tip::after { content: ""; position: absolute; inset: 22%; border-radius: 3px; background: var(--at-hint); border: 2px solid #6B4A2E; }
+.at-sq.clash::before { content: ""; position: absolute; inset: 4%; border: 2.5px solid var(--at-hint); border-radius: 4px; animation: at-clash 1.2s ease-out 2; }
+@keyframes at-clash { from { opacity: 1; transform: scale(.8); } to { opacity: 0; transform: scale(1.25); } }
+
+/* a piece: enamel with its rank in cream, or its army's back; it slides where it goes and shrinks when it falls */
+.at-pieces { position: absolute; inset: 0; pointer-events: none; }
+.at-pc { position: absolute; width: 8.8%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(var(--s, 1)); transition: left .28s ease, top .28s ease, transform .3s cubic-bezier(.2, .9, .3, 1.2); }
+.at-pc.still { transition: none; }
+.at-pc.off { --s: 0; }
+.at-slab { display: none; }
+.at-top { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 3px; box-sizing: border-box; color: var(--at-cream); font-style: normal; box-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+.at-pc[data-side="0"] .at-top { background: radial-gradient(circle at 32% 26%, var(--at-red-hi), var(--at-red) 64%); border: 1.5px solid var(--at-red-lo); }
+.at-pc[data-side="1"] .at-top { background: radial-gradient(circle at 32% 26%, var(--at-blue-hi), var(--at-blue) 64%); border: 1.5px solid var(--at-blue-lo); }
+.at-top b { font-size: min(.95rem, 4.2cqmin); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.at-pc[data-k="10"] .at-top b { font-size: min(.8rem, 3.6cqmin); }
+.at-top svg { width: 70%; height: 70%; fill: var(--at-cream); stroke: var(--at-cream); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.at-crest { width: 30%; height: 30%; transform: rotate(45deg); background: var(--at-brass); border: 1px solid rgba(0, 0, 0, .35); box-sizing: border-box; }
+.at-pc.shown .at-top::before { content: ""; position: absolute; inset: 2px; border: 1px dashed rgba(247, 237, 213, .75); border-radius: 2px; }
+.at-pc.moved .at-top::after { content: ""; position: absolute; left: 26%; right: 26%; bottom: 13%; height: 2px; background: var(--at-brass); }
+.at-pc.sel .at-top { box-shadow: 0 0 0 3px var(--at-hint), 0 1px 2px rgba(0, 0, 0, .45); }
+.at-pc.tipf .at-top { box-shadow: 0 0 0 3px var(--at-hint), 0 1px 2px rgba(0, 0, 0, .45); }
+.at-pc.last::before { content: ""; position: absolute; left: -10%; top: -10%; z-index: 2; border-style: solid; border-width: .42rem .42rem 0 0; border-color: var(--at-brass) transparent transparent transparent; }
+@media (prefers-reduced-motion: reduce) { .at-pc { transition: none !important; } .at-sq.clash::before { animation: none; } }
+
+/* the attack just made: the two pieces face to face for a moment, over the board's top */
+.at-clash { position: absolute; left: 50%; top: 6%; z-index: 4; display: flex; align-items: center; gap: .5rem; padding: .45rem .7rem; border-radius: 5px; background: var(--plate); color: var(--plate-ink); font-weight: 800; font-size: .85rem; white-space: nowrap;
+  box-shadow: 0 .4rem 1rem rgba(0, 0, 0, .35); opacity: 0; transform: translate(-50%, -.4rem); pointer-events: none; transition: opacity .2s, transform .2s; }
+.at-clash.on { opacity: 1; transform: translate(-50%, 0); }
+.at-clash i { font-style: normal; }
+.at-mini { display: inline-grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 3px; color: var(--at-cream); vertical-align: middle; box-sizing: border-box; }
+.at-mini[data-side="0"] { background: var(--at-red); border: 1.5px solid var(--at-red-lo); }
+.at-mini[data-side="1"] { background: var(--at-blue); border: 1.5px solid var(--at-blue-lo); }
+.at-mini b { font-size: .85rem; font-weight: 900; }
+.at-mini svg { width: 72%; height: 72%; fill: var(--at-cream); stroke: var(--at-cream); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* two on one phone: the board under a cover between turns, in the colour of the side whose turn it is */
+.at-cover { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; margin: 0; border: 2px solid var(--at-brass); border-radius: 6px; color: var(--at-cream); font: inherit; cursor: pointer; }
+.at-cover[hidden] { display: none; }
+.at-cover[data-side="0"] { background: radial-gradient(circle at 50% 40%, var(--at-red-hi), var(--at-red) 60%, var(--at-red-lo)); }
+.at-cover[data-side="1"] { background: radial-gradient(circle at 50% 40%, var(--at-blue-hi), var(--at-blue) 60%, var(--at-blue-lo)); }
+.at-cover b { font-size: 1.6rem; font-stretch: var(--wide); letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps); }
+.at-cover span { font-weight: 700; }
+.at-cover small { opacity: .8; font-size: .85rem; }
+
+/* ---------- under the board ---------- */
+.at-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .4rem; }
+.at-status { margin: 0; color: var(--ink-soft); font-size: .9rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-status.big { color: var(--ink); font-weight: 800; font-size: 1.02rem; }
+/* their army left: a chip a rank, how many are left in a tab on its corner; a rank all gone fades */
+.at-roster { display: flex; align-items: center; justify-content: space-between; gap: .2rem; min-height: 1.9rem; padding-top: .3rem; }
+.at-roster small { color: var(--ink-soft); font-size: .72rem; font-weight: 700; margin-right: .1rem; }
+.at-chip { position: relative; display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 2px; color: var(--at-cream); }
+.at-chip i { display: contents; font-style: normal; }
+.at-roster[data-side="0"] .at-chip { background: var(--at-red); }
+.at-roster[data-side="1"] .at-chip { background: var(--at-blue); }
+.at-chip b { font-size: .66rem; font-weight: 900; }
+.at-chip svg { width: 76%; height: 76%; fill: var(--at-cream); stroke: var(--at-cream); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.at-chip sub { position: absolute; right: -.3rem; top: -.38rem; min-width: .62rem; padding: 0 .1rem; box-sizing: border-box; border-radius: 2px; background: var(--ink); color: var(--sheet); font-size: .58rem; font-weight: 800; line-height: .82rem; text-align: center; font-variant-numeric: tabular-nums; }
+.at-chip.gone { opacity: .28; }
+.at-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.at-controls[data-n="2"] { grid-template-columns: 1fr 1fr; }
+.at-btn { min-height: 2.9rem; }
+
+.at-rules p { line-height: 1.45; }
+.at-rules .at-mini { width: 1.3rem; height: 1.3rem; }
+.at-rules .at-mini b { font-size: .7rem; }
+.at-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.at-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.at-end-head { margin: .2rem 0 .6rem; }
+.at-tally { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.at-tally li { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) 2.2rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.at-tally li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.at-tally li.won .nm::after { content: " \2605"; color: var(--at-in); }
+.at-tally li b { text-align: right; font-variant-numeric: tabular-nums; }
+.at-end-note { color: var(--ink-soft); font-size: .9rem; }
+.at-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.at-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.at-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+html[data-theme="office"] :is(.at-seat, .at-frame) { border-radius: 4px; }
+
+/* held sideways: the board alone on the left, as large as the height allows; the bars, their army and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.attaque { --beside: 17rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto; }
+  #app.attaque .at-status { grid-column: 1 / -1; grid-row: 2; padding: .1rem 0 .2rem; }
+  #app.attaque :is(.at-table, .at-side) { display: contents; }
+  #app.attaque .at-stage { grid-column: 1; grid-row: 3 / 8; width: auto; aspect-ratio: auto; }
+  #app.attaque .at-seat.far { grid-column: 2; grid-row: 3; }
+  #app.attaque .at-seat.near { grid-column: 2; grid-row: 4; margin-top: .4rem; }
+  #app.attaque .at-roster { grid-column: 2; grid-row: 6; margin-bottom: .4rem; flex-wrap: wrap; justify-content: flex-start; }
+  #app.attaque .at-controls { grid-column: 2; grid-row: 7; }
+}

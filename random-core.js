@@ -74,7 +74,7 @@ export const ROUNDS = {
   flank: "a game",
   carrom: "a game",
   crown: "a game",
-  morris: "a game",
+  attaque: "a game",
   go: "a game",
   tarot: "a deal",
   jass: "a hand",

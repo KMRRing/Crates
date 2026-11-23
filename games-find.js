@@ -64,7 +64,7 @@ export const AKA = {
   jass: "schieber chibre swiss cards tricks trumps weis obenabe undenufe", belote: "coinche french cards tricks trumps", schafkopf: "bavarian cards tricks sauspiel wenz solo puzzle rush", contract: "bridge contract bridge auction", quest: "hidden roles traitors company hanse vitalian",
   bones: "dominoes tiles puzzle rush", factor: "factor island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   go: "weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell",
-  flank: "reversi", morris: "nine mens morris mills merels", crown: "draughts checkers", ingot: "2048 sliding tiles",
+  flank: "reversi", attaque: "lattaque stratego attack flag bomb hidden army", crown: "draughts checkers", ingot: "2048 sliding tiles",
   lanterns: "akari light up bulbs lights lamps", asterism: "star battle two not touch stars regions", shunt: "gears hex shove jam train mesh", topple: "dominoes hex", orrery: "match three planets",
   settle: "foundry crucible metal alloy pewter brass solder", slipway: "cube cut timber block saw chisel rules 3d puzzle ship",
   landfall: "celestial navigation sextant astrolabe stars constellations night sky pole star polaris orion sirius sailing voyage latitude longitude chronometer compass noon sun notebook mercator tide",
