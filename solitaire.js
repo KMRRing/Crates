@@ -401,7 +401,7 @@ const board = createBoard($("table"), {
 // ---------- the table in 3D ----------
 // The 3D view (solitaire-3d.js, three.js) is loaded only when it is wanted; where there is no WebGL, or the GL context is lost,
 // the flat table stays or comes back. A watching frame is always flat.
-const ANGLED = 36;                   // solitaire-3d.js's ANGLED (tests/solitaire-3d.mjs checks they agree), here so the 3D code need not load to know it
+const ANGLED = 40;                   // solitaire-3d.js's ANGLED (tests/solitaire-3d.mjs checks they agree), here so the 3D code need not load to know it
 let failed3d = false, viewing = 0;
 const wants3D = () => !IN_FRAME && !failed3d && (prefs.view ? prefs.view === "3d" : defaultIs3D());
 const tiltNow = () => (typeof prefs.tilt === "number" ? prefs.tilt : ANGLED);

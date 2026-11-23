@@ -4,7 +4,7 @@
 // pick, lazy, a way back to 2D), and the sound module on a stand-in for Web Audio (silent until a gesture, silent when off,
 // the riffle a burst of many ticks).
 import fs from "node:fs";
-import { poseOf, project, groundAt, fitView, depthFor, marginsOf, FOV, TILT_MAX, YAW_MAX, ANGLED } from "../solitaire-3d.js";
+import { poseOf, project, groundAt, fitView, depthFor, marginsOf, nearShare, FOV, TILT_MAX, YAW_MAX, ANGLED } from "../solitaire-3d.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -60,6 +60,8 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 {
   const board = read("solitaire-board.js");
   check(/H = view && boxH \? view\.depth\(W, boxH\) : boxH/.test(board) && /boxW: W, boxH/.test(board) && /onReshape/.test(board), "the board lays the 3D table out as deep as the view asks, and again when the tilt changes");
+  // tilted, the cards lie at the near side, in front of you (Korbi, 23 Nov 2026: "the cards are too far away from the player")
+  check(nearShare(0) === 0 && nearShare(ANGLED) === 1 && nearShare(TILT_MAX) === 1 && /view \? view\.near\(\) : 0/.test(board), "seen from above the cards lie mid-table; tilted, at its near edge");
 }
 
 // ---------- the page ----------

@@ -85,10 +85,12 @@ export function createBoard(root, opts = {}) {
     ch = Math.round(cw * ASPECT);
     gap = Math.max(1, Math.floor((W - n * cw) / (n - 1)));
     x0 = Math.floor((W - (n * cw + (n - 1) * gap)) / 2);
-    // the cards lie in the table's middle (the top row and a deal's columns centred in the box), not along its far edge with the
-    // near half bare: on the 3D table (Korbi, 10 Nov 2026) and the flat one (22 Nov 2026); a column that grows still has the room
-    // down to the near edge, and fans in past it
-    y0 = Math.max(0, Math.floor((H - ch * (1.16 + MID_ROWS)) / 2));
+    // the flat table lays the cards in its middle (the top row and a deal's columns centred in the box), not along its far edge
+    // with the near half bare (Korbi, 10 and 22 Nov 2026); the tilted one lays them at its near side, in front of you, with the
+    // tableau's room down to the near edge and the rest of the table running away beyond the top row (23 Nov 2026: "the cards
+    // are too far away from the player and the edge of the table is too far away too"); a column that grows fans in past it
+    const middle = Math.floor((H - ch * (1.16 + MID_ROWS)) / 2), close = Math.floor(H - ch * (1.16 + TAB_REF) - ch * 0.05);
+    y0 = Math.max(0, Math.round(middle + Math.max(0, close - middle) * (view ? view.near() : 0)));
     yTab = y0 + Math.round(ch * 1.16);
     fanDown = Math.max(3, Math.round(ch * 0.13));
     fanUp = Math.round(ch * 0.3);

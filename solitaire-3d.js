@@ -16,7 +16,11 @@ import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 import { courtFile } from "./court-art.js";
 
 const DEG = Math.PI / 180;
-export const FOV = 18 * DEG, TILT_MAX = 55, YAW_MAX = 14, ANGLED = 36;   // a narrow lens: the table keeps its size when tilted, and a tall pile does not lean out of the picture
+// The lens and the tilt: 30 degrees and 40 (Korbi, 23 Nov 2026: at 18 and 36 "the cards are too far away from the player and the edge
+// of the table is too far away too"). A wider lens seen from lower down makes the near cards large and the table run away from you.
+export const FOV = 30 * DEG, TILT_MAX = 55, YAW_MAX = 14, ANGLED = 40;
+/** How far toward the near edge the cards are laid at a tilt: none seen from above (the flat table's middle), all at the angle. */
+export const nearShare = tilt => Math.min(1, Math.max(0, tilt / ANGLED));
 const ASPECT = 1.4;                                   // a card is 1 wide and 1.4 high, as the 2D card is 2.5em by 3.5em
 const FRAME_MS = 1000 / 50;
 
@@ -615,6 +619,8 @@ export function createView(host, opts = {}) {
   let reshape = null;
   /** How deep the board lays out a box `boxW` by `boxH` for the tilt the camera is at or going to (depthFor). */
   const depth = (boxW, boxH) => depthFor(boxW, boxH, tTilt);
+  /** How far toward the near edge the board lays the cards, for the tilt the camera is at or going to (nearShare). */
+  const near = () => nearShare(tTilt);
   /** Where the camera looks and how near, as the page kept it (`x`, `z` in shares of the table): applied once the table has its size. */
   let pending = null;
   function setPan(p) { pending = p || null; if (W && H) usePending(); }
@@ -822,7 +828,7 @@ export function createView(host, opts = {}) {
 
   readColours();
   return {
-    canvas, build, set, wake, pick, depth, set onReshape(fn) { reshape = fn; }, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, setPan, hold, restyle, setFourColour, resize, dispose,
+    canvas, build, set, wake, pick, depth, near, set onReshape(fn) { reshape = fn; }, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, setPan, hold, restyle, setFourColour, resize, dispose,
     camera: () => ({ tilt: tTilt, yaw: tYaw }),
     /** For tests: the camera's state, and where a card's face is on the page. */
     get state() { return { tilt, yaw, zoom, dist, W, H, cards: cards.size, moving: camBusy || !!rafId }; },
