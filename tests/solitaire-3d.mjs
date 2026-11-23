@@ -4,7 +4,7 @@
 // pick, lazy, a way back to 2D), and the sound module on a stand-in for Web Audio (silent until a gesture, silent when off,
 // the riffle a burst of many ticks).
 import fs from "node:fs";
-import { poseOf, project, groundAt, fitView, FOV, TILT_MAX, YAW_MAX, ANGLED } from "../solitaire-3d.js";
+import { poseOf, project, groundAt, fitView, depthFor, marginsOf, FOV, TILT_MAX, YAW_MAX, ANGLED } from "../solitaire-3d.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -44,6 +44,22 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
   check(grows, "tilting never makes the table larger (the camera backs off to keep its corners in)");
   check(fitView(W, H, 36, 0, aspect, 40).dist > fitView(W, H, 36, 0, aspect, 0).dist, "room for a tall pile pulls the camera back a little");
   check(ANGLED > 0 && ANGLED < TILT_MAX && TILT_MAX <= 55 && YAW_MAX <= 15, "the camera is limited: from straight above to 55 degrees, a little yaw");
+  // the tilted table fills its box from top to bottom, its sides to the box's sides (the 23 Nov 2026 audit: it stood as a plank
+  // with a band of page under it), and straight down it is about the box
+  let fills = true, deeper = true;
+  for (const [bw, bh] of [[342, 419], [342, 640], [772, 800], [900, 640], [1100, 520]]) for (const tilt of [0, 20, ANGLED, TILT_MAX]) {
+    const D = depthFor(bw, bh, tilt), m = marginsOf(bw, tilt), a = bw / bh, v = fitView(bw + 2 * m.x, D + 2 * m.z, tilt, 0, a), P = poseOf(tilt, 0, v.dist); P.lift = v.lift;
+    const nl = project(P, [-bw / 2 - m.x, 0, D / 2 + m.z], a), nr = project(P, [bw / 2 + m.x, 0, D / 2 + m.z], a), far = project(P, [0, 0, -D / 2 - m.z], a);
+    // the sides reach the box's, unless the box is too wide for that (then the layout is only as deep as the box)
+    if (!(near(nl[1], -1, 6e-3) && near(far[1], 1, 2e-3) && (near(nr[0], 1, 4e-3) || D === bh))) fills = false;      // (6e-3: a pixel or two)
+    if (D < bh || (tilt === 0 && D > bh * 1.08) || (tilt >= ANGLED && D < bh * 1.1)) deeper = false;
+  }
+  check(fills, "at every tilt the table fills its box: the far edge at the top, the near edge at the bottom");
+  check(deeper, "the tilted layout is deeper than the box, straight down about the box");
+}
+{
+  const board = read("solitaire-board.js");
+  check(/H = view && boxH \? view\.depth\(W, boxH\) : boxH/.test(board) && /boxW: W, boxH/.test(board) && /onReshape/.test(board), "the board lays the 3D table out as deep as the view asks, and again when the tilt changes");
 }
 
 // ---------- the page ----------

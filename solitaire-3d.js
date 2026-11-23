@@ -13,6 +13,7 @@
 // Throws where there is no WebGL (the page then keeps the 2D table).
 import * as THREE from "./vendor/three.js";
 import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
+import { courtFile } from "./court-art.js";
 
 const DEG = Math.PI / 180;
 export const FOV = 18 * DEG, TILT_MAX = 55, YAW_MAX = 14, ANGLED = 36;   // a narrow lens: the table keeps its size when tilted, and a tall pile does not lean out of the picture
@@ -64,6 +65,31 @@ export function fitView(W, H, tilt, yaw, aspect = W / H, up = 0) {
   if (top(lo) == null) { for (let i = 0; i < 28; i++) { const mid = (lo + hi) / 2; if (top(mid) != null) hi = mid; else lo = mid; } } else hi = lo;
   return { dist: hi, lift: 1 - top(hi) };
 }
+/**
+ * The table's margin round the layout of a board W wide, at a tilt: { x, z }, board pixels each side. Never none: seen straight
+ * down the cards stand higher than the table (a stack, a carried card), so a perspective lens magnifies them past the table's
+ * edge, and a table cut to the layout's size has them overhanging it (Korbi, 8 November 2026: "the cards get bigger in top down
+ * view ... larger than the table"). Tipped away, the far and near margins widen so a stack in a far corner (the stock on a short
+ * box) keeps clear of the edge (Korbi, 10 Nov 2026, the UI audit); the sides stay narrow, so the cards are as large as they can be.
+ */
+export const marginsOf = (W, tilt) => ({ x: W * 0.03, z: W * (0.03 + 0.045 * Math.min(1, tilt / ANGLED)) });
+/**
+ * How deep the layout of a box W by boxH is laid out on the tilted table (board pixels): deep enough that the table, seen at
+ * `tilt`, fills the box from its top to its bottom. A tilted table is foreshortened, so a table only as deep as the box filled
+ * two thirds of it and stood on the page like a plank, with a band of page under it and the cards a fifth smaller than the flat
+ * table's (the 23 Nov 2026 audit: Korbi, "solitaire's ugly 3D view"). Straight down it is the box.
+ */
+export function depthFor(W, boxH, tilt) {
+  const aspect = W / boxH, nearY = H => {
+    const m = marginsOf(W, tilt), f = fitView(W + 2 * m.x, H + 2 * m.z, tilt, 0, aspect), P = poseOf(tilt, 0, f.dist);
+    P.lift = f.lift;
+    return project(P, [0, 0, H / 2 + m.z], aspect)[1];
+  };
+  if (nearY(boxH) <= -0.999) return boxH;
+  let lo = boxH, hi = boxH * 3;
+  for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (nearY(mid) <= -0.999) hi = mid; else lo = mid; }
+  return Math.floor(hi);
+}
 /** Where the ray through a normalised screen point meets the horizontal plane `h` high: board pixels from the table's middle ({x, z}). */
 export function groundAt(P, nx, ny, aspect, h = 0) {
   const t = Math.tan(FOV / 2);
@@ -79,6 +105,21 @@ const FAMILY = () => getComputedStyle(document.body).fontFamily || "system-ui, s
 const css = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name) || "").trim() || fallback;
 const FOUR = ["#1F6DB0", "#1B7A58", null, null];       // ♦ ♣ in four-colour mode; ♥ ♠ stay red and black
 const SUITS = ["♦", "♣", "♥", "♠"];
+const BACK_ART = "./cardback.svg";
+/** The pictures of the cards, loaded once for the page (the same files the flat cards show, kept offline by the service worker). */
+const PICS = new Map(), LOADING = new Map();
+const loadPic = src => {
+  if (!LOADING.has(src)) LOADING.set(src, new Promise((ok, no) => { const img = new Image(); img.decoding = "async"; img.onload = () => { PICS.set(src, img); ok(img); }; img.onerror = no; img.src = src; }));
+  return LOADING.get(src);
+};
+/** A one-colour picture (its shape a mask) in `color`, w by h. */
+function engraved(img, w, h, color) {
+  const cv = document.createElement("canvas"); cv.width = Math.max(1, w); cv.height = Math.max(1, h);
+  const c = cv.getContext("2d");
+  c.drawImage(img, 0, 0, cv.width, cv.height);
+  c.globalCompositeOperation = "source-in"; c.fillStyle = color; c.fillRect(0, 0, cv.width, cv.height);
+  return cv;
+}
 const rrect = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
 const pow2 = n => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
 const hex = s => { const c = new THREE.Color(); try { c.set(s); } catch { c.set("#888888"); } return c; };
@@ -112,9 +153,10 @@ export function createView(host, opts = {}) {
   camera.isOrthographicCamera = false; camera.isPerspectiveCamera = true; camera.updateProjectionMatrix = () => {};
 
   // ---------- state ----------
-  let W = 0, H = 0, cw = 0, ch = 0, thick = 1, em = 16, dpr = Math.min(devicePixelRatio || 1, 2);
+  // W by H: the layout, board pixels (deeper than the box when tilted, depthFor); bw by bh: the box the canvas fills, CSS pixels
+  let W = 0, H = 0, bw = 0, bh = 0, cw = 0, ch = 0, thick = 1, em = 16, dpr = Math.min(devicePixelRatio || 1, 2);
   let frame = null, held = false, shown = true, rafId = 0, lastDraw = 0, lastNow = 0;
-  let tilt = 0, yaw = 0, tTilt = 0, tYaw = 0, dist = 600, pose = null, camBusy = false, headroom = 0;
+  let tilt = 0, yaw = 0, tTilt = 0, tYaw = 0, dist = 600, pose = null, camBusy = false, gliding = false, headroom = 0;
   let zoom = 1, panX = 0, panZ = 0;          // pinch zoom (1 = the whole table) and where the camera looks, board pixels from the middle (Korbi, 8 Nov 2026: zoom and pan with two fingers)
   let four = false, won = false, wonAt = 0;
   const cards = new Map();                 // uid → { mesh, shadow, rank, suit, tgt, cur, delay, ring }
@@ -152,6 +194,10 @@ export function createView(host, opts = {}) {
       { start: rim.start, count: rim.count, materialIndex: 2 },
     ];
     g.translate(0, 0, -0.5); g.rotateX(-Math.PI / 2);
+    // the rim shaded as the lamp over the near left lights it: the edge toward you light, the sides darker (the faces are unlit pictures)
+    const n = g.attributes.normal, shade = new Float32Array(n.count * 3);
+    for (let i = 0; i < n.count; i++) shade.fill(0.6 + 0.4 * Math.max(0, -0.35 * n.getX(i) + 0.94 * n.getZ(i)), i * 3, i * 3 + 3);
+    g.setAttribute("color", new THREE.Float32BufferAttribute(shade, 3));
     return g;
   })();
 
@@ -173,31 +219,78 @@ export function createView(host, opts = {}) {
   }
   const texW = () => Math.max(128, Math.min(256, pow2(cw * dpr * 1.25)));
   const suitColor = suit => (four && FOUR[suit]) || (suit === 0 || suit === 2 ? col.red : col.black);
-  function paintFace(rank, suit) {
+  // The faces and the back are the flat cards' (cards.css), painted: ivory with a grain, the corner index, the suit large at the foot
+  // or a court's figure (court/*.svg); the back a cream margin round a navy panel engraved in brass (cardback.svg). They stood in
+  // for them with a plain lattice and a white face, and the 3D table looked like another game's (the 23 Nov 2026 audit).
+  const wanting = new Map();               // picture → the textures to paint again when it has loaded
+  function picture(src, key) {
+    const img = PICS.get(src);
+    if (img) return img;
+    if (!wanting.has(src)) { wanting.set(src, new Set()); loadPic(src).then(() => { for (const k of wanting.get(src) || []) repaint(k); wanting.delete(src); wake(); }, () => wanting.delete(src)); }
+    wanting.get(src)?.add(key);
+    return null;
+  }
+  function repaint(key) { const t = tex.get(key); if (t) { t.paint(t.canvas.getContext("2d"), t.canvas.width, t.canvas.height); t.texture.needsUpdate = true; } }
+  /** The card's ivory: a light falling from the top left, and a fine grain (the flat card's --cd-paper, here dots from a fixed seed). */
+  function paper(c, w, h, e) {
+    const g = c.createLinearGradient(0, 0, w * 0.31, h);         // 162deg: from the top, a little from the left
+    g.addColorStop(0, "#FFFFFF"); g.addColorStop(0.34, col.face); g.addColorStop(1, mix(col.face, "#A8935F", 0.12));
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    let a = 0x2F1B, rnd = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
+    const dot = Math.max(1, e * 0.03);
+    for (let i = 0, n = Math.round((w * h) / (dot * dot * 9)); i < n; i++) {
+      c.fillStyle = `rgba(89,71,41,${(rnd() * 0.09).toFixed(3)})`;
+      c.fillRect(rnd() * w, rnd() * h, dot, dot);
+    }
+  }
+  /** The card's edge: a hairline of --cd-edge, and a white one just inside it. */
+  function rimLines(c, w, h, e, b) {
+    c.strokeStyle = "rgba(255,255,255,.55)"; c.lineWidth = 0.1 * e; rrect(c, b + 0.05 * e, b + 0.05 * e, w - 2 * b - 0.1 * e, h - 2 * b - 0.1 * e, 0.16 * e); c.stroke();
+    c.strokeStyle = col.edge; c.lineWidth = b * 2; rrect(c, 0, 0, w, h, 0.2 * e); c.stroke();
+  }
+  function paintFace(rank, suit, key) {
     return (c, w, h) => {
-      const e = w / 2.5, b = Math.max(1, w / Math.max(cw, 1));
+      const e = w / 2.5, b = Math.max(1, w / Math.max(cw, 1)), court = rank === "J" || rank === "Q" || rank === "K";
       c.clearRect(0, 0, w, h);
-      c.fillStyle = col.face; c.fillRect(0, 0, w, h);
-      c.strokeStyle = col.edge; c.lineWidth = b * 2; rrect(c, 0, 0, w, h, 0.2 * e); c.stroke();
+      paper(c, w, h, e);
+      const art = court ? picture(courtFile(rank, SUITS[suit]), key) : null;
+      if (art) {                                                    // the figure in the face's middle, clear of the corner index, as .cd-ct
+        const bx = 0.82 * e, by = 0.16 * e, bw2 = w - bx - 0.07 * e, bh2 = h - 2 * by, k = Math.min(bw2 / art.width, bh2 / art.height);
+        c.drawImage(art, bx + (bw2 - art.width * k) / 2, by + (bh2 - art.height * k) / 2, art.width * k, art.height * k);
+      }
+      rimLines(c, w, h, e, b);
       c.fillStyle = suitColor(suit); c.textBaseline = "top"; c.textAlign = "left";
       c.font = `800 ${0.95 * e}px ${fam}`;
       const x = 0.12 * e + b, y = 0.1 * e + b, rw = c.measureText(rank).width;
       c.fillText(rank, x, y);
       c.font = `800 ${0.85 * e}px ${fam}`;
       c.fillText(SUITS[suit], x + rw + 0.05 * e - (rank.length > 1 ? 0.07 * e : 0), y + 0.03 * e);
-      c.font = `800 ${1.55 * e}px ${fam}`; c.textAlign = "right"; c.textBaseline = "alphabetic";
-      c.fillText(SUITS[suit], w - 0.1 * e, h - 0.2 * e);
+      if (court) return;
+      c.globalAlpha = 0.9; c.font = `800 ${1.55 * e}px ${fam}`; c.textAlign = "right"; c.textBaseline = "alphabetic";
+      c.fillText(SUITS[suit], w - 0.1 * e, h - 0.2 * e); c.globalAlpha = 1;
     };
   }
   function paintBack(c, w, h) {
-    const e = w / 2.5;
-    c.fillStyle = col.back; c.fillRect(0, 0, w, h);
-    c.strokeStyle = col.backLine35; c.lineWidth = 0.05 * e;
-    const step = 0.27 * e;
-    c.save(); rrect(c, 0.16 * e, 0.16 * e, w - 0.32 * e, h - 0.32 * e, 0.1 * e); c.clip();
-    for (let k = -h; k < w + h; k += step) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k + h, h); c.moveTo(k, h); c.lineTo(k + h, 0); c.stroke(); }
+    const e = w / 2.5, b = Math.max(1, w / Math.max(cw, 1)), i = 0.13 * e, pw = w - 2 * i, ph = h - 2 * i;
+    c.clearRect(0, 0, w, h);
+    paper(c, w, h, e);
+    rimLines(c, w, h, e, b);
+    c.save(); rrect(c, i, i, pw, ph, 0.11 * e); c.clip();
+    // the panel: a navy lit from its top left (radial-gradient(ellipse 90% 70% at 32% 22%, ...)), shaded inside its top edge
+    c.save(); c.translate(i + pw * 0.32, i + ph * 0.22); c.scale(1, 0.7 / 0.9 * ph / pw);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, pw * 0.9);
+    g.addColorStop(0, mix(col.back, "#FFFFFF", 0.22)); g.addColorStop(0.58, col.back); g.addColorStop(1, mix(col.back, "#000000", 0.22));
+    c.fillStyle = g; c.fillRect(-w * 2, -h * 4, w * 4, h * 8); c.restore();
+    const sh = c.createLinearGradient(0, i, 0, i + 0.42 * e); sh.addColorStop(0, "rgba(0,0,0,.35)"); sh.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = sh; c.fillRect(i, i, pw, 0.42 * e);
+    // the engraving: cardback.svg in --cd-back-line, as the flat card masks it
+    const art = picture(BACK_ART, "back");
+    if (art) {
+      const t = engraved(art, Math.round(pw), Math.round(ph), col.backLine);
+      c.globalAlpha = 0.9; c.drawImage(t, i, i, pw, ph); c.globalAlpha = 1;
+    }
     c.restore();
-    c.strokeStyle = col.backLine; c.lineWidth = 0.05 * e; rrect(c, 0.14 * e, 0.14 * e, w - 0.28 * e, h - 0.28 * e, 0.1 * e); c.stroke();
+    c.strokeStyle = mix(col.back, col.backLine, 0.8); c.lineWidth = 0.06 * e; rrect(c, i, i, pw, ph, 0.11 * e); c.stroke();
   }
   function readColours() {
     fam = FAMILY();
@@ -208,7 +301,7 @@ export function createView(host, opts = {}) {
   function faceMat(rank, suit) {
     const key = `f${rank}${suit}`;
     let m = mats.get(key);
-    if (!m) { m = new THREE.MeshBasicMaterial({ toneMapped: false }); m.map = canvasTex(key, texW(), texW() * ASPECT, paintFace(rank, suit)); mats.set(key, m); }
+    if (!m) { m = new THREE.MeshBasicMaterial({ toneMapped: false }); m.map = canvasTex(key, texW(), texW() * ASPECT, paintFace(rank, suit, key)); mats.set(key, m); }
     return m;
   }
   function plainMat(key, color, extra = {}) {
@@ -323,14 +416,6 @@ export function createView(host, opts = {}) {
       c.strokeStyle = brass; c.lineWidth = m; c.strokeRect(m * 2, m * 2, w - 4 * m, h - 4 * m);
     });
   }
-  /**
-   * The table's margin round the layout, in board pixels. Never none: seen straight down the cards stand higher than the table
-   * (a stack, a carried card), so a perspective lens magnifies them past the table's edge, and a table cut to the layout's size
-   * has them overhanging it (Korbi, 8 November 2026: "the cards get bigger in top down view ... larger than the table"). A card's
-   * width tipped away, the margin widens so the far rows keep clear of the edge; the stock, a stack in the far corner, stood
-   * over it at the angle (Korbi, 10 Nov 2026, the UI audit), so it widens enough for that.
-   */
-  const margin = () => W * (0.03 + 0.045 * Math.min(1, tilt / ANGLED));
 
   // ---------- the cards ----------
   let faces = [], texSize = 0;
@@ -341,7 +426,7 @@ export function createView(host, opts = {}) {
     purge();
     texSize = texW();
     readColours();
-    const rim = plainMat("rim", col.rim), back = plainMat("back-mat", "#ffffff");
+    const rim = plainMat("rim", col.rim, { vertexColors: true }), back = plainMat("back-mat", "#ffffff");
     back.map = canvasTex("back", texSize, texSize * ASPECT, paintBack);
     for (const { uid, rank, suit } of faces) {
       const mesh = new THREE.Mesh(slab, [faceMat(rank, suit), back, rim]);
@@ -399,12 +484,12 @@ export function createView(host, opts = {}) {
     frame = f;
     const grew = made && texW() !== texSize;
     // a card has a thickness that shows at the angle, as a real one does (Korbi, 10 Nov 2026: "too flat on top of the table")
-    W = f.W; H = f.H; cw = f.cw; ch = f.ch; em = cw / 2.5; thick = Math.max(1, cw * 0.026);
+    W = f.W; H = f.H; bw = f.boxW || W; bh = f.boxH || H; cw = f.cw; ch = f.ch; em = cw / 2.5; thick = Math.max(1, cw * 0.026);
     if (!made || grew) make();
     let tall = 0;
     for (const p of f.pos.values()) if (p.h > tall) tall = p.h;
     const room = (tall + 1) * thick + ch * 0.3;                        // the tallest pile, and a card carried over it, must stay in the picture
-    if (`${W}x${H}` !== sized || Math.abs(room - headroom) > thick * 3) { headroom = room; resize(); }
+    if (`${W}x${H}:${bw}x${bh}` !== sized || Math.abs(room - headroom) > thick * 3) { headroom = room; resize(); }
     usePending();
     const now = performance.now(), snap = f.instant || reduced;
     let flying = 0;
@@ -423,6 +508,11 @@ export function createView(host, opts = {}) {
       }
       c.mesh.visible = c.shadow.visible = true;
     }
+    // a card squared on another (the stock, the waste, a foundation) casts no shadow of its own: two dozen faint ones on one spot
+    // added up to a dark blot round the stock (the 23 Nov 2026 audit); the lowest card of the pile casts the pile's
+    const lowest = new Map();
+    for (const c of cards.values()) if (c.tgt) { const k = `${c.tgt.x},${c.tgt.z}`; if (!(lowest.get(k) <= c.tgt.e)) lowest.set(k, c.tgt.e); }
+    for (const c of cards.values()) if (c.tgt) c.squared = lowest.get(`${c.tgt.x},${c.tgt.z}`) < c.tgt.e;
     if (f.won && !won) { won = true; wonAt = now; } else if (!f.won) won = false;
     for (const s of f.sparks || []) burst(s.x + cw / 2 - W / 2, s.y + ch / 2 - H / 2, elev(s.h) + thick);
     wake();
@@ -432,25 +522,26 @@ export function createView(host, opts = {}) {
   let sized = "";
   function resize() {
     if (!W || !H) return;
-    sized = `${W}x${H}`;
-    const w = Math.round(W * renderer.getPixelRatio()), cur = renderer.getSize(new THREE.Vector2());
-    if (cur.x !== W || cur.y !== H || canvas.width !== w) renderer.setSize(W, H, false);
-    camBusy = true; aim(true);
+    sized = `${W}x${H}:${bw}x${bh}`;
+    const w = Math.round(bw * renderer.getPixelRatio()), cur = renderer.getSize(new THREE.Vector2());
+    if (cur.x !== bw || cur.y !== bh || canvas.width !== w) renderer.setSize(bw, bh, false);
+    // a new size mid-glide (the table relaid for the tilt it is going to) keeps gliding; otherwise the camera is put there at once
+    camBusy = true; aim(!gliding);
   }
   function aim(snap = false) {
     const a = reduced || snap ? 1 : 0.22;
     tilt += (tTilt - tilt) * a; yaw += (tYaw - yaw) * a;
     if (Math.abs(tTilt - tilt) < 0.03) tilt = tTilt;
     if (Math.abs(tYaw - yaw) < 0.03) yaw = tYaw;
-    camBusy = tilt !== tTilt || yaw !== tYaw;
-    const aspect = W / H;
-    const fit = fitView(W + 2 * margin(), H + 2 * margin(), tilt, yaw, aspect, headroom);
+    camBusy = gliding = tilt !== tTilt || yaw !== tYaw;
+    const aspect = bw / bh, m = marginsOf(W, tilt);
+    const fit = fitView(W + 2 * m.x, H + 2 * m.z, tilt, yaw, aspect, headroom);
     dist = fit.dist / zoom;
     pose = poseOf(tilt, yaw, dist); pose.lift = fit.lift;
     // zoomed, the camera may look anywhere on the table; at the whole table it may still slide a little, most of all toward
     // the far side, so the cards come down the screen toward the hand (Korbi, 10 Nov 2026)
-    const reach = (k, free) => (k / 2 + margin()) * (1 - 1 / zoom) + k * free;
-    panX = Math.max(-reach(W, 0.12), Math.min(reach(W, 0.12), panX)); panZ = Math.max(-reach(H, 0.32), Math.min(reach(H, 0.32), panZ));
+    const reach = (k, mg, free) => (k / 2 + mg) * (1 - 1 / zoom) + k * free;
+    panX = Math.max(-reach(W, m.x, 0.12), Math.min(reach(W, m.x, 0.12), panX)); panZ = Math.max(-reach(H, m.z, 0.32), Math.min(reach(H, m.z, 0.32), panZ));
     pose.pos = [pose.pos[0] + panX, pose.pos[1], pose.pos[2] + panZ];
     const near = dist * 0.1, top = near * Math.tan(FOV / 2), right = top * aspect;
     camera.projectionMatrix.makePerspective(-right, right, top * (1 - fit.lift), -top * (1 + fit.lift), near, dist * 4);   // the window lowered: the picture raised
@@ -461,7 +552,7 @@ export function createView(host, opts = {}) {
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     if (table) {
-      const mg = margin(), tw = W + 2 * mg, th = H + 2 * mg;
+      const tw = W + 2 * m.x, th = H + 2 * m.z;
       table.position.set(0, -0.4, 0); table.scale.set(tw, 1, th);
       if (edge.length) { const [brassBand, wood] = edge; brassBand.position.set(0, -3.6, 0); brassBand.scale.set(tw, 6, th); wood.position.set(0, -15.6, 0); wood.scale.set(tw - 4, 18, th - 4); }
     }
@@ -471,7 +562,7 @@ export function createView(host, opts = {}) {
   /** Aims the camera (`soft`: it glides there). */
   function setCamera(t, y, soft = true) {
     tTilt = clampTilt(t); tYaw = clampYaw(y);
-    camBusy = true;
+    camBusy = true; gliding = soft && !reduced;
     if (W) aim(!soft || reduced);
     wake();
   }
@@ -484,7 +575,7 @@ export function createView(host, opts = {}) {
   /** The point of the table (or of a plane `h` above it) under a pointer, in board pixels. */
   function toTable(cx, cy, h = 0) {
     if (!pose) return { x: cx, y: cy };
-    const [nx, ny] = ndc(cx, cy), g = groundAt(pose, nx, ny, W / H, h);
+    const [nx, ny] = ndc(cx, cy), g = groundAt(pose, nx, ny, bw / bh, h);
     return g ? { x: g.x + W / 2, y: g.z + H / 2 } : { x: W / 2, y: 0 };
   }
   /** The card whose face is under a pointer, the highest first (a card's face is as high as its pile, so the tilted view picks the card it shows), or -1. */
@@ -494,7 +585,7 @@ export function createView(host, opts = {}) {
     let best = -1, bestH = -1;
     for (const [uid, c] of cards) {
       const t = c.tgt; if (!t) continue;
-      const g = groundAt(pose, nx, ny, W / H, (t.e + 1) * thick);
+      const g = groundAt(pose, nx, ny, bw / bh, (t.e + 1) * thick);
       if (g && Math.abs(g.x - t.x) <= cw / 2 && Math.abs(g.z - t.z) <= ch / 2 && (t.e > bestH || (t.e === bestH && uid > best))) { best = uid; bestH = t.e; }
     }
     return best;
@@ -510,17 +601,20 @@ export function createView(host, opts = {}) {
   /** Two fingers moved: the table follows them (the point under the midpoint stays under it) and `ratio` of the distance between them zooms (1 to 3.5 times). */
   function pinch(from, to, ratio) {
     if (!pose) return;
-    const [ax, ay] = ndc(from.x, from.y), a = groundAt(pose, ax, ay, W / H);
+    const [ax, ay] = ndc(from.x, from.y), a = groundAt(pose, ax, ay, bw / bh);
     zoom = Math.max(1, Math.min(3.5, zoom * ratio));
     aim(true);
-    const [bx, by] = ndc(to.x, to.y), b = a && groundAt(pose, bx, by, W / H);
+    const [bx, by] = ndc(to.x, to.y), b = a && groundAt(pose, bx, by, bw / bh);
     if (a && b) { panX += a.x - b.x; panZ += a.z - b.z; aim(true); }
     wake();
   }
   /** Back to the whole table. */
   function unzoom() { if (zoom === 1 && !panX && !panZ) return; zoom = 1; panX = panZ = 0; aim(true); wake(); }
-  /** The gesture is over: the page keeps the pick. */
-  function commit() { opts.onCamera?.(tTilt, tYaw, { x: W ? panX / W : 0, z: H ? panZ / H : 0, zoom }); }
+  /** The gesture is over: the page keeps the pick, and the board lays the table out again if the new tilt wants it deeper or shallower. */
+  function commit() { opts.onCamera?.(tTilt, tYaw, { x: W ? panX / W : 0, z: H ? panZ / H : 0, zoom }); reshape?.(); }
+  let reshape = null;
+  /** How deep the board lays out a box `boxW` by `boxH` for the tilt the camera is at or going to (depthFor). */
+  const depth = (boxW, boxH) => depthFor(boxW, boxH, tTilt);
   /** Where the camera looks and how near, as the page kept it (`x`, `z` in shares of the table): applied once the table has its size. */
   let pending = null;
   function setPan(p) { pending = p || null; if (W && H) usePending(); }
@@ -616,7 +710,7 @@ export function createView(host, opts = {}) {
       const air = rise + hop, surface = dragged ? under : 0, h = air > 1.5 || dragged ? Math.max(0, y - thick / 2 - surface) : 0, spread = cw * 0.07 + h * 0.2;
       c.shadow.position.set(cur.x + jx + cw * 0.03 + h * 0.28, surface + 0.2, cur.z + ch * 0.05 + h * 0.5);
       c.shadow.scale.set((cw + spread * 2) / ((SH_W - 2 * SH_IN) / SH_W), 1, (ch + spread * 2) / ((SH_H - 2 * SH_IN) / SH_H));
-      c.shadow.material.opacity = air > 1.5 ? (dragged ? Math.max(0.2, 0.36 - air * 0.003) : 0.13) : cur.e > 0.5 ? 0.06 : 0.42;
+      c.shadow.material.opacity = air > 1.5 ? (dragged ? Math.max(0.2, 0.36 - air * 0.003) : 0.13) : c.squared ? 0 : cur.e > 0.5 ? 0.06 : 0.42;
       c.cx = cur.x + jx; c.cy = y; c.cz = cur.z;
     }
     // slots, the stock's count, rings, the places a carried card may go
@@ -728,7 +822,7 @@ export function createView(host, opts = {}) {
 
   readColours();
   return {
-    canvas, build, set, wake, pick, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, setPan, hold, restyle, setFourColour, resize, dispose,
+    canvas, build, set, wake, pick, depth, set onReshape(fn) { reshape = fn; }, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, pinch, unzoom, commit, preset, setCamera, setPan, hold, restyle, setFourColour, resize, dispose,
     camera: () => ({ tilt: tTilt, yaw: tYaw }),
     /** For tests: the camera's state, and where a card's face is on the page. */
     get state() { return { tilt, yaw, zoom, dist, W, H, cards: cards.size, moving: camBusy || !!rafId }; },
@@ -737,7 +831,7 @@ export function createView(host, opts = {}) {
     screenOf(uid) {
       const c = cards.get(uid);
       if (!c?.tgt || !pose) return null;
-      const p = project(pose, [c.tgt.x, (c.tgt.e + 1) * thick, c.tgt.z], W / H), r = canvas.getBoundingClientRect();
+      const p = project(pose, [c.tgt.x, (c.tgt.e + 1) * thick, c.tgt.z], bw / bh), r = canvas.getBoundingClientRect();
       return { x: r.left + ((p[0] + 1) / 2) * r.width, y: r.top + ((1 - p[1]) / 2) * r.height };
     },
   };

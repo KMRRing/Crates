@@ -31,7 +31,7 @@ const AT = /translate\(([-\d.]+)px, ([-\d.]+)px\)/;
  */
 export function createBoard(root, opts = {}) {
   let variant = null, V = null, T = null, G = null, extra = {};
-  let cw = 0, ch = 0, gap = 0, x0 = 0, y0 = 0, yTab = 0, W = 0, H = 0, fanDown = 0, fanUp = 0;
+  let cw = 0, ch = 0, gap = 0, x0 = 0, y0 = 0, yTab = 0, W = 0, H = 0, boxH = 0, fanDown = 0, fanUp = 0;
   const els = new Map(), slots = [], drops = [];
   let where = new Map(), cardY = new Map(), colEnd = [];
   let pressing = null, dragging = null;
@@ -75,7 +75,8 @@ export function createBoard(root, opts = {}) {
 
   // ---------- where things go ----------
   function geometry() {
-    W = root.clientWidth; H = root.clientHeight;
+    // the 3D table lays the cards out deeper than the box, as deep as the tilted table seen in the box is (solitaire-3d.js's depthFor)
+    W = root.clientWidth; boxH = root.clientHeight; H = view && boxH ? view.depth(W, boxH) : boxH;
     if (!W || !H || !V) return false;
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, n = V.cols;
     const byWidth = (W - (n - 1) * Math.max(2, W * 0.008)) / n;
@@ -228,7 +229,7 @@ export function createBoard(root, opts = {}) {
     }
     prevDone = done;
     const from = V.game === "freecell" ? null : slotXY(place(STK));
-    frame3 = { cw, ch, W, H, pos, slots: slotInfo, hintFrom, hintTo, lit: ex.lit, bad: ex.bad, instant: !!ex.instant, deal: !!ex.deal, dealFrom: from, sparks,
+    frame3 = { cw, ch, W, H, boxW: W, boxH, pos, slots: slotInfo, hintFrom, hintTo, lit: ex.lit, bad: ex.bad, instant: !!ex.instant, deal: !!ex.deal, dealFrom: from, sparks,
       won: root.classList.contains("won"), drag: dragging?.v || null, drops: dragging?.drops || [], over: dragging ? dragging.targets.indexOf(dragging.over) : -1 };
     view.set(frame3);
   }
@@ -435,6 +436,8 @@ export function createBoard(root, opts = {}) {
       view = v || null; frame3 = null; prevDone = null;
       root.classList.toggle("is3d", !!view);
       if (view && V) { view.build(faces()); view.setFourColour(root.classList.contains("four")); }
+      // a new tilt wants the table laid out deeper or shallower: the cards glide to their new places
+      if (view) view.onReshape = () => { if (G && root.clientHeight && view.depth(root.clientWidth, root.clientHeight) !== H) render(G, { ...extra, instant: false, deal: false }); };
       if (G) { seen.clear(); render(G, { ...extra, instant: true }); }
     },
     get view() { return view; },
