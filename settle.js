@@ -52,7 +52,7 @@ function validRun(r) {
   try { if (!r?.lv?.caps || !r.state?.cups) return false; const E = playOf(r.lv); return r.state.cups.length === E.caps.length && r.state.cups.every(c => c.length === E.metals.length) && r.state.cast.length === E.moulds.length; } catch { return false; }
 }
 function begin(run, m) {
-  R = run; mode = m; L = playOf(R.lv); picked = -1; hint = null; msg = ""; anim = null;
+  R = run; mode = m; L = playOf(R.lv); picked = -1; hint = null; msg = ""; anim = null; waiting.length = 0;
   if (m !== "daily") { day = 0; write(MODE, m); }
   stuck = !R.won && !isFinite(solve(L, R.state).par);
   save();
@@ -79,7 +79,7 @@ const backToLevels = () => { const r = resumeOf("levels"); if (r) begin(r, "leve
 // ---------- the moves ----------
 /** Tip a into b: played out, then kept. */
 function tryPour(a, b) {
-  if (anim || R.won) return;
+  if (R.won || won(R.state)) return;
   const p = pourOf(L, R.state, a, b);
   if (!p) { sound.play("refuse"); shake(b); picked = -1; render(); return; }
   const r = pour(L, R.state, a, b);
@@ -137,38 +137,65 @@ function finish() {
 }
 
 // ---------- the pour, played out ----------
-const T_TILT = 300, T_SINK = 460, T_HEAT = 260, T_DRAIN = 420;      // carried over and tipped, the pour sinking, a cast's heat and its draining
-const pourTime = n => (240 + 120 * n) * pace;
+// A pour is played on the run at once and its picture waits its turn: the next can be asked for while one is still pouring, and
+// any number can wait (Korbi, 23 Nov 2026: "allow the user to queue the next pour while the current one is still going; the old
+// animation should just speed up a bit but they should then go one after the other, queue should be able to get indefinitely
+// long"). The one playing keeps its own clock, which runs faster while others wait.
+const T_TILT = 380, T_SINK = 480, T_HEAT = 280, T_DRAIN = 440;      // carried over and tipped, the pour sinking, a cast's heat and its draining
+const pourTime = n => 300 + 140 * n;
+const hurry = () => (waiting.length >= 3 ? 2.2 : waiting.length ? 1.6 : 1);
 let pace = 1;                                                        // (tests slow the pour down to look at it)
+const waiting = [];                                                  // the pours after the one playing (anim)
 function startPour(a, b, before, r) {
   const m = r.poured.metal, n = r.poured.n, bb = layersOf(before.cups[b]);
   const sinks = bb.some(x => x < m);                                 // something lighter in the way: the pour sinks through it
-  const t0 = performance.now();
-  anim = { a, b, before, after: r.state, m, n, casts: r.casts, t0, sinks, end: t0 + (T_TILT + T_SINK + (r.casts.length ? T_HEAT + T_DRAIN : 0)) * pace + pourTime(n) };
-  sound.play("pour", { weight: (METALS[L.metals[m]].dens - 7) / 4.5, n });
-  if (sinks) sound.play("settle", {}, (T_TILT + pourTime(n)) / 1000);
-  r.casts.forEach((c, k) => sound.play("cast", { k }, (T_TILT + pourTime(n) + T_SINK) / 1000 + k * 0.15));
+  const flowEnd = T_TILT + pourTime(n);
+  // its sounds, cued by its own clock: the tongs lift it, the metal runs as long as the pour (at the speed it is shown), it settles, it casts
+  const cues = [{ at: T_TILT, play: () => sound.play("pour", { weight: (METALS[L.metals[m]].dens - 7) / 4.5, n, len: pourTime(n) / 1000 / (hurry() / pace) }) }];
+  if (sinks) cues.push({ at: flowEnd, play: () => sound.play("settle") });
+  r.casts.forEach((c, k) => cues.push({ at: flowEnd + T_SINK + k * 150, play: () => sound.play("cast", { k }) }));
+  const item = { a, b, before, after: r.state, m, n, casts: r.casts, sinks, e: 0, cues, dur: flowEnd + T_SINK + (r.casts.length ? T_HEAT + T_DRAIN : 0) };
+  if (anim) waiting.push(item); else begun(item);
   wake();
 }
-function skipAnim() { if (anim) { anim = null; refreshMoulds(); if (finishSoon) finish(); } }
+/** A pour's picture begins: the tongs take the crucible, its clock from nought. */
+function begun(item) {
+  anim = item;
+  sound.play("pick");
+  refreshMoulds();
+}
+/** The clock of the pour playing moves on by dt (real ms); its cues sound as they pass; done, the next begins. */
+function advance(dt) {
+  if (!anim) return;
+  anim.e += dt * hurry() / pace;
+  for (const c of anim.cues) if (!c.done && anim.e >= c.at) { c.done = true; c.play(); }
+  if (anim.e < anim.dur) return;
+  const next = waiting.shift();
+  if (next) { begun(next); return; }
+  anim = null; refreshMoulds();
+  if (finishSoon) finish(); else render();
+}
+function skipAnim() { if (anim) { anim = null; waiting.length = 0; refreshMoulds(); if (finishSoon) finish(); } }
 /** The scene to draw now: the crucibles' bands, tilts, the stream, the hint. */
 function sceneOf(now) {
   const st = anim ? anim.before : R.state, cups = st.cups.map(c => ({ bands: layersOf(c).map((x, k) => ({ m: L.metals[x], y: k, h: 1 })), lift: 0 }));
   let stream = null;
   if (anim) {
-    const { a, b, m, n, before, casts, t0 } = anim, e = now - t0, P = pourTime(n);
-    const TT = T_TILT * pace, TS = T_SINK * pace, flow = clamp01((e - TT) / P), sink = ease(clamp01((e - TT - P) / TS));
-    cups[a].go = { to: b, k: e < TT + P ? ease(clamp01(e / TT)) : 1 - sink };
+    const { a, b, m, n, before, casts, e } = anim, P = pourTime(n);
+    const TT = T_TILT, TS = T_SINK, flow = clamp01((e - TT) / P), sink = ease(clamp01((e - TT - P) / TS));
+    cups[a].go = { to: b, k: e < TT + P ? ease(clamp01(e / TT)) : 1 - sink, flow };
     // the source drains from the top
     let drain = n * flow;
     for (let k = cups[a].bands.length - 1; k >= 0 && drain > 0; k--) { const take = Math.min(1, drain); cups[a].bands[k].h = 1 - take; drain -= take; }
     // the target fills on top, then the pour sinks to its place by weight and what is lighter rises
     const bb = layersOf(before.cups[b]), below = bb.filter(x => x <= m).length;
     cups[b].bands = bb.map((x, j) => { const to = x <= m ? j : j + n; return { m: L.metals[x], y: j + (to - j) * sink, h: 1 }; });
-    for (let k = 0; k < n; k++) cups[b].bands.push({ m: L.metals[m], y: bb.length + k + (below + k - bb.length - k) * sink, h: clamp01(n * flow - k) });
+    // what has landed: the stream's head reaches the mouth a little after the metal leaves the lip (as the stream below runs)
+    const landed = clamp01((flow - 0.375) / 0.625);
+    for (let k = 0; k < n; k++) cups[b].bands.push({ m: L.metals[m], y: bb.length + k + (below + k - bb.length - k) * sink, h: clamp01(n * landed - k) });
     if (flow > 0 && flow < 1.15) stream = { from: a, to: b, m: L.metals[m], t0: clamp01(flow * 1.6), t1: clamp01(flow * 1.6 - 0.6) };
     // a cast: white heat, then it drains into the mould
-    const ce = (e - TT - P - TS) / pace;
+    const ce = e - TT - P - TS;
     for (const c of casts) {
       if (ce < 0) continue;
       const hot = clamp01(ce / T_HEAT), gone = clamp01((ce - T_HEAT) / T_DRAIN);
@@ -176,8 +203,10 @@ function sceneOf(now) {
       if (!c.sparked && ce > T_HEAT * 0.6) { c.sparked = true; view?.burst(c.cup, now); castMould(c.mould); }
     }
   }
-  if (!anim && R && !R.won) {
-    if (picked >= 0) { cups[picked].lift = 1; cups[picked].picked = true; cups.forEach((c, i) => { if (i !== picked && pourOf(L, R.state, picked, i)) c.target = true; }); }
+  // the crucible picked, and where it may pour (the next pour can be picked while one plays: rings only then, nothing lifted)
+  if (R && !R.won && picked >= 0) {
+    cups[picked].lift = anim ? 0 : 1; cups[picked].picked = true;
+    cups.forEach((c, i) => { if (i !== picked && pourOf(L, R.state, picked, i)) c.target = true; });
   }
   return { caps: L.caps, cups, stream, hint: anim ? null : hint };
 }
@@ -200,15 +229,16 @@ async function setView(kind) {
 }
 
 // ---------- drawing: every frame while something moves, a few a second for the hearth's glow ----------
-let raf = 0, lastFrame = 0;
+let raf = 0, lastFrame = 0, lastTick = 0;
 function wake() { if (!raf) raf = requestAnimationFrame(tick); }
 function tick(now) {
   raf = 0;
-  if (document.hidden || isPaused()) return;
-  const busy = !!anim;
-  if (busy || now - lastFrame > 66) {                                   // the hearth breathes at 15 frames a second when nothing moves
+  if (document.hidden || isPaused()) { lastTick = 0; return; }
+  const dt = lastTick ? Math.min(100, now - lastTick) : 16;
+  lastTick = now;
+  advance(dt);
+  if (anim || now - lastFrame > 66) {                                   // the hearth breathes at 15 frames a second when nothing moves
     lastFrame = now;
-    if (anim && now >= anim.end) { anim = null; refreshMoulds(); if (finishSoon) finish(); else render(); }
     if (view && R) view.frame(sceneOf(now), now);
   }
   raf = requestAnimationFrame(tick);
@@ -282,14 +312,13 @@ let press = null;
 function down(e) {
   if (!R || R.won || !view) return;
   sound.unlock(); sound.hearth(true);
-  if (anim) { skipAnim(); return; }
   const c = view.cupAt(e.clientX, e.clientY);
   press = { c, x: e.clientX, y: e.clientY, id: e.pointerId, was: picked };
   if (c >= 0 && picked < 0 && topOf(R.state.cups[c]) >= 0) { picked = c; hint = null; sound.play("pick"); render(); }
 }
 function up(e) {
   const p = press; press = null;
-  if (!p || !R || R.won || anim || !view) return;
+  if (!p || !R || R.won || !view) return;
   const c = view.cupAt(e.clientX, e.clientY), moved = Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12;
   if (c < 0) { if (!moved) { picked = -1; render(); } return; }
   if (moved && p.c >= 0 && c !== p.c && picked === p.c) { tryPour(p.c, c); return; }       // a drag from one crucible to another
@@ -371,7 +400,7 @@ $("nextBtn").addEventListener("click", () => {
 new ResizeObserver(() => { view?.resize(); wake(); }).observe($("foundry"));
 
 // for tests and debugging
-window.__settle = { get run() { return R; }, get level() { return L; }, get mode() { return mode; }, get view() { return viewKind; }, get busy() { return !!anim; }, tryPour, undo, restart, showHint, openLevel: id => openLevel(levelById(id)), openRandom, playDaily, setView, set pace(v) { pace = v; } };
+window.__settle = { get run() { return R; }, get level() { return L; }, get mode() { return mode; }, get view() { return viewKind; }, get busy() { return !!anim; }, get playing() { return anim && { e: anim.e, dur: anim.dur, waiting: waiting.length }; }, tryPour, undo, restart, showHint, openLevel: id => openLevel(levelById(id)), openRandom, playDaily, setView, set pace(v) { pace = v; } };
 
 // opens on the mode last played; the tile opens today's melt while it is still to play
 setView(!IN_FRAME && wants3d() ? "3d" : "flat");

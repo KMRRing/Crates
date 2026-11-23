@@ -7,8 +7,8 @@
 // a bright stream falls; what is heavier sinks through what is lighter. A cast flares white-gold, throws sparks and drains away. The
 // same scene as the 2D view (settle-draw.js), handed over each frame by the page. Throws where there is no WebGL (the page then keeps
 // the 2D foundry).
-// Frame cost: a few dozen meshes, three lights and one shadow map, one instanced mesh for sparks and embers, pixel ratio at most 2;
-// nothing is made per frame but the fire's scroll.
+// Frame cost: a few dozen meshes, three lights and one shadow map, one instanced mesh for sparks, drops and embers, pixel ratio at most
+// 2; nothing is made per frame (the stream's rings are moved, the fire's texture scrolled).
 import * as THREE from "./vendor/three.js";
 import { CanvasTexture } from "./vendor/three-tex.js";
 import { METALS } from "./settle-alloys.js";
@@ -91,7 +91,7 @@ const signTex = m => drawn(128, 128, (c, w) => {
   c.stroke(new Path2D(METALS[m].glyph));
 });
 // how much each metal glows as it stands molten
-const HEAT = { Pb: 0.22, Cu: 0.32, Sn: 0.16 };
+const HEAT = { Pb: 0.34, Cu: 0.46, Sn: 0.28 };
 
 /**
  * A surface of revolution: `profile` [[r, y], …] turned about the upright axis from angle a0 through `span` (as three.js's cylinder:
@@ -137,7 +137,7 @@ export function createFoundry(host) {
   renderer.toneMappingExposure = 1.15;
   renderer.setClearColor(0x0a0605, 1);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = 1;                                 // PCFShadowMap (the soft kind is gone from three.js; the bundle exports neither)
   const canvas = renderer.domElement;
   canvas.className = "st-canvas";
   canvas.setAttribute("role", "img");
@@ -197,19 +197,21 @@ export function createFoundry(host) {
     coals: new THREE.MeshBasicMaterial({ map: glow, color: 0xff5a14, transparent: true, depthWrite: false, blending: ADD, opacity: 0.85 }),
     ring: new THREE.MeshBasicMaterial({ map: glow, color: 0xffd98a, transparent: true, depthWrite: false, blending: ADD, opacity: 0 }),
     spark: new THREE.MeshBasicMaterial({ map: glow, color: 0xffc070, transparent: true, depthWrite: false, blending: ADD }),
+    haze: new THREE.MeshBasicMaterial({ map: glow, color: 0xffb060, transparent: true, depthWrite: false, blending: ADD, opacity: 0.4 }),
+    streamGlow: new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, depthWrite: false, blending: ADD, opacity: 0.3, side: DOUBLE }),
   };
   const signs = Object.fromEntries(Object.keys(METALS).filter(m => METALS[m].glyph).map(m => [m, new THREE.MeshBasicMaterial({ map: signTex(m), transparent: true, depthWrite: false })]));
-  /** A layer's own materials, its side and its top (the molten surface); their opacity and heat change while it is cast. */
-  const layerMats = () => [envify(std({}), 0.5), envify(std({}), 0.55), envify(std({}), 0.5)];
+  /** A body of metal's own material (its opacity and heat change while it is cast). */
+  const layerMat = () => envify(std({}), 0.5);
   // each metal keeps its own colour (lead blue-grey, copper red, tin silver) with a little heat of its own; the surface brighter; a cast
   // runs white-gold
   const white = new THREE.Color(0xfff2c8), ember = new THREE.Color(0xff8040), gold = new THREE.Color(0xffe0a0);
   const dress = (mat, m, hot = 0, a = 1, top = false) => {
     const k = METALS[m] || METALS.X;
     mat.color.set(k.base).lerp(white, hot * 0.8);
-    mat.metalness = 0.75; mat.roughness = (top ? 0.18 : 0.34) - 0.1 * k.shine;
-    mat.emissive.set(top ? k.hi : k.base).lerp(ember, top ? 0 : 0.12).lerp(gold, hot);
-    mat.emissiveIntensity = (HEAT[m] ?? 0.18) * (top ? 1.2 : 1) + hot * 2.2;
+    mat.metalness = 0.75; mat.roughness = (top ? 0.12 : 0.26) - 0.08 * k.shine;
+    mat.emissive.set(top ? k.hi : k.base).lerp(gold, top ? 0.18 : 0).lerp(ember, top ? 0 : 0.1).lerp(gold, hot);
+    mat.emissiveIntensity = (HEAT[m] ?? 0.3) * (top ? 1.9 : 1) + hot * 2.2;
     mat.opacity = a; mat.transparent = a < 0.99; mat.depthWrite = a > 0.98;
   };
 
@@ -267,7 +269,7 @@ export function createFoundry(host) {
   }
 
   // sparks and embers: one instanced mesh of glowing quads facing the camera
-  const N_FX = 110;
+  const N_FX = 160;
   const fx = new THREE.InstancedMesh(quad, M.spark, N_FX);
   fx.frustumCulled = false;
   scene.add(fx);
@@ -275,11 +277,12 @@ export function createFoundry(host) {
   let sparks = [];
 
   let caps = [], pots = [], xs = [], tallOf = [], span = 1;
-  const slabGeo = new THREE.CylinderGeometry(R - 0.01, R - 0.01, 1, 48);
+  const slabGeo = new THREE.CylinderGeometry(R - 0.01, R - 0.01, 1, 64);
+  const domeGeo = lathe([[0, 0.04], [R * 0.45, 0.036], [R * 0.75, 0.024], [R * 0.92, 0.006], [R - 0.01, -0.02]], 0, Math.PI * 2, 1, 64);
   const signGeo = new THREE.BoxGeometry(SLAB * 0.72, SLAB * 0.72, 0.001);
   function layout(c) {
     caps = c.slice();
-    for (const p of pots) { world.remove(p.g); p.g.traverse(o => { if (o.geometry && o.geometry !== slabGeo && o.geometry !== signGeo && o.geometry !== quad) o.geometry.dispose(); }); }
+    for (const p of pots) { world.remove(p.g); p.g.traverse(o => { if (o.geometry && o.geometry !== slabGeo && o.geometry !== signGeo && o.geometry !== quad && o.geometry !== domeGeo) o.geometry.dispose(); }); }
     pots = [];
     const n = caps.length, step = 2 * (R + WALL) + GAP;
     xs = caps.map((_, i) => (i - (n - 1) / 2) * step);
@@ -297,15 +300,15 @@ export function createFoundry(host) {
       const ring = new THREE.Mesh(quad, M.ring.clone());
       ring.rotation.x = -Math.PI / 2; ring.scale.set(R * 3.6, R * 2.4, 1); ring.position.set(0, tall + 0.05, 0);
       g.add(body, inside, cut(th0), cut(th0 + thL), ring);
-      const layers = Array.from({ length: k + 2 }, () => {
-        const slab = new THREE.Mesh(slabGeo, layerMats()), sign = new THREE.Mesh(signGeo, signs.Sn);
-        slab.castShadow = true;
-        g.add(slab, sign);
-        return { slab, sign };
-      });
+      const slabs = Array.from({ length: k + 2 }, () => { const m = new THREE.Mesh(slabGeo, layerMat()); m.castShadow = true; g.add(m); return m; });
+      const marks = Array.from({ length: k + 2 }, () => { const m = new THREE.Mesh(signGeo, signs.Sn); g.add(m); return m; });
+      // the molten surface: a low dome, as metal stands in a crucible, and the glow it throws up
+      const surface = new THREE.Mesh(domeGeo, envify(std({}), 0.6)), haze = new THREE.Mesh(quad, M.haze.clone());
+      haze.rotation.x = -Math.PI / 2; haze.scale.set(R * 3.2, R * 3.2, 1);
+      g.add(surface, haze);
       g.position.x = xs[i];
       world.add(g);
-      pots.push({ g, ring, layers, tall });
+      pots.push({ g, ring, slabs, marks, surface, haze, tall });
     });
     // the hearth and the coals under the row, the furnace behind it
     hearth.scale.x = span + 2.4; hearth.position.set(0, -0.2, 0.1);
@@ -314,10 +317,49 @@ export function createFoundry(host) {
     resize();
   }
 
-  // the stream: short glowing segments along its curve
-  const N_SEG = 14, segGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 10);
-  const streamMat = envify(std({}), 0.75);
-  const segs = Array.from({ length: N_SEG }, () => { const s = new THREE.Mesh(segGeo, streamMat); s.visible = false; world.add(s); return s; });
+  // the stream: a tapered tube of molten metal, thick at the lip and thinning as it falls, in a sheath of glow; its rings are moved
+  // each frame, never made
+  const RINGS = 28, SIDES = 12;
+  function tube(mat) {
+    const g = new THREE.BufferGeometry(), idx = [];
+    for (let j = 0; j < RINGS - 1; j++) for (let k = 0; k < SIDES; k++) {
+      const a = j * SIDES + k, b = j * SIDES + (k + 1) % SIDES, c = a + SIDES, d = b + SIDES;
+      idx.push(a, c, b, b, c, d);
+    }
+    g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(RINGS * SIDES * 3), 3));
+    g.setIndex(idx);
+    const m = new THREE.Mesh(g, mat);
+    m.frustumCulled = false; m.visible = false;
+    world.add(m);
+    return m;
+  }
+  const streamMat = envify(std({}), 0.75), stream = tube(streamMat), sheath = tube(M.streamGlow);
+  const splash = new THREE.Mesh(quad, M.haze.clone());
+  splash.rotation.x = -Math.PI / 2; splash.visible = false; world.add(splash);
+  const along = new THREE.Vector3(), side1 = new THREE.Vector3(), side2 = new THREE.Vector3(), upZ = new THREE.Vector3(0, 0, 1);
+  const p = new THREE.Vector3(), q = new THREE.Vector3(), o = new THREE.Vector3();
+  const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+  /** The stream's curve from the lip A, out over C, down to B: the point at t, written into out. */
+  const curve = (t, out) => out.set((1 - t) ** 2 * A.x + 2 * (1 - t) * t * C.x + t * t * B.x, (1 - t) ** 2 * A.y + 2 * (1 - t) * t * C.y + t * t * B.y, (1 - t) ** 2 * A.z + 2 * (1 - t) * t * C.z + t * t * B.z);
+  /** Lays a tube's rings along the curve from t1 to t0, each of radius rad(t, ring). */
+  function shape(mesh, t1, t0, rad) {
+    const pos = mesh.geometry.attributes.position.array;
+    for (let j = 0; j < RINGS; j++) {
+      const t = t1 + (t0 - t1) * j / (RINGS - 1);
+      curve(t, p); curve(Math.min(1, t + 0.01), q); curve(Math.max(0, t - 0.01), o);
+      along.copy(q).sub(o).normalize();
+      side1.crossVectors(along, upZ).normalize(); side2.crossVectors(along, side1).normalize();
+      const r = rad(t, j);
+      for (let k = 0; k < SIDES; k++) {
+        const a = k / SIDES * Math.PI * 2, c = Math.cos(a) * r, s = Math.sin(a) * r, n = (j * SIDES + k) * 3;
+        pos[n] = p.x + side1.x * c + side2.x * s; pos[n + 1] = p.y + side1.y * c + side2.y * s; pos[n + 2] = p.z + side1.z * c + side2.z * s;
+      }
+    }
+    mesh.geometry.attributes.position.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+    mesh.visible = true;
+  }
+  let drops = [], lastDrop = 0;
 
   let w = 1, h = 1, look = new THREE.Vector3(), dist = 10;
   const probe = new THREE.Vector3();
@@ -333,7 +375,7 @@ export function createFoundry(host) {
     canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
     if (!caps.length) return;
     // fit the row and the room above it for a pour, looking down a little
-    const aspect = w / h, tall = Math.max(...tallOf), needW = span + 0.5, needH = tall + 1.5;
+    const aspect = w / h, tall = Math.max(...tallOf), needW = span + 0.5, needH = tall + 2.1;
     const t = Math.tan(FOV / 2), d = Math.max(needH / 2 / t, needW / 2 / (t * aspect)) + 1.2;
     dist = d;
     // the hearth's front a little above the foot of the view, whatever is left over above (a tall narrow view: the furnace and the wall)
@@ -353,13 +395,19 @@ export function createFoundry(host) {
   }
 
   /** Where crucible i stands: as the 2D view's poseOf, in the world (its foot's middle, its turn about the camera's axis). */
+  // It rises, swings across in an arc and tips as it arrives, then tips further as it empties: the last of the metal needs the
+  // steepest pour. Whatever the tilt, its lip comes to the same place, just over the other crucible's mouth.
+  const smooth = t => t * t * (3 - 2 * t), clamp = t => Math.max(0, Math.min(1, t));
+  const LIP = R + 0.17;
   function poseOf(i, cup) {
-    const rest = { x: xs[i], y: (cup.lift || 0) * 0.12, turn: 0 };
+    const rest = { x: xs[i], y: (cup.lift || 0) * 0.12, turn: 0, z: 0 };
     if (!cup.go) return rest;
-    const j = cup.go.to, dir = Math.sign(xs[j] - xs[i]) || 1, k = cup.go.k, turn = -dir * 1.05, tall = pots[i].tall;
-    const mx = xs[j] - dir * (R + 0.6), my = pots[j].tall + 0.8;
-    const fx = mx - Math.sin(-turn) * tall, fy = my - Math.cos(turn) * tall;
-    return { x: rest.x + (fx - rest.x) * k, y: rest.y + (fy - rest.y) * k, turn: turn * k };
+    const j = cup.go.to, dir = Math.sign(xs[j] - xs[i]) || 1, k = cup.go.k, ly = pots[i].tall + 0.03;
+    const tip = smooth(clamp((k - 0.4) / 0.6)), turn = -dir * tip * (0.95 + 0.55 * smooth(cup.go.flow || 0)), c = Math.cos(turn), s = Math.sin(turn);
+    const lipX = xs[j] - dir * 0.12, lipY = Math.max(...tallOf) + 1.5;       // high enough that it clears its neighbours
+    const fx = lipX - (dir * LIP * c - ly * s), fy = lipY - (dir * LIP * s + ly * c);
+    const move = smooth(clamp(k / 0.85)), arc = Math.sin(Math.PI * move) * 0.5;
+    return { x: rest.x + (fx - rest.x) * move, y: rest.y + (fy - rest.y) * move + arc, turn, z: 0.35 * move };
   }
   const v = new THREE.Vector3();
   const screen = (x, y, z = 0) => { v.set(x, y, z).project(camera); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; };
@@ -373,41 +421,69 @@ export function createFoundry(host) {
     wallGlow.material.opacity = 0.24 + 0.06 * Math.sin(now / 1700);
     back.intensity = 1.7 + 0.3 * Math.sin(now / 520) + 0.12 * Math.sin(now / 173);
     coal.intensity = 0.65 + 0.12 * Math.sin(now / 640);
+    const surfaceY = [];
     sc.cups.forEach((cup, i) => {
       const P = pots[i], pose = poseOf(i, cup);
-      P.g.position.set(pose.x, pose.y, cup.go ? 0.35 : 0);
+      P.g.position.set(pose.x, pose.y, pose.z);
       P.g.rotation.z = pose.turn;
       P.ring.material.opacity = cup.picked ? 0.75 + 0.2 * Math.sin(now / 160) : cup.target ? 0.3 : 0;
-      const topY = cup.bands.reduce((t, b) => Math.max(t, b.y + b.h), 0);
-      P.layers.forEach((L, k) => {
-        const b = cup.bands[k];
-        L.slab.visible = L.sign.visible = !!b && b.h > 0.02 && (b.a ?? 1) > 0.02;
-        if (!L.slab.visible) return;
-        const y = BASE + (b.y + b.h / 2) * SLAB, surface = b.y + b.h >= topY - 0.01, [side, top, foot] = L.slab.material;
-        L.slab.scale.set(1, Math.max(0.01, b.h * SLAB * 0.985), 1); L.slab.position.set(0, y, 0);
-        dress(side, b.m, b.hot || 0, b.a ?? 1); dress(top, b.m, b.hot || 0, b.a ?? 1, surface); dress(foot, b.m, b.hot || 0, b.a ?? 1);
-        L.sign.material = signs[b.m] || signs.X; L.sign.position.set(0, y, R + 0.005); L.sign.scale.set(1, Math.min(1, b.h * 1.2), 1);
-        L.sign.visible = L.sign.visible && b.h > 0.5 && (b.a ?? 1) > 0.5;
+      // the metal: a run of one metal lying together is one body, as molten metal is (a sign for each measure in it)
+      const shown = cup.bands.filter(b => b.h > 0.02 && (b.a ?? 1) > 0.02).sort((x, y) => x.y - y.y), bodies = [];
+      for (const b of shown) {
+        const last = bodies[bodies.length - 1], hot = b.hot || 0, a = b.a ?? 1;
+        if (last && last.m === b.m && Math.abs(last.y1 - b.y) < 0.03 && last.hot === hot && last.a === a) last.y1 = b.y + b.h;
+        else bodies.push({ m: b.m, y0: b.y, y1: b.y + b.h, hot, a });
+      }
+      P.slabs.forEach((slab, k) => {
+        const d = bodies[k];
+        slab.visible = !!d;
+        if (!d) return;
+        slab.scale.set(1, Math.max(0.01, (d.y1 - d.y0) * SLAB), 1); slab.position.set(0, BASE + (d.y0 + d.y1) / 2 * SLAB, 0);
+        dress(slab.material, d.m, d.hot, d.a);
       });
+      P.marks.forEach((mk, k) => {
+        const b = shown[k];
+        mk.visible = !!b && b.h > 0.5 && (b.a ?? 1) > 0.5;
+        if (!mk.visible) return;
+        mk.material = signs[b.m] || signs.X;
+        mk.position.set(0, BASE + (b.y + b.h / 2) * SLAB, R + 0.005); mk.scale.set(1, Math.min(1, b.h * 1.2), 1);
+      });
+      // the molten surface on the topmost body, breathing a little, and its glow
+      const top = bodies[bodies.length - 1];
+      P.surface.visible = P.haze.visible = !!top;
+      if (!top) { surfaceY[i] = BASE; return; }
+      const y = BASE + top.y1 * SLAB, breathe = 1 + 0.12 * Math.sin(now / 700 + i * 1.7);
+      surfaceY[i] = y;
+      P.surface.position.set(0, y, 0); P.surface.scale.set(1, breathe, 1);
+      dress(P.surface.material, top.m, top.hot, top.a, true);
+      P.haze.position.set(0, y + 0.05, 0);
+      P.haze.material.color.set(METALS[top.m]?.hi || "#ffb060").lerp(ember, 0.45).lerp(gold, top.hot);
+      P.haze.material.opacity = (0.32 + 0.06 * Math.sin(now / 430 + i) + top.hot * 0.6) * top.a;
     });
-    // the stream: from the tipped crucible's lip down into the other's mouth
+    // the stream: from the tipped crucible's lip, out and down into the other's metal, thinning as it falls; a splash where it lands
     const st = sc.stream;
-    if (st) {
+    if (st && st.t0 > st.t1 + 0.001) {
       const i = st.from, pose = poseOf(i, sc.cups[i]), dir = Math.sign(xs[st.to] - xs[i]) || 1, tall = pots[i].tall;
-      const lx = dir * (R + 0.17), ly = tall + 0.02, c = Math.cos(pose.turn), s = Math.sin(pose.turn);
-      const a = new THREE.Vector3(pose.x + lx * c - ly * s, pose.y + lx * s + ly * c, 0.35), b = new THREE.Vector3(xs[st.to], pots[st.to].tall - 0.05, 0);
-      const ctl = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 0.25, 0.2);
-      const at = t => new THREE.Vector3((1 - t) ** 2 * a.x + 2 * (1 - t) * t * ctl.x + t * t * b.x, (1 - t) ** 2 * a.y + 2 * (1 - t) * t * ctl.y + t * t * b.y, (1 - t) ** 2 * a.z + 2 * (1 - t) * t * ctl.z + t * t * b.z);
-      dress(streamMat, st.m, 0.35, 1, true);
-      segs.forEach((sg, k) => {
-        const t0 = st.t1 + (st.t0 - st.t1) * k / N_SEG, t1 = st.t1 + (st.t0 - st.t1) * (k + 1) / N_SEG, p = at(t0), q = at(t1), d = q.clone().sub(p), len = d.length();
-        sg.visible = len > 0.001;
-        if (!sg.visible) return;
-        sg.position.copy(p).add(q).multiplyScalar(0.5);
-        sg.scale.set(1, len * 1.15, 1);
-        sg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
-      });
-    } else segs.forEach(sg => { sg.visible = false; });
+      const lx = dir * LIP, ly = tall + 0.03, c = Math.cos(pose.turn), sn = Math.sin(pose.turn);
+      const tx = pots[st.to].g.position.x, land = surfaceY[st.to] ?? BASE;
+      A.set(pose.x + lx * c - ly * sn, pose.y + lx * sn + ly * c, pose.z); B.set(tx + dir * 0.06, land, 0); C.set(A.x + dir * 0.28, A.y + 0.04, (A.z + B.z) / 2);
+      // thick at the lip, thinner as it falls; round at a free end; a ripple runs down it
+      const ends = (t, j) => { const u = j / (RINGS - 1), head = st.t0 < 1 ? Math.min(1, (1 - u) * 6) : 1, tail = st.t1 > 0 ? Math.min(1, u * 6) : 1; return Math.sqrt(Math.max(0, Math.min(head, tail))); };
+      const rad = k => (t, j) => k * (0.1 - 0.05 * t) * (1 + 0.1 * Math.sin(now / 45 - t * 26)) * ends(t, j);
+      dress(streamMat, st.m, 0.3, 1, true);
+      M.streamGlow.color.set(METALS[st.m]?.hi || "#ffa040").lerp(ember, 0.72);
+      M.streamGlow.opacity = 0.28 + 0.06 * Math.sin(now / 90);
+      shape(stream, st.t1, st.t0, rad(1));
+      shape(sheath, st.t1, st.t0, rad(2.4));
+      // where it lands: a bright splash on the surface, and drops thrown up
+      const landing = st.t0 >= 0.999 && st.t1 < 0.95;
+      splash.visible = landing;
+      if (landing) {
+        splash.position.set(B.x, land + 0.04, 0.02); const sz = 0.7 + 0.15 * Math.sin(now / 70);
+        splash.scale.set(sz, sz, 1); splash.material.color.copy(M.streamGlow.color); splash.material.opacity = 0.75;
+        if (now - lastDrop > 45) { lastDrop = now; for (let q = 0; q < 2; q++) { const ang = Math.random() * Math.PI * 2, v = 0.5 + Math.random() * 0.7; drops.push({ t0: now, x: B.x, y: land + 0.03, z: 0.05, vx: Math.cos(ang) * v * 0.35, vy: 0.9 + Math.random() * 0.8, vz: Math.sin(ang) * v * 0.25 }); } }
+      }
+    } else { stream.visible = sheath.visible = splash.visible = false; }
     // sparks and embers, each a glowing quad turned to the camera
     const m4 = new THREE.Matrix4(), qCam = camera.quaternion;
     let n = 0;
@@ -416,6 +492,13 @@ export function createFoundry(host) {
       if (n >= N_FX) break;
       const t = (now - sp.t0) / 1000, size = 0.07 * (1 - t);
       m4.compose(new THREE.Vector3(sp.x + p.vx * t, sp.y + p.vy * t - 1.6 * t * t, 0.5 + p.vz * t), qCam, new THREE.Vector3(size, size, size));
+      fx.setMatrixAt(n++, m4);
+    }
+    drops = drops.filter(d => now - d.t0 < 520);
+    for (const d of drops) {
+      if (n >= N_FX) break;
+      const t = (now - d.t0) / 1000, size = 0.05 * (1 - t / 0.52);
+      m4.compose(new THREE.Vector3(d.x + d.vx * t, d.y + d.vy * t - 4.2 * t * t, d.z + d.vz * t), qCam, new THREE.Vector3(size, size, size));
       fx.setMatrixAt(n++, m4);
     }
     for (const e of embers) {
