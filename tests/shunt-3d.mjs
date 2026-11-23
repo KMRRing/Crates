@@ -258,7 +258,7 @@ check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 
   check(/import\("\.\/shunt-view-3d\.js"\)/.test(js) && !/^import .*shunt-view-3d/m.test(js), "three.js loads only when the watch is wanted (a dynamic import)");
   check(/mode3d\.js/.test(js) && /defaultIs3D\(\)/.test(js), "the default view is the suite's setting (mode3d.js)");
   check(/if \(remember\) write\(VIEW/.test(js) && !/write\(VIEW, defaultIs3D/.test(js), "the view is written down only when the player picks it, never the default");
-  check(/Play in 3D/.test(js) && /Play in 2D/.test(js), "the menu offers Play in 3D / Play in 2D");
+  check(/choice\("View", \[\["3d", "3D"\], \["flat", "Flat"\]\]/.test(js) && !/Play in 2D/.test(js), "the menu's Settings has the View row, 3D or Flat, as every game with a 3D view (23 Nov 2026)");
   check(/IN_FRAME \? false/.test(js), "a watching frame keeps the flat plate");
   const v3 = fs.readFileSync(root + "shunt-view-3d.js", "utf8");
   check(/webglcontextlost/.test(v3) && /onLost/.test(v3) && /prefers-reduced-motion/.test(v3) && /Math\.min\(devicePixelRatio \|\| 1, 2\)/.test(v3), "it falls back when the context is lost, respects reduced motion and caps the pixel ratio at 2");
