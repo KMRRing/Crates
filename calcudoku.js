@@ -780,7 +780,7 @@ async function fillNotes() {
   const st = stateOf(FULL, S.entries.v), notes = {};
   // each cell's candidates as its row, its column and its cage (read on its own) allow them; a cage the digits in it
   // already break (a wrong one) narrows nothing
-  for (const cage of view.cages) {
+  for (const cage of FULL.cages) {   // (it read view, which the 7 Nov change that took the partner out no longer made: the button threw)
     if (!cage.ways) continue;
     const { alive, can } = readCage(cage, st.cand);
     if (alive) cage.cells.forEach((c, j) => { st.cand[c] &= can[j]; });
