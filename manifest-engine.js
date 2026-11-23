@@ -67,10 +67,10 @@ const unkey = k => k.split(",").map(Number);
  */
 export function levelOf(r) {
   const kinds = ["count", "total", "tier", "spot", "top", "most"];
-  if (r >= 3) kinds.push("turned");
-  if (r >= 5) kinds.push("which", "weight");
-  if (r >= 7) kinds.push("load", "fits");
-  if (r >= 9) kinds.push("worth", "column");
+  if (r >= 4) kinds.push("turned");
+  if (r >= 6) kinds.push("which", "weight");
+  if (r >= 8) kinds.push("load", "fits");
+  if (r >= 10) kinds.push("worth", "column");
   const [x, y, z, types, orders, exposure] = RAMP[Math.min(r, RAMP.length) - 1];
   return {
     x, y, z, types: LADDER.filter(t => !isTimber(t) || holdsLog(x, y)).slice(0, types), kinds, want: [], views: null, exposure, orders,
@@ -96,9 +96,9 @@ export const LADDER = [1, 2, 3, 4, 5, 6, 8, 7];
  * measures it; the round after is never more than STEP harder, and round 10 is about the old round 8.
  */
 const RAMP = [
-  [3, 2, 2, 3, 3, 9000], [4, 2, 2, 3, 3, 8800], [4, 2, 2, 3, 3, 8600], [3, 3, 2, 3, 3, 8400], [3, 3, 2, 4, 3, 8200], [4, 3, 2, 4, 3, 8000],
-  [4, 3, 2, 5, 3, 7800], [3, 3, 3, 5, 3, 7600], [3, 3, 3, 6, 3, 7400], [4, 4, 2, 6, 3, 7200], [4, 3, 3, 7, 3, 7200], [4, 3, 3, 8, 3, 7000],
-  [4, 3, 3, 8, 4, 6800], [4, 4, 3, 8, 4, 6500], [4, 4, 3, 8, 4, 6300], [4, 4, 3, 8, 4, 6100],
+  [3, 2, 2, 3, 3, 10000], [4, 2, 2, 3, 3, 10000], [4, 2, 2, 3, 3, 9800], [3, 3, 2, 3, 3, 9600], [3, 3, 2, 4, 3, 9500], [3, 3, 2, 5, 3, 9400],
+  [4, 3, 2, 5, 3, 9200], [4, 3, 2, 5, 3, 9000], [3, 3, 3, 6, 3, 8800], [3, 3, 3, 6, 3, 8600], [4, 4, 2, 7, 3, 8400], [4, 3, 3, 8, 3, 8200],
+  [4, 3, 3, 8, 4, 7800], [4, 4, 3, 8, 4, 7600], [4, 4, 3, 8, 4, 7300], [4, 4, 3, 8, 4, 7000],
 ];
 export const STEP = 1.2;
 /** How hard a recipe is, 1 for the first round's: the stack's size, the cargo in play, the kinds of question, how many are

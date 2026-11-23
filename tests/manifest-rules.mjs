@@ -99,7 +99,7 @@ const stack = (...ts) => [...ts.map(t => R.codeOf(R.CARGO.findIndex(c => c.key =
   }
   if (problemsFound.length) console.log("  ", problemsFound.slice(0, 6).join("\n   "));
   check(!problemsFound.length, `${stacks} Random rounds: every stack obeys the rules, repeats from its seed, and every question is answerable by an observer shown only what the view showed`);
-  check(types.size === R.TYPES && tall > stacks / 4, `every cargo type turns up, and ${tall} stacks have a column three high`);
+  check(types.size === R.TYPES && tall >= stacks / 5, `every cargo type turns up, and ${tall} stacks have a column three high`);
   const asked = Object.keys(kinds);
   check(["weight", "worth", "load", "fits"].every(k => kinds[k] > 5), `the new questions are asked (${asked.map(k => `${k} ${kinds[k]}`).join(", ")})`);
 }
