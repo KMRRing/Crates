@@ -271,5 +271,5 @@ export const unseen = (ids, seen) => ids.filter(id => !seen.includes(id));
  */
 export const RULE_KEYS = {
   read: ["terrain", "height", "gilded", "spring", "marsh", "hedged", "hedge", "links", "nb", "layers", "colours", "wild", "bridges", "twins", "heavy", "gate", "start", "balls"],
-  passed: ["id", "name", "about", "goal", "stars", "n", "tall", "mods", "palette", "scene", "rise", "bell", "pace", "maxSize", "layerGap", "plain"],
+  passed: ["id", "name", "about", "goal", "deal", "stars", "n", "tall", "mods", "palette", "scene", "rise", "bell", "pace", "maxSize", "layerGap", "plain"],
 };
