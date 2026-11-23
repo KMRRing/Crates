@@ -53,7 +53,7 @@ export const CHAPTERS = [
   // pipes-gear-forge.js from the design log's rows (pipes-gear-forged.mjs), each bringing a new kind of piece or train
   { key: "nj", book: "C", name: "Layers and ratios", from: 52, rule: "A stack is a wheel and a pinion on one arbor: entered at its wheel it slows the train, at its pinion it speeds it up. Wheels on two layers pass over each other." },
   { key: "nk", book: "C", name: "Complications", from: 61, rule: "One train can drive more than one dial: from a branch, every dial must turn its own way." },
-  { key: "nl", book: "C", name: "Several trains", from: 70, rule: "Each colour is its own train: two trains of one tooth size must never mesh; a finer and a coarser one may touch." },
+  { key: "nl", book: "C", name: "Several trains", from: 70, rule: "Each colour is its own train: two trains of one tooth size must never mesh; a finer and a coarser one may touch. At a crossing one train runs over another, each on its own layer, and above it may pass beside the other." },
   { key: "nm", book: "C", name: "The crown", from: 80, rule: "Pull the crown and the train runs another way: the movement must run in both positions." },
   { key: "nn", book: "C", name: "Full plate", from: 90, rule: "No square is left empty: duos and trios are how a train keeps its count and passes beside itself." },
 ];

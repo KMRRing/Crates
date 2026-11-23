@@ -179,15 +179,17 @@ export function forgeLevel(seed, o) {
   // ---- routes: each train's main line, then what its themes add
   for (let ti = 0; ti < o.trains.length; ti++) {
     const t = o.trains[ti];
-    const crossWith = (o.cross || []).find(([, b]) => b === ti);
+    const crossWith = (o.cross || []).filter(([, b]) => b === ti);        // the trains this one crosses (each once, over it)
     let R = null;
     for (let k = 0; k < (t.pieces > 14 ? 200 : 80) && !R; k++) {
       const s = o.at !== undefined ? o.at : Math.floor(r() * L0.size), d0 = Math.floor(r() * 4), first = beyond(L0, s, d0);
       if (blocked.has(s) || keep.has(s) || first < 0) continue;
       const cross = new Map();
-      if (crossWith) for (const p of routes[crossWith[0]].main.passes) if (!p.cross && p.b === back(p.a)) cross.set(p.c, p.b % 2 ? "h" : "v");
+      for (const [a] of crossWith) for (const p of routes[a].main.passes) if (!p.cross && p.b === back(p.a)) cross.set(p.c, p.b % 2 ? "h" : "v");
       const w = walkRoute(L0, r, first, back(d0), t.pieces, { blocked: new Set([...blocked, s]), keep, touch: !!o.touch, cross,
-        self: !!t.self, crosses: (crossWith ? 1 : 0) + (t.self ? 1 : 0), bends: t.bends || 0 });
+        self: !!t.self, crosses: crossWith.length + (t.self ? 1 : 0), bends: t.bends || 0 });
+      // crossing more than one train, it must cross each of them (once each), not one of them twice
+      if (w && crossWith.length > 1 && !crossWith.every(([a]) => w.passes.some(p => p.cross && routes[a].main.passes.some(q => q.c === p.c)))) continue;
       const apart = (a, b) => Math.abs((a % o.cols) - (b % o.cols)) + Math.abs(Math.floor(a / o.cols) - Math.floor(b / o.cols));
       if (w && !keep.has(w.end) && apart(s, w.end) >= (o.far || 0)) R = { barrel: { c: s, side: d0 }, main: w, sink: { c: w.end, side: back(w.passes[w.passes.length - 1].b) } };
     }
@@ -359,6 +361,9 @@ export function forgeLevel(seed, o) {
   // crossings and clutches are pinned; the ends are pinned with their goals
   const crossSq = new Map();
   dressed.forEach((D, ti) => D.pieces.forEach(p => { if (p.fam === "X" || /^X/.test(p.kind)) { if (!crossSq.has(p.c)) crossSq.set(p.c, { kind: p.kind, trains: [ti, ti] }); const wh = p.shape.wheels[p.entry]; crossSq.get(p.c).trains[wh.l === 1 ? 0 : 1] = ti; } }));
+  // where train b crosses train a, the crossing's lower wheel is a's even when a was dressed before b's route was drawn (and so laid an
+  // ordinary piece there, which the crossing replaces): else both wheels were b's and the two trains met in it (23 Nov 2026)
+  for (const [a, b] of o.cross || []) for (const p of routes[b]?.main.passes || []) if (p.cross && crossSq.has(p.c) && routes[a].main.passes.some(q => q.c === p.c)) crossSq.get(p.c).trains = [a, b];
   for (const [c, x] of crossSq) addPin({ c, kind: x.kind, rot: 0, trains: x.trains });
   dressed.forEach((D, ti) => { if (D.clutch) addPin({ c: D.clutch.c, kind: D.clutch.kind, rot: D.clutch.states[0], states: D.clutch.states, train: ti }); });
   for (const e of ends) addPin({ c: e.c, kind: e.kind, rot: 0, train: e.train, end: true, ...(e.state !== null ? { state: e.state } : {}), ...(e.look === "barrel" ? { look: "barrel" } : {}),
