@@ -2,11 +2,12 @@
 // lever chosen, the clack of one shoved, the ratchet of a line sliding (one click a gear, each higher than the last), the tap of a gear
 // settling, a grinding for a jam, a bell for a jewel lit, the click of the cradle. Browsers start audio only from a touch, so nothing
 // is made until the page calls unlock() from one; off, and nothing is made at all.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true, hiss = null;
 const pans = typeof StereoPannerNode !== "undefined";
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
     if (!C) return null;
@@ -15,7 +16,7 @@ function audio() {
     squash.threshold.value = -18; squash.ratio.value = 5; squash.attack.value = 0.002; squash.release.value = 0.12;
     master = ctx.createGain();
     master.gain.value = 0.7;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});       // an iPhone "interrupts" audio when the page was away
   return ctx;

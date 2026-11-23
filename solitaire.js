@@ -12,7 +12,7 @@ import { createCourse, progressOf } from "./course.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused, todayPart, volume } from "./menu.js";
 import { statsOf as statsIn, addStats as addIn, totalWins, life } from "./solitaire-record.js";
 import { today, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -48,8 +48,7 @@ delete prefs.mode;                                   // older saves chose Random
 const savePrefs = () => write(PREFS, prefs);
 // prefs.view ("3d" or "flat"), .tilt and .yaw (degrees) and .pan ({ x, z, zoom }: where the table was slid to) are written only when the player picks one; with none the suite's
 // 2D/3D default (mode3d.js, the main menu's battery saver) decides, so it must never be written in for them.
-// prefs.sound is off only when the player turned it off.
-sound.setOn(!IN_FRAME && prefs.sound !== false);
+sound.setOn(!IN_FRAME);
 sound.unlock();
 
 // ---------- looking for deals and moves ----------
@@ -491,7 +490,7 @@ function openMenu() {
     const top = () => board.view.camera().tilt < 1;
     if (board.view) settings.append(choice("Camera", [["angled", "Tilted"], ["top", "From above"]], top() ? "top" : "angled", v => { if (top() !== (v === "top")) board.view.preset(); }));
     if (!board.view && failed3d) settings.append(line("This browser can't draw 3D."));
-    settings.append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; savePrefs(); sound.setOn(on); if (on) sound.flick(); }));
+    settings.append(volume(v => { if (v) sound.flick(); }));
   }
   const st = statsOf(prefs.variant), t = read(TIMES, {})[prefs.variant];
   about.append(line(st.played ? `${E.titleOf(prefs.variant)}: ${st.wins} won of ${st.played} played${t?.best != null ? `, best ${fmt(t.best)}` : ""}.` : `${E.titleOf(prefs.variant)}: nothing played yet.`));

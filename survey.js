@@ -16,7 +16,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { ramp } from "./ramp.js";
-import { part, choice, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, toggle, onPause, isPaused, todayPart, volume } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -27,7 +27,7 @@ import { load3d } from "./loading.js";
 const $ = id => document.getElementById(id);
 // RUN: the free block in play. TRACK: "levels" or "free", the way played. CAMP: the level being played and the stars won in each.
 // LRUNS: the block of each level as it was left (by level).
-const RUN = "survey:run", TIMES = "survey:times", READ = "survey:readings", VIEW = "survey:view", ERA = "survey:era", TRACK = "survey:track", CAMP = "survey:camp2", LRUNS = "survey:lruns2", SOUND = "survey:sound", LOOK = "survey:look";   // LOOK: "3d" or "flat", kept only when the player picks one (mode3d.js)
+const RUN = "survey:run", TIMES = "survey:times", READ = "survey:readings", VIEW = "survey:view", ERA = "survey:era", TRACK = "survey:track", CAMP = "survey:camp2", LRUNS = "survey:lruns2", LOOK = "survey:look";   // LOOK: "3d" or "flat", kept only when the player picks one (mode3d.js)
 // The ladder grew chapters in November 2026 (twists), which moved the levels: what was kept under the first 25 numbers (survey:camp, survey:lruns) is read once into these, by where each level stands now.
 const DAILY = { size: "medium", readings: "seams" };   // today's block is the same for everyone, so its size and readings are fixed
 const SAVE_EVERY = 5000;                                 // ms between saves of a block in play (a partner watching sees it that often)
@@ -54,7 +54,6 @@ let tool = "chip";
 // chose; its size is the hidden ramp, up one after a block cleared without a hint.
 const readings = "seams";
 const sizeNow = () => ramp("survey", Object.keys(SIZES));
-sound.on = read(SOUND, true) !== false;
 let track = "levels";      // the way played (set below, once a saved block can be told from a stray one)
 let camp = { at: 0, stars: LEVELS.map(() => 0) };
 let clockFrom = null;      // when the clock last started running (performance.now), or null while it is stopped
@@ -441,7 +440,7 @@ function openMenu() {
     playing: S?.mode === "daily" && S.seed === today() && !S.run.done, busy: started(),
   });
   const settings = part(body, "settings");
-  settings.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("chip"); }));
+  settings.append(volume(v => { if (v) sound.play("chip"); }));
   if (view) {
     settings.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], viewIs3D ? "3d" : "flat", v => { setLook(v); }));
     settings.append(action("Reset the view", () => view.reset(), "link"));

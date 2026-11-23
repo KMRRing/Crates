@@ -76,7 +76,7 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
   check(/onLost:[^\n]*failed3d = true[^\n]*applyView/.test(page) && /catch \(err\) \{[^}]*failed3d = true/.test(page), "a lost GL context, or no WebGL, goes back to the flat table");
   check(/!IN_FRAME && !failed3d/.test(page), "a watching frame is always flat");
   check(/hold\(true\)/.test(page) && /onPause/.test(page), "the 3D view stands still while a menu is open");
-  check(/toggle\("Sound"/.test(page) && /sound\.setOn/.test(page) && /sound\.unlock\(\)/.test(page), "the menu has a Sound switch and the audio unlocks on the first gesture");
+  check(/volume\(/.test(page) && /sound\.setOn/.test(page) && /sound\.unlock\(\)/.test(page), "the menu has the Volume slider and the audio unlocks on the first gesture");
   check(/sound\.shuffle\(\)/.test(page) && /sound\.thunk\(\)/.test(page) && /sound\.snap\(\)/.test(page) && /sound\.flick\(/.test(page), "a deal shuffles, a foundation thunks, the stock snaps and a move flicks");
   check(/import \* as THREE from "\.\/vendor\/three\.js"/.test(view) && /from "\.\/vendor\/three-tex\.js"/.test(view), "the 3D table is drawn with the bundled three.js");
   check(!/\b(alert|confirm|prompt)\(/.test(view + board + page), "no browser pop-ups");

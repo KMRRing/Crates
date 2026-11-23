@@ -7,7 +7,7 @@ import { createPuzzle } from "./pipes-gear-run.js";
 import { STAR_LIFTS } from "./pipes-gear-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, toggle, action, line, onPause, todayPart } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, todayPart, volume } from "./menu.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";           // a partner watching's frame: it writes nothing
 import { roundOver } from "./random.js";
 import { wants3D } from "./mode3d.js";
@@ -27,7 +27,7 @@ const MODES = [["flat", "Flat (square)"], ["map", "Cube (3D map)"]].filter(([id]
 let prefs = { mode: "flat", ...read(KEY.prefs, {}) };
 let mode = "flat";
 const deps = { $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
-  sound: () => !IN_FRAME && prefs.sound !== false, tilt: () => read(KEY.tilt, false) === true && !IN_FRAME };
+  sound: () => !IN_FRAME, tilt: () => read(KEY.tilt, false) === true && !IN_FRAME };
 const flat = createPuzzle(deps);
 const boards = { flat };
 if (MAP_ON) {
@@ -90,7 +90,7 @@ function openMenu() {
   part(body, "content").append(game, action("A random plate", () => b.goRandom(), "link"), b.levelList(id => { $("menuDlg").close(); b.go(id); }));
   const settings = part(body, "settings");
   if (!IN_FRAME && mode === "flat") settings.append(choice("View", [["3d", "Movement (3D)"], ["2d", "Flat plate"]], b.viewKind, v => { $("menuDlg").close(); setView(v === "3d", true); }));
-  settings.append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; if (!IN_FRAME) write(KEY.prefs, prefs); }));
+  settings.append(volume());
   const v = b.view;
   if (v?.kind === "3d" && v.canDeviceTilt && matchMedia("(pointer: coarse)").matches) {
     settings.append(toggle("Tilt with the phone", read(KEY.tilt, false) === true, async on => {

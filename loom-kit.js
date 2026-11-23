@@ -1,4 +1,5 @@
 // What the Cloth mode of Nonogram's page keeps: reading and writing what's saved, the sounds, the options and the dialog a finished cloth opens.
+import { speaker, audible } from "./volume.js";
 import { IN_FRAME } from "./suite.js";
 
 // The cloth's parts share nonogram.html with the picture's, so the ones whose names Nonogram also uses carry a "cl" in front
@@ -11,7 +12,7 @@ export const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JS
 export const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 
 export const OPTS = "loom:opts", BEST = "loom:best";
-export const opts = { sound: true, ...read(OPTS, {}), marks: true };      // what's wrong is always shown (4 November 2026: the menu is the minimum it needs to be)
+export const opts = { ...read(OPTS, {}), marks: true };      // what's wrong is always shown (4 November 2026: the menu is the minimum it needs to be)
 export const saveOpts = () => write(OPTS, opts);
 
 export const CAMP = "loom:camp";
@@ -20,11 +21,12 @@ const sum = o => Object.values(o).reduce((n, v) => n + (Number.isFinite(v) ? v :
 export const keepBest = () => write(BEST, sum(read(CAMP, {})));
 
 // ---------- the sounds, made as they play (no files) ----------
-let audio = null;
+let audio = null, out = null;
 function noise(ms, { lo = 200, hi = 4000, gain = 0.25, decay = 0.6 } = {}) {
-  if (!opts.sound) return;
+  if (!audible()) return;
   try {
     audio ??= new AudioContext();
+    out ??= speaker(audio);
     if (audio.state === "suspended") audio.resume();
     const n = Math.round(audio.sampleRate * ms / 1000), buf = audio.createBuffer(1, n, audio.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n) ** decay;
@@ -32,7 +34,7 @@ function noise(ms, { lo = 200, hi = 4000, gain = 0.25, decay = 0.6 } = {}) {
     src.buffer = buf;
     bp.type = "bandpass"; bp.frequency.value = Math.sqrt(lo * hi); bp.Q.value = Math.sqrt(lo * hi) / (hi - lo);
     g.gain.value = gain;
-    src.connect(bp).connect(g).connect(audio.destination);
+    src.connect(bp).connect(g).connect(out);
     src.start();
   } catch { /* no sound here */ }
 }

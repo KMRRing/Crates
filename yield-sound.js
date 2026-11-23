@@ -3,18 +3,18 @@
 // bell; a word refused is a low soft knock; a new rank is two bells; a full tour runs up all seven stars; the shadows
 // are a breath of air, in or out; a hint is one high ping. Off, and nothing is made. The context is made only from a
 // tap (an iPhone starts sound only from one).
-let ctx = null, master = null, hiss = null, on = true;
+import { speaker, audible } from "./volume.js";
+let ctx = null, master = null, hiss = null;
 
-export const setSound = v => { on = !!v; };
 function audio() {
-  if (!on) return null;
+  if (!audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
     ctx = new C();
     master = ctx.createGain();
     master.gain.value = 0.5;
-    master.connect(ctx.destination);
+    master.connect(speaker(ctx));
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;

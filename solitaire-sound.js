@@ -5,11 +5,12 @@
 //
 // Browsers start audio only from a gesture, and Safari wants the resume() inside the gesture's own handler, so unlock()
 // listens for the first touch or key and makes the context there. A sound asked before that is silent, not queued.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true, hiss = null, last = -1, ready = false;   // ready: a gesture has been seen
 const pans = typeof StereoPannerNode !== "undefined";
 
 function audio() {
-  if (!on || !ready) return null;
+  if (!on || !ready || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -18,7 +19,7 @@ function audio() {
     squash.threshold.value = -12; squash.ratio.value = 6; squash.attack.value = 0.002; squash.release.value = 0.1;
     master = ctx.createGain();
     master.gain.value = 3;                                          // the voices are written quiet (noise through a narrow filter has little energy); the squash above catches the peaks
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});   // an iPhone "interrupts" it too when the page was away
   return ctx.state === "running" ? ctx : null;

@@ -6,21 +6,20 @@
 // keeps the run and builds the page.
 import { LEVELS, KIND_NAMES, KIND_NOTES, judge, pieces, useTool, hint as nextStep, at, xyz, toolsOf, newTool, jointCubes, joint, solidOf, extent, cubesOf as cubesOfLevel, chapterOf, chiselAllowance } from "./slipway-rules.js";
 import { drawCubes, faceAt, REST, PITCH } from "./slipway-view.js";
-import { setSound, sound } from "./slipway-sound.js";
+import { sound } from "./slipway-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, isPaused } from "./menu.js";
+import { part, action, line, toggle, isPaused, volume } from "./menu.js";
 import { sure } from "./sure.js";
 import { IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { levelOn } from "./playlog.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "slipway:run", BEST = "slipway:best", SOUND = "slipway:sound";
+const RUN = "slipway:run", BEST = "slipway:best";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-setSound(read(SOUND, true));
 
 // a colour a piece, by the order of its lowest cube; the wood of the uncut block is the first
 const COLOURS = [[214, 176, 118], [201, 84, 66], [104, 160, 88], [66, 140, 178], [146, 98, 168], [226, 164, 48], [206, 120, 150], [92, 170, 160], [160, 126, 86], [150, 150, 150]];
@@ -326,7 +325,7 @@ function openMenu() {
     if (l.id !== level.id || S.done) newRun(l.id);
   }, "link"));
   }
-  part(body, "settings").append(toggle("Sound", read(SOUND, true), v => { write(SOUND, v); setSound(v); }));
+  part(body, "settings").append(volume());
   part(body, "about").append(line("The block is cubes glued together. The chisel and the saw go on a seam, the line between two faces: the chisel splits the one joint under it, the saw cuts straight through the block along it. The chisel has only so many strokes where a saw or a bore is to hand. The bore and glue work in from the face you tap: a bore the joints round the row of cubes through it, glue mends the first cut it meets. Press and hold (or hover) to see what a tap will do; a cut shows as a slit. Undo gives a chisel stroke back."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

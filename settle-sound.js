@@ -8,10 +8,11 @@
 //   refuse: a dull clunk (a full crucible, or nothing to pour);
 //   hint: a small brass tick; win: the foundry bell, three strokes.
 // Browsers start audio only from a touch, so nothing is made until the page calls unlock() from one; with Sound off, nothing at all.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true, white = null, hearth = null;
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
     if (!C) return null;
@@ -20,7 +21,7 @@ function audio() {
     squash.threshold.value = -16; squash.ratio.value = 4; squash.attack.value = 0.003; squash.release.value = 0.15;
     master = ctx.createGain();
     master.gain.value = 0.75;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});   // an iPhone suspends audio while the page is away
   return ctx;

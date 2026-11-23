@@ -11,7 +11,7 @@ import { sound } from "./slitherlink-sound.js";
 import { edgeAtPoint } from "./slitherlink-3d-geo.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, toggle, onPause, isPaused, todayPart, volume } from "./menu.js";
 import { ramp } from "./ramp.js";
 import { rungs, startFor, split } from "./ramp-steps.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
@@ -22,7 +22,7 @@ import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
 import slkCoop from "./slitherlink-coop.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "slitherlink:run", TIMES = "slitherlink:times", PREFS = "slitherlink:prefs", SPARES = "slitherlink:spares", SOUND = "slitherlink:sound";
+const RUN = "slitherlink:run", TIMES = "slitherlink:times", PREFS = "slitherlink:prefs", SPARES = "slitherlink:spares";
 const CAMP = "slitherlink:camp", LRUNS = "slitherlink:lruns", FREE = "slitherlink:free";
 const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
@@ -65,7 +65,6 @@ if (!shadeOn(prefs.twist)) prefs.twist = "none";
 // prefs.view is the player's own choice ("3d" or "flat"), kept only when they make one; with none the suite's default applies (mode3d.js).
 if (prefs.view !== "3d" && prefs.view !== "flat") delete prefs.view;
 let viewShown = wants3D(prefs.view, "3d") ? "3d" : "flat";
-sound.on = read(SOUND, true);
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. Size and level are one hidden ramp, its first rung the old
 // saved choice; the ladder steps up after a puzzle solved without a hint.
@@ -704,7 +703,7 @@ function openMenu() {
     todayPart(body, { app: "slitherlink", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   }
   const look = part(body, "settings");
-  look.append(choice("View", [["flat", "Flat"], ["3d", "3D"]], viewShown, v => { setView(v); openMenu(); }), toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("quill"); }));
+  look.append(choice("View", [["flat", "Flat"], ["3d", "3D"]], viewShown, v => { setView(v); openMenu(); }), volume(v => { if (v) sound.play("quill"); }));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP && !isLevel(S) ? bestOf(S) : null;
   const about = part(body, "about");

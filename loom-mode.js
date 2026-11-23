@@ -1,7 +1,7 @@
 // Cloth, a mode of Nonogram (loom-play.js, its rules in loom-float.js and its ladder in loom-levels.js): weaving as a nonogram
 // of floats. nonogram.js loads this file only when the menu's Mode is Cloth; the markup is in nonogram.html. It was the
 // page of Loom, a game of its own until 4 November 2026 (docs/loom.md), and keeps its saves under loom:.
-import { part, toggle, line, onPause } from "./menu.js";
+import { part, line, onPause, volume } from "./menu.js";
 import { createPlay } from "./loom-play.js";
 import { $, read, opts, saveOpts, BEST } from "./loom-kit.js";
 
@@ -17,7 +17,7 @@ export function enterCloth() {
     /** The cloth's parts of the menu (the page adds its Mode choice). */
     menu(body) {
       play.menu(body);
-      part(body, "settings").append(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
+      part(body, "settings").append(volume());
       const stars = read(BEST, 0);
       if (stars) part(body, "about").append(line(`${stars} star${stars === 1 ? "" : "s"} so far.`));
     },

@@ -1,10 +1,11 @@
 // Slipway's sounds, made as they play (Web Audio: short tones that fall; no files, so they are there offline): a tick
 // for a square tapped, a knock of wood for a figure fitted, a dull tock for one that won't go, and a thunk with a bell
 // when the cube is whole. Off, and nothing is made at all.
-let ctx = null, master = null, on = true;
+import { speaker, audible } from "./volume.js";
+let ctx = null, master = null;
 
 function audio() {
-  if (!on) return null;
+  if (!audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -13,12 +14,11 @@ function audio() {
     squash.threshold.value = -14; squash.ratio.value = 4;
     master = ctx.createGain();
     master.gain.value = 0.8;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});    // a browser starts audio only from a tap
   return ctx;
 }
-export const setSound = v => { on = !!v; };
 /** A short tone that falls: a knock, a thunk, a bell. */
 function tone(c, { f0, f1 = f0, ms, gain = 0.3, type = "sine", at = 0 }) {
   const t = c.currentTime + at, len = ms / 1000, o = c.createOscillator(), g = c.createGain();

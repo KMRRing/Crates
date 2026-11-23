@@ -31,7 +31,7 @@ import { calendar } from "./landfall-sky.js";
 import { windOf } from "./landfall-look.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, volume } from "./menu.js";
 import { sure } from "./sure.js";
 import { IN_FRAME } from "./suite.js";             // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 
@@ -39,7 +39,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", seenKelvin: "landfall:seen-kelvin", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", seenKelvin: "landfall:seen-kelvin", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -1177,7 +1177,7 @@ function openMenu() {
   content.append(choice("Chapter", Object.entries(SECTIONS).map(([k, t]) => [k, `${k} ${t}`]), String(sec), v => { menuSec = Number(v); openMenu(); }));
   content.append(choice("Voyage", LEVELS.filter(l => l.section === sec).map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), sec === L.section ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
   const set = part(body, "settings");
-  set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
+  set.append(volume(v => { if (v) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
   about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"), action("Birds and the land", () => openHelp("birds"), "link"), action("Kelvin's machine", () => openHelp("kelvin"), "link"));
@@ -1361,7 +1361,7 @@ document.addEventListener("pointerdown", () => sound.unlock(), { capture: true }
 bindSwitcher($("appsBtn"), "landfall");
 document.querySelector(".lf-mark").innerHTML = APPS.find(a => a.id === "landfall")?.logo ?? "";
 
-sound.setMuted(!read(KEY.sound, true));
+sound.setMuted(false);   // how loud is the app's volume (volume.js)
 {
   const raw = (() => { try { return localStorage.getItem(KEY.run); } catch { return null; } })();
   carryCourse();

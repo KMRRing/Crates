@@ -7,7 +7,7 @@ import { LEVELS, DAILY, MIN_LEN, FULL_BONUS, STARS, MAX_STARS, RANKS, MASTER, TO
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { ramp } from "./ramp.js";
-import { part, action, line, toggle, onPause, todayPart } from "./menu.js";
+import { part, action, line, toggle, onPause, todayPart, volume } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -33,7 +33,6 @@ const up = w => w.toUpperCase();
 // yield:daily today's points by the day, for the games screen; yield:duel a match's run on this device (duel.js's).
 const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily", LAST = "yield:last";
 const prefs = { level: "medium", sound: true, ...read(PREFS, {}) };
-sfx.setSound(prefs.sound !== false);
 if (!LEVELS[prefs.level]) prefs.level = "medium";
 // Korbi, 4 November 2026: the menu is the minimum it needs to be. The level is a hidden ramp (its first rung the old saved
 // level): up when a random puzzle reaches the rank to aim for, down when its words are shown. Puzzles are untimed; a race is 3 minutes.
@@ -599,7 +598,7 @@ function openMenu() {
   const left = S?.kind === "day" ? read(RUN, null) : null;                  // the random puzzle you left for today's
   todayPart(body, { app: "yield", play: showToday, playing: S?.kind === "day", back: validRun(left) && !left.over ? () => show(left) : null });
   if (S && !S.over && (S.kind === "day" || S.kind === "run")) play.append(action("Show the words", async () => { if (await sure("Show every word? This puzzle ends here.")) finish("shown"); }, "link"));
-  part(body, "settings").append(toggle("Sound", prefs.sound !== false, v => { prefs.sound = v; sfx.setSound(v); keepPrefs(); }));
+  part(body, "settings").append(volume());
   const st = read(STATS, {}) || {}, last = read(LAST, null);
   if (validRun(last)) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
   part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; ${RANKS[MASTER][1]} ${st.master || 0} times, ${RANKS[TOP][1]} ${st.full || 0}.`),

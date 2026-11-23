@@ -21,13 +21,13 @@ import { sound } from "./orrery-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, onPause } from "./menu.js";
+import { part, action, line, toggle, onPause, volume } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";                      // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "orrery:run", BEST = "orrery:best", SEEN = "orrery:seen", SOUND = "orrery:sound", VIEW = "orrery:view", ERA = "orrery:era", CHOSEN = "orrery:sel", TEMPO = "orrery:tempo";
+const RUN = "orrery:run", BEST = "orrery:best", SEEN = "orrery:seen", VIEW = "orrery:view", ERA = "orrery:era", CHOSEN = "orrery:sel", TEMPO = "orrery:tempo";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => n.toLocaleString("en-GB");
@@ -66,7 +66,6 @@ if (!IN_FRAME && read(ERA, 0) < SET_ASIDE.length) {
   write(ERA, SET_ASIDE.length);
 }
 
-sound.on = read(SOUND, true);
 const stage = $("stage");
 let view;
 try {
@@ -482,7 +481,7 @@ function openMenu() {
   body.replaceChildren();
   part(body, "play").append(action("New game", newRun, "primary"));
   const settings = part(body, "settings");
-  settings.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("land", { ring: 2 }); }));
+  settings.append(volume(v => { if (v) sound.play("land", { ring: 2 }); }));
   settings.append(action("Reset the view", () => { view.setView(0, null); write(VIEW, null); }, "link"));
   const about = part(body, "about");
   about.append(line(`This game: ${fmt(S.score)}, ${plural(S.aligned, "line")} (${plural(S.fours, "four")}), ${plural(S.cleared, "planet")} cleared${best ? `; your best ${fmt(best)}` : ""}`));

@@ -1,19 +1,18 @@
 // Sound for every page that has none of its own (Korbi, 8 November 2026: "everything should get sound"). One small module a
 // page loads with <script type="module" src="sfx.js">: a tick for a tap on anything pressable, a rising ding when something
 // on the page turns correct and a low nope when it turns wrong (found by the class the game puts on it), a chime when a round
-// ends (random.js's roundOver announces it), and a Sound switch put into the menu's Settings. Made as they play (Web Audio, no
+// ends (random.js's roundOver announces it), and the Volume slider put into the menu's Settings (volume.js keeps the level). Made as they play (Web Audio, no
 // files); nothing at all while off, in a watching frame or before the first touch (browsers start audio only from one).
 // A game that wants its own sounds has its own module (settle-sound.js is the model) and does not load this.
+import { speaker, audible } from "./volume.js";
 import { IN_FRAME } from "./suite.js";
-import { part, toggle } from "./menu.js";
+import { part, volume } from "./menu.js";
 
-const KEY = `${(location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index"}:sound`;
-let ctx = null, master = null, on = true;
-try { on = localStorage.getItem(KEY) !== "false"; } catch { /* private mode */ }
-if (IN_FRAME) on = false;
+let ctx = null, master = null;
+const on = !IN_FRAME;
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -21,7 +20,7 @@ function audio() {
     const squash = ctx.createDynamicsCompressor();
     master = ctx.createGain();
     master.gain.value = 0.5;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;
@@ -52,7 +51,7 @@ export function play(name) {
   last = now;
   SOUNDS[name](c, c.currentTime + 0.005);
 }
-export const sfx = { play, get on() { return on; }, set on(v) { on = !!v; try { localStorage.setItem(KEY, String(on)); } catch { /* private mode */ } } };
+export const sfx = { play };
 
 // a tap on anything pressable (the first one also starts the audio)
 const PRESSABLE = "button, [role=button], [role=switch], [role=tab], a[href], summary, select, label, .cell, [data-cell], canvas, input[type=range], input[type=checkbox]";
@@ -82,14 +81,14 @@ if (app) {
 // a round ends (random.js announces it)
 addEventListener("round-over", () => play("chime"));
 
-// the menu's Settings gets the Sound switch, as every game with sound has one (not in a watching frame, which has none)
+// the menu's Settings gets the Volume slider, as every game with sound has one (not in a watching frame, which has none)
 const dlg = document.getElementById("menuDlg"), body = document.getElementById("menuBody");
 if (dlg && body && !IN_FRAME) {
   new MutationObserver(() => {
     if (!dlg.open) return;
     queueMicrotask(() => {
-      if (body.querySelector('[role="switch"][aria-label="Sound"]')) return;
-      part(body, "settings").append(toggle("Sound", on, v => { sfx.on = v; if (v) { audio(); play("tick"); } }));
+      if (body.querySelector('input[aria-label="Volume"]')) return;
+      part(body, "settings").append(volume(v => { if (v) { audio(); play("tick"); } }));
     });
   }).observe(dlg, { attributes: true, attributeFilter: ["open"] });
 }

@@ -4,12 +4,7 @@
 // are played softer than yours).
 import { toMove } from "./factor-rules.js";
 
-export const SOUND_KEY = "suite:factor-sound";                    // a suite: key: whether sound plays is this device's (a phone in a pocket, a laptop in a library)
 export const MOST_CUES = 4;                                        // a move sounds at most this many things at once
-
-/** Whether sound is on: the saved choice, on when nothing is saved. `storage` is localStorage (or a stand-in that may throw). */
-export function readOn(storage) { try { return JSON.parse(storage.getItem(SOUND_KEY)) !== false; } catch { return true; } }
-export function keepOn(storage, on) { try { storage.setItem(SOUND_KEY, JSON.stringify(!!on)); } catch { /* private mode */ } }
 
 /**
  * The sounds from game state `a` to state `b` (a the earlier), as `viewer` (a seat, or null for a watcher) hears them:

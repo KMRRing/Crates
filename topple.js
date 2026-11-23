@@ -22,7 +22,7 @@ import { sound } from "./topple-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, choice, onPause, isPaused } from "./menu.js";
+import { part, action, line, toggle, choice, onPause, isPaused, volume } from "./menu.js";
 import { sure } from "./sure.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
@@ -35,7 +35,7 @@ const SVG = "http://www.w3.org/2000/svg";
 // being played, 0 on), stars (the most stars won in each) }. RUNS: the game of each level begun, by its number (1 on).
 // CAMP2, RUNS2: the fourteen tables' (the eighteen before them left theirs under topple:camp and topple:lruns, which are let go of). FLOOR: the floor in play.
 // HELP: the features already explained to this player (ids from topple-help.js), so each is explained once.
-const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", HELP = "topple:help", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp2", RUNS = "topple:lruns2", FLOOR = "topple:floor";
+const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", HELP = "topple:help", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp2", RUNS = "topple:lruns2", FLOOR = "topple:floor";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 // KNOCKED: set by the first knock ever made. Until then the knock is offered plain, without Skip, and what turning is comes after it.
@@ -58,7 +58,6 @@ const fingers = new Map();   // every pointer down on the table: its id and wher
 let marks = {};          // what's drawn over the table: ring, stay, compass, tag, ghost, handle, ax
 let floor = 0;           // the floor in play (0 on), kept as topple:floor
 
-sound.on = read(SOUND, true);
 const stage = $("stage");
 let view;
 try {
@@ -936,7 +935,7 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
   if (inLevels()) content.append(levelList());
-  part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("clack"); }));
+  part(body, "settings").append(volume(v => { if (v) sound.play("clack"); }));
   const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length, about = part(body, "about");
   about.append(line(inLevels()
     ? `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`

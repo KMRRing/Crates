@@ -3,11 +3,12 @@
 // laid, a bell's ring. A fall plays as a run: the page hands over every sound of it with the time it falls due, and
 // they are scheduled on the audio clock, so a long chain keeps its rhythm whatever the frames do. Many at the same
 // moment (a fork, a cone of dominoes) become one louder sound, not a racket. Off, and nothing is made at all.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true;
 const pans = typeof StereoPannerNode !== "undefined";
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -16,7 +17,7 @@ function audio() {
     squash.threshold.value = -16; squash.ratio.value = 5; squash.attack.value = 0.002; squash.release.value = 0.12;
     master = ctx.createGain();
     master.gain.value = 0.8;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});    // browsers start audio only from a tap, and an iPhone "interrupts" it when the page was away
   return ctx;

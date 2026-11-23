@@ -13,7 +13,7 @@ import { createView } from "./columbiad-view.js";
 import { sound } from "./columbiad-sound.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
+import { part, action, line, toggle, onPause, isPaused, todayPart, volume } from "./menu.js";
 import { IN_FRAME, today } from "./suite.js";
 import { roundOver } from "./random.js";
 import { levelOn } from "./playlog.js";
@@ -27,7 +27,7 @@ const $ = id => document.getElementById(id);
 // The keys with a 3 are the world of 4 November 2026 (a big Earth and Moon, rings behind the Moon): the levels were all made again, so what the old
 // keys hold (levels with other rings and other dials) is not read and is left where it is. CAMP is 4 since 13 November 2026, when 32 levels went
 // in among the 68 (twelve chapters of eight or nine): the camp is kept by level id, and the camp3 it replaces (kept by place) is read once.
-const CAMP = "columbiad:camp4", CAMP3 = "columbiad:camp3", RUN = "columbiad:run3", AIMS = "columbiad:aims3", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun3";
+const CAMP = "columbiad:camp4", CAMP3 = "columbiad:camp3", RUN = "columbiad:run3", AIMS = "columbiad:aims3", BEST = "columbiad:best", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun3";
 // the 68 levels in the order camp3 kept them by: each chapter's in its number order
 const OLD_ORDER = [4, 5, 3, 7, 6, 6, 6, 6, 5, 8, 7, 5].flatMap((n, c) => Array.from({ length: n }, (_, k) => `${c + 1}-${k + 1}`));
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -39,7 +39,6 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const rootPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 const full = () => PULL_REM * rootPx();
 
-sound.on = read(SOUND, true);
 
 let camp = readCamp();
 let daily = 0;                // the day (YYYYMMDD) when today's level is being played, else 0: the camp's level
@@ -574,7 +573,7 @@ function openMenu() {
     head.lastChild.textContent = sec.idea;
     content.append(head, levelList(sec));
   }
-  part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
+  part(body, "settings").append(volume());
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
   part(body, "about").append(line(`${plural(beaten, "level")} of ${LEVELS.length} struck, ${plural(total, "star")} of ${LEVELS.length * 3}.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

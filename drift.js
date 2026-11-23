@@ -11,7 +11,7 @@ import { createCampaign } from "./campaign.js";
 import { levelGrid } from "./campaign-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, toggle, onPause } from "./menu.js";
+import { part, action, line, choice, toggle, onPause, volume } from "./menu.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { sound } from "./drift-sound.js";
 import { sure, notice } from "./sure.js";
@@ -21,7 +21,7 @@ import { load3d } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "drift:run", VOYAGE = "drift:voyage", MODE = "drift:mode", VIEW = "drift:view", SOUND = "drift:sound", BEST = "drift:best", SEEN = "drift:chapters", HINT = "drift:hint";
+const RUN = "drift:run", VOYAGE = "drift:voyage", MODE = "drift:mode", VIEW = "drift:view", BEST = "drift:best", SEEN = "drift:chapters", HINT = "drift:hint";
 const CELL = 10, PAD = 7;
 const read = (k, d, ok = () => true) => { try { const v = JSON.parse(localStorage.getItem(k)); return v != null && ok(v) ? v : d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -570,7 +570,7 @@ function openMenu() {
     onPick: i => { $("menuDlg").close(); playLevel(i); },
   }));
   const set = part(body, "settings");
-  set.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
+  set.append(volume());
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], view.flat ? "flat" : "3d", async v => {
     write(VIEW, v);
     if ((v === "flat") === !!view.flat) return;
@@ -608,7 +608,6 @@ async function makeView() {
   view ||= flatView;
   field.classList.toggle("is3d", !view.flat);
 }
-sound.on = read(SOUND, true);
 new MutationObserver(() => view?.theme()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => view?.theme());
 onPause(() => view.pause?.(true), () => view.pause?.(false));

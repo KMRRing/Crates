@@ -12,7 +12,7 @@ import { createFlat } from "./settle-draw.js";
 import { sound } from "./settle-sound.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, choice, onPause, isPaused, todayPart } from "./menu.js";
+import { part, action, line, toggle, choice, onPause, isPaused, todayPart, volume } from "./menu.js";
 import { roundOver } from "./random.js";
 import { noteStars, IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { ramp } from "./ramp.js";
@@ -20,7 +20,7 @@ import { load3d } from "./loading.js";
 import { wants3D } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
-const VER = "settle:ver", MODE = "settle:mode", CAMP = "settle:camp", LRUN = "settle:lrun", RRUN = "settle:rrun", DRUN = "settle:drun", DAILY = "settle:daily", SOUND = "settle:sound", VIEW = "settle:view";
+const VER = "settle:ver", MODE = "settle:mode", CAMP = "settle:camp", LRUN = "settle:lrun", RRUN = "settle:rrun", DRUN = "settle:drun", DAILY = "settle:daily", VIEW = "settle:view";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -32,7 +32,6 @@ if (!IN_FRAME && read(VER, 0) !== 4) {
   try { for (const k of [MODE, CAMP, LRUN, RRUN, DRUN, DAILY, "settle:best", "settle:run", "settle:levels", "settle:seen", "settle:ramp"]) localStorage.removeItem(k); } catch { /* private mode */ }
   write(VER, 4);
 }
-sound.on = read(SOUND, true) !== false;
 
 // ---------- the run ----------
 // R: { lv (the level: a book level, or a melt's whole spec), state ({ cups, cast }), moves, undo ([{ state, moves }]), hints, won }
@@ -345,7 +344,7 @@ function openMenu() {
   }
   const settings = part(body, "settings");
   if (!IN_FRAME) settings.append(choice("View", [["3d", "3D"], ["flat", "2D"]], viewKind === "3d" ? "3d" : "flat", v => { write(VIEW, v); setView(v === "3d" ? "3d" : "flat").then(openMenu); }));
-  if (!IN_FRAME) settings.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) { sound.unlock(); sound.hearth(true); } }));
+  if (!IN_FRAME) settings.append(volume(v => { if (v) { sound.unlock(); sound.hearth(true); } }));
   const about = part(body, "about");
   about.append(line(`${starsAll()} of ${LEVELS.length * 3} stars. Metal lies by its weight: lead 11.3, copper 9.0, tin 7.3 (grams to the cubic centimetre). Three stars at par, two within two pours of it.`));
   for (const id of new Set(R.lv.moulds)) { const M = mouldOf(id), d = document.createElement("p"); d.className = "st-alloy"; d.innerHTML = "<b></b> <small></small>"; d.firstChild.textContent = M.name; d.lastChild.textContent = M.real; about.append(d); }

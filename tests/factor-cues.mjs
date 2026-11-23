@@ -3,7 +3,7 @@
 // Run: node tests/factor-cues.mjs
 import { rules, fresh } from "../factor-rules.js";
 import { seeded } from "../seats.js";
-import { cuesBetween, readOn, keepOn, SOUND_KEY, MOST_CUES } from "../factor-cues.js";
+import { cuesBetween, MOST_CUES } from "../factor-cues.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -84,19 +84,6 @@ const step = (s, seat, move) => { const r = rules.act(clone(s), seat, move, { rn
   check(next.step === "offer" && names(o, next, 2) === "bell" && names(o, next, 1) === "", "the next seat asked hears it when it is its turn to answer");
   const picked = step(next, 2, { t: "answer", yes: true });
   check(picked.step === "pick" && names(next, picked, 0) === "bell" && !cuesBetween(next, picked, 0)[0].ask, "the answers to your offer are a bell too, one that Ignore trades does not silence");
-}
-
-// ---------- the switch ----------
-{
-  const store = new Map(), fake = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v) };
-  check(readOn(fake) === true, "sound is on until it is switched off");
-  keepOn(fake, false);
-  check(readOn(fake) === false && store.get(SOUND_KEY) === "false", "switched off, it stays off");
-  keepOn(fake, true);
-  check(readOn(fake) === true, "and on again");
-  const broken = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
-  check(readOn(broken) === true && (keepOn(broken, false), true), "a browser that blocks storage plays on, and never throws");
-  check(SOUND_KEY.startsWith("suite:"), "the choice is this device's (a suite: key never syncs)");
 }
 
 console.log(bad ? `\n${bad} FAILED` : "\nall passed");

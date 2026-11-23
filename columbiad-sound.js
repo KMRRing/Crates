@@ -3,10 +3,11 @@
 // when it arrives, a hollow thud when it does not. Off, and nothing is made at all. The audio context is made only from a
 // touch (browsers, and an iPhone above all, start sound only from one) and is stopped while the menu is open or the page is
 // hidden, which is the pause rule. An iPhone has no vibration for a web page, so the tick is a sound and a flash of the gauge.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true, hiss = null, hush = null, quiet = false, lastClick = -1;
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -15,7 +16,7 @@ function audio() {
     squash.threshold.value = -14; squash.ratio.value = 6; squash.attack.value = 0.003; squash.release.value = 0.2;
     master = ctx.createGain();
     master.gain.value = 0.85;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
     // an iPhone opens its output only once something has been played inside a touch: a buffer of one silent sample
     const b = ctx.createBuffer(1, 1, ctx.sampleRate), s = ctx.createBufferSource();
     s.buffer = b; s.connect(ctx.destination); s.start(0);

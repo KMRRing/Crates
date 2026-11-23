@@ -11,6 +11,7 @@
 //    partner's line, everything the header used to carry
 // Loaded by every page through pwa.js.
 
+import { volumeNow, setVolume } from "./volume.js";
 import { MARK } from "./mark.js";
 import { ramp } from "./ramp.js";
 import { IN_FRAME, markOf } from "./suite.js";
@@ -106,6 +107,22 @@ export function toggle(label, on, onChange) {
   sw.setAttribute("aria-label", label);
   sw.addEventListener("click", () => { on = !on; sw.setAttribute("aria-checked", String(on)); onChange(on); });
   row.append(el("span", "menu-label", label), sw);
+  return row;
+}
+/** The app's volume (volume.js), a slider from silent to full in place of a Sound switch; onChange(v) once it is let go (a game
+ *  plays a sample, or starts or stops its ambient sound). */
+export function volume(onChange = () => {}) {
+  const row = el("div", "menu-row"), r = el("input", "menu-slider"), show = () => r.style.setProperty("--v", `${r.value}%`);
+  r.type = "range";
+  r.min = "0";
+  r.max = "100";
+  r.step = "5";
+  r.value = String(Math.round(volumeNow() * 100));
+  r.setAttribute("aria-label", "Volume");
+  show();
+  r.addEventListener("input", () => { show(); setVolume(r.value / 100); });
+  r.addEventListener("change", () => onChange(volumeNow()));
+  row.append(el("span", "menu-label", "Volume"), r);
   return row;
 }
 /** A button: the menu closes, then fn runs. kind: "primary" (the one to press), "" (plain) or "link" (quiet). */

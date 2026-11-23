@@ -1,16 +1,17 @@
 // Portolan's sounds, made as they play (Web Audio, no files, so they are there offline): a quill's scratch as a coast is inked, a
 // lighter tick for a crossing, a soft bell when the survey is complete. Heard only on the chart (the 3D view); off, nothing is made.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true, hiss = null;
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
     ctx = new C();
     master = ctx.createGain();
     master.gain.value = 0.7;
-    master.connect(ctx.destination);
+    master.connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});      // a browser opens sound only from a tap
   return ctx;

@@ -7,12 +7,13 @@
 //   the lead      its splash alongside, the line running out over the rail, and the check as it finds the bottom
 // Nothing is made until a tap has unlocked audio, nothing plays while the menu is open or the page is hidden (pause), and with
 // the sound off no audio context is ever made. Two gains sit in front of the speakers: `master`, and `bedGain` for the bed alone.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, bedGain = null, bedNodes = null, noiseBuf = null, bus = null, lastSurge = 0;
 let muted = true, paused = false, bedOn = false, hushed = false, creakTimer = 0, dayOn = false, gullTimer = 0, windLevel = 0.3, lastRollSound = 0;
 const BED_LEVEL = 0.55;      // Korbi, 7 Nov 2026: "a bit too loud" (was 0.9, with master 0.85)
 
 function audio() {
-  if (muted) return null;
+  if (muted || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -20,7 +21,7 @@ function audio() {
     const squash = ctx.createDynamicsCompressor();
     squash.threshold.value = -18; squash.ratio.value = 4; squash.attack.value = 0.004; squash.release.value = 0.25;
     master = ctx.createGain(); master.gain.value = 0.6;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (!paused && ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});
   return ctx;

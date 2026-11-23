@@ -865,6 +865,13 @@ img.pic { background: url("loader-small.svg") center / 2.2rem no-repeat; }
 .menu-switch::after { content: ""; position: absolute; top: .1875rem; left: .1875rem; width: 1.1875rem; height: 1.1875rem; border-radius: 50%; background: var(--ink-soft); transition: transform .15s; }
 .menu-switch[aria-checked="true"] { background: var(--ink); }
 .menu-switch[aria-checked="true"]::after { transform: translateX(1.125rem); background: var(--sheet); }
+/* the volume: a slider, its filled part in ink, a square-cornered thumb */
+.menu-slider, .sheet input.menu-slider { flex: 1 1 8rem; width: auto; max-width: 13rem; height: 1.75rem; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; --v: 100%; }
+.menu-slider::-webkit-slider-runnable-track { height: .375rem; border-radius: 2px; background: linear-gradient(90deg, var(--ink) var(--v), var(--tile-edge) var(--v)); }
+.menu-slider::-moz-range-track { height: .375rem; border-radius: 2px; background: linear-gradient(90deg, var(--ink) var(--v), var(--tile-edge) var(--v)); }
+.menu-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 1.25rem; height: 1.25rem; margin-top: -.4375rem; border-radius: 3px; border: 1.5px solid var(--ink); background: var(--sheet); }
+.menu-slider::-moz-range-thumb { width: 1.25rem; height: 1.25rem; box-sizing: border-box; border-radius: 3px; border: 1.5px solid var(--ink); background: var(--sheet); }
+.menu-slider:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .menu-line { margin: .35rem 0; color: var(--ink-soft); font-size: .9rem; }
 .menu-part .btn.wide { margin-top: .45rem; }
 .menu-link { display: block; margin: .6rem auto 0; }

@@ -2,11 +2,12 @@
 // same way Topple's are: the crack of a cube chipped, the dull knock of granite that won't give, the ring of a chisel on ore,
 // the soft chord of a lantern lit, a tick for a mark, and a rising run of bells when the block is cleared. Off, and nothing
 // is made at all.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true;
 const pans = typeof StereoPannerNode !== "undefined";
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -15,7 +16,7 @@ function audio() {
     squash.threshold.value = -16; squash.ratio.value = 5; squash.attack.value = 0.002; squash.release.value = 0.12;
     master = ctx.createGain();
     master.gain.value = 0.7;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});    // browsers start audio only from a tap
   return ctx;

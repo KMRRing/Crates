@@ -9,6 +9,7 @@
 // asked for on a touch, a change, an animation or a turn of the view, and it draws only while it is on screen and nothing has
 // paused it (the menu, a hidden tab). No allocation per frame: every matrix, colour and vector is made once.
 // Throws where there is no WebGL (the page then keeps the flat board).
+import { speaker, audible } from "./volume.js";
 import * as THREE from "./vendor/three.js";
 import { createGesture } from "./moor-gesture.js";
 
@@ -51,20 +52,21 @@ function skinNow() {
 }
 
 // ---------- the click of a stone on wood (Web Audio, made as it plays: nothing to download) ----------
-let actx = null, hiss = null;
+let actx = null, out = null, hiss = null;
 function clack(slate, delay) {
+  if (!audible()) return;
   try {
-    if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; actx = new C(); }
+    if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; actx = new C(); out = speaker(actx); }
     if (actx.state !== "running") actx.resume().catch(() => {});       // an iPhone starts audio only from a tap, and stops it when the page was away
     if (!hiss) { hiss = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.06), actx.sampleRate); const d = hiss.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
     const t = actx.currentTime + delay, src = actx.createBufferSource(), bp = actx.createBiquadFilter(), g = actx.createGain();
     src.buffer = hiss; bp.type = "bandpass"; bp.frequency.value = slate ? 1500 : 2100; bp.Q.value = 2.4;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    src.connect(bp).connect(g).connect(actx.destination); src.start(t); src.stop(t + 0.06);
+    src.connect(bp).connect(g).connect(out); src.start(t); src.stop(t + 0.06);
     const o = actx.createOscillator(), og = actx.createGain();
     o.frequency.setValueAtTime(slate ? 640 : 820, t); o.frequency.exponentialRampToValueAtTime(380, t + 0.05);
     og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.16, t + 0.002); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    o.connect(og).connect(actx.destination); o.start(t); o.stop(t + 0.08);
+    o.connect(og).connect(out); o.start(t); o.stop(t + 0.08);
   } catch { /* no sound where there is no audio */ }
 }
 

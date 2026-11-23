@@ -3,18 +3,19 @@
 // hisses and slumps, a herring barrel rumbles and knocks hollow, furs drag and thump softly, amber ticks like glass), a
 // ship's bell and a crane's chain when crates ship, a squall's patter and a wave's wash. Nothing is made before the first
 // touch (browsers refuse it) or while sound is off; effects are rate-limited so a long slide stays a texture.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, bed = null, primed = false, on = true, gullTimer = 0;
 const last = {};
 
 function audio() {
-  if (!on || !primed) return null;
+  if (!on || !primed || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
     ctx = new C();
     master = ctx.createGain();
     master.gain.value = 0.6;
-    master.connect(ctx.destination);
+    master.connect(speaker(ctx));
   }
   if (ctx.state === "suspended") ctx.resume();
   return ctx;

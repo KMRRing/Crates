@@ -7,7 +7,7 @@ import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf
 import { LEVEL_NAMES, suggest, wants } from "./factor-bot.js";
 import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, offerCardHtml, pickCardHtml, pname } from "./factor-trade.js";
 import { buildSpots, tapMove } from "./factor-tap.js";
-import { cuesBetween, readOn, keepOn } from "./factor-cues.js";
+import { cuesBetween } from "./factor-cues.js";
 import { sound } from "./factor-sound.js";
 import { declines, asked } from "./factor-skip.js";
 import { HEXES, RES } from "./factor-board.js";
@@ -19,7 +19,7 @@ import { createFlights } from "./factor-fly.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { ramp } from "./ramp.js";
-import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused, volume } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
@@ -59,7 +59,6 @@ const keepView = text => {
   try { if (text) localStorage.setItem(VIEW, text); else localStorage.removeItem(VIEW); } catch { /* private mode */ }
 };
 
-try { sound.on = readOn({ getItem: k => localStorage.getItem(k) }); } catch { /* private mode: on */ }
 let toastTimer = 0;
 function toast(msg, ms = 2800) {
   const t = $("toast");
@@ -596,7 +595,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
-  set.append(toggle("Sound", sound.on, on => { sound.on = on; keepOn({ setItem: (k, v) => localStorage.setItem(k, v) }, on); }));
+  set.append(volume());
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], flatNow() ? "flat" : "3d", v => { opts.view = v; keep(); useView(); }));
   if (island) {
     set.append(action("Reset view", () => island?.resetView()));

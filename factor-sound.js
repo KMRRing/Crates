@@ -3,11 +3,12 @@
 // trade. Which sound a move calls for is factor-cues.js's. Off, and nothing is made at all; the audio context is made only from
 // a touch (an iPhone starts sound only from one); stopped while the menu is open or the page is away (the pause rule); a rival's
 // or a computer's move is played softer than yours, and no more than MAX_LIVE sounds sound at once.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, dest = null, on = true, quiet = false, hiss = null, live = 0, lastLand = -1;
 const MAX_LIVE = 6;
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -16,7 +17,7 @@ function audio() {
     squash.threshold.value = -16; squash.ratio.value = 4; squash.attack.value = 0.004; squash.release.value = 0.2;
     master = ctx.createGain();
     master.gain.value = 0.8;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
     const b = ctx.createBuffer(1, 1, ctx.sampleRate), s = ctx.createBufferSource();       // an iPhone opens its output on a first sound inside a touch
     s.buffer = b; s.connect(ctx.destination); s.start(0);
   }

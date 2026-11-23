@@ -18,7 +18,7 @@ import { sound as sfx } from "./shunt-sound.js";
 import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, choice, onPause, todayPart } from "./menu.js";
+import { part, action, line, toggle, choice, onPause, todayPart, volume } from "./menu.js";
 import { sure } from "./sure.js";
 import { busy, load3d } from "./loading.js";
 import { roundOver } from "./random.js";
@@ -32,9 +32,9 @@ const $ = id => document.getElementById(id);
 // games screen shows. RUN, ERUN, DRUN: the game of each mode (plate and moves). DAILY: the stars won on each day's plate, by the day (YYYYMMDD).
 // SEL: the lever being previewed, so a partner sees it. SEEN: terms already explained.
 // Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
-// CAM: the 3D view's turn, tilt and zoom, kept when the player moves it (null at home, never a default written). VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the watch's sounds on or off. TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
+// CAM: the 3D view's turn, tilt and zoom, kept when the player moves it (null at home, never a default written). VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
 const MODE = KEYS.mode, BEST = KEYS.best, DAILY = KEYS.daily, SEL = KEYS.sel, SEEN = KEYS.seen;
-const VIEW = "shunt:view", SOUND = "shunt:sound", TILT = "shunt:tilt", CAM = KEYS.cam;
+const VIEW = "shunt:view", TILT = "shunt:tilt", CAM = KEYS.cam;
 const kp = keeper(localStorage, IN_FRAME), { write } = kp;
 const read = (k, d, ok) => kp.read(k, d, ok);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -42,7 +42,6 @@ const starStr = n => "★".repeat(n) + "☆".repeat(3 - n);
 
 if (!IN_FRAME) migrate(kp);
 
-sfx.on = read(SOUND, true) !== false;
 let view = createView2d({ board: $("board"), tray: $("tray") });
 
 let mode = readMode(kp);
@@ -518,7 +517,7 @@ function openMenu(tab = null) {
     back: mode === "daily" ? { text: `Back to ${rest === "levels" ? "the levels" : "Endless"}`, fn: () => setMode(rest) } : null,
   });
   const settings = part(body, "settings");
-  if (view.kind === "3d") settings.append(toggle("Sound", sfx.on, on => { sfx.on = on; write(SOUND, on); if (on) { sfx.unlock(); sfx.play("tick"); } }));
+  if (view.kind === "3d") settings.append(volume(v => { if (v) { sfx.unlock(); sfx.play("tick"); } }));
   if (view.kind === "3d" && view.canDeviceTilt && matchMedia("(pointer: coarse)").matches) {
     settings.append(toggle("Tilt with the phone", read(TILT, false, v => typeof v === "boolean"), async on => {
       const got = await view.deviceTilt(on);                                          // asks iOS's permission here, from the tap

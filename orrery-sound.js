@@ -4,11 +4,12 @@
 // hoop tipping, a hoop drifting a tip by itself (a spring's soft give), a change of tempo, a bell struck up a chord when
 // the beat strikes a line (four planets a longer chord than three, a combo a higher one), and the end. Off, and nothing
 // is made at all.
+import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true;
 const pans = typeof StereoPannerNode !== "undefined";
 
 function audio() {
-  if (!on) return null;
+  if (!on || !audible()) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
@@ -17,7 +18,7 @@ function audio() {
     squash.threshold.value = -18; squash.ratio.value = 4; squash.attack.value = 0.003; squash.release.value = 0.15;
     master = ctx.createGain();
     master.gain.value = 0.75;
-    master.connect(squash).connect(ctx.destination);
+    master.connect(squash).connect(speaker(ctx));
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});    // browsers start audio only from a tap
   return ctx;
