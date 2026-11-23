@@ -177,6 +177,7 @@ export function createGL({ host, onFrame = () => {} }) {
     R.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     R.toneMapping = ACES; R.toneMappingExposure = 1.4;
     R.shadowMap.enabled = true; R.shadowMap.type = PCF_SOFT;
+    R.shadowMap.autoUpdate = false;               // the shadows are cast again only when the tiles have moved (frame, below)
     scene = new T.Scene();
     R.setClearColor(0x000000, 0);
     cam = new T.PerspectiveCamera(FOV, 1, 0.1, 200);
@@ -504,11 +505,17 @@ export function createGL({ host, onFrame = () => {} }) {
     if (view) { const z = view.dist / fit; fit = fitDist(); view.dist = fit * z; pose(); } else cam.updateProjectionMatrix();
   }
   function redraw() { want = true; if (!raf && wanted) raf = requestAnimationFrame(frame); }
+  // A discard on offer pulses its ring, a slow sine: the table is drawn for it about twelve times a second, its shadows as they
+  // were. Every frame of the whole table with its shadows for a ring's glow was some 1,500 draws, sixty times a second, for as
+  // long as you thought about the claim (the 23 Nov 2026 audit).
+  const PULSE_MS = 80;
+  let slow = 0;
   function frame(now) {
     raf = 0;
     if (!R || !wanted || document.hidden) return;
-    const dt = Math.min(0.05, (now - (last || now)) / 1000) || 0.016;
-    last = now; clock += dt;
+    const changed = want;
+    const real = (now - (last || now)) / 1000, dt = Math.min(0.05, real) || 0.016;
+    last = now; clock += Math.min(0.25, real) || dt;                 // the pulse keeps its pace at its slower frames
     let moving = false;
     const k = 1 - Math.exp(-dt * 13);
     for (const rec of items.values()) {
@@ -523,10 +530,14 @@ export function createGL({ host, onFrame = () => {} }) {
         moving = true;
       } else { g.position.set(to.x, to.y, to.z); g.quaternion.copy(to.q); g.scale.setScalar(to.s); }
     }
+    if (moving || changed) R.shadowMap.needsUpdate = true;
     R.render(scene, cam);
     onFrame();
     want = false;
-    if (moving || pulse || want) raf = requestAnimationFrame(frame); else last = 0;
+    clearTimeout(slow); slow = 0;
+    if (moving || want) raf = requestAnimationFrame(frame);
+    else if (pulse) slow = setTimeout(() => { slow = 0; if (!raf && wanted) raf = requestAnimationFrame(frame); }, PULSE_MS);
+    else last = 0;
   }
 
   return {
@@ -537,7 +548,7 @@ export function createGL({ host, onFrame = () => {} }) {
     pause(on) { wanted = !on; if (!on) redraw(); },
     show(on) { if (canvas) canvas.hidden = !on; wanted = on; if (on) redraw(); },
     dispose() {
-      cancelAnimationFrame(raf); raf = 0;
+      cancelAnimationFrame(raf); raf = 0; clearTimeout(slow); slow = 0;
       for (const rec of items.values()) scene?.remove(rec.group);
       items.clear();
       R?.dispose?.(); R?.forceContextLoss?.();
