@@ -1,11 +1,12 @@
-// Settle: a foundry puzzle (redesigned 23 November 2026). A row of crucibles of molten metal, which always lies by weight: lead at
+// Crucible (Settle's files; renamed 23 November 2026): a foundry puzzle. A row of crucibles of molten metal, which always lies by weight: lead at
 // the foot, copper, tin on top. Tip one crucible into another (tap it, then where it pours; or drag) and all its top metal pours
 // across, as much as fits, and sinks to its place. Only the top ever comes out. The moulds above are the goal: a crucible holding
 // exactly a mould's recipe is cast into it at once. Cast them all, in as few pours as you can: the par is the fewest possible.
 // The rules and solver are settle-engine.js's, the levels settle-levels.js's, the foundry drawn in 2D (settle-draw.js) or 3D
 // (settle-3d.js, the player's choice); this file keeps the run, plays each pour out and builds the page. Three ways to play: the
-// levels, a random melt (on a hidden ramp) and today's.
-import { startOf, pour, pourOf, won, solve, bestMove, starsFor, topOf, layersOf } from "./settle-engine.js";
+// levels (eight chapters, each adding a twist: spare metal, dross, the teapot ladle, zinc and charcoal, liquation), a random melt
+// (on a hidden ramp) and today's.
+import { startOf, pour, pourOf, won, solve, bestMove, starsFor, topOf, layersOf, keyOf, winsTable } from "./settle-engine.js";
 import { METALS, mouldOf } from "./settle-alloys.js";
 import { LEVELS, CHAPTERS, levelById, chapterOf, playOf, meltOf, MELTS } from "./settle-levels.js";
 import { createFlat } from "./settle-draw.js";
@@ -16,7 +17,7 @@ import { part, action, line, toggle, choice, onPause, isPaused, todayPart, volum
 import { roundOver } from "./random.js";
 import { noteStars, IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { ramp } from "./ramp.js";
-import { load3d } from "./loading.js";
+import { load3d, busy } from "./loading.js";
 import { wants3D } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
@@ -51,12 +52,43 @@ function save() {
 function validRun(r) {
   try { if (!r?.lv?.caps || !r.state?.cups) return false; const E = playOf(r.lv); return r.state.cups.length === E.caps.length && r.state.cups.every(c => c.length === E.metals.length) && r.state.cast.length === E.moulds.length; } catch { return false; }
 }
+// ---------- the solver's table ----------
+// Every state reachable from the level's start, with its moves left to win, worked out once a level in a worker (settle-solve-worker.js):
+// whether the moulds can still all be cast after a pour, and the Hint's pour, are then looked up. Until it comes nothing is called stuck;
+// a state it does not know (a run kept from before a change to the rules) is searched for on the spot.
+let table = null, tableFor = null, solver = null, asked = 0;
+const tableWaits = [];
+function askTable(lv) {
+  table = null; tableFor = lv;
+  const n = ++asked, got = t => {
+    if (n !== asked) return;
+    table = t;
+    stuck = !won(R.state) && winsFrom(R.state) === undefined;
+    if (stuck) msg = STUCK;
+    tableWaits.splice(0).forEach(f => f());
+    render();
+  };
+  if (solver === null) { try { solver = new Worker(new URL("./settle-solve-worker.js", import.meta.url), { type: "module" }); } catch { solver = false; } }
+  if (!solver) { setTimeout(() => { const E = playOf(lv); got(solve(E, startOf(E)).toWin); }, 0); return; }
+  solver.onmessage = ({ data }) => { if (data.n === asked) got(winsTable(data.ids, data.d)); };
+  solver.postMessage({ n, lv });
+}
+/** The moves left to win from a state, undefined when none wins; null while the table is still coming. */
+function winsFrom(s) {
+  if (!table) return null;
+  const k = keyOf(s);
+  return table.ids.has(k) ? table.get(k) : solve(L, s).toWin.get(k);
+}
+const tableReady = () => (table ? Promise.resolve() : new Promise(ok => tableWaits.push(ok)));
+const STUCK = "No way to cast every mould from here: undo, or start again.";
+
 function begin(run, m) {
   R = run; mode = m; L = playOf(R.lv); picked = -1; hint = null; msg = ""; anim = null; waiting.length = 0;
   if (m !== "daily") { day = 0; write(MODE, m); }
-  stuck = !R.won && !isFinite(solve(L, R.state).par);
+  stuck = false;
+  if (tableFor !== R.lv) askTable(R.lv);
   save();
-  view?.layout(L.caps);
+  view?.layout(L.caps, L.kinds);
   buildMoulds();
   render();
 }
@@ -87,8 +119,8 @@ function tryPour(a, b) {
   const before = R.state;
   R.state = r.state; R.moves++; picked = -1; hint = null;
   msg = r.casts.length ? `Cast ${r.casts.map(c => mouldOf(R.lv.moulds[c.mould]).name).join(" and ")}` : "";
-  stuck = !won(R.state) && !isFinite(solve(L, R.state).par);
-  if (stuck) msg = "No way to cast every mould from here: undo, or start again.";
+  stuck = !won(R.state) && winsFrom(R.state) === undefined;
+  if (stuck) msg = STUCK;
   save();
   startPour(a, b, before, r);
   if (won(R.state)) finishSoon = true;
@@ -99,7 +131,7 @@ function undo() {
   if (anim) skipAnim();
   if (!R.undo.length || R.won) return;
   const u = R.undo.pop();
-  R.state = u.state; R.moves = u.moves; picked = -1; hint = null; msg = ""; stuck = !isFinite(solve(L, R.state).par);
+  R.state = u.state; R.moves = u.moves; picked = -1; hint = null; msg = ""; stuck = !won(R.state) && winsFrom(R.state) === undefined;
   sound.play("undo"); save(); refreshMoulds(); render();
 }
 function restart() {
@@ -110,10 +142,11 @@ function restart() {
   R.state = startOf(L); R.moves = 0; picked = -1; hint = null; msg = ""; stuck = false;
   sound.play("undo"); save(); refreshMoulds(); render();
 }
-function showHint() {
+async function showHint() {
   if (anim || R.won) return;
-  const mv = bestMove(L, R.state);
-  if (!mv) { msg = "No way to cast every mould from here: undo, or start again."; render(); return; }
+  if (!table) { const done = busy("Working out the pours"), lv = R.lv; await tableReady(); done(); if (R.lv !== lv || anim || R.won) return; }
+  const k = keyOf(R.state), mv = bestMove(L, R.state, table.ids.has(k) ? table : solve(L, R.state).toWin);
+  if (!mv) { msg = STUCK; render(); return; }
   hint = { from: mv[0], to: mv[1] }; R.hints++; picked = -1;
   msg = `Tip ${cupName(mv[0])} into ${cupName(mv[1])}.`;
   sound.play("hint"); save(); render();
@@ -141,7 +174,7 @@ function finish() {
 // any number can wait (Korbi, 23 Nov 2026: "allow the user to queue the next pour while the current one is still going; the old
 // animation should just speed up a bit but they should then go one after the other, queue should be able to get indefinitely
 // long"). The one playing keeps its own clock, which runs faster while others wait.
-const T_TILT = 380, T_SINK = 480, T_HEAT = 280, T_DRAIN = 440;      // carried over and tipped, the pour sinking, a cast's heat and its draining
+const T_TILT = 380, T_SINK = 480, T_HEAT = 280, T_DRAIN = 440, T_BURN = 700;   // carried over and tipped, the pour sinking, a cast's heat and its draining, zinc burning
 const pourTime = n => 300 + 140 * n;
 const hurry = () => (waiting.length >= 3 ? 2.2 : waiting.length ? 1.6 : 1);
 let pace = 1;                                                        // (tests slow the pour down to look at it)
@@ -153,8 +186,11 @@ function startPour(a, b, before, r) {
   // its sounds, cued by its own clock: the tongs lift it, the metal runs as long as the pour (at the speed it is shown), it settles, it casts
   const cues = [{ at: T_TILT, play: () => sound.play("pour", { weight: (METALS[L.metals[m]].dens - 7) / 4.5, n, len: pourTime(n) / 1000 / (hurry() / pace) }) }];
   if (sinks) cues.push({ at: flowEnd, play: () => sound.play("settle") });
+  if (r.liquated) cues.push({ at: flowEnd + T_SINK * 0.6, play: () => sound.play("liquate") });
   r.casts.forEach((c, k) => cues.push({ at: flowEnd + T_SINK + k * 150, play: () => sound.play("cast", { k }) }));
-  const item = { a, b, before, after: r.state, m, n, casts: r.casts, sinks, e: 0, cues, dur: flowEnd + T_SINK + (r.casts.length ? T_HEAT + T_DRAIN : 0) };
+  if (r.burnt.length) cues.push({ at: flowEnd + T_SINK, play: () => { sound.play("burn"); r.burnt.forEach(x => view?.smoke?.(x.cup)); } });
+  const tail = Math.max(r.casts.length ? T_HEAT + T_DRAIN : 0, r.burnt.length ? T_BURN : 0);
+  const item = { a, b, before, after: r.state, mid: r.mid, liquated: r.liquated, burnt: r.burnt, m, n, casts: r.casts, sinks, e: 0, cues, dur: flowEnd + T_SINK + tail };
   if (anim) waiting.push(item); else begun(item);
   wake();
 }
@@ -184,9 +220,12 @@ function sceneOf(now) {
     const { a, b, m, n, before, casts, e } = anim, P = pourTime(n);
     const TT = T_TILT, TS = T_SINK, flow = clamp01((e - TT) / P), sink = ease(clamp01((e - TT - P) / TS));
     cups[a].go = { to: b, k: e < TT + P ? ease(clamp01(e / TT)) : 1 - sink, flow };
-    // the source drains from the top
+    // the source drains: the metal poured, from the top (a teapot ladle from the foot), and what lies above it comes down
+    const from = cups[a].bands, order = L.kinds[a] === "teapot" ? from.map((_, k) => k) : from.map((_, k) => from.length - 1 - k);
     let drain = n * flow;
-    for (let k = cups[a].bands.length - 1; k >= 0 && drain > 0; k--) { const take = Math.min(1, drain); cups[a].bands[k].h = 1 - take; drain -= take; }
+    for (const k of order) { if (drain <= 0) break; if (from[k].m !== L.metals[m]) continue; const take = Math.min(1, drain); from[k].h = 1 - take; drain -= take; }
+    let acc = 0;
+    for (const bd of from) { bd.y = acc; acc += bd.h; }
     // the target fills on top, then the pour sinks to its place by weight and what is lighter rises
     const bb = layersOf(before.cups[b]), below = bb.filter(x => x <= m).length;
     cups[b].bands = bb.map((x, j) => { const to = x <= m ? j : j + n; return { m: L.metals[x], y: j + (to - j) * sink, h: 1 }; });
@@ -194,6 +233,18 @@ function sceneOf(now) {
     const landed = clamp01((flow - 0.375) / 0.625);
     for (let k = 0; k < n; k++) cups[b].bands.push({ m: L.metals[m], y: bb.length + k + (below + k - bb.length - k) * sink, h: clamp01(n * landed - k) });
     if (flow > 0 && flow < 1.15) stream = { from: a, to: b, m: L.metals[m], t0: clamp01(flow * 1.6), t1: clamp01(flow * 1.6 - 0.6) };
+    // the liquation: as the lead sinks through the black copper, both turn (rich lead under, plain copper over), with a flare
+    if (anim.liquated && sink > 0.6) {
+      const flare = 1 - clamp01((sink - 0.6) / 0.4) * 0.6;
+      cups[b].bands = layersOf(anim.mid).map((x, j) => ({ m: L.metals[x], y: j, h: 1, hot: (x === L.Pr || x === L.Cu) ? 0.35 * flare : 0 }));
+    }
+    // zinc left with no charcoal burns away in a flicker of smoke
+    const be = e - TT - P - TS;
+    for (const x of anim.burnt) {
+      if (be < 0) continue;
+      const gone = clamp01(be / T_BURN);
+      for (const bd of cups[x.cup].bands) if (bd.m === "Zn") { bd.a = 1 - gone; bd.hot = 0.5 * Math.sin(Math.PI * gone); }
+    }
     // a cast: white heat, then it drains into the mould
     const ce = e - TT - P - TS;
     for (const c of casts) {
@@ -208,7 +259,7 @@ function sceneOf(now) {
     cups[picked].lift = anim ? 0 : 1; cups[picked].picked = true;
     cups.forEach((c, i) => { if (i !== picked && pourOf(L, R.state, picked, i)) c.target = true; });
   }
-  return { caps: L.caps, cups, stream, hint: anim ? null : hint };
+  return { caps: L.caps, kinds: L.kinds, cups, stream, hint: anim ? null : hint };
 }
 
 // ---------- the foundry, 2D or 3D ----------
@@ -221,10 +272,10 @@ async function setView(kind) {
   $("app").classList.toggle("view3d", kind === "3d");
   if (kind === "3d") {
     try { const m = await load3d(import("./settle-3d.js"), "Lighting the hearth"); if (viewKind !== "3d") return; view = m.createFoundry(host); }
-    catch (err) { console.warn("Settle: no 3D here.", err); viewKind = "flat"; $("app").classList.remove("view3d"); view = createFlat(host); }
+    catch (err) { console.warn("Crucible: no 3D here.", err); viewKind = "flat"; $("app").classList.remove("view3d"); view = createFlat(host); }
   } else view = createFlat(host);
   view.canvas.setAttribute("aria-label", "The crucibles in section, the metal in each lying by weight");
-  if (L) view.layout(L.caps);
+  if (L) view.layout(L.caps, L.kinds);
   wake();
 }
 
@@ -308,13 +359,15 @@ function render() {
 }
 
 // ---------- touch: tap a crucible, then where it pours; or drag from one to the other ----------
+/** Whether crucible c has anything it can pour (a slag pot never does; charcoal never pours). */
+const pours = c => L.kinds[c] !== "slag" && topOf(R.state.cups[c], L.kinds[c], L.C) >= 0;
 let press = null;
 function down(e) {
   if (!R || R.won || !view) return;
   sound.unlock(); sound.hearth(true);
   const c = view.cupAt(e.clientX, e.clientY);
   press = { c, x: e.clientX, y: e.clientY, id: e.pointerId, was: picked };
-  if (c >= 0 && picked < 0 && topOf(R.state.cups[c]) >= 0) { picked = c; hint = null; sound.play("pick"); render(); }
+  if (c >= 0 && picked < 0 && pours(c)) { picked = c; hint = null; sound.play("pick"); render(); }
 }
 function up(e) {
   const p = press; press = null;
@@ -325,8 +378,8 @@ function up(e) {
   if (p.was < 0) return;                                                                    // this press picked it
   if (c === p.was) { picked = -1; render(); return; }                                       // tapped again: put down
   if (pourOf(L, R.state, p.was, c)) { tryPour(p.was, c); return; }
-  if (topOf(R.state.cups[c]) >= 0 && L.caps[c] - R.state.cups[c].reduce((a, b) => a + b, 0) === 0) { sound.play("refuse"); shake(c); picked = -1; render(); return; }
-  if (topOf(R.state.cups[c]) >= 0) { picked = c; sound.play("pick"); render(); return; }
+  if (pours(c) && L.caps[c] - R.state.cups[c].reduce((a, b) => a + b, 0) === 0) { sound.play("refuse"); shake(c); picked = -1; render(); return; }
+  if (pours(c)) { picked = c; sound.play("pick"); render(); return; }
   sound.play("refuse"); picked = -1; render();
 }
 
@@ -400,7 +453,7 @@ $("nextBtn").addEventListener("click", () => {
 new ResizeObserver(() => { view?.resize(); wake(); }).observe($("foundry"));
 
 // for tests and debugging
-window.__settle = { get run() { return R; }, get level() { return L; }, get mode() { return mode; }, get view() { return viewKind; }, get busy() { return !!anim; }, get playing() { return anim && { e: anim.e, dur: anim.dur, waiting: waiting.length }; }, tryPour, undo, restart, showHint, openLevel: id => openLevel(levelById(id)), openRandom, playDaily, setView, set pace(v) { pace = v; } };
+window.__settle = { get run() { return R; }, get level() { return L; }, get mode() { return mode; }, get view() { return viewKind; }, get busy() { return !!anim; }, get playing() { return anim && { e: anim.e, dur: anim.dur, waiting: waiting.length }; }, get table() { return !!table; }, get stuck() { return stuck; }, get hint() { return hint; }, get line() { return msg; }, tryPour, undo, restart, showHint, openLevel: id => openLevel(levelById(id)), openRandom, playDaily, setView, set pace(v) { pace = v; } };
 
 // opens on the mode last played; the tile opens today's melt while it is still to play
 setView(!IN_FRAME && wants3d() ? "3d" : "flat");

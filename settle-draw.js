@@ -6,7 +6,8 @@
 // scene: { caps, cups: [{ bands: [{ m, y (the slot it lies at, from the foot; fractional while it moves), h (0..1, a measure
 // draining or filling), a (alpha), hot (0..1, white heat of a cast) }], lift (0..1), go: { to, k (0..1) } (carried over the
 // crucible it pours into and tipped, k of the way), picked, target (a pour may go here) }], stream: { from, to, m, t0..t1 (the
-// stream's head and tail, 0..1) } | null, hint: { from, to } | null }
+// stream's head and tail, 0..1) } | null, hint: { from, to } | null, kinds: each crucible "", "slag" (an iron slag pot) or "teapot"
+// (a ladle that pours from its foot, its spout up its side) }
 import { METALS } from "./settle-alloys.js";
 
 const GLYPH = Object.fromEntries(Object.entries(METALS).map(([k, m]) => [k, new Path2D(m.glyph)]));
@@ -21,7 +22,7 @@ export function createFlat(host) {
   const ctx = canvas.getContext("2d");
   let W = 1, H = 1, dpr = 1, g = null, caps = [];
   const embers = Array.from({ length: 26 }, (_, i) => ({ x: Math.random(), y: Math.random(), s: 0.4 + Math.random(), p: i * 1.7 }));
-  let bursts = [];
+  let bursts = [], smokes = [], kinds = [];
 
   function resize() {
     W = host.clientWidth || 1; H = host.clientHeight || 1; dpr = Math.min(2, devicePixelRatio || 1);
@@ -129,16 +130,24 @@ export function createFlat(host) {
     return { x: rest.x + (fx - rest.x) * k, y: rest.y + (fy - rest.y) * k, turn: turn * k };
   }
   function drawCup(i, cup, now) {
-    const { iw, ih, ow, oh } = outerOf(i), P = poseOf(i, cup), lift = g.floor - P.y;
+    const { iw, ih, ow, oh } = outerOf(i), P = poseOf(i, cup), lift = g.floor - P.y, kind = kinds[i] || "";
     ctx.save();
     ctx.translate(P.x, P.y); ctx.rotate(P.turn);
     // shadow on the hearth
     if (!cup.go) { ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(0, lift + 3, ow * 0.55, 6, 0, 0, Math.PI * 2); ctx.fill(); }
-    // the clay: fired, warm on the side facing the hearth's glow
-    const outer = cruciblePath(ow, oh, ow * 0.06);
+    // the clay: fired, warm on the side facing the hearth's glow (a slag pot is cast iron, dark and straight-sided)
+    const outer = cruciblePath(ow, oh, kind === "slag" ? 0 : ow * 0.06);
     const clay = ctx.createLinearGradient(-ow / 2, 0, ow / 2, 0);
-    clay.addColorStop(0, "#6b3d24"); clay.addColorStop(0.45, "#a9673c"); clay.addColorStop(0.7, "#8a5030"); clay.addColorStop(1, "#4c2a18");
+    const tones = kind === "slag" ? ["#26231f", "#4a4640", "#38342f", "#1c1a17"] : ["#6b3d24", "#a9673c", "#8a5030", "#4c2a18"];
+    [0, 0.45, 0.7, 1].forEach((at, k) => clay.addColorStop(at, tones[k]));
     ctx.fillStyle = clay; ctx.fill(outer);
+    // a teapot ladle's spout: a channel from its foot up the side it pours from, to a lip at the rim
+    if (kind === "teapot") {
+      const side = cup.go ? (Math.sign(g.xs[cup.go.to] - g.xs[i]) || 1) : 1, x = side * (ow / 2 + ow * 0.04);
+      ctx.strokeStyle = "#8a5030"; ctx.lineWidth = Math.max(4, ow * 0.09); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(side * ow * 0.34, -g.wall); ctx.quadraticCurveTo(x + side * ow * 0.08, -oh * 0.4, x + side * ow * 0.1, -oh - 2); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,200,140,.35)"; ctx.lineWidth = 1.2; ctx.stroke();
+    }
     const heat = ctx.createLinearGradient(0, -oh, 0, 0);
     heat.addColorStop(0, "rgba(255,150,60,0)"); heat.addColorStop(1, "rgba(255,120,40,.35)");
     ctx.fillStyle = heat; ctx.fill(outer);
@@ -153,7 +162,7 @@ export function createFlat(host) {
     // the rim of the cut and the lip
     ctx.lineWidth = 1.2; ctx.strokeStyle = "rgba(40,20,10,.85)"; ctx.stroke(outer);
     ctx.save(); ctx.translate(0, -g.wall * 0.9); ctx.strokeStyle = "rgba(255,200,150,.18)"; ctx.stroke(inner); ctx.restore();
-    ctx.fillStyle = "#b97a4a"; ctx.fillRect(-ow / 2 - ow * 0.06 - 2, -oh - 3, ow * 1.12 + 4, 4);
+    ctx.fillStyle = kind === "slag" ? "#5a554e" : "#b97a4a"; ctx.fillRect(-ow / 2 - ow * 0.06 - 2, -oh - 3, ow * 1.12 + 4, 4);
     // picked: a gilt ring at the mouth; a crucible it may pour into: a faint one
     if (cup.picked || cup.target) {
       ctx.strokeStyle = cup.picked ? "rgba(240,200,110,.95)" : "rgba(240,200,110,.4)";
@@ -197,6 +206,15 @@ export function createFlat(host) {
   }
   function drawBursts(now) {
     bursts = bursts.filter(b => now - b.t0 < 900);
+    smokes = smokes.filter(s => now - s.t0 < 1400);
+    for (const s of smokes) {
+      const t = (now - s.t0) / 1400;
+      for (const p of s.parts) {
+        const x = s.x + p.vx * t * 40 + Math.sin(now / 300 + p.vx * 9) * 4, y = s.y - t * 110 * p.vy, r = 6 + 22 * t * p.vy;
+        ctx.fillStyle = `rgba(225,232,236,${0.4 * (1 - t)})`;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     for (const b of bursts) {
       const t = (now - b.t0) / 900;
       for (const p of b.parts) {
@@ -210,10 +228,11 @@ export function createFlat(host) {
   return {
     canvas,
     /** The crucibles' sizes (a new level). */
-    layout(c) { caps = c.slice(); resize(); },
+    layout(c, k = []) { caps = c.slice(); kinds = k.slice(); resize(); },
     resize,
     frame(scene, now) {
       if (!g || !scene) return;
+      kinds = scene.kinds || [];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawBackdrop(now);
       // the crucible pouring is drawn last, so its stream and tipped body lie over its neighbours
@@ -228,6 +247,12 @@ export function createFlat(host) {
       if (!g) return;
       const m = mouthOf(i);
       bursts.push({ t0: now, x: m.x, y: m.y, parts: Array.from({ length: 26 }, () => { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v = 0.5 + Math.random(); return { vx: Math.cos(a) * v, vy: Math.sin(a) * v }; }) });
+    },
+    /** White smoke from crucible i's mouth (zinc burning). */
+    smoke(i) {
+      if (!g) return;
+      const m = mouthOf(i);
+      smokes.push({ t0: performance.now(), x: m.x, y: m.y, parts: Array.from({ length: 9 }, () => ({ vx: Math.random() - 0.5, vy: 0.6 + Math.random() * 0.6 })) });
     },
     /** The crucible under a point of the page (anywhere in its column), or -1. */
     cupAt(px, py) {

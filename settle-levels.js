@@ -12,21 +12,30 @@ export const LEVELS = BOOK;
 export const levelById = id => LEVELS.find(L => L.id === id) || null;
 export const chapterOf = L => CHAPTERS.find(c => c.id === L.ch) || null;
 /** The engine's level of a book level or a melt. */
-export const playOf = L => levelOf({ caps: L.caps, fill: L.fill, moulds: L.moulds.map(id => mouldOf(id).parts) });
+export const playOf = L => levelOf({ caps: L.caps, fill: L.fill, moulds: L.moulds.map(id => mouldOf(id).parts), kinds: L.kinds });
 
 const rng = seed => { let s = (seed >>> 0) || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; };
-/** A row's crucibles filled at random from a seed: { caps, fill, moulds }. row: { moulds, caps } (caps: one per crucible). */
+/**
+ * A row's crucibles filled at random from a seed: { caps, fill, moulds, kinds? }. row: { moulds, caps (one per crucible), and from
+ * the later chapters kinds (each "", "slag" or "teapot"), extra (spare measures no mould takes: dross among them), cover (the
+ * crucibles that hold charcoal), raw (the measures to drop, when they are not the moulds' own: the liquation's lead and black
+ * copper) }. A slag pot starts empty; zinc starts only under charcoal; lead and black copper never start together.
+ */
 export function fillOf(row, seed) {
-  const r = rng(seed * 7919 + 17), measures = row.moulds.flatMap(id => Object.entries(mouldOf(id).parts).flatMap(([m, n]) => Array(n).fill(m)));
+  const r = rng(seed * 7919 + 17);
+  const measures = (row.raw || row.moulds.flatMap(id => Object.entries(mouldOf(id).parts).flatMap(([m, n]) => Array(n).fill(m)))).concat(row.extra || []);
   for (let i = measures.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [measures[i], measures[j]] = [measures[j], measures[i]]; }
-  const fill = row.caps.map(() => []);
+  const kinds = row.kinds || row.caps.map(() => ""), cover = new Set(row.cover || []);
+  const fill = row.caps.map((_, i) => (cover.has(i) ? ["C"] : []));
+  const fits = (i, m) => kinds[i] !== "slag" && fill[i].length < row.caps[i] && (m !== "Zn" || cover.has(i))
+    && !(m === "Pb" && fill[i].includes("Bk")) && !(m === "Bk" && fill[i].includes("Pb"));
   for (const m of measures) {
-    const open = fill.map((_, i) => i).filter(i => fill[i].length < row.caps[i]);
+    const open = fill.map((_, i) => i).filter(i => fits(i, m));
     if (!open.length) return null;
     fill[open[Math.floor(r() * open.length)]].push(m);
   }
   for (const f of fill) f.sort((a, b) => METALS[b].dens - METALS[a].dens);        // as it lies: the heaviest at the foot
-  return { caps: row.caps.slice(), fill, moulds: row.moulds.slice() };
+  return { caps: row.caps.slice(), fill, moulds: row.moulds.slice(), ...(row.kinds ? { kinds: row.kinds.slice() } : {}) };
 }
 /**
  * How good a puzzle a filled level is: { ok, par, best (first moves that keep the par), of (first moves), greedy (of 20 greedy
@@ -59,6 +68,7 @@ export function gradeOf(spec, par = [1, 99], strict = true) {
  */
 export function makeLevel(row, from = 1, tries = 4000, hardest = false) {
   let best = null, bg = null;
+  tries = row.tries || tries;
   for (let seed = from; seed < from + tries; seed++) {
     const spec = fillOf(row, seed);
     if (!spec) continue;

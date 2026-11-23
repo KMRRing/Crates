@@ -4,7 +4,7 @@ Plain HTML, CSS and JS modules, no build step. Live at https://kmrring.github.io
 
 ## Who and how
 - Korbi (owner) never uses a command line: do the git work yourself and make everything work from the app. He's a biofuels trader: terse, expert, define a technical term the first time.
-- A game is `<game>.html/.js/.css`, its engine and data files, and `tests/<game>.mjs`. On-screen names differ from file names (Gears=pipes, Mahjong=hong, Hanse=factor, Dujiang=nurikabe, Chess=gambit, Xiangqi=river, Guandan=tribute, Dou Dizhu=landlord, Nonet=sudoku, Tally=kakuro, Cull=hitori, Portolan=slitherlink, Jam=shunt); `apps.js` has the list. Name games by their official name unless it's a trademark; no falling-blocks game (Tetris).
+- A game is `<game>.html/.js/.css`, its engine and data files, and `tests/<game>.mjs`. On-screen names differ from file names (Gears=pipes, Mahjong=hong, Hanse=factor, Dujiang=nurikabe, Chess=gambit, Xiangqi=river, Guandan=tribute, Dou Dizhu=landlord, Nonet=sudoku, Tally=kakuro, Cull=hitori, Portolan=slitherlink, Jam=shunt, Crucible=settle); `apps.js` has the list. Name games by their official name unless it's a trademark; no falling-blocks game (Tetris).
 - The per-game docs were deleted on 7 November 2026 (Korbi: "unless it's truly essential, remove it"). Old ones: `git show e2c62ef8:docs/<game>.md`. Korbi's rulings now live as dated comments in the code or test they govern: add one there, not a doc. `docs/licences-images-and-engines.md` stays (no GPL engines, public-domain images only).
 - Clean code as you go; comments say why, not what.
 

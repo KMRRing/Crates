@@ -7,7 +7,9 @@
 //   settle: a heavy metal sinking through a lighter one, a slow low welling;
 //   cast: the ingot quenched, a burst of steam, and its ring as it is knocked from the mould, a step higher for each in a row;
 //   refuse: the tongs knocking a crucible that will take nothing; undo: the tongs set the crucible back; hint: one breath of the bellows;
-//   win: the foundry's bell, three strokes (bell metal, which the levels cast).
+//   win: the foundry's bell, three strokes (bell metal, which the levels cast);
+//   burn: zinc catching fire, a soft roar and a crackle as it goes up in white smoke; liquate: lead drawing the silver, a deep welling
+//   with a faint bright ring.
 // Browsers start audio only from a touch, so nothing is made until the page calls unlock() from one; at volume nought, nothing at all.
 import { speaker, audible } from "./volume.js";
 let ctx = null, master = null, on = true, white = null, hearth = null;
@@ -111,6 +113,16 @@ export const SOUNDS = {
   },
   undo: (c, t) => { burst(c, t, { freq: 900, q: 1.5, gain: 0.08, dur: 0.18, sweep: 0.6, attack: 0.02 }); tongs(c, t + 0.16, 0.6); },
   win: (c, t) => { for (let k = 0; k < 3; k++) tone(c, t + k * 0.55, { freq: 392, gain: 0.3 - k * 0.05, dur: 3.2, partials: BELL }); },
+  burn: (c, t) => {
+    burst(c, t, { freq: 700, q: 0.6, gain: 0.22, dur: 0.9, attack: 0.06, sweep: 2.2 });
+    burst(c, t + 0.05, { freq: 260, q: 0.7, gain: 0.16, dur: 0.8, attack: 0.1, type: "lowpass" });
+    sizzle(c, t, 0.7, 0.07);
+  },
+  liquate: (c, t) => {
+    tone(c, t, { freq: 82, gain: 0.2, dur: 0.8, drop: 0.7, attack: 0.1 });
+    for (let k = 0; k < 3; k++) tone(c, t + 0.1 + k * 0.13, { freq: 120 + Math.random() * 50, gain: 0.07, dur: 0.14, drop: 1.4, attack: 0.01 });
+    tone(c, t + 0.25, { freq: 1568, gain: 0.05, dur: 0.9, partials: INGOT });
+  },
 };
 
 /** The hearth: the furnace drawing (on while a level is open and the page is in view), the bellows swelling it every few seconds,

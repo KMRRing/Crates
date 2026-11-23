@@ -122,6 +122,12 @@ const profileOf = tall => [
   [R + 0.004, BASE + 0.03], [R - 0.07, BASE], [0, BASE],
 ];
 const OUT = 10;
+/** A slag pot's profile: cast iron, straight-sided, a flat rim; the same inside, so metal lies in it as in a crucible. */
+const potOf = tall => [
+  [0, 0], [R + 0.08, 0], [R + 0.12, 0.04], [R + 0.12, tall - 0.04], [R + 0.17, tall - 0.01], [R + 0.17, tall + 0.035], [R + 0.03, tall + 0.035],
+  [R + 0.004, tall - 0.04], [R + 0.004, BASE + 0.03], [R - 0.07, BASE], [0, BASE],
+];
+const POT_OUT = 7;
 /** An arch: a rectangle `w` wide with a round head, its springing at `spring`; as a path, for a shape or a hole. */
 function arch(path, w, spring, cw = true) {
   path.moveTo(-w / 2, 0); path.lineTo(-w / 2, spring);
@@ -176,7 +182,7 @@ export function createFoundry(host) {
           float nv = clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0);
           vec3 F0 = mix(vec3(0.04), diffuseColor.rgb, metalnessFactor);
           vec3 F = F0 + (vec3(1.0) - F0) * pow(1.0 - nv, 5.0) * (1.0 - material.roughness);
-          reflectedLight.indirectSpecular += stEnv(rv, material.roughness) * F * ${(k * 1.4).toFixed(2)};
+          reflectedLight.indirectSpecular += stEnv(rv, material.roughness) * F * ${(k * 1.4).toFixed(2)} * (1.0 - smoothstep(0.85, 0.97, material.roughness));
         }`);
     };
     return mat;
@@ -191,6 +197,8 @@ export function createFoundry(host) {
     stone: std({ map: stoneTex, roughness: 0.9, color: 0xb8a898 }),
     archStone: std({ map: wrap(stone(), 1, 1), roughness: 0.85, color: 0xd8c4b0 }),
     clay: envify(std({ map: clayTex, color: 0x5e5650, roughness: 0.7, metalness: 0.15, emissiveMap: heatTex, emissive: 0xffffff, emissiveIntensity: 1.1, side: DOUBLE }), 0.45),
+    iron: envify(std({ map: clayTex, color: 0x3a3836, roughness: 0.5, metalness: 0.7, emissiveMap: heatTex, emissive: 0xffffff, emissiveIntensity: 0.6, side: DOUBLE }), 0.7),
+    smoke: new THREE.MeshBasicMaterial({ map: glow, color: 0xdde4e8, transparent: true, depthWrite: false, opacity: 0.3 }),
     soot: std({ color: 0x1a1210, roughness: 0.95, side: DOUBLE, emissive: 0x5a1a06, emissiveIntensity: 0.25 }),
     cut: std({ map: hatchTex, roughness: 0.9, side: DOUBLE, emissive: 0x3a1a08, emissiveIntensity: 0.4 }),
     fire: new THREE.MeshBasicMaterial({ map: fireTex }),
@@ -209,6 +217,13 @@ export function createFoundry(host) {
   const white = new THREE.Color(0xfff2c8), ember = new THREE.Color(0xff8040), gold = new THREE.Color(0xffe0a0);
   const dress = (mat, m, hot = 0, a = 1, top = false) => {
     const k = METALS[m] || METALS.X;
+    if (m === "C" || m === "X") {                                  // charcoal and dross: matt, a dull glow in their cracks
+      // a rough body takes no reflection of the fire (envify), and charcoal glows only faintly, else it reads as clay
+      mat.color.set(k.base); mat.metalness = 0; mat.roughness = 0.97;
+      mat.emissive.set(m === "C" ? "#ff5a1a" : "#6a4a30"); mat.emissiveIntensity = m === "C" ? 0.03 : 0.05;
+      mat.opacity = a; mat.transparent = a < 0.99; mat.depthWrite = a > 0.98;
+      return;
+    }
     mat.color.set(k.base).lerp(white, hot * 0.8);
     mat.metalness = 0.75; mat.roughness = (top ? 0.22 : 0.28) - 0.08 * k.shine;
     mat.emissive.set(top ? k.hi : k.base).lerp(ember, 0.1).lerp(gold, hot);
@@ -318,8 +333,9 @@ export function createFoundry(host) {
     return hi;
   }
 
-  function layout(c) {
-    caps = c.slice();
+  let kinds = [];
+  function layout(c, k = []) {
+    caps = c.slice(); kinds = c.map((_, i) => k[i] || "");
     for (const p of pots) { world.remove(p.g); world.remove(p.surface, p.haze); p.g.traverse(o => { if (o.geometry && o.geometry !== signGeo && o.geometry !== quad) o.geometry.dispose(); }); }
     pots = [];
     const n = caps.length, step = 2 * (R + WALL) + GAP;
@@ -327,9 +343,10 @@ export function createFoundry(host) {
     span = n * 2 * (R + WALL) + (n - 1) * GAP;
     tallOf = caps.map(k => BASE + k * SLAB + 0.08);
     caps.forEach((k, i) => {
-      const g = new THREE.Group(), tall = tallOf[i], th0 = CUT / 2, thL = Math.PI * 2 - CUT, prof = profileOf(tall);
-      // the crucible, cut away in front (three.js puts angle 0 towards the camera), and the hatched section where it is cut
-      const body = new THREE.Mesh(lathe(prof.slice(0, OUT), th0, thL, tall), M.clay), inside = new THREE.Mesh(lathe(prof.slice(OUT - 1), th0, thL, tall), M.soot);
+      const g = new THREE.Group(), tall = tallOf[i], th0 = CUT / 2, thL = Math.PI * 2 - CUT, slag = kinds[i] === "slag", prof = slag ? potOf(tall) : profileOf(tall), out = slag ? POT_OUT : OUT;
+      // the crucible (a slag pot, cast iron), cut away in front (three.js puts angle 0 towards the camera), and the hatched section where
+      // it is cut
+      const body = new THREE.Mesh(lathe(prof.slice(0, out), th0, thL, tall), slag ? M.iron : M.clay), inside = new THREE.Mesh(lathe(prof.slice(out - 1), th0, thL, tall), M.soot);
       body.castShadow = true; body.receiveShadow = true; inside.receiveShadow = true;
       const section = new THREE.Shape();
       prof.forEach(([r, y], j) => (j ? section.lineTo(r, y) : section.moveTo(r, y)));
@@ -338,6 +355,16 @@ export function createFoundry(host) {
       const ring = new THREE.Mesh(quad, M.ring.clone());
       ring.rotation.x = -Math.PI / 2; ring.scale.set(R * 3.6, R * 2.4, 1); ring.position.set(0, tall + 0.05, 0);
       g.add(body, inside, cut(th0), cut(th0 + thL), ring);
+      // a teapot ladle's spout: from an inlet at its foot, up its right side (it is mirrored to pour left) to a lip at the rim
+      if (kinds[i] === "teapot") {
+        const leg = (x0, y0, x1, y1, r) => {
+          const len = Math.hypot(x1 - x0, y1 - y0), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), M.clay);
+          m.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0); m.rotation.z = -Math.atan2(x1 - x0, y1 - y0); m.castShadow = true;
+          g.add(m);
+        };
+        const sx = R + WALL + 0.07;
+        leg(R - 0.05, BASE + 0.1, sx, BASE + 0.18, 0.06); leg(sx, BASE + 0.16, sx, tall - 0.12, 0.07); leg(sx, tall - 0.14, LIP + 0.04, tall + 0.03, 0.06);
+      }
       // the metal: each body of it is the whole inside of the crucible, cut level above and below by planes (it lies level however the
       // crucible is tipped); the top body's surface a level disc, cut where it meets the rim
       const inner = new THREE.CylinderGeometry(RI, RI, tall - BASE, 64, 1, true);
@@ -407,7 +434,10 @@ export function createFoundry(host) {
     mesh.geometry.computeVertexNormals();
     mesh.visible = true;
   }
-  let drops = [], lastDrop = 0;
+  let drops = [], lastDrop = 0, smokes = [];
+  const N_SMOKE = 40, smokeFx = new THREE.InstancedMesh(quad, M.smoke, N_SMOKE);
+  smokeFx.frustumCulled = false;
+  scene.add(smokeFx);
 
   let w = 1, h = 1, look = new THREE.Vector3(), dist = 10;
   const probe = new THREE.Vector3();
@@ -486,6 +516,7 @@ export function createFoundry(host) {
       poses[i] = pose;
       P.g.position.set(pose.x, pose.y, pose.z);
       P.g.rotation.z = pose.turn;
+      P.g.scale.x = kinds[i] === "teapot" && cup.go && xs[cup.go.to] < xs[i] ? -1 : 1;      // the spout to the side it pours to
       P.g.updateMatrixWorld();
       P.ring.material.opacity = cup.picked ? 0.75 + 0.2 * Math.sin(now / 160) : cup.target ? 0.3 : 0;
       // each body cut level at its top and its foot (as fractions of the inside, at this tilt; the lowest open below)
@@ -515,7 +546,7 @@ export function createFoundry(host) {
       rim.set(new THREE.Vector3(0, -1, 0), P.tall).applyMatrix4(P.g.matrixWorld);
       floor.set(new THREE.Vector3(0, 1, 0), -BASE).applyMatrix4(P.g.matrixWorld);
       dress(P.surface.material, top.m, top.hot, top.a, true);
-      P.haze.visible = th < 0.1;
+      P.haze.visible = th < 0.1 && top.m !== "C" && top.m !== "X";        // no heat shimmer off charcoal or dross
       P.haze.position.set(cx, y + 0.05, pose.z);
       P.haze.material.color.set(METALS[top.m]?.hi || "#ffb060").lerp(ember, 0.45).lerp(gold, top.hot);
       P.haze.material.opacity = (0.32 + 0.06 * Math.sin(now / 430 + i) + top.hot * 0.6) * top.a;
@@ -570,6 +601,17 @@ export function createFoundry(host) {
       fx.setMatrixAt(n++, m4);
     }
     fx.count = n; fx.instanceMatrix.needsUpdate = true;
+    // zinc's smoke: white puffs rising from a crucible and spreading
+    let ns = 0;
+    smokes = smokes.filter(sm => now - sm.t0 < 1600);
+    for (const sm of smokes) for (const p of sm.parts) {
+      if (ns >= N_SMOKE) break;
+      const t = (now - sm.t0) / 1600, size = 0.25 + 0.9 * t * p.s;
+      m4.compose(new THREE.Vector3(sm.x + p.vx * t + Math.sin(now / 400 + p.s * 7) * 0.08, sm.y + t * 1.6 * p.s, 0.4 + p.vz * t), qCam, new THREE.Vector3(size, size, size));
+      smokeFx.setMatrixAt(ns++, m4);
+    }
+    smokeFx.count = ns; smokeFx.instanceMatrix.needsUpdate = true;
+    M.smoke.opacity = 0.3;
     renderer.render(scene, camera);
   }
 
@@ -578,6 +620,10 @@ export function createFoundry(host) {
     layout,
     resize,
     frame,
+    smoke(i) {
+      const P = pots[i];
+      smokes.push({ t0: performance.now(), x: P.g.position.x, y: P.tall + P.g.position.y, parts: Array.from({ length: 8 }, () => ({ vx: (Math.random() - 0.5) * 0.6, vz: (Math.random() - 0.5) * 0.3, s: 0.6 + Math.random() * 0.6 })) });
+    },
     burst(i) {
       const top = pots[i].tall, x = pots[i].g.position.x;
       sparks.push({ t0: performance.now(), x, y: top, parts: Array.from({ length: 30 }, () => { const a = Math.random() * Math.PI, v = 0.8 + Math.random() * 1.4; return { vx: Math.cos(a) * v * 0.7, vy: Math.sin(a) * v + 0.4, vz: (Math.random() - 0.5) * 0.6 }; }) });

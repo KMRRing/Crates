@@ -1,6 +1,7 @@
-// Settle's rules (settle-engine.js, the redesign of 23 November 2026): metal lies by real density, a pour moves all the top metal
-// that fits and it sinks to its place, only the top comes out, a crucible holding exactly a mould's recipe casts at once (the
-// receiving one first), the solver's par and best move, stars; and the page wired to it (two views, sound, no limit on pours).
+// Crucible's rules (Settle's files; settle-engine.js, the redesign of 23 November 2026): metal lies by real density, a pour moves all the
+// top metal that fits and it sinks to its place, only the top comes out, a crucible holding exactly a mould's recipe casts at once (the
+// receiving one first), the solver's par and best move, stars; the later chapters' twists (spare metal, dross and the slag pot, the
+// teapot ladle, zinc and charcoal, liquation); and the page wired to it (two views, sound, no limit on pours).
 // Run: node tests/settle.mjs
 import fs from "node:fs";
 import { levelOf, startOf, pour, pourOf, won, movesOf, solve, bestMove, starsFor, topOf, layersOf } from "../settle-engine.js";
@@ -10,7 +11,8 @@ import { SOUNDS } from "../settle-sound.js";
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const root = new URL("../", import.meta.url).pathname, read = f => fs.readFileSync(root + f, "utf8");
-const T0 = Date.now();
+// the file's own work, in processor time: a wall clock also counts the other tests run beside it
+const cpuMs = () => { const u = process.cpuUsage(); return Math.round((u.user + u.system) / 1000); };
 
 // ---------- a crucible and a pour ----------
 {
@@ -57,11 +59,40 @@ const T0 = Date.now();
   check(all.complete && all.par === 6 && movesOf(L, startOf(L)).every(([a, b]) => pourOf(L, startOf(L), a, b)), "the solver searches every state of a level and finds its par");
 }
 
+// ---------- the twists (chapters 4 to 8, 23 November 2026) ----------
+{
+  // spare metal: a crucible casts only its exact recipe
+  const spare = levelOf({ caps: [3, 3, 3], fill: [["Cu", "Sn"], ["Cu"], []], moulds: [{ Cu: 2 }] }), s0 = startOf(spare);
+  check(!pour(spare, s0, 1, 0).casts.length && pour(spare, pour(spare, s0, 0, 2).state, 1, 0).casts.length === 1, "a crucible with a spare measure in it casts nothing; once the spare is parked elsewhere, it casts");
+  // dross floats on everything and spoils a cast; the slag pot takes it and never pours
+  const dross = levelOf({ caps: [3, 3, 2], kinds: ["", "", "slag"], fill: [["Cu", "Cu", "X"], [], []], moulds: [{ Cu: 2 }] });
+  const d0 = startOf(dross);
+  check(!d0.cast[0] && layersOf(d0.cups[0]).map(i => dross.metals[i]).join() === "Cu,Cu,X", "dross lies on top of all metal, and a crucible with dross in it does not cast");
+  const d1 = pour(dross, d0, 0, 2);
+  const potted = levelOf({ caps: [2, 2], kinds: ["", "slag"], fill: [[], ["Cu", "Cu"]], moulds: [{ Cu: 2 }] });
+  check(d1.casts.length === 1 && !pourOf(dross, d1.state, 2, 1) && !startOf(potted).cast[0],
+    "skimmed into the slag pot, the dross is gone and the copper casts; the slag pot never pours, and nothing in it casts");
+  // the teapot ladle pours its heaviest metal, from under the rest
+  const tea = levelOf({ caps: [3, 3], kinds: ["teapot", ""], fill: [["Pb", "Sn"], []], moulds: [{ Pb: 1 }, { Sn: 1 }] });
+  check(tea.metals[pourOf(tea, startOf(tea), 0, 1).metal] === "Pb" && topOf(startOf(tea).cups[0], "teapot") === 0, "the teapot ladle pours its lead from under the tin");
+  // zinc burns in an open crucible once the pour is done, keeps under charcoal (which never pours), and casts first if it finishes a recipe
+  const zn = levelOf({ caps: [3, 3, 3], fill: [["Zn", "C"], [], ["Cu", "Cu"]], moulds: [{ Cu: 2, Zn: 1 }] });
+  const z0 = startOf(zn), C = zn.metals.indexOf("C"), Zn = zn.metals.indexOf("Zn");
+  check(pourOf(zn, z0, 0, 1).metal === Zn && pour(zn, z0, 0, 1).burnt[0]?.cup === 1 && !pour(zn, z0, 0, 1).state.cups[1][Zn], "zinc poured from under its charcoal into an open crucible burns away");
+  check(pour(zn, z0, 0, 2).casts.length === 1 && !pour(zn, z0, 0, 2).burnt.length, "zinc that finishes a recipe casts before it can burn");
+  check(!pourOf(zn, { ...z0, cups: [[0, 0, 1, 0].slice(0, zn.metals.length).map((_, i) => (i === C ? 1 : 0)), [0, 0, 0], z0.cups[2]] }, 0, 1), "charcoal never pours");
+  // liquation: lead onto black copper, a measure for a measure: rich lead and plain copper
+  const liq = levelOf({ caps: [3, 3], fill: [["Pb", "Pb"], ["Bk", "Bk"]], moulds: [{ Pr: 2 }, { Cu: 2 }] });
+  const l1 = pour(liq, startOf(liq), 0, 1), name = i => liq.metals[i];
+  check(l1.liquated === 1 && layersOf(l1.mid).map(name).join() === "Pr,Cu,Bk", "one lead poured onto two black copper turns rich and leaves one copper plain (rich lead at the foot, black copper on top)");
+}
+
 // ---------- the moulds ----------
 {
   check(Object.values(MOULDS).every(m => m.name && m.real) && mouldOf("Cu3").parts.Cu === 3 && mouldOf("pewter").parts.Sn === 3 && mouldOf("pewter").parts.Pb === 1, "every mould has a name and a note of what the real thing is; pure bars by metal and measures");
   check(mouldOf("bell").parts.Cu === 3 && mouldOf("speculum").parts.Cu === 2 && mouldOf("fine").parts.Sn === 2 && mouldOf("plumber").parts.Sn === 1, "bell metal 3:1 copper to tin, speculum 2:1, fine solder 2:1 tin to lead, plumber's 1:1");
-  check(CHAPTERS.length === 3 && CHAPTERS.map(c => c.name).join() === "Settling,Alloys,Measures", "three chapters first (Korbi, 23 Nov 2026): Settling, Alloys, Measures");
+  check(CHAPTERS.map(c => c.name).join() === "Settling,Alloys,Measures,Spare metal,Dross,The teapot ladle,Zinc,Liquation" && CHAPTERS.every(c => c.idea),
+    "eight chapters (Korbi, 23 Nov 2026: three first, then 'a lot more levels ... think of twists'): Settling, Alloys, Measures, Spare metal, Dross, The teapot ladle, Zinc, Liquation");
 }
 
 // ---------- the page ----------
@@ -75,6 +106,6 @@ const T0 = Date.now();
   check(!/alert\(|confirm\(|prompt\(/.test(page) && /@media \(orientation: landscape\) and \(min-width: 700px\)/.test(css), "no browser dialogs; laid out beside on a wide screen");
 }
 
-check(Date.now() - T0 < 5000, `the whole file runs in under five seconds (${Date.now() - T0} ms)`);
+check(cpuMs() < 5000, `the whole file runs in under five seconds of processor time (${cpuMs()} ms)`);
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("settle: the pour, settling, casting, the solver, the moulds and the page hold");
