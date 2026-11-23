@@ -102,7 +102,7 @@ function newRun() {
   drag?.float.remove();
   drag = null;
   setSel(-1);
-  S = newGame(Math.floor(Math.random() * 2 ** 31), inLevels() ? camp.at : -1);
+  S = newGame(inLevels() ? levelRules(camp.at).deal : Math.floor(Math.random() * 2 ** 31), inLevels() ? camp.at : -1);   // a table's deal is its own, every time
   save();
   setFloor(0);
   render();

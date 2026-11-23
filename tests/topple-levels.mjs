@@ -5,7 +5,7 @@
 // far each goal is from what they reach. The rules of the newer pieces (heavy, gates, springs, floors...) are in
 // tests/topple-rules.mjs. `node tests/topple-levels.mjs measure` plays more games per level and prints what the README's
 // numbers come from: `measure careful,corner games=24 levels=4,5`.
-import { LEVELS, SCENES, FLOOR, ROCK, WATER, VOID, STARS, FREE, levelRules, starsAt, numberOf, custom, SIZE } from "../topple-levels.js";
+import { LEVELS, SCENES, FLOOR, ROCK, WATER, VOID, STARS, FREE, DEALS, levelRules, starsAt, numberOf, custom, SIZE } from "../topple-levels.js";
 import { CELLS, AXES, PIECES, PACE, at, rulesOf, newGame, moves, nbr, lay, turn, knock, cover, coverFor, colourAt, fitsAnywhere, chain, chains, group, knockOn, rate, untilKnock, BALL, RAINBOW, HEAVY } from "../topple-engine.js";
 import { PLAYERS, play, turnAll } from "./topple-players.js";
 import { REACHED } from "./topple-reached.js";
@@ -244,6 +244,8 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
     if (r.score < LEVELS[n - 1].goal) bad2.push(`${n}: ${r.score}`);
   });
   check(Object.keys(REACHED).length === LEVELS.length && !bad2.length, `a game on record reaches every goal${bad2.length ? ` (not: ${bad2.join(", ")})` : ""}`);
+  // and on the level's own deal, the one every game of it is dealt (Korbi, 23 Nov 2026: "they should always be winnable")
+  check(LEVELS.every((_, n) => levelRules(n).deal === DEALS[n] && REACHED[n + 1][1] === DEALS[n]), "every table's deal is fixed, and the game on record that reaches its goal is played on that deal");
   // and a goal asks something: laying everything in the corner and turning nothing doesn't reach level 1's, nor any level's
   const corner = LEVELS.map((_, n) => play(100, PLAYERS.corner, { level: n, pieces: 400 }).score);
   check(corner.every((c, n) => c < LEVELS[n].goal), "laying everything in the corner and turning nothing reaches no level's goal");

@@ -216,7 +216,7 @@ function compile(spec, n) {
   const start = (spec.start || []).map(s => ({ i: num(s.at), colour: s.colour, mod: s.heavy ? "heavy" : s.gate ? "gate" : null, gate: s.gate || null, axis: s.axis ?? 0 })).filter(s => s.i >= 0 && !terrain[s.i]);
   const mods = spec.heavy > 0 || !!gate || start.some(s => s.mod);
   return {
-    id: n, name: spec.name, about: spec.about, goal: spec.goal, stars: spec.goal ? [spec.goal, ...STARS.map(k => Math.round((spec.goal * k) / 50) * 50)] : [],
+    id: n, name: spec.name, about: spec.about, goal: spec.goal, deal: n >= 0 ? DEALS[n] : null, stars: spec.goal ? [spec.goal, ...STARS.map(k => Math.round((spec.goal * k) / 50) * 50)] : [],
     layers: count, n: total, terrain, height, gilded, spring, marsh, hedge, nb, links: links.some(l => l.length) ? links : null, hedged: hedge.some(Boolean),
     // no colour is tall any more: the drawing reads this for the height of a slab, and a heavy one is drawn by its own mod
     tall: new Array(10).fill(false),
@@ -230,6 +230,10 @@ function compile(spec, n) {
 export const custom = spec => compile(level({ name: "Made up", goal: 1000, about: "", ...spec }), -2);
 /** The rules of play with no level: every hexagon plain, three colours, the bell hanging (Classic). */
 export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, colours: [0, 1, 2], wild: 0, bridges: 0, twins: 0, balls: 0, heavy: 0, gate: null, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, links: [], drops: [], joins: [], start: [] }, -1) });
+// Each table's deal is fixed, the same every time it is played (Korbi, 23 Nov 2026: "they should always be winnable"): a seed on
+// which the careful or the bell player (tests/topple-players.js) beats the goal by 18 to 41%, so every goal is one that has been
+// reached on that very deal, with room for a better player; tests/topple-reached.js plays those games again.
+export const DEALS = [134, 126, 119, 108, 130, 113, 106, 105, 104, 114, 124, 114, 136, 138];
 const COMPILED = LEVELS.map(compile);
 /** Seats a made-up table as one more level, past the fourteen, so a game can be played on it (for the tests; returns its number). */
 export const lodge = rules => COMPILED.push(rules) - 1;
