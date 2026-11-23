@@ -19,7 +19,8 @@ const no = k => { WHY[k] = (WHY[k] || 0) + 1; return null; };
 // ---------- routes ----------
 /**
  * A walk of n squares from `from`, entered by side a0: { passes: [{ c, a, b, cross }], end (the square after the last) } or null. o: blocked
- * (never entered), keep (other routes: not entered, and not touched unless o.touch), touch (may run beside itself), cross (Map square ->
+ * (never entered), keep (other routes: not entered, and not touched unless o.touch or o.beside), touch (may run beside itself and other
+ * routes), beside (may run beside other routes only: trains on two layers, side by side), cross (Map square ->
  * "h" | "v": straight squares of another route it may cross at right angles), self (it may cross its own straight squares), crosses (how many
  * crossings it must make), bends (at least).
  */
@@ -32,7 +33,7 @@ function walkRoute(L0, r, from, a0, n, o) {
   const ownStraight = c => passes.find(p => p.c === c && !p.cross && p.b === back(p.a));
   // a route may come up to a square it can cross; nowhere else may it run beside a route (unless o.touch)
   const crossTarget = x => (o.cross?.has(x) || (o.self && !!ownStraight(x))) && crosses < (o.crosses || 0);
-  const touchBad = (c, prev) => !o.touch && nb(c).some(x => x !== prev && !crossedAt.has(x) && !crossTarget(x) && (used.has(x) || o.keep?.has(x)));
+  const touchBad = (c, prev) => !o.touch && nb(c).some(x => x !== prev && !crossedAt.has(x) && !crossTarget(x) && (used.has(x) || (!o.beside && o.keep?.has(x))));
   const crossable = (c, b) => {
     if (crosses >= (o.crosses || 0) || crossedAt.has(c)) return false;
     const want = orient(b) === "h" ? "v" : "h";
@@ -158,7 +159,8 @@ const fmt = w => F.fmt(F.abs(w));
 /**
  * One level from a seed and a recipe, or null. Recipe: {
  *   cols, rows, disc, turn (pieces turn), power ("quartz" | "mech"), spares (pieces too many), maxSols (1), nodes (the solver's work it may
- *   take once the pillars are out), full (keep every square the routes leave as a pillar: a filled plate), touch (routes may run beside
+ *   take once the pillars are out), full (keep every square the routes leave as a pillar: a filled plate), beside (trains may run beside
+ *   each other, not themselves), touch (routes may run beside
  *   themselves), extras { pins, clicks, bridges } (the most of each to add), forcePins,
  *   trains: [{ m, l, pieces, bends, fams, mods, layers, adapt, end { m, l }, goal { type, ring }, stations, stationType, self (crosses itself),
  *            ends: [{ len, look: "hands" | "barrel", type }], branchFams (the branches' families, if not the train's), clutch { len }, hands (a pinned hands station on the way),
@@ -186,7 +188,7 @@ export function forgeLevel(seed, o) {
       if (blocked.has(s) || keep.has(s) || first < 0) continue;
       const cross = new Map();
       for (const [a] of crossWith) for (const p of routes[a].main.passes) if (!p.cross && p.b === back(p.a)) cross.set(p.c, p.b % 2 ? "h" : "v");
-      const w = walkRoute(L0, r, first, back(d0), t.pieces, { blocked: new Set([...blocked, s]), keep, touch: !!o.touch, cross,
+      const w = walkRoute(L0, r, first, back(d0), t.pieces, { blocked: new Set([...blocked, s]), keep, touch: !!o.touch, beside: !!o.beside, cross,
         self: !!t.self, crosses: crossWith.length + (t.self ? 1 : 0), bends: t.bends || 0 });
       // crossing more than one train, it must cross each of them (once each), not one of them twice
       if (w && crossWith.length > 1 && !crossWith.every(([a]) => w.passes.some(p => p.cross && routes[a].main.passes.some(q => q.c === p.c)))) continue;
