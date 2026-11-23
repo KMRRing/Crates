@@ -165,7 +165,7 @@ export function createView(host, opts = {}) {
   let four = false, won = false, wonAt = 0;
   const cards = new Map();                 // uid → { mesh, shadow, rank, suit, tgt, cur, delay, ring }
   const slotMeshes = [], dropMeshes = [], hintMeshes = [], rings = new Map();
-  let badge = null, badgeKey = "", sparks = null, spark = [], table = null; const edge = [];
+  let badge = null, badgeKey = "", sparks = null, spark = [], table = null;
   const tex = new Map();                   // key → { tex, canvas, paint }
   const mats = new Map();
   let fam = FAMILY(), col = null;
@@ -388,36 +388,30 @@ export function createView(host, opts = {}) {
       c.fillText(String(n), w / 2, h / 2 + 0.03 * e);
     });
   }
-  // Korbi, 7 Nov 2026: "copy the Guandan table EXACTLY except for the cards". Tribute's top, painted here from the same tokens
-  // (table3d.css: --tk-top's three stops, the shade at the far end, the diagonal sheen, the lamp's pool, the grain, the brass rule on a
-  // dark hairline) on a table larger than the layout, standing on a brass edge and dark wood like its `.tk-mat`.
-  const tk = () => {
-    const css = getComputedStyle(document.documentElement), stops = (css.getPropertyValue("--tk-top").match(/#[0-9a-f]{6}/gi) || ["#7C4025", "#5C2D19", "#43200F"]);
-    return { stops, brass: (css.getPropertyValue("--tk-brass") || "#CFA24E").trim() };
-  };
-  function tableMat() {
-    const { stops, brass } = tk(), ratio = (H + 0.1 * W) / Math.max(1, 1.1 * W), tw = 640, th = Math.max(160, Math.round(640 * ratio));
-    return pictureMat(`table${ratio.toFixed(2)}:${stops.join("")}:${brass}`, tw, th, (c, w, h) => {
-      const g = c.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, stops[0]); g.addColorStop(0.56, stops[1]); g.addColorStop(1, stops[2]);
-      c.fillStyle = g; c.fillRect(0, 0, w, h);
+  // The top: Korbi, 7 Nov 2026, "copy the Guandan table EXACTLY except for the cards", and 23 Nov 2026, "make the table cover the whole
+  // play area. no edge to the table": a tabletop cut to the layout stood on the page as a long thin plank, its edges drawn in
+  // perspective. Now the box is the mahogany (solitaire.css paints it under the see-through canvas: --tk-top, shaded toward the
+  // far side and lit by the lamp), and the view lays only its grain over it, in perspective, on a sheet wider and deeper than
+  // anything the camera sees, the grain fading out before the sheet's own edge, so no edge shows at any tilt.
+  const GRAIN_X = 2.6, GRAIN_Z = 1.5;                       // the sheet, in tables (the far side seen at an angle is wider than the near)
+  function grainMat() {
+    const ratio = (GRAIN_Z * (H + 0.1 * W)) / Math.max(1, GRAIN_X * 1.1 * W), w0 = 1280, h0 = Math.max(256, Math.min(2048, Math.round(w0 * ratio)));
+    return pictureMat(`grain${ratio.toFixed(2)}`, w0, h0, (c, w, h) => {
+      c.clearRect(0, 0, w, h);
+      const table = w / GRAIN_X, k = table / 640;           // the streaks as long and as fine as they were on a 640-pixel table
       let a = 0x51A3, rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      for (let i = 0; i < 220; i++) {                       // the grain: long thin streaks, light and dark
-        const y = rnd() * h, len = w * (0.25 + rnd() * 0.75), x = rnd() * (w - len);
+      for (let i = 0, n = Math.round((w * h) / 4400); i < n; i++) {
+        const y = rnd() * h, len = table * (0.25 + rnd() * 0.75), x = rnd() * w - len / 2;
         c.strokeStyle = rnd() < 0.5 ? `rgba(30,10,4,${0.08 + rnd() * 0.14})` : `rgba(255,190,140,${0.03 + rnd() * 0.06})`;
-        c.lineWidth = 0.5 + rnd() * 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y + (rnd() - 0.5) * 3); c.stroke();
+        c.lineWidth = (0.5 + rnd() * 1.6) * k; c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y + (rnd() - 0.5) * 3 * k); c.stroke();
       }
-      const sh = c.createLinearGradient(0, 0, 0, h * 0.46); sh.addColorStop(0, "rgba(8,3,1,.55)"); sh.addColorStop(1, "rgba(8,3,1,0)");
-      c.fillStyle = sh; c.fillRect(0, 0, w, h * 0.46);                                              // dark at the far end
-      const di = c.createLinearGradient(w * 0.2, 0, w * 0.8, h);                                    // the diagonal sheen
-      di.addColorStop(0.38, "rgba(255,226,180,0)"); di.addColorStop(0.47, "rgba(255,226,180,.12)"); di.addColorStop(0.56, "rgba(255,226,180,0)");
-      c.fillStyle = di; c.fillRect(0, 0, w, h);
-      c.save(); c.translate(w / 2, h * 0.56); c.scale(1, (h * 0.46) / (w * 0.66));                  // the lamp's pool, an ellipse
-      const gl = c.createRadialGradient(0, 0, 0, 0, 0, w * 0.66); gl.addColorStop(0, "rgba(255,208,150,.2)"); gl.addColorStop(0.78, "rgba(255,208,150,0)");
-      c.fillStyle = gl; c.fillRect(-w, -w, 2 * w, 2 * w); c.restore();
-      const m = Math.max(3, Math.round(w * 0.006));                                                 // the brass rule on its dark hairline
-      c.strokeStyle = "#150C06"; c.lineWidth = m * 2; c.strokeRect(m, m, w - 2 * m, h - 2 * m);
-      c.strokeStyle = brass; c.lineWidth = m; c.strokeRect(m * 2, m * 2, w - 4 * m, h - 4 * m);
+      c.globalCompositeOperation = "destination-in";        // the grain fades out toward the sheet's edges
+      for (const [x1, y1] of [[w, 0], [0, h]]) {
+        const g = c.createLinearGradient(0, 0, x1, y1);
+        g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(0.16, "rgba(0,0,0,1)"); g.addColorStop(0.84, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      }
+      c.globalCompositeOperation = "source-over";
     });
   }
 
@@ -441,9 +435,7 @@ export function createView(host, opts = {}) {
       scene.add(shadow, mesh);
       cards.set(uid, { mesh, shadow, rank, suit, tgt: null, cur: null, delay: 0, t0: 0, lift: 0 });
     }
-    table = new THREE.Mesh(quad, tableMat()); table.renderOrder = -6; table.frustumCulled = false; scene.add(table);
-    const { brass } = tk(), box = new THREE.BoxGeometry(1, 1, 1);                      // the table's edge: brass over dark wood, standing under the top
-    for (const [key, color] of [["edge-brass", brass], ["edge-wood", "#2A1208"]]) { const m = new THREE.Mesh(box, plainMat(key, color)); m.frustumCulled = false; m.renderOrder = -7; scene.add(m); edge.push(m); }
+    table = new THREE.Mesh(quad, grainMat()); table.renderOrder = -6; table.frustumCulled = false; scene.add(table);
     sparks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: col.gilt, toneMapped: false }), 56);
     sparks.frustumCulled = false; sparks.renderOrder = 5; sparks.count = 0;
     scene.add(sparks);
@@ -452,10 +444,10 @@ export function createView(host, opts = {}) {
   /** Everything made from a picture or a card goes (a new variant, or cards that need a larger picture). */
   function purge() {
     for (const c of cards.values()) scene.remove(c.mesh, c.shadow);
-    for (const m of [...slotMeshes, ...dropMeshes, ...hintMeshes, badge, table, sparks, ...edge]) if (m) scene.remove(m);
+    for (const m of [...slotMeshes, ...dropMeshes, ...hintMeshes, badge, table, sparks]) if (m) scene.remove(m);
     for (const r of rings.values()) scene.remove(r.mesh);
     cards.clear(); rings.clear(); slotMeshes.length = dropMeshes.length = hintMeshes.length = 0;
-    badge = table = sparks = null; edge.length = 0; badgeKey = ""; spark = [];
+    badge = table = sparks = null; badgeKey = ""; spark = [];
     for (const t of tex.values()) t.texture.dispose();
     for (const m of mats.values()) m.dispose();
     for (const m of shadowMats) m.dispose();
@@ -555,11 +547,7 @@ export function createView(host, opts = {}) {
     camera.lookAt(panX, 0, panZ);
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-    if (table) {
-      const tw = W + 2 * m.x, th = H + 2 * m.z;
-      table.position.set(0, -0.4, 0); table.scale.set(tw, 1, th);
-      if (edge.length) { const [brassBand, wood] = edge; brassBand.position.set(0, -3.6, 0); brassBand.scale.set(tw, 6, th); wood.position.set(0, -15.6, 0); wood.scale.set(tw - 4, 18, th - 4); }
-    }
+    if (table) { table.position.set(0, -0.4, 0); table.scale.set(GRAIN_X * (W + 2 * m.x), 1, GRAIN_Z * (H + 2 * m.z)); }
   }
   const clampTilt = t => Math.max(0, Math.min(TILT_MAX, t));
   const clampYaw = y => Math.max(-YAW_MAX, Math.min(YAW_MAX, y));

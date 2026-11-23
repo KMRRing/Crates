@@ -142,5 +142,8 @@ html[data-theme="office"] .so-kind { font-stretch: 100%; }
 #app.solitaire .so-strip.cr-strip { padding: .28rem .75rem; margin: .5rem 0 .8rem; align-items: center; }
 #app.solitaire .so-strip.cr-strip b { font-size: 1.05rem; }
 
-/* 3D: the table is drawn by the view (solitaire-3d.js), so the page's own baize and frame step aside and it stands on the page, as the card games' tables do */
-#app .so-card.tk-mahogany:has(.so-board.is3d) { background: none !important; box-shadow: none !important; border-color: transparent !important; }
+/* 3D: the mahogany covers the whole play area with no edge (Korbi, 23 Nov 2026: "make the table cover the whole play area. no edge
+   to the table"): no brass rail and no shadow, the top darker toward the far side (the top of the box) and lit where the cards lie;
+   the view (solitaire-3d.js) lays the grain over it in perspective */
+#app .so-card.tk-mahogany:has(.so-board.is3d) { box-shadow: none !important; border-color: transparent !important; border-radius: 4px;
+  background: linear-gradient(180deg, rgba(8, 3, 1, .55), rgba(8, 3, 1, 0) 48%), radial-gradient(ellipse 80% 46% at 50% 72%, rgba(255, 208, 150, .16), transparent 78%), var(--tk-top) !important; }
