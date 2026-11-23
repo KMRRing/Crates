@@ -180,8 +180,10 @@ const hurry = () => (waiting.length >= 3 ? 2.2 : waiting.length ? 1.6 : 1);
 let pace = 1;                                                        // (tests slow the pour down to look at it)
 const waiting = [];                                                  // the pours after the one playing (anim)
 function startPour(a, b, before, r) {
-  const m = r.poured.metal, n = r.poured.n, bb = layersOf(before.cups[b]);
-  const sinks = bb.some(x => x < m);                                 // something lighter in the way: the pour sinks through it
+  const m = r.poured.metal, under = r.poured.under, bb = layersOf(before.cups[b]);
+  // what runs out, in the order it leaves: the top metal, and after a skim the measure of metal under the dross
+  const out = [...Array(r.poured.n).fill(m), ...(under >= 0 ? [under] : [])], n = out.length;
+  const sinks = bb.some(x => x < m) || under >= 0;                   // something lighter in the way: the pour sinks through it
   const flowEnd = T_TILT + pourTime(n);
   // its sounds, cued by its own clock: the tongs lift it, the metal runs as long as the pour (at the speed it is shown), it settles, it casts
   const cues = [{ at: T_TILT, play: () => sound.play("pour", { weight: (METALS[L.metals[m]].dens - 7) / 4.5, n, len: pourTime(n) / 1000 / (hurry() / pace) }) }];
@@ -190,7 +192,7 @@ function startPour(a, b, before, r) {
   r.casts.forEach((c, k) => cues.push({ at: flowEnd + T_SINK + k * 150, play: () => sound.play("cast", { k }) }));
   if (r.burnt.length) cues.push({ at: flowEnd + T_SINK, play: () => { sound.play("burn"); r.burnt.forEach(x => view?.smoke?.(x.cup)); } });
   const tail = Math.max(r.casts.length ? T_HEAT + T_DRAIN : 0, r.burnt.length ? T_BURN : 0);
-  const item = { a, b, before, after: r.state, mid: r.mid, liquated: r.liquated, burnt: r.burnt, m, n, casts: r.casts, sinks, e: 0, cues, dur: flowEnd + T_SINK + tail };
+  const item = { a, b, before, after: r.state, mid: r.mid, liquated: r.liquated, burnt: r.burnt, m, n, out, casts: r.casts, sinks, e: 0, cues, dur: flowEnd + T_SINK + tail };
   if (anim) waiting.push(item); else begun(item);
   wake();
 }
@@ -217,22 +219,27 @@ function sceneOf(now) {
   const st = anim ? anim.before : R.state, cups = st.cups.map(c => ({ bands: layersOf(c).map((x, k) => ({ m: L.metals[x], y: k, h: 1 })), lift: 0 }));
   let stream = null;
   if (anim) {
-    const { a, b, m, n, before, casts, e } = anim, P = pourTime(n);
+    const { a, b, m, n, out, before, casts, e } = anim, P = pourTime(n);
     const TT = T_TILT, TS = T_SINK, flow = clamp01((e - TT) / P), sink = ease(clamp01((e - TT - P) / TS));
     cups[a].go = { to: b, k: e < TT + P ? ease(clamp01(e / TT)) : 1 - sink, flow };
     // the source drains: the metal poured, from the top (a teapot ladle from the foot), and what lies above it comes down
     const from = cups[a].bands, order = L.kinds[a] === "teapot" ? from.map((_, k) => k) : from.map((_, k) => from.length - 1 - k);
-    let drain = n * flow;
-    for (const k of order) { if (drain <= 0) break; if (from[k].m !== L.metals[m]) continue; const take = Math.min(1, drain); from[k].h = 1 - take; drain -= take; }
+    // each measure that runs out drains the nearest band of its metal, one after another
+    out.forEach((x, j) => {
+      const take = clamp01(n * flow - j);
+      for (const k of order) if (from[k].m === L.metals[x] && !from[k].out) { from[k].out = true; from[k].h = 1 - take; break; }
+    });
     let acc = 0;
     for (const bd of from) { bd.y = acc; acc += bd.h; }
-    // the target fills on top, then the pour sinks to its place by weight and what is lighter rises
-    const bb = layersOf(before.cups[b]), below = bb.filter(x => x <= m).length;
-    cups[b].bands = bb.map((x, j) => { const to = x <= m ? j : j + n; return { m: L.metals[x], y: j + (to - j) * sink, h: 1 }; });
+    // the target fills on top, then everything sinks to its place by weight (heaviest at the foot; what was there first stays under
+    // what came of the same metal) and what is lighter rises
+    const bb = layersOf(before.cups[b]), all = [...bb.map((x, j) => ({ x, from: j, k: -1 })), ...out.map((x, k) => ({ x, from: bb.length + k, k }))];
+    const to = all.slice().sort((p, q) => p.x - q.x || p.from - q.from);
+    to.forEach((p, j) => { p.to = j; });
     // what has landed: the stream's head reaches the mouth a little after the metal leaves the lip (as the stream below runs)
     const landed = clamp01((flow - 0.375) / 0.625);
-    for (let k = 0; k < n; k++) cups[b].bands.push({ m: L.metals[m], y: bb.length + k + (below + k - bb.length - k) * sink, h: clamp01(n * landed - k) });
-    if (flow > 0 && flow < 1.15) stream = { from: a, to: b, m: L.metals[m], t0: clamp01(flow * 1.6), t1: clamp01(flow * 1.6 - 0.6) };
+    cups[b].bands = all.map(p => ({ m: L.metals[p.x], y: p.from + (p.to - p.from) * sink, h: p.k < 0 ? 1 : clamp01(n * landed - p.k) }));
+    if (flow > 0 && flow < 1.15) stream = { from: a, to: b, m: L.metals[out[Math.min(n - 1, Math.floor(n * clamp01(flow * 1.3)))]], t0: clamp01(flow * 1.6), t1: clamp01(flow * 1.6 - 0.6) };
     // the liquation: as the lead sinks through the black copper, both turn (rich lead under, plain copper over), with a flare
     if (anim.liquated && sink > 0.6) {
       const flare = 1 - clamp01((sink - 0.6) / 0.4) * 0.6;

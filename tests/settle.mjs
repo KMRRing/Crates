@@ -64,14 +64,21 @@ const cpuMs = () => { const u = process.cpuUsage(); return Math.round((u.user + 
   // spare metal: a crucible casts only its exact recipe
   const spare = levelOf({ caps: [3, 3, 3], fill: [["Cu", "Sn"], ["Cu"], []], moulds: [{ Cu: 2 }] }), s0 = startOf(spare);
   check(!pour(spare, s0, 1, 0).casts.length && pour(spare, pour(spare, s0, 0, 2).state, 1, 0).casts.length === 1, "a crucible with a spare measure in it casts nothing; once the spare is parked elsewhere, it casts");
-  // dross floats on everything and spoils a cast; the slag pot takes it and never pours
-  const dross = levelOf({ caps: [3, 3, 2], kinds: ["", "", "slag"], fill: [["Cu", "Cu", "X"], [], []], moulds: [{ Cu: 2 }] });
-  const d0 = startOf(dross);
-  check(!d0.cast[0] && layersOf(d0.cups[0]).map(i => dross.metals[i]).join() === "Cu,Cu,X", "dross lies on top of all metal, and a crucible with dross in it does not cast");
+  // dross floats on everything and spoils a cast; the slag pot takes it and never pours; a skim takes the measure under the dross along
+  const dross = levelOf({ caps: [4, 3, 2], kinds: ["", "", "slag"], fill: [["Cu", "Cu", "Cu", "X"], [], []], moulds: [{ Cu: 2 }] });
+  const d0 = startOf(dross), name = i => dross.metals[i];
+  check(!d0.cast[0] && layersOf(d0.cups[0]).map(name).join() === "Cu,Cu,Cu,X", "dross lies on top of all metal, and a crucible with dross in it does not cast");
   const d1 = pour(dross, d0, 0, 2);
+  check(name(d1.poured.under) === "Cu" && layersOf(d1.state.cups[2]).map(name).join() === "Cu,X" && d1.casts.length === 1,
+    "a skim into the slag pot takes the measure of copper under the dross along; the two left cast");
+  check(!pourOf(dross, d1.state, 2, 1), "the slag pot never pours");
+  const tight = levelOf({ caps: [4, 3, 1], kinds: ["", "", "slag"], fill: [["Cu", "Cu", "X"], [], []], moulds: [{ Cu: 2 }] }), t0 = startOf(tight);
+  check(!pourOf(tight, t0, 0, 2), "a skim needs room for the dross and its measure together: a pot for one refuses it");
+  const off = pour(tight, t0, 0, 1);
+  check(off.casts.length === 1 && pourOf(tight, off.state, 1, 2)?.under === -1 && pour(tight, off.state, 1, 2).state.cups[2].reduce((x, y) => x + y) === 1,
+    "dross poured off on its own goes to the pot alone, and the copper it left casts");
   const potted = levelOf({ caps: [2, 2], kinds: ["", "slag"], fill: [[], ["Cu", "Cu"]], moulds: [{ Cu: 2 }] });
-  check(d1.casts.length === 1 && !pourOf(dross, d1.state, 2, 1) && !startOf(potted).cast[0],
-    "skimmed into the slag pot, the dross is gone and the copper casts; the slag pot never pours, and nothing in it casts");
+  check(!startOf(potted).cast[0], "nothing in the slag pot casts");
   // the teapot ladle pours its heaviest metal, from under the rest
   const tea = levelOf({ caps: [3, 3], kinds: ["teapot", ""], fill: [["Pb", "Sn"], []], moulds: [{ Pb: 1 }, { Sn: 1 }] });
   check(tea.metals[pourOf(tea, startOf(tea), 0, 1).metal] === "Pb" && topOf(startOf(tea).cups[0], "teapot") === 0, "the teapot ladle pours its lead from under the tin");
@@ -83,8 +90,8 @@ const cpuMs = () => { const u = process.cpuUsage(); return Math.round((u.user + 
   check(!pourOf(zn, { ...z0, cups: [[0, 0, 1, 0].slice(0, zn.metals.length).map((_, i) => (i === C ? 1 : 0)), [0, 0, 0], z0.cups[2]] }, 0, 1), "charcoal never pours");
   // liquation: lead onto black copper, a measure for a measure: rich lead and plain copper
   const liq = levelOf({ caps: [3, 3], fill: [["Pb", "Pb"], ["Bk", "Bk"]], moulds: [{ Pr: 2 }, { Cu: 2 }] });
-  const l1 = pour(liq, startOf(liq), 0, 1), name = i => liq.metals[i];
-  check(l1.liquated === 1 && layersOf(l1.mid).map(name).join() === "Pr,Cu,Bk", "one lead poured onto two black copper turns rich and leaves one copper plain (rich lead at the foot, black copper on top)");
+  const l1 = pour(liq, startOf(liq), 0, 1), lname = i => liq.metals[i];
+  check(l1.liquated === 1 && layersOf(l1.mid).map(lname).join() === "Pr,Cu,Bk", "one lead poured onto two black copper turns rich and leaves one copper plain (rich lead at the foot, black copper on top)");
 }
 
 // ---------- the moulds ----------

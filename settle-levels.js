@@ -3,7 +3,7 @@
 // made the same way: the moulds' measures dropped at random into the crucibles, kept only when the solver says it is a puzzle
 // (`gradeOf`): it can be won, nothing casts before a move, and the par is in the row's range; from the third level on, at most two
 // first moves keep the par and a greedy player (cast when you can, else anything) almost never makes it.
-import { levelOf, startOf, solve, movesOf, pour, keyOf, won } from "./settle-engine.js";
+import { levelOf, startOf, solve, movesOf, pour, pourOf, keyOf, won } from "./settle-engine.js";
 import { mouldOf, CHAPTERS, METALS } from "./settle-alloys.js";
 import { BOOK } from "./settle-book.js";
 
@@ -39,8 +39,9 @@ export function fillOf(row, seed) {
 }
 /**
  * How good a puzzle a filled level is: { ok, par, best (first moves that keep the par), of (first moves), greedy (of 20 greedy
- * plays, those that made the par) }. strict: the two checks of a real puzzle (few right first moves; greed fails); "best" the first
- * only (the first small levels, where greed can't miss); false none.
+ * plays, those that made the par), skimmer (the same for a player who skims dross the moment they can) }. strict: the checks of a real
+ * puzzle (few right first moves; greed fails; skimming first fails); "best" the first only (the first small levels, where greed can't
+ * miss); false none.
  */
 export function gradeOf(spec, par = [1, 99], strict = true) {
   const L = playOf(spec), s = startOf(L);
@@ -60,7 +61,20 @@ export function gradeOf(spec, par = [1, 99], strict = true) {
     }
     if (won(st)) greedy++;
   }
-  return { ok: strict === false || (best <= 2 && (strict === "best" || greedy <= 2)), par: sv.par, best, of: firsts.length, greedy, states: sv.states };
+  // where there is a slag pot, a player who skims whenever they can (else casts, else pours at random) must not make the par either:
+  // dross is a decision, not a chore (23 Nov 2026, Korbi: "the right move is always putting the dross into the garbage crucible")
+  let skimmer = 0;
+  if (L.kinds.includes("slag")) for (let g = 0; g < 20; g++) {
+    let st = s, n = 0;
+    while (!won(st) && n < sv.par) {
+      const ms = movesOf(L, st), skims = ms.filter(([a, b]) => L.kinds[b] === "slag" && pourOf(L, st, a, b).metal === L.X);
+      const casting = ms.filter(([a, b]) => pour(L, st, a, b).casts.length), pool = skims.length ? skims : casting.length ? casting : ms;
+      if (!pool.length) break;
+      st = pour(L, st, ...pool[Math.floor(r() * pool.length)]).state; n++;
+    }
+    if (won(st)) skimmer++;
+  }
+  return { ok: strict === false || (best <= 2 && (strict === "best" || (greedy <= 2 && skimmer <= 2))), par: sv.par, best, of: firsts.length, greedy, skimmer, states: sv.states };
 }
 /**
  * A row made a puzzle: the first seed from `from` that does it, or with `hardest` the one of `tries` seeds with the highest par in
