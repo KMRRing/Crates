@@ -6,6 +6,7 @@ import { makeField, placements, options, filledBy, put, marksLeft, anyFits, tray
 import { holdScene, drawPiece } from "./stow-3d.js";
 import { CHAPTERS, LEVELS } from "./stow-levels.js";
 import { part, action } from "./menu.js";
+import { levelGrid, gridOf } from "./campaign-ui.js";
 import { scale } from "./wide.js";
 import { roundOver } from "./random.js";
 
@@ -389,33 +390,48 @@ export function createLoose(ctx) {
       const p = part(body, "play"), next = nextLevel();
       if (S?.done?.won && next) p.append(action(`Next: ${levelName(next)}`, () => play(next), "primary"));
       p.append(action(S?.done ? "Play it again" : "Start this level again", () => play(byId.get(L.id)), S?.done?.won && next ? "" : "primary"));
-      const list = document.createElement("div");
-      list.className = "sw-levels";
-      for (const ch of CHAPTERS) {
-        const h = document.createElement("p"), row = document.createElement("div");
-        h.className = "sw-chapter"; h.textContent = ch.title;
-        row.className = "sw-row";
-        for (const lv of LEVELS.filter(l => l.chapter === ch.id)) row.appendChild(levelButton(lv, ch, progress[lv.id]?.stars || 0, L && lv.id === L.id, !isOpen(lv), () => { close(); play(lv); }, !!lv.field.decks));
-        list.append(h, row);
-      }
-      part(body, "content").append(list);
+      part(body, "content").append(levelPicker(CHAPTERS, LEVELS, lv => lv.field, lv => progress[lv.id]?.stars || 0, lv => isOpen(lv), L, lv => { close(); play(lv); }));
     },
   };
 }
-/** A level's button in the menu's campaign: its number and stars, the one in play marked, a locked one greyed, a hold
- *  in decks with a cube in its corner. */
-export function levelButton(lv, ch, stars, current, locked, go, deep = false) {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = `${stars ? "done" : ""}${deep ? " deep" : ""}`;
-  if (current) b.setAttribute("aria-current", "true");
-  b.disabled = locked;
-  const n = document.createElement("b"), s = document.createElement("span");
-  n.textContent = String(lv.n);
-  s.textContent = stars ? "★".repeat(stars) : "";
-  b.append(n, s);
-  if (deep) b.insertAdjacentHTML("beforeend", '<svg class="sw-cube" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5L10.5 4V8.5L6 11L1.5 8.5V4Z M1.5 4L6 6.5L10.5 4 M6 6.5V11"/></svg>');
-  b.setAttribute("aria-label", `${ch.title} ${lv.n}${deep ? ", in decks" : ""}${stars ? `, ${stars} stars` : ""}${locked ? ", locked" : ""}`);
-  b.addEventListener("click", go);
-  return b;
+/**
+ * The levels of Stow or Loose cargo in the one level picker of the minigames (campaign-ui.js), five to a row, each with a
+ * drawing of its hold: `levels` in their chapters, `fieldOf(lv)` its field's spec, `stars`, `open`, the level in play, `go`.
+ */
+export function levelPicker(chapters, levels, fieldOf, stars, open, current, go) {
+  const order = [...levels].sort((a, b) => a.chapter - b.chapter || a.n - b.n), ch = new Map(chapters.map((c, k) => [c.id, k]));
+  const view = gridOf({
+    chapters: chapters.map(c => ({ name: c.title, rule: "" })),
+    levels: order.map(lv => ({ name: `${chapters[ch.get(lv.chapter)].title} ${lv.n}`, chapter: ch.get(lv.chapter) })),
+    stars: i => stars(order[i]), isOpen: i => open(order[i]), at: current ? order.findIndex(lv => lv.id === current.id) : -1,
+  });
+  return levelGrid(view, { compact: true, pic: i => holdPic(fieldOf(order[i]), order[i].cargo, order[i].marks), onPick: i => go(order[i]) });
+}
+const pics = new Map();
+/**
+ * A hold in a line or two of ink: its cells, the cargo already in it filled (darker the more decks of a column it fills), the
+ * consignments' marks in brass, a hold of decks drawn with its decks behind it. SVG text, kept by its spec.
+ */
+export function holdPic(spec, cargo = [], marks = []) {
+  const key = JSON.stringify([spec, cargo, marks]);
+  if (pics.has(key)) return pics.get(key);
+  const f = makeField(spec), plan = f.plan || f, decks = f.decks || 1, n2 = plan.n;
+  const fill = new Array(n2).fill(0), marked = new Set();
+  for (const i of cargo) fill[i % n2]++;
+  for (const i of marks) marked.add(i % n2);
+  const b = plan.box, pad = Math.max(b.w, b.h) * 0.04, depth = decks > 1 ? Math.max(b.w, b.h) * 0.05 : 0;
+  const vb = [b.x - pad, b.y - pad - depth * (decks - 1), b.w + 2 * pad + depth * (decks - 1), b.h + 2 * pad + depth * (decks - 1)].map(v => +v.toFixed(2));
+  const sw = (Math.max(b.w, b.h) / 40).toFixed(3), pt = p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
+  const outline = (dx, dy) => plan.cells.map(c => `<polygon points="${c.pts.map(p => pt([p[0] + dx, p[1] + dy])).join(" ")}"/>`).join("");
+  let svg = `<svg viewBox="${vb.join(" ")}" preserveAspectRatio="xMidYMid meet">`;
+  for (let z = decks - 1; z > 0; z--) svg += `<g fill="var(--sheet)" stroke="var(--ink-soft)" stroke-width="${sw}" opacity="${(0.3 + 0.2 / z).toFixed(2)}">${outline(depth * z, -depth * z)}</g>`;
+  svg += `<g stroke="var(--ink-soft)" stroke-width="${sw}" stroke-linejoin="round">${plan.cells.map(c => {
+    const k = fill[c.i] / decks;
+    return `<polygon points="${c.pts.map(pt).join(" ")}" fill="${k ? `color-mix(in srgb, var(--ink) ${Math.round(35 + 50 * k)}%, var(--sheet))` : "var(--sheet)"}"/>`;
+  }).join("")}</g>`;
+  const r = (Math.min(...plan.cells.map(c => Math.hypot(c.pts[0][0] - c.x, c.pts[0][1] - c.y))) * 0.42).toFixed(3);
+  svg += plan.cells.filter(c => marked.has(c.i)).map(c => `<circle cx="${c.x.toFixed(2)}" cy="${c.y.toFixed(2)}" r="${r}" fill="var(--brass)"/>`).join("");
+  svg += "</svg>";
+  pics.set(key, svg);
+  return svg;
 }

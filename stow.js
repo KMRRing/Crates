@@ -6,7 +6,7 @@
 import { act, freshPlan } from "./stow-pack.js";
 import { CHAPTERS, MANIFESTS } from "./stow-manifests.js";
 import { createPlan } from "./stow-plan.js";
-import { createLoose, levelButton } from "./stow-loose.js";
+import { createLoose, levelPicker } from "./stow-loose.js";
 import { VIEW, EL_MIN, EL_MAX } from "./stow-3d.js";
 import { freshTable, restart, planOf, presentSlots, turnNow, move, levelOf as roomLevel } from "./stow-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -307,19 +307,8 @@ function openMenu() {
   part(body, "about").append(line(ME === "loose" ? `${loose.starsAll()} of ${loose.total} stars` : `${starsAll()} of ${MANIFESTS.length * 3} stars${day ? ` · today's ${"★".repeat(day)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-/** The manifests, chapter by chapter, with their stars. */
-function campaign(go, locked) {
-  const list = document.createElement("div");
-  list.className = "sw-levels";
-  for (const ch of CHAPTERS) {
-    const h = document.createElement("p"), row = document.createElement("div");
-    h.className = "sw-chapter"; h.textContent = ch.title;
-    row.className = "sw-row";
-    for (const lv of ORDER.filter(l => l.chapter === ch.id)) row.appendChild(levelButton(lv, ch, progress[lv.id]?.stars || 0, plan.level && lv.id === plan.level.id, locked(lv), () => go(lv), !!lv.hold.decks));
-    list.append(h, row);
-  }
-  return list;
-}
+/** The manifests, chapter by chapter, with their stars, in the minigames' one level picker. */
+const campaign = (go, locked) => levelPicker(CHAPTERS, MANIFESTS, lv => lv.hold, lv => progress[lv.id]?.stars || 0, lv => !locked(lv), plan.level?.day ? null : plan.level, go);
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), ME);

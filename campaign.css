@@ -19,4 +19,14 @@
 .cp-endless { display: grid; gap: .35rem; margin-top: .3rem; }
 .cp-go { width: 100%; }
 .cp-wait { margin: 0; font-size: .78rem; line-height: 1.35; color: var(--ink-soft); }
-@media (orientation: landscape) and (min-width: 700px) { .cp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* a level's picture, above its number: its board or hold in a line or two of ink */
+.cp-pic { display: block; height: 2.6rem; margin-bottom: .1rem; }
+.cp-pic svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* the compact grid: five to a row, the picture, the number and the stars */
+.cp-compact .cp-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; }
+.cp-compact .cp-grid button { padding: .3rem .3rem .25rem; }
+.cp-compact .cp-pic { height: 2.7rem; }
+.cp-compact .cp-top { justify-content: center; gap: .25rem; }
+.cp-compact .cp-top b { font-size: .8rem; }
+.cp-compact .cp-st { font-size: .6rem; letter-spacing: .02em; }
+@media (orientation: landscape) and (min-width: 700px) { .cp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .cp-compact .cp-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
