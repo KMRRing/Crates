@@ -477,7 +477,7 @@ export function createSpace(host, hooks = {}) {
     ctx.stroke();
   }
   /** Lines through a cell (its rings, or rows): what a press shows, so a ring can be followed by eye. */
-  const linesOf = x => P.of[x].filter(gi => P.groups[gi].kind !== "region");
+  const linesOf = x => P.of[x].filter(gi => gi < P.topo.lines.length);     // the rings or rows only (not a region, nor a ball's sky)
 
   function frameMesh(now, calm, win, wage, wb, yw, pt) {
     projectMesh();

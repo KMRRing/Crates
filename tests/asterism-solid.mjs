@@ -86,6 +86,8 @@ const sound = (shape, size, p, what) => {
     // the sky counts as empty in a hint, so a hint never spends itself on it
     const p = generateSolid(8, "ball", 3, "medium"), P = solidPuzzle("ball", 3, p.reg, p.sol), h = hintFor(P, "0".repeat(P.n));
     check(h?.step && h.step.group?.kind !== "sky" && h.step.set.every(([x]) => p.reg[x] !== "z"), "a ball's first hint is about a ring or a constellation, never the sky");
+    // a press or a drag on a sky hexagon follows its rings, never the sky (23 Nov 2026: a drag from the sky threw on every move)
+    check(/const linesOf = x => P\.of\[x\]\.filter\(gi => gi < P\.topo\.lines\.length\)/.test(fs.readFileSync(new URL("../asterism-space.js", import.meta.url), "utf8")) && P.of[P.sky[0]].filter(gi => gi < P.topo.lines.length).every(gi => P.groups[gi].kind === "ring"), "the lines through a sky hexagon are its rings");
   }
   const p = generateSolid(77, "hex", 4, "medium"), P = solidPuzzle("hex", 4, p.reg, p.sol);
   let marks = "0".repeat(P.n);
