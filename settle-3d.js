@@ -138,6 +138,7 @@ export function createFoundry(host) {
   renderer.setClearColor(0x0a0605, 1);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = 1;                                 // PCFShadowMap (the soft kind is gone from three.js; the bundle exports neither)
+  renderer.localClippingEnabled = true;                         // the metal is cut level by planes (see `levels`)
   const canvas = renderer.domElement;
   canvas.className = "st-canvas";
   canvas.setAttribute("role", "img");
@@ -209,9 +210,9 @@ export function createFoundry(host) {
   const dress = (mat, m, hot = 0, a = 1, top = false) => {
     const k = METALS[m] || METALS.X;
     mat.color.set(k.base).lerp(white, hot * 0.8);
-    mat.metalness = 0.75; mat.roughness = (top ? 0.12 : 0.26) - 0.08 * k.shine;
-    mat.emissive.set(top ? k.hi : k.base).lerp(gold, top ? 0.18 : 0).lerp(ember, top ? 0 : 0.1).lerp(gold, hot);
-    mat.emissiveIntensity = (HEAT[m] ?? 0.3) * (top ? 1.9 : 1) + hot * 2.2;
+    mat.metalness = 0.75; mat.roughness = (top ? 0.22 : 0.28) - 0.08 * k.shine;
+    mat.emissive.set(top ? k.hi : k.base).lerp(ember, 0.1).lerp(gold, hot);
+    mat.emissiveIntensity = (HEAT[m] ?? 0.3) * (top ? 1.35 : 1) + hot * 2.2;
     mat.opacity = a; mat.transparent = a < 0.99; mat.depthWrite = a > 0.98;
   };
 
@@ -277,12 +278,49 @@ export function createFoundry(host) {
   let sparks = [];
 
   let caps = [], pots = [], xs = [], tallOf = [], span = 1;
-  const slabGeo = new THREE.CylinderGeometry(R - 0.01, R - 0.01, 1, 64);
-  const domeGeo = lathe([[0, 0.04], [R * 0.45, 0.036], [R * 0.75, 0.024], [R * 0.92, 0.006], [R - 0.01, -0.02]], 0, Math.PI * 2, 1, 64);
+  const RI = R - 0.006;                                       // the metal's radius: the crucible's inside
+  const discGeo = new THREE.ShapeGeometry(new THREE.Shape().absarc(0, 0, 1, 0, Math.PI * 2, false), 64);
   const signGeo = new THREE.BoxGeometry(SLAB * 0.72, SLAB * 0.72, 0.001);
+  // How metal lies in a tipped crucible: for each tilt, the height (above the foot, along the upright) below which a fraction f of the
+  // inside lies, from points spread evenly through the inside. A body of metal from f0 to f1 is then the inside cut level at those two
+  // heights; and the tilt a pour needs is the one where the top of the metal just reaches the rim on the pouring side.
+  const TILTS = 90, TMAX = 1.78, FRACS = 64;
+  function levelTable(tall) {
+    const pts = [], H = tall - BASE;
+    for (let a = 0; a < 40; a++) for (let b = 0; b < 30; b++) {
+      const r = RI * Math.sqrt((b + 0.5) / 30), ang = (b * 2.39996 + a * 0.7) % (Math.PI * 2);
+      pts.push([r * Math.cos(ang), BASE + H * (a + 0.5) / 40]);
+    }
+    const table = [], hs = new Float32Array(pts.length);
+    for (let t = 0; t <= TILTS; t++) {
+      const th = TMAX * t / TILTS, s = Math.sin(th), c = Math.cos(th), row = new Float32Array(FRACS + 1);
+      pts.forEach(([x, y], k) => { hs[k] = -x * s + y * c; });
+      hs.sort();
+      for (let f = 0; f <= FRACS; f++) row[f] = f === 0 ? hs[0] - 0.02 : f === FRACS ? hs[hs.length - 1] + 0.02 : hs[Math.min(hs.length - 1, Math.round(f / FRACS * hs.length))];
+      table.push(row);
+    }
+    return table;
+  }
+  /** The level of fraction f of pot P's inside, tilted th, above its foot (upright: exactly the measure's height). */
+  function levelAt(P, f, th) {
+    f = Math.max(0, Math.min(1, f));
+    if (th < 0.002) return BASE + f * (P.tall - BASE);
+    const t = Math.min(TILTS, th / TMAX * TILTS), t0 = Math.floor(t), t1 = Math.min(TILTS, t0 + 1), u = t - t0, x = f * FRACS, f0 = Math.floor(x), f1 = Math.min(FRACS, f0 + 1), v = x - f0;
+    const L = P.levels, a = L[t0][f0] + (L[t0][f1] - L[t0][f0]) * v, b = L[t1][f0] + (L[t1][f1] - L[t1][f0]) * v;
+    return a + (b - a) * u;
+  }
+  /** The tilt at which metal filling fraction f of pot P just reaches its rim on the side it tips to. */
+  function pourTilt(P, f) {
+    const gap = th => levelAt(P, f, th) - (-RI * Math.sin(th) + P.tall * Math.cos(th));
+    let lo = 0, hi = TMAX;
+    if (gap(hi) < 0) return TMAX;
+    for (let k = 0; k < 18; k++) { const mid = (lo + hi) / 2; if (gap(mid) < 0) lo = mid; else hi = mid; }
+    return hi;
+  }
+
   function layout(c) {
     caps = c.slice();
-    for (const p of pots) { world.remove(p.g); p.g.traverse(o => { if (o.geometry && o.geometry !== slabGeo && o.geometry !== signGeo && o.geometry !== quad && o.geometry !== domeGeo) o.geometry.dispose(); }); }
+    for (const p of pots) { world.remove(p.g); world.remove(p.surface, p.haze); p.g.traverse(o => { if (o.geometry && o.geometry !== signGeo && o.geometry !== quad) o.geometry.dispose(); }); }
     pots = [];
     const n = caps.length, step = 2 * (R + WALL) + GAP;
     xs = caps.map((_, i) => (i - (n - 1) / 2) * step);
@@ -300,15 +338,25 @@ export function createFoundry(host) {
       const ring = new THREE.Mesh(quad, M.ring.clone());
       ring.rotation.x = -Math.PI / 2; ring.scale.set(R * 3.6, R * 2.4, 1); ring.position.set(0, tall + 0.05, 0);
       g.add(body, inside, cut(th0), cut(th0 + thL), ring);
-      const slabs = Array.from({ length: k + 2 }, () => { const m = new THREE.Mesh(slabGeo, layerMat()); m.castShadow = true; g.add(m); return m; });
+      // the metal: each body of it is the whole inside of the crucible, cut level above and below by planes (it lies level however the
+      // crucible is tipped); the top body's surface a level disc, cut where it meets the rim
+      const inner = new THREE.CylinderGeometry(RI, RI, tall - BASE, 64, 1, true);
+      inner.translate(0, (tall + BASE) / 2, 0);
+      const slabs = Array.from({ length: k + 2 }, () => {
+        const mat = layerMat(), m = new THREE.Mesh(inner, mat);
+        mat.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)];
+        mat.clipShadows = true; mat.side = DOUBLE;
+        m.castShadow = true; g.add(m);
+        return m;
+      });
       const marks = Array.from({ length: k + 2 }, () => { const m = new THREE.Mesh(signGeo, signs.Sn); g.add(m); return m; });
-      // the molten surface: a low dome, as metal stands in a crucible, and the glow it throws up
-      const surface = new THREE.Mesh(domeGeo, envify(std({}), 0.6)), haze = new THREE.Mesh(quad, M.haze.clone());
-      haze.rotation.x = -Math.PI / 2; haze.scale.set(R * 3.2, R * 3.2, 1);
-      g.add(surface, haze);
+      const smat = envify(std({}), 0.35), surface = new THREE.Mesh(discGeo, smat), haze = new THREE.Mesh(quad, M.haze.clone());
+      smat.clippingPlanes = [new THREE.Plane(), new THREE.Plane()];      // the rim and the floor, turned with the crucible
+      surface.rotation.x = -Math.PI / 2; haze.rotation.x = -Math.PI / 2; haze.scale.set(R * 3.2, R * 3.2, 1);
+      world.add(surface, haze);
       g.position.x = xs[i];
       world.add(g);
-      pots.push({ g, ring, slabs, marks, surface, haze, tall });
+      pots.push({ g, ring, slabs, marks, surface, haze, tall, levels: levelTable(tall) });
     });
     // the hearth and the coals under the row, the furnace behind it
     hearth.scale.x = span + 2.4; hearth.position.set(0, -0.2, 0.1);
@@ -395,15 +443,17 @@ export function createFoundry(host) {
   }
 
   /** Where crucible i stands: as the 2D view's poseOf, in the world (its foot's middle, its turn about the camera's axis). */
-  // It rises, swings across in an arc and tips as it arrives, then tips further as it empties: the last of the metal needs the
-  // steepest pour. Whatever the tilt, its lip comes to the same place, just over the other crucible's mouth.
+  // It rises, swings across in an arc and tips as it arrives, just short of spilling, then on to where its metal reaches the rim, and
+  // further as it empties (the last of the metal needs the steepest pour). Whatever the tilt, its lip comes to the same place, just over
+  // the other crucible's mouth. `fill`: the fraction of its inside the metal fills now.
   const smooth = t => t * t * (3 - 2 * t), clamp = t => Math.max(0, Math.min(1, t));
   const LIP = R + 0.17;
-  function poseOf(i, cup) {
+  function poseOf(i, cup, fill) {
     const rest = { x: xs[i], y: (cup.lift || 0) * 0.12, turn: 0, z: 0 };
     if (!cup.go) return rest;
     const j = cup.go.to, dir = Math.sign(xs[j] - xs[i]) || 1, k = cup.go.k, ly = pots[i].tall + 0.03;
-    const tip = smooth(clamp((k - 0.4) / 0.6)), turn = -dir * tip * (0.95 + 0.55 * smooth(cup.go.flow || 0)), c = Math.cos(turn), s = Math.sin(turn);
+    const tip = smooth(clamp((k - 0.4) / 0.6)), poured = cup.go.flow > 0 && cup.go.flow < 1;
+    const turn = -dir * tip * pourTilt(pots[i], fill) * (poured ? 1 : 0.97), c = Math.cos(turn), s = Math.sin(turn);
     const lipX = xs[j] - dir * 0.12, lipY = Math.max(...tallOf) + 1.5;       // high enough that it clears its neighbours
     const fx = lipX - (dir * LIP * c - ly * s), fy = lipY - (dir * LIP * s + ly * c);
     const move = smooth(clamp(k / 0.85)), arc = Math.sin(Math.PI * move) * 0.5;
@@ -421,12 +471,9 @@ export function createFoundry(host) {
     wallGlow.material.opacity = 0.24 + 0.06 * Math.sin(now / 1700);
     back.intensity = 1.7 + 0.3 * Math.sin(now / 520) + 0.12 * Math.sin(now / 173);
     coal.intensity = 0.65 + 0.12 * Math.sin(now / 640);
-    const surfaceY = [];
+    const surfaceY = [], poses = [];
     sc.cups.forEach((cup, i) => {
-      const P = pots[i], pose = poseOf(i, cup);
-      P.g.position.set(pose.x, pose.y, pose.z);
-      P.g.rotation.z = pose.turn;
-      P.ring.material.opacity = cup.picked ? 0.75 + 0.2 * Math.sin(now / 160) : cup.target ? 0.3 : 0;
+      const P = pots[i], H = P.tall - BASE;
       // the metal: a run of one metal lying together is one body, as molten metal is (a sign for each measure in it)
       const shown = cup.bands.filter(b => b.h > 0.02 && (b.a ?? 1) > 0.02).sort((x, y) => x.y - y.y), bodies = [];
       for (const b of shown) {
@@ -434,39 +481,54 @@ export function createFoundry(host) {
         if (last && last.m === b.m && Math.abs(last.y1 - b.y) < 0.03 && last.hot === hot && last.a === a) last.y1 = b.y + b.h;
         else bodies.push({ m: b.m, y0: b.y, y1: b.y + b.h, hot, a });
       }
+      const top = bodies[bodies.length - 1], fill = top ? top.y1 * SLAB / H : 0;
+      const pose = poseOf(i, cup, fill), th = Math.abs(pose.turn);
+      poses[i] = pose;
+      P.g.position.set(pose.x, pose.y, pose.z);
+      P.g.rotation.z = pose.turn;
+      P.g.updateMatrixWorld();
+      P.ring.material.opacity = cup.picked ? 0.75 + 0.2 * Math.sin(now / 160) : cup.target ? 0.3 : 0;
+      // each body cut level at its top and its foot (as fractions of the inside, at this tilt; the lowest open below)
       P.slabs.forEach((slab, k) => {
         const d = bodies[k];
         slab.visible = !!d;
         if (!d) return;
-        slab.scale.set(1, Math.max(0.01, (d.y1 - d.y0) * SLAB), 1); slab.position.set(0, BASE + (d.y0 + d.y1) / 2 * SLAB, 0);
+        const [over, under] = slab.material.clippingPlanes;
+        over.constant = pose.y + levelAt(P, d.y1 * SLAB / H, th);
+        under.constant = k ? -(pose.y + levelAt(P, d.y0 * SLAB / H, th)) : 1e3;
         dress(slab.material, d.m, d.hot, d.a);
       });
       P.marks.forEach((mk, k) => {
         const b = shown[k];
-        mk.visible = !!b && b.h > 0.5 && (b.a ?? 1) > 0.5;
+        mk.visible = !!b && b.h > 0.5 && (b.a ?? 1) > 0.5 && th < 0.12;
         if (!mk.visible) return;
         mk.material = signs[b.m] || signs.X;
-        mk.position.set(0, BASE + (b.y + b.h / 2) * SLAB, R + 0.005); mk.scale.set(1, Math.min(1, b.h * 1.2), 1);
+        mk.position.set(0, BASE + (b.y + b.h / 2) * SLAB, RI + 0.004); mk.scale.set(1, Math.min(1, b.h * 1.2), 1);
       });
-      // the molten surface on the topmost body, breathing a little, and its glow
-      const top = bodies[bodies.length - 1];
+      // the surface: a level disc where the crucible's axis meets the level (an ellipse in a tipped one), cut at the rim and the floor
       P.surface.visible = P.haze.visible = !!top;
-      if (!top) { surfaceY[i] = BASE; return; }
-      const y = BASE + top.y1 * SLAB, breathe = 1 + 0.12 * Math.sin(now / 700 + i * 1.7);
+      if (!top) { surfaceY[i] = pose.y + BASE; return; }
+      const y = pose.y + levelAt(P, fill, th), along = (y - pose.y) / Math.cos(pose.turn), cx = pose.x - Math.sin(pose.turn) * along;
       surfaceY[i] = y;
-      P.surface.position.set(0, y, 0); P.surface.scale.set(1, breathe, 1);
+      P.surface.position.set(cx, y + 0.002, pose.z); P.surface.scale.set(RI / Math.max(0.08, Math.cos(pose.turn)), RI, 1);
+      const [rim, floor] = P.surface.material.clippingPlanes;
+      rim.set(new THREE.Vector3(0, -1, 0), P.tall).applyMatrix4(P.g.matrixWorld);
+      floor.set(new THREE.Vector3(0, 1, 0), -BASE).applyMatrix4(P.g.matrixWorld);
       dress(P.surface.material, top.m, top.hot, top.a, true);
-      P.haze.position.set(0, y + 0.05, 0);
+      P.haze.visible = th < 0.1;
+      P.haze.position.set(cx, y + 0.05, pose.z);
       P.haze.material.color.set(METALS[top.m]?.hi || "#ffb060").lerp(ember, 0.45).lerp(gold, top.hot);
       P.haze.material.opacity = (0.32 + 0.06 * Math.sin(now / 430 + i) + top.hot * 0.6) * top.a;
     });
     // the stream: from the tipped crucible's lip, out and down into the other's metal, thinning as it falls; a splash where it lands
     const st = sc.stream;
     if (st && st.t0 > st.t1 + 0.001) {
-      const i = st.from, pose = poseOf(i, sc.cups[i]), dir = Math.sign(xs[st.to] - xs[i]) || 1, tall = pots[i].tall;
-      const lx = dir * LIP, ly = tall + 0.03, c = Math.cos(pose.turn), sn = Math.sin(pose.turn);
+      const i = st.from, pose = poses[i], dir = Math.sign(xs[st.to] - xs[i]) || 1, tall = pots[i].tall, c = Math.cos(pose.turn), sn = Math.sin(pose.turn);
+      const at = (lx, ly, out) => out.set(pose.x + lx * c - ly * sn, pose.y + lx * sn + ly * c, pose.z);
       const tx = pots[st.to].g.position.x, land = surfaceY[st.to] ?? BASE;
-      A.set(pose.x + lx * c - ly * sn, pose.y + lx * sn + ly * c, pose.z); B.set(tx + dir * 0.06, land, 0); C.set(A.x + dir * 0.28, A.y + 0.04, (A.z + B.z) / 2);
+      // from the rim inside, where the metal's surface meets it, over the lip and down: the curve bends at the lip's edge
+      at(dir * RI, tall, A); at(dir * (LIP + 0.06), tall + 0.01, C); B.set(tx + dir * 0.06, land, 0);
+      C.y = Math.max(C.y, A.y - 0.02);
       // thick at the lip, thinner as it falls; round at a free end; a ripple runs down it
       const ends = (t, j) => { const u = j / (RINGS - 1), head = st.t0 < 1 ? Math.min(1, (1 - u) * 6) : 1, tail = st.t1 > 0 ? Math.min(1, u * 6) : 1; return Math.sqrt(Math.max(0, Math.min(head, tail))); };
       const rad = k => (t, j) => k * (0.1 - 0.05 * t) * (1 + 0.1 * Math.sin(now / 45 - t * 26)) * ends(t, j);
