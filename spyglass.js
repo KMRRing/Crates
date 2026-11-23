@@ -41,7 +41,11 @@ const poolsFor = daily => {
   if (daily) return POOLS;
   const region = regionOf("spyglass"), on = new Set(subjectsIn(subjectsOn())), topic = k => !on.size || on.has(["painting", "building", "object"].includes(k) ? "art" : "geo");
   const inR = { painting: () => region === "world", building: () => region === "world", object: () => region === "world", flag: f => inRegions(region, regionsOfCountry.get(f.id)), outline: o => inRegions(region, REGION_OF[o.answer]) };
-  return Object.fromEntries(Object.entries(POOLS).map(([k, list]) => [k, topic(k) ? list.filter(inR[k]) : []]));
+  const pick = (byTopic, byRegion) => Object.fromEntries(Object.entries(POOLS).map(([k, list]) => [k, !byTopic || topic(k) ? (byRegion ? list.filter(inR[k]) : list) : []]));
+  // topics or a region that leave no picture at all (Settings' STEM or Trade preset: neither art nor geography) dealt a run of
+  // nothing and the page broke (the 23 Nov 2026 audit): the region alone then, and failing that every picture
+  const some = pools => Object.values(pools).some(l => l.length);
+  return [pick(true, true), pick(false, true), POOLS].find(some);
 };
 const picturesNow = () => { const k = read(KIND, "all"); return PICTURES.some(([v]) => v === k) ? k : "all"; };
 const ASK = { painting: "Who painted this?", building: "Which building is this?", flag: "Whose flag is this?", outline: "Which country is this?", object: "Which culture made this?" };

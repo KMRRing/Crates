@@ -65,6 +65,7 @@ function toast(msg, ms = 2600) {
 // ---------- the table and its thinking ----------
 let V = null, page = null;
 let sel = new Set(), selFor = "", handful = null, hinted = null, snap = null, uncovered = "";
+let lastHot = 0;          // the last of you on this phone to have had the move (with the page's state: seatPage draws a kept game at once)
 const player = createThinker(), coach = createThinker();
 const cache = new Map();                          // the worker's cards, by decision, for the runner to take
 let thinking = null, asking = "";
@@ -98,7 +99,6 @@ function viewer(v) {
 const coverKey = v => `${v.G.seq}:${v.state.ply}:${v.toMove}`;
 /** The seat drawn at the foot of the table. */
 const footSeat = v => (page.atTable ? v.seat ?? 0 : opts.hot > 1 ? (v.toMove != null && v.toMove < opts.hot ? v.toMove : lastHot) : 0);
-let lastHot = 0;
 const myTurn = v => { const w = viewer(v); return w != null && v.toMove === w && !v.over; };
 
 function follow(v) {
