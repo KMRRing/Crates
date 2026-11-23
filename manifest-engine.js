@@ -549,8 +549,10 @@ export const KIND_VIEWS = { count: ALL_VIEWS, total: ALL_VIEWS, most: ALL_VIEWS,
   top: ["all"], turned: ["layers", "slices", "all"], which: ["layers", "slices", "all"], load: WHOLE, fits: WHOLE, column: ["all"] };
 /** The recipe's kinds that its view can carry. */
 const kindsFor = (view, kinds) => kinds.filter(k => KIND_VIEWS[k]?.includes(view));
-/** The view of round r: a recipe's own take turns, else the rotation Random has always had; a change round is all at once. */
-const viewFor = (r, L) => (L.change ? "all" : L.views ? L.views[(r - 1) % L.views.length] : ["layers", "all", "slices", "pair"][(r - 1 - Math.floor((r - 1) / 4)) % 4]);
+/** The view of round r: a recipe's own take turns, else the rotation Random has always had, but for its first round, all at once
+ *  (Korbi, 23 Nov 2026: "starting round 1 with 'how many were there' instead of 'how many can you see' is already rough"); a change
+ *  round is all at once. */
+const viewFor = (r, L) => (L.change || (!L.views && r === 1) ? "all" : L.views ? L.views[(r - 1) % L.views.length] : ["layers", "all", "slices", "pair"][(r - 1 - Math.floor((r - 1) / 4)) % 4]);
 
 /**
  * A change round: the stack comes back with one package a different ware; turned a quarter round as well; or with two

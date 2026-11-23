@@ -24,7 +24,7 @@ const ALL = ["layers", "all", "slices", "pair"];
  */
 const CHAPTER_SPECS = [
   { name: "Crates and barrels", about: "Heavy goes low: a crate can carry crates and barrels, a barrel carries only barrels. Count, and say what stood where.",
-    types: [1, 2], kinds: BASIC, want: [], views: ["layers", "all", "layers", "all"], names: ["First load", "Two tiers", "Behind the stack", "The wharf"] },
+    types: [1, 2], kinds: BASIC, want: [], views: ["all", "layers", "all", "layers"], names: ["First load", "Two tiers", "Behind the stack", "The wharf"] },
   { name: "Timber", about: "Oak comes as logs, each lying across two cells end to end. Layers of logs cross, and carry crates and barrels too. Now the stack may be shown turned.",
     types: [1, 2, 3], kinds: [...BASIC, "turned"], want: [], views: ["layers", "all", "slices", "all"], x: [4, 3, 3, 4], names: ["Logs ashore", "Crossed layers", "The raft", "Timber yard"] },
   { name: "Ingots", about: "Piles of ingots weigh eight hundredweight, the most so far, and carry almost anything. Weigh what you saw: the question tells you what each weighs.",
