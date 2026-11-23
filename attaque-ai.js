@@ -10,11 +10,15 @@ import { ARMY, N, SIZE, LAKE, COUNT, FLAG, SPY, SCOUT, MINER, MARSHAL, BOMB, mov
 
 export const LEVEL_NAMES = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]];
 /** depth: moves looked ahead after its own; samples: deals of the hidden pieces; noise: points of randomness on each move's
- *  worth; wild: the chance of any move at all; quiet: whether winning attacks are followed past the depth; budget: nodes. */
+ *  worth; wild: the chance of any move at all; quiet: whether winning attacks are followed past the depth; budget: nodes.
+ *  Hard is Ataraxos's network (attaque-deep.js, in the worker); 23 Nov 2026 the network alone beat this search at its
+ *  strongest 6-0 (three each way; four on the Flag, two leaving it no move; the search had beaten the old Medium 5-1), so that
+ *  search became Medium, the old Medium went, and Hard here is the same search, played where the network can't be had. */
+const SEARCH = { depth: 2, samples: 24, noise: 0, wild: 0, quiet: true, budget: 2.5e6 };
 export const LEVELS = {
   easy: { depth: 0, samples: 5, noise: 40, wild: 0.12, quiet: false, budget: 6e4 },
-  medium: { depth: 1, samples: 12, noise: 5, wild: 0, quiet: true, budget: 6e5 },
-  hard: { depth: 2, samples: 24, noise: 0, wild: 0, quiet: true, budget: 2.5e6 },
+  medium: SEARCH,
+  hard: SEARCH,
 };
 export const levelOf = name => LEVELS[name] || LEVELS.medium;
 

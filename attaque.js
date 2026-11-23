@@ -20,6 +20,7 @@ import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, boardStage } from "./attaque-course.js";
+import { explain } from "./attaque-coach.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -73,7 +74,7 @@ function workerSend(kind, v, side, level) {
 let V = null;                                   // the runner's latest view
 let page = null;                                // (declared before seatPage, which hands over the saved game at once)
 let drawnGame = "";
-let ui = { key: "", sel: -1, hint: null };      // the move being made: the piece picked up, the coach's move
+let ui = { key: "", sel: -1, hint: null, why: "" };   // the move being made: the piece picked up, the coach's move and its words
 let arr = null;                                 // the army being set up on this phone: { key, side, text (as it sees it), sel (a place) }
 let uncovered = -1;                             // two on one phone: the side the board was last shown to
 let clashSeen = "", clashTimer = 0, wasSetting = false;
@@ -184,7 +185,7 @@ function draw() {
   let still = id !== drawnGame || !s;
   drawnGame = id;
   const key = gameKey(v);
-  if (ui.key !== key) ui = { key, sel: -1, hint: null };
+  if (ui.key !== key) ui = { key, sel: -1, hint: null, why: "" };
   const me = eyes(v), cover = covered(v), setting = arranger(v);
   syncArr(v, setting);
   // an army put in is drawn from the game, its pieces numbered by place, not as they were shuffled about: no slide across the board
@@ -222,6 +223,7 @@ function draw() {
   drawStatus(v);
   drawRoster(v);
   drawControls(v);
+  drawCoach(v, cover);
   drawClash(v, cover, still);
 }
 
@@ -330,15 +332,29 @@ function drawClash(v, cover, still) {
 
 // ---------- the coach ----------
 const coaching = v => !IN_FRAME && !!v?.G && v.mode === "solo" && opts.coach !== "off";
+/** The coach's words for its move, over their army and the buttons until the move is made or the note is tapped away (the
+ *  layout never moves for it). */
+function drawCoach(v, cover) {
+  const el = $("coach"), show = !!ui.why && !cover && coaching(v) && !v.over;
+  el.hidden = !show;
+  if (!show || el.dataset.why === ui.why) return;
+  el.dataset.why = ui.why;
+  const head = document.createElement("b");
+  head.textContent = "Coach";
+  el.replaceChildren(head, document.createTextNode(ui.why));
+}
+$("coach").addEventListener("click", () => { ui.why = ""; draw(); });
 async function hint() {
   const v = V, side = mover(v);
   if (side == null || !coaching(v)) return;
   const key = gameKey(v);
-  const r = (await workerSend("hint", v, side, "hard")) || { code: think(viewOf(v.state, side), "medium").code };
+  let r = await workerSend("hint", v, side, "hard");
+  if (!r || r.error) { const view = viewOf(v.state, side), code = think(view, "medium").code; r = { code, why: code == null ? "" : explain(view, code) }; }
   if (!V?.G || gameKey(V) !== key) return;
   if (r.code == null) { toast("No hint to give"); return; }
   ui.hint = at(r.code);
   ui.sel = ui.hint.f;
+  ui.why = r.why || "";
   draw();
 }
 
@@ -358,7 +374,7 @@ async function move(m, seat) {
   return ok ? "" : why || "Couldn't make that move";
 }
 async function commit(code) {
-  ui = { key: ui.key, sel: -1, hint: null };
+  ui = { key: ui.key, sel: -1, hint: null, why: "" };
   const why = await move(code, V.toMove);
   if (why) { toast(why); draw(); }
 }
@@ -469,7 +485,7 @@ function showEnd(v) {
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
   lesson = lessonNext; lessonNext = null;
-  ui = { key: "", sel: -1, hint: null };
+  ui = { key: "", sel: -1, hint: null, why: "" };
   arr = null;
   ready.clear();
   const two = opts.mode === "two" && !page.atTable;
@@ -495,8 +511,22 @@ function showRules() {
     <h3>The end</h3>
     <p>Taking the Flag wins. A side that cannot move on its turn loses. ${QUIET} moves without an attack make a draw.</p>
     <h3>Here</h3>
-    <p class="at-rules-note">Tap a piece, then a marked square. Your pieces the other side has seen are outlined; their pieces that have moved (so are no Bomb or Flag) carry a bar. The row under the board is their army left. Hint asks the coach for a move. The computer plays harder as you win and easier as you lose.</p>`;
+    <p class="at-rules-note">Tap a piece, then a marked square. Your pieces the other side has seen are outlined; their pieces that have moved (so are no Bomb or Flag) carry a bar. The row under the board is their army left. Hint asks the coach for a move, and says why (tap its note to put it away). The computer plays harder as you win and easier as you lose.</p>`;
   $("rulesDlg").showModal();
+}
+
+function showAbout() {
+  $("aboutBody").innerHTML = `
+    <p>Everything is worked out on this phone: nothing is sent anywhere, and it plays offline.</p>
+    <h3>Hard, and the coach</h3>
+    <p>Ataraxos's player: a neural network (a transformer of 8 layers, about 15 million weights) trained by playing Stratego against itself, from the Ataraxos project of Carnegie Mellon and other universities (Nature, 2026). It is the trained policy alone, without the search the project adds on top of it: it reads what its side has seen of the game (where every piece started, which have moved, what each attack showed, and which pieces have chased, run from or guarded which) and draws its move from the odds it gives each, so it can't be read; the coach gives you the move it rates highest. Its weights are kept here in 8 bits each (13.5 MB). The arithmetic is our own; the project's code and weights are MIT licensed:</p>
+    <pre>Copyright (c) 2023 Gabriele Farina
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. See vendor/ataraxos/LICENSE.txt for the whole text.</pre>
+    <h3>Easy and Medium</h3>
+    <p>Our own search: it deals your hidden pieces many times over, each deal one the board allows, looks a few moves ahead in each, and plays the move that does best across them.</p>`;
+  $("aboutDlg").showModal();
 }
 
 const course = createCourse({
@@ -533,9 +563,11 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   set.append(line("The opponent applies from the next game."));
-  set.append(toggle("Coach", opts.coach !== "off", on => { opts.coach = on ? "hints" : "off"; saveOpts(); ui.hint = null; draw(); }));
+  set.append(toggle("Coach", opts.coach !== "off", on => { opts.coach = on ? "hints" : "off"; saveOpts(); ui.hint = null; ui.why = ""; draw(); }));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("attaque:streak", { now: 0, best: 0 });
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games against the computer or a friend${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  const about = part(body, "about");
+  about.append(line(r.played ? `Won ${r.won} of ${r.played} games against the computer or a friend${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  about.append(action("About the computer", showAbout, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -555,6 +587,7 @@ document.querySelector(".at-mark").innerHTML = APPS.find(a => a.id === "attaque"
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+$("aboutClose").addEventListener("click", () => $("aboutDlg").close());
 window.__attaque = { page, get view() { return V; }, opts, board, get board3d() { return board3d; }, course, get ui() { return ui; }, get arr() { return arr; }, ready };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

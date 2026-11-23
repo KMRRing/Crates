@@ -2,8 +2,9 @@
 // slow referee on positions from random games, the two-square rule, a game on seats.js (setting up at once, turns, attacks,
 // the Flag, a side that cannot move, the quiet draw, resigning, the state through the database), what each side may know
 // (viewOf never hands over a hidden kind), the computer's deals of the hidden pieces, and its play where the answer is plain.
-// The levels were measured when they were made (23 Nov 2026): Medium beat Easy 4-0 and Hard beat Medium 5-1, a game taking
-// Hard up to a second a move in Node; that match is too slow for this test, which keeps their order.
+// The levels were measured when they were made (23 Nov 2026): the old Medium beat Easy 4-0 and the search that is now Medium beat
+// it 5-1, a game taking it up to a second a move in Node; that match is too slow for this test, which keeps their order. Hard,
+// the network, is tests/attaque-deep.mjs's.
 import { N, SIZE, ARMY, LAKE, COUNT, KCH, FLAG, SPY, SCOUT, MINER, MARSHAL, BOMB, fight, validSetup, randomSetup, placeSquare, placeOf, positionOf, movesOf, bannedOf, play, squareName } from "../attaque-board.js";
 import { think, sample, LEVELS } from "../attaque-ai.js";
 import { rules, viewOf, sideOfSeat, seatOfSide, QUIET, TWO_SQUARE } from "../attaque-rules.js";
@@ -198,7 +199,7 @@ function refMoves(p, side) {
   // the last hidden piece of Blue's that never moved must be the Flag: every other one is shown or has moved
   const flag = build([[0, "F", "a1"], [0, "B", "b1"], [0, "B", "a2"], [0, "4", "f9"], [0, "6", "e2"], [1, "B", "e10", "s"], [1, "B", "g10", "s"], [1, "F", "f10"], [1, "5", "c8", "m"], [1, "6", "h7", "m"]]);
   check(pick(flag, "medium") === code("f9", "f10") && pick(flag, "hard") === code("f9", "f10"), "it works out where the Flag must be and takes it");
-  check(LEVELS.easy.depth < LEVELS.medium.depth && LEVELS.medium.depth < LEVELS.hard.depth && LEVELS.easy.samples < LEVELS.medium.samples && LEVELS.medium.samples < LEVELS.hard.samples, "the levels look further ahead and deal more often, in order");
+  check(LEVELS.easy.depth < LEVELS.medium.depth && LEVELS.easy.samples < LEVELS.medium.samples && LEVELS.hard === LEVELS.medium, "Medium looks further ahead and deals more often than Easy; Hard is the network, this search where it can't be had");
   const G = newRecord(rules, { seats: 2, options: {}, seed: 9, now: T });
   const set = rules.bot(G.state, 1, { level: "hard", rng: seeded(4) });
   check(validSetup(set.setup) && set.setup === G.state.pk.slice(40), "setting up, the computer puts in the army it was dealt");

@@ -106,7 +106,7 @@ html[data-theme="office"][data-mode="night"] { --at-field: #2A3644; --at-field-h
 .at-cover small { opacity: .8; font-size: .85rem; }
 
 /* ---------- under the board ---------- */
-.at-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .4rem; }
+.at-side { position: relative; display: flex; flex-direction: column; gap: .4rem; padding-top: .4rem; }
 .at-status { margin: 0; color: var(--ink-soft); font-size: .9rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .at-status.big { color: var(--ink); font-weight: 800; font-size: 1.02rem; }
 /* their army left: a chip a rank, how many are left in a tab on its corner; a rank all gone fades */
@@ -122,12 +122,20 @@ html[data-theme="office"][data-mode="night"] { --at-field: #2A3644; --at-field-h
 .at-chip.gone { opacity: .28; }
 .at-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.4rem, 1fr)); gap: .4rem; }   /* three in a row on a phone, two and one in the column beside the board */
 .at-btn { min-height: 2.9rem; }
+/* the coach's words for its move: laid over their army and the buttons (tap to put away), so nothing moves */
+.at-coach { position: absolute; inset: .4rem 0 0; z-index: 3; margin: 0; padding: .4rem .6rem; box-sizing: border-box; overflow: auto;
+  border: 1px solid var(--at-brass); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; line-height: 1.3;
+  text-align: left; cursor: pointer; }
+.at-coach[hidden] { display: none; }
+.at-side:has(.at-coach:not([hidden])) :is(.at-roster, .at-controls) { visibility: hidden; }
+.at-coach b { margin-right: .45rem; font-size: .68rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 
 .at-rules p { line-height: 1.45; }
 .at-rules .at-mini { width: 1.3rem; height: 1.3rem; }
 .at-rules .at-mini b { font-size: .7rem; }
 .at-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .at-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.at-rules pre { white-space: pre-wrap; font-size: .72rem; line-height: 1.4; color: var(--ink-soft); }
 .at-end-head { margin: .2rem 0 .6rem; }
 .at-tally { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
 .at-tally li { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) 2.2rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
@@ -160,4 +168,5 @@ html[data-theme="office"] :is(.at-seat, .at-frame) { border-radius: 4px; }
   #app.attaque .at-seat.near { grid-column: 2; grid-row: 4; margin-top: .4rem; }
   #app.attaque .at-roster { grid-column: 2; grid-row: 6; margin-bottom: .4rem; flex-wrap: wrap; justify-content: flex-start; }
   #app.attaque .at-controls { grid-column: 2; grid-row: 7; }
+  #app.attaque .at-coach { position: relative; inset: auto; grid-column: 2; grid-row: 6 / 8; contain: size; align-self: stretch; }
 }

@@ -1,0 +1,24 @@
+Ataraxos's policy network, the computer L'Attaque plays on Hard and its coach (attaque-deep.js, attaque-net.js, attaque-sight.js).
+
+Source:   https://github.com/AtaraxosAI/stratego, commit 92db29e8ffc323b1b8a2804b5c3f84695d036b05 (18 February 2026), the code of
+          "Ataraxos" (Nature, 2026): self-play reinforcement learning and test-time search for Stratego, on GPUs. MIT licence,
+          Copyright (c) 2023 Gabriele Farina: LICENSE.txt, which goes with every copy of the weights.
+Taken:    the trained policy only, pretrained/final_run/model42400.pthw (59,145,319 bytes, SHA-256
+          8a490d1afe14c0a105c725a71e80ea517c98d9dcf332b3d68a3acbd503d2f52f): TransformerRL of pyengine/networks/legacy_rl.py,
+          8 layers, 384 wide, 8 heads, 14,776,323 weights, its training settings in pretrained/final_run/train.log (history of
+          32 moves, piece numbers, threat, evasion, adjacency, protection, cemetery and battle planes all on). Not taken: the
+          search (pyengine/core/search.py, which needs the belief network and a GPU), the belief network, and the setups the run
+          learnt (arrangements42400.pkl: a pickle, which can run code when it is read, so it was never opened); the computer's
+          army is dealt by attaque-board.js's randomSetup.
+Ported:   the network in plain JavaScript (attaque-net.js, checked against nothing but the arithmetic of legacy_rl.py and
+          transformer_basics.py: no GPU here to run the original), and the game's bookkeeping it reads, from the CUDA kernels
+          that keep it (src/env/cuda/action_kernels.cu, ApplyActionsKernel; src/env/cuda/infostate_kernels.cu; the piece
+          numbers of pyengine/core/env.py), move for move in attaque-sight.js. The game is L'Attaque's own rules
+          (attaque-board.js); Ataraxos was trained with the two-square rule and the more-squares rule (continuous chasing), and
+          L'Attaque has the first only; both draw after 200 moves without an attack.
+Packed:   export.py (python3 -I; readpt.py reads the checkpoint without torch and refuses anything in its pickle but an
+          ordered dict of tensors) writes the weights as float16; pack-net.mjs packs those as ataraxos.bin.gz: every matrix as
+          8-bit integers with a float32 scale a row, every vector as float16, gzipped. 13,550,953 bytes, SHA-256
+          040c12cbd2541a2e656864c1c794fcea82d2ede6de86d81bdd0bb310048e7f8e; the steps give the same bytes again.
+          On positions of a game the 8-bit network's odds were within 2.3% of the float16 one's (total variation, on average;
+          11% at most) and its likeliest move the same in 30 of 30.

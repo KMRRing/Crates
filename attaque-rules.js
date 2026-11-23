@@ -2,7 +2,7 @@
 // the computer attaque-ai.js's. A game is plain JSON:
 //   { seats: 2, red (the seat playing Red, who moves first), phase ("setup", then "play"), rdy ("00": which sides are set up,
 //     Red's first), pk (80 kinds, a character each: Red's pieces, then Blue's), at (80 squares, two digits each, "--" once
-//     taken), sn and mv (80 flags each: shown to the other side, has moved), t (the side to move: 0 Red, 1 Blue), moves [every
+//     taken), at0 (the same, as play began), sn and mv (80 flags each: shown to the other side, has moved), t (the side to move: 0 Red, 1 Blue), moves [every
 //     move in play, from * 100 + to], quiet (moves since the last attack), fx { n (the move it was), f, t, a, d (the pieces), ak,
 //     dk (their kinds as characters), r (1 the attacker won, -1 lost, 0 both fell), by (the attacking side) } the last attack, over,
 //     result { winner (a side, or -1 for a draw), why: "flag" | "stuck" | "quiet" | "resign" } }
@@ -68,7 +68,7 @@ export const rules = {
       if (!validSetup(m.setup)) return "That isn't a whole army";
       placeSetup(s, side, m.setup);
       s.rdy = side === 0 ? `1${s.rdy[1]}` : `${s.rdy[0]}1`;
-      if (s.rdy === "11") { s.phase = "play"; s.t = 0; }
+      if (s.rdy === "11") { s.phase = "play"; s.t = 0; s.at0 = s.at; }      // at0: where play began (the deep computer replays the game from it)
       return s;
     }
     if (!Number.isInteger(m) || m < 0) return "Tap a piece";
