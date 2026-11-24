@@ -77,11 +77,42 @@ export function gradeOf(spec, par = [1, 99], strict = true) {
   return { ok: strict === false || (best <= 2 && (strict === "best" || (greedy <= 2 && skimmer <= 2))), par: sv.par, best, of: firsts.length, greedy, skimmer, states: sv.states };
 }
 /**
- * A row made a puzzle: the first seed from `from` that does it, or with `hardest` the one of `tries` seeds with the highest par in
- * the row's range (then the fewest right first moves): the level, or null.
+ * How hard a level is to make at par, as a number that climbs through the book (24 Nov 2026, Korbi: "Progression on the crucible
+ * levels way too shallow": by par alone the later chapters were easier than the second's end). A careful player, who never pours
+ * into a dead end (a state the level can't be won from) but plans no further, picks among the other pours at random: the chance they
+ * make the par, as -log10 (2 is one in a hundred). The par grows little with a level's size; this grows with its traps. A caller
+ * that has solved the level already passes the solve.
+ */
+export function hardness(spec, L = playOf(spec), s0 = startOf(L), sv = solve(L, s0)) {
+  const left = sv.toWin, memo = new Map();
+  const chance = s => {
+    const k = keyOf(s);
+    if (memo.has(k)) return memo.get(k);
+    let p = 1;
+    if (!won(s)) {
+      const d = left.get(k);
+      let live = 0, sum = 0;
+      for (const [a, b] of movesOf(L, s)) {
+        const t = pour(L, s, a, b).state, dt = left.get(keyOf(t));
+        if (dt === undefined) continue;
+        live++;
+        if (dt === d - 1) sum += chance(t);
+      }
+      p = live ? sum / live : 0;
+    }
+    memo.set(k, p);
+    return p;
+  };
+  return { hard: -Math.log10(chance(s0)), par: sv.par, states: sv.states };
+}
+export const MOST_STATES = 60000;                    // a book level's states at most: its solve a moment on a phone, the test of them all seconds
+/**
+ * A row made a puzzle: the first seed from `from` that does it; with `hardest` the one of `tries` seeds with the highest par in the
+ * row's range (then the fewest right first moves); and where the row has an `aim`, the one whose hardness is nearest it (falling short
+ * counts three times going over), no bigger than MOST_STATES (or the row's `most`): the level (with its hardness), or null.
  */
 export function makeLevel(row, from = 1, tries = 4000, hardest = false) {
-  let best = null, bg = null;
+  let best = null, bg = null, score = Infinity;
   tries = row.tries || tries;
   for (let seed = from; seed < from + tries; seed++) {
     const spec = fillOf(row, seed);
@@ -89,6 +120,13 @@ export function makeLevel(row, from = 1, tries = 4000, hardest = false) {
     const g = gradeOf(spec, row.par, row.strict ?? true);
     if (!g.ok) continue;
     if (!hardest) return { ...spec, par: g.par, seed };
+    if (row.aim) {
+      if (g.states > (row.most || MOST_STATES)) continue;
+      const h = hardness(spec).hard, off = h >= row.aim ? h - row.aim : 3 * (row.aim - h);
+      if (off < score) { score = off; best = { ...spec, par: g.par, seed, hard: +h.toFixed(2) }; }
+      if (off < 0.1) break;
+      continue;
+    }
     if (!bg || g.par > bg.par || (g.par === bg.par && g.best < bg.best)) { best = { ...spec, par: g.par, seed }; bg = g; }
   }
   return best;

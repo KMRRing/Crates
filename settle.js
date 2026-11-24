@@ -28,10 +28,17 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const ease = t => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-// 4 (23 November 2026): the redesign; the old levels' stars and every saved melt go
-if (!IN_FRAME && read(VER, 0) !== 4) {
+// 4 (23 November 2026): the redesign; the old levels' stars and every saved melt go. 5 (24 November): the book dealt again for a
+// steeper climb; stars stay only on the levels that are still the same puzzle, and a level's run in hand goes with its puzzle
+const SAME_SINCE_4 = "1-1 1-2 1-3 1-4 1-5 1-6 1-7 2-1 2-3 3-1 3-3 3-8 4-1 4-2 4-4 5-1 5-2 6-1 6-2 6-3 7-1 8-1 8-2".split(" ");
+if (!IN_FRAME && read(VER, 0) === 4) {
+  write(CAMP, Object.fromEntries(Object.entries(read(CAMP, {})).filter(([id]) => SAME_SINCE_4.includes(id))));
+  if (!SAME_SINCE_4.includes(read(LRUN, null)?.lv?.id)) try { localStorage.removeItem(LRUN); } catch { /* private mode */ }
+  write(VER, 5);
+}
+if (!IN_FRAME && read(VER, 0) !== 5) {
   try { for (const k of [MODE, CAMP, LRUN, RRUN, DRUN, DAILY, "settle:best", "settle:run", "settle:levels", "settle:seen", "settle:ramp"]) localStorage.removeItem(k); } catch { /* private mode */ }
-  write(VER, 4);
+  write(VER, 5);
 }
 
 // ---------- the run ----------
