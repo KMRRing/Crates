@@ -46,7 +46,7 @@ export const LEVELS = [
   level({ name: "Rough comb", board: "hex", size: 7, level: "medium", twist: "ranges" }),
   level({ name: "Wax ledger", board: "hex", size: 9, level: "medium", twist: "ranges" }),
 
-  level({ name: "Fogbound ford", size: 7, level: "hard", twist: "ranges+tunnels" }),
+  level({ name: "Fogbound ford", size: 7, level: "medium", twist: "ranges+tunnels" }),   // (24 Nov 2026: a chapter eases in; this was hard, and first)
   level({ name: "Admiralty chart", size: 10, level: "medium", twist: "ranges+tunnels" }),
   level({ name: "Hive and ledger", board: "hex", size: 7, level: "hard", twist: "ranges" }),
   level({ name: "The grand survey", size: 10, level: "hard", twist: "ranges+tunnels" }),
