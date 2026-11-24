@@ -17,6 +17,8 @@ const PAIRS = [[0, 4], [0, 3], [0, 2], [0, 5], [1, 4], [1, 5], [1, 2]];
 /** The same without ochre, which would look like the gold laid over it. */
 const PLAIN_PAIRS = PAIRS.filter(([a, b]) => a !== 1 && b !== 1);
 
+// Korbi, 24 November 2026: a chapter eases in (an easy grade first), gets harder (the cloths never smaller), and ends on its biggest
+// (a weave or a sett is regular enough that its logic stays simple: there, size is the climb)
 export const CHAPTERS = [
   { id: "plain", name: "Plain cloth", blurb: "Two yarns and nothing else. A pick's clue is how long its weft floats on the face; a thread's, how long it floats." },
   { id: "weaves", name: "Weaves", blurb: "The cloths a weaver names, woven on a draft: threads on one shaft rise together, so the same marks come round and round." },
@@ -56,18 +58,18 @@ export const LEVELS = [
   L("plain", 5, "Check", "A check is stripes crossing stripes. A mirrored cloth has its clues mirrored too, which tells you something.", { w: 10, h: 10, kind: "random", d: .5, mirror: true, grade: [1, 3] }),
   L("plain", 6, "Sampler", "A sampler is a weaver's trial piece. This one has no pattern to lean on.", { w: 12, h: 12, kind: "random", d: .5, grade: [2, 3] }),
 
-  L("weaves", 1, "Plain weave", "Over one, under one: the cloth of a shirt. Two shafts, one lifted and then the other.", { w: 8, h: 8, kind: "weave", weave: "plain", grade: [1, 3] }),
-  L("weaves", 2, "Hopsack", "Plain weave worked in pairs: threads and picks go two together, so each check is a little square.", { w: 10, h: 10, kind: "weave", weave: "hopsack", grade: [1, 3] }),
+  L("weaves", 1, "Plain weave", "Over one, under one: the cloth of a shirt. Two shafts, one lifted and then the other.", { w: 8, h: 8, kind: "weave", weave: "plain", grade: [1, 2] }),
+  L("weaves", 2, "Hopsack", "Plain weave worked in pairs: threads and picks go two together, so each check is a little square.", { w: 10, h: 10, kind: "weave", weave: "hopsack", grade: [1, 2] }),
   L("weaves", 3, "Twill", "Each pick lifts the shafts one step along from the last, and the weave runs on in a diagonal. Four shafts, the cloth of a pair of jeans.", { w: 10, h: 10, kind: "weave", weave: "twill22", grade: [1, 3] }),
   L("weaves", 4, "Three and one", "A twill that floats over three and under one: the diagonal is steeper, the face smoother. Gabardine is woven so.", { w: 12, h: 10, kind: "weave", weave: "twill31", grade: [1, 3] }),
   L("weaves", 5, "Herringbone", "A twill whose threading turns back on itself, so the diagonal turns with it, like the bones of a fish.", { w: 12, h: 10, kind: "weave", weave: "herringbone", grade: [1, 3] }),
-  L("weaves", 6, "Satin", "Five shafts, and a pick that shows its colour on only one thread in five, so the cloth is nearly all one yarn and shines.", { w: 10, h: 10, kind: "weave", weave: "satin", grade: [1, 3] }),
+  L("weaves", 6, "Satin", "Five shafts, and a pick that shows its colour on only one thread in five, so the cloth is nearly all one yarn and shines.", { w: 12, h: 10, kind: "weave", weave: "satin", grade: [1, 3] }),
   L("weaves", 7, "Diamond twill", "Point the threading and the treadling both, and the diagonals turn both ways at once: diamonds.", { w: 12, h: 12, kind: "weave", weave: "diamond", grade: [1, 3] }),
   L("weaves", 8, "Rosepath", "Handweavers' favourite: a twill threaded and treadled out and back, which makes small roses along a path.", { w: 14, h: 12, kind: "weave", weave: "rosepath", grade: [1, 3] }),
 
-  L("colour", 1, "Gingham", "Plain weave in two colours, a pair of each in warp and weft: where like meets like the crossing is settled, and the checks come of themselves.", { w: 8, h: 8, kind: "colour", weave: "plain", warp: "0011", weft: "0011", yarns: [0, 3], grade: [1, 3] }),
+  L("colour", 1, "Gingham", "Plain weave in two colours, a pair of each in warp and weft: where like meets like the crossing is settled, and the checks come of themselves.", { w: 8, h: 8, kind: "colour", weave: "plain", warp: "0011", weft: "0011", yarns: [0, 3], grade: [1, 2] }),
   L("colour", 2, "Pinstripe", "One thread in six in a dark yarn, and the weft in pairs: a pinstripe shows only where the weft lets it.", { w: 10, h: 8, kind: "colour", warp: "000001", weft: "0011", yarns: [0, 4], grade: [1, 3], d: .5 }),
-  L("colour", 3, "Houndstooth", "A twill in blocks of four light and four dark, in warp and weft alike. The two meet in a broken check.", { w: 8, h: 8, kind: "colour", weave: "twill22", warp: "00001111", weft: "00001111", yarns: [0, 5], grade: [1, 3] }),
+  L("colour", 3, "Houndstooth", "A twill in blocks of four light and four dark, in warp and weft alike. The two meet in a broken check.", { w: 10, h: 10, kind: "colour", weave: "twill22", warp: "00001111", weft: "00001111", yarns: [0, 5], grade: [1, 3] }),
   L("colour", 4, "Tartan", "A sett is a tartan's pattern of stripes, the same warp and weft. Run through a twill it makes a plaid.", { w: 12, h: 12, kind: "colour", weave: "twill22", warp: "0033322", weft: "0033322", yarns: [0, 4, 2, 3], grade: [1, 3] }),
   L("colour", 5, "Madras", "A light cotton plaid from southern India, its stripes uneven, woven plain.", { w: 12, h: 12, kind: "colour", warp: "0101223", weft: "3032110", yarns: [0, 3, 1, 2], d: .5, grade: [1, 3] }),
   L("colour", 6, "Glen check", "The Glen Urquhart check: small and large checks at once, in a twill of two colours and a third.", { w: 16, h: 16, kind: "colour", weave: "twill22", warp: "000011110000111122", weft: "000011110000111122", yarns: [0, 5, 3], grade: [1, 3] }),
