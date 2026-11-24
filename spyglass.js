@@ -2,7 +2,7 @@
 // does not turn it), and the sooner you say what it is the more it's worth. A run is five pictures: paintings (public domain only, from Punt's art bank), flags and country outlines. Easy
 // gives four answers to choose from, Medium eight, Hard a line to type in. The rules are spyglass-engine.js's; this file
 // keeps the run, draws the lens and builds the page.
-import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, buildings, flags, outlines, objects, dealRun, fraction, spent, focus, worth, matches, norm } from "./spyglass-engine.js";
+import { LEVELS, ROUNDS, FULL, SECONDS, WRONG, paintings, museumPaintings, buildings, flags, outlines, objects, dealRun, fraction, spent, focus, worth, matches, norm } from "./spyglass-engine.js";
 import { MATHS as ART } from "./art-bank.js";
 import { MATHS as ARCH } from "./arch-bank.js";
 import { flags as menuFlags } from "./menu-flags.js";
@@ -13,6 +13,7 @@ import { subjectsIn } from "./topics.js";
 import * as pile from "./pile.js";
 import { MATHS as FLAGS } from "./flags-bank.js";
 import { OBJECTS, ALSO } from "./spyglass-objects.js";
+import { PAINTINGS as MUSEUM } from "./spyglass-art.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { pictureUrls } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -30,7 +31,7 @@ const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JS
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-const POOLS = { painting: paintings(ART), building: buildings(ARCH), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF), object: objects(OBJECTS, ALSO) };
+const POOLS = { painting: [...paintings(ART), ...museumPaintings(MUSEUM)], building: buildings(ARCH), flag: flags(FLAGS), outline: outlines(COUNTRIES, REGION_OF), object: objects(OBJECTS, ALSO) };
 // Region and Topics (the shared settings) narrow what is dealt: a flag and an outline are in a region by their country; a painting and a
 // building have none (Worldwide only). Topics: paintings and buildings are Art & architecture, flags and outlines Geography; with no
 // topic on every one is. Pictures (this game's own row) is a kind, or all. A daily is the same for everyone, so it uses none of them.
@@ -219,8 +220,9 @@ async function sourceFor(it) {
     const colour = await outlineSource(it.name);
     return read(LOOK, "colour") === "ink" ? { ...(await outlineSource(it.name, true)), full: colour } : looked(colour);   // grey: the same ground in greys
   }
-  // a museum object's picture is the museum's own web image (spyglass-objects.js); a painting's or a building's is looked up on Wikipedia
-  const urls = it.kind === "object" ? { t: it.pic } : await pictureUrls(it.pic, 960);
+  // a museum object's or a museum painting's picture is the museum's own web image (spyglass-objects.js, spyglass-art.js); another painting's
+  // or a building's is looked up on Wikipedia
+  const urls = it.kind === "object" || it.direct ? { t: it.pic } : await pictureUrls(it.pic, 960);
   if (!urls) return null;
   for (const u of [...new Set([urls.t, urls.o])]) { try { const img = await load(u); return { img, w: img.naturalWidth, h: img.naturalHeight }; } catch { /* try the original */ } }
   return null;
@@ -237,7 +239,19 @@ async function begin() {
   source = fetched;
   if (answered()) { phase = "shown"; reveal = { from: 1, at: 1 }; unveil = 1; tint = 1; showCaption(); render(); return; }
   if (source) { stretched(source); if (source.full) stretched(source.full); }   // the surround is drawn while the glass is still dark
-  if (!source) {                                   // a picture that won't load (offline): a flag or outline, drawn here, in its place
+  // a picture that won't load (offline, and not kept on this device): another of its kind that will, tried a few at a time, and failing
+  // that a flag or an outline, drawn here, in its place
+  const until = performance.now() + 6000;          // (a slow connection, not a missing one, is given up on sooner)
+  for (let k = 1; k <= 2 && !source && performance.now() < until; k++) {
+    const others = dealRun(S.seed + 31 * k + S.index, S.level, S.daily ? POOLS : poolsFor(false), item().kind).items.filter(i => !S.items.some(o => o.answer === i.answer));
+    for (const other of others) {
+      if (performance.now() > until) break;
+      const got = await sourceFor(other);
+      if (me !== token) return;
+      if (got) { S.items[S.index] = other; save(); source = got; stretched(source); if (source.full) stretched(source.full); break; }
+    }
+  }
+  if (!source) {
     const spare = dealRun(S.seed + 17 * (S.index + 1) + S.elapsed, S.level, S.daily ? POOLS : poolsFor(false)).items.find(i => (i.kind === "flag" || i.kind === "outline") && !S.items.some(o => o.answer === i.answer));
     S.items[S.index] = spare; save(); return begin();
   }
@@ -372,7 +386,7 @@ function pass() {
  *  draw on it through the other games); one named cleanly that was on a pile moves up it. Outlines have no picture to ask with. */
 function learn(why) {
   const it = item();
-  if (S.daily || it.kind === "outline" || it.kind === "object") return;     // (an object's picture is its own address, which the other games cannot show)
+  if (S.daily || it.kind === "outline" || it.kind === "object" || it.direct) return;     // (an object's or a museum painting's picture is its own address, which the other games cannot show)
   const key = `${it.kind}/${it.answer}`;
   if (why === "right") { pile.answer("spyglass", key, true, it.facts); return; }     // its own item, or another game's on the same fact
   const others = [...it.options.filter(o => o !== it.answer), ...POOLS[it.kind].map(p => p.answer).filter(a => a !== it.answer)].filter((o, i, all) => all.indexOf(o) === i).slice(0, 3);   // none were shown on Hard

@@ -5,7 +5,8 @@
 //
 // Licence (docs/licences-images-and-engines.md, 2 and 9 November 2026): a painting is shown only if it was painted by 1930 and
 // its painter died by 1955 (the rest are in copyright somewhere: LATE below). Flags are the emoji the page draws; outlines are
-// drawn from the map's own data; museum objects are the Cleveland Museum of Art's CC0 photographs (spyglass-objects.js).
+// drawn from the map's own data; museum objects and the museum's paintings are the Cleveland Museum of Art's CC0 photographs
+// (spyglass-objects.js, spyglass-art.js).
 export const ROUNDS = 5, LEVELS = ["easy", "medium", "hard"];
 export const FULL = 100, FLOOR = 10, WRONG = 15;
 export const DEAD = 2;                                          // seconds at the start when nothing comes on
@@ -50,6 +51,9 @@ export function flags(bank) {
   }
   return out;
 }
+/** The museum's paintings (spyglass-art.js): paintings whose picture is its own address (`direct`), the other painters of the same school
+ *  first among the options (`region`). */
+export const museumPaintings = list => list.map(p => ({ kind: "painting", ...p, direct: true, region: p.school }));
 /** The museum objects (spyglass-objects.js): { kind, id, pic (the image's own address), answer (the culture), region, d, caption, also }. */
 export const objects = (list, also = {}) => list.map(o => ({ kind: "object", ...o, also: also[o.answer] || [] }));
 /** A country's size on the map: the widest of its rings, in square degrees (to rank how well known an outline is). */

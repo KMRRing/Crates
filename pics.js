@@ -142,9 +142,9 @@ export function askedWith(text, pic, name, answers = []) {
 export const credit = title => `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 
 // ---------- every picture, kept offline (Settings) ----------
-// The games show a few hundred pictures (pics-list.js, written by the build from kb/): Settings' "Keep pictures offline"
-// downloads them all at OFFLINE_WIDTH, straight from Wikipedia to this device (they aren't the app's to hand out: many
-// 20th-century paintings are on Wikipedia under fair use). Their addresses are asked fifty at a time and remembered with
+// The games show a few hundred pictures (pics-list.js, written by the build from kb/, and Spyglass's museum pictures): Settings'
+// "Keep pictures offline" downloads them all at OFFLINE_WIDTH, straight from Wikipedia (or the museum) to this device (they
+// aren't the app's to hand out: many 20th-century paintings are on Wikipedia under fair use). Their addresses are asked fifty at a time and remembered with
 // the rest; the images come down four at a time into the service worker's picture cache. What's kept already is
 // skipped, so a download cut short (offline, the page closed) carries on where it stopped, and pictures added to the
 // games later come down the next time a page opens with it on.
@@ -194,10 +194,18 @@ async function fetchInto(cache, url) {
   await cache.put(url, res);
   return true;
 }
+/** The pictures named by their own address rather than by a page: Spyglass's museum objects and paintings (the Cleveland Museum of Art's
+ *  CC0 images), kept the same way (Korbi, 24 Nov 2026: "make sure that the museum pieces and all the images work while offline still"). */
+async function direct() {
+  const [{ OBJECTS }, { PAINTINGS }] = await Promise.all([import("./spyglass-objects.js"), import("./spyglass-art.js")]);
+  return [...new Set([...OBJECTS, ...PAINTINGS].map(p => p.pic))];
+}
+/** How many pictures "Keep pictures offline" keeps: the pages' and the museum's. */
+export const picturesTotal = async () => { const [{ PICTURES }, own] = await Promise.all([import("./pics-list.js"), direct()]); return PICTURES.length + own.length; };
 async function keepAll() {
   if (!keepingPictures()) return { kept: 0, total: 0, missing: 0, none: 0, done: true, offline: false };
-  const { PICTURES } = await import("./pics-list.js");
-  const all = load(), cache = await caches.open(CACHE), total = PICTURES.length;
+  const [{ PICTURES }, own] = await Promise.all([import("./pics-list.js"), direct()]);
+  const all = load(), cache = await caches.open(CACHE), total = PICTURES.length + own.length;
   let kept = 0, missing = 0, none = 0;
   const tell = extra => { const p = { kept, total, missing, none, done: false, offline: false, ...extra }; for (const f of listeners) f(p); return p; };
   try {
@@ -205,11 +213,11 @@ async function keepAll() {
     const unknown = PICTURES.filter(t => all[`${t}@${OFFLINE_WIDTH}`] === undefined);
     for (const list of [unknown.filter(t => !t.startsWith("File:")), unknown.filter(t => t.startsWith("File:"))])
       for (let i = 0; i < list.length; i += 50) { Object.assign(all, Object.fromEntries(Object.entries(await lookUp(list.slice(i, i + 50))).map(([t, u]) => [`${t}@${OFFLINE_WIDTH}`, u]))); save(); }
-    const queue = [...PICTURES];
+    const queue = [...PICTURES, ...own.map(url => ({ url }))];
     let cut = false;                                             // the connection went: every lane stops
     const lane = async () => {
       while (queue.length && !cut && keepingPictures()) {        // turned off in Settings: it stops
-        const urls = all[`${queue.shift()}@${OFFLINE_WIDTH}`];
+        const next = queue.shift(), urls = next.url ? { t: next.url } : all[`${next}@${OFFLINE_WIDTH}`];
         try {
           if (urls === undefined) missing++;                     // its address didn't come: next time
           else if (urls === null) none++;                        // Wikipedia has no image for the page: Settings says so

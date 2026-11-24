@@ -156,12 +156,13 @@ self.addEventListener("message", event => {
     async e => reply?.postMessage({ ok: false, error: await failed(e) })));
 });
 
-// pictures from Wikipedia (the API's answers and the images, thumbnails from thumb.wikimedia.org): an image fetched
+// pictures from Wikipedia (the API's answers and the images, thumbnails from thumb.wikimedia.org), and the Cleveland Museum
+// of Art's open access images (Spyglass's museum objects and paintings, named by their own address): an image fetched
 // by an <img> comes back opaque (no CORS), which can still be kept and given back to an <img>. A kept copy is found by
 // its address alone: Settings keeps them with a plain request, and a reply that Varies on a header the <img>'s request
 // sends differently would otherwise never match it, offline least of all
 const isPicture = url => (url.hostname === "en.wikipedia.org" && url.pathname === "/w/api.php" && url.searchParams.get("prop") === "pageimages")
-  || url.hostname === "upload.wikimedia.org" || url.hostname === "thumb.wikimedia.org";
+  || url.hostname === "upload.wikimedia.org" || url.hostname === "thumb.wikimedia.org" || url.hostname === "openaccess-cdn.clevelandart.org";
 async function picture(request) {
   const cache = await caches.open(PICS), hit = await cache.match(request, { ignoreVary: true });
   if (hit) return hit;

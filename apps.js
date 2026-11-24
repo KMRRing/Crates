@@ -10,7 +10,7 @@ import { duoLine } from "./duo-records.js";
 import { choice, toggle, line } from "./menu.js";
 import { readLog, logText, clock } from "./playlog.js";
 import { topicsControls } from "./topics-ui.js";
-import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
+import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures, picturesTotal } from "./pics.js";
 import { bindRandom } from "./random.js";
 import { bindChoose } from "./banner.js";
 import { bindFind, starButton } from "./games-bar.js";
@@ -511,7 +511,7 @@ function picturesPart(sheet) {
     last = p;
     // a page Wikipedia has no image for isn't kept, and isn't counted as kept either: said, so "all kept" is true
     const none = p.none || 0, without = none ? ` ${none} ${none === 1 ? "has" : "have"} no picture on Wikipedia (a question about one names it).` : "";
-    status.textContent = !keepingPictures() ? `On this device: every painting, building and place the games show, about ${Math.round(p.total * 0.07)} MB from Wikipedia. Pictures you've seen are kept anyway.`
+    status.textContent = !keepingPictures() ? `On this device: every painting, building, place and museum piece the games show, about ${Math.round(p.total * 0.07)} MB from Wikipedia and the Cleveland Museum of Art. Pictures you've seen are kept anyway.`
       : p.checking ? "Checking the pictures kept on this device…"
       : !p.done ? `Keeping pictures offline: ${p.kept} of ${p.total}`
       : p.kept + none >= p.total ? `All ${p.kept} pictures are kept on this device.${without}`
@@ -524,8 +524,8 @@ function picturesPart(sheet) {
     if (last) say({ ...last, done: !on, checking: on });          // at once: the first count comes once Wikipedia answers
     if (on) keepPicturesOffline();
   }), status);
-  import("./pics-list.js").then(({ PICTURES }) => {
-    say({ kept: 0, total: PICTURES.length, missing: 0, none: 0, done: false, checking: true });
+  picturesTotal().then(total => {
+    say({ kept: 0, total, missing: 0, none: 0, done: false, checking: true });
     if (keepingPictures()) keepPicturesOffline();            // where it stands: a quick check when it's all there
   });
   return box;

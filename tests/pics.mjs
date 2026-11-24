@@ -5,8 +5,11 @@
 // short carries on where it stopped, the switch turned off stops it, and offline a game asking for a bigger picture gets
 // the kept copy. Then a picture on a page (showPicture), against a stand-in <img>: a slow address or a slow image gives
 // way to the copy kept on the device, only the latest picture asked of a box touches it, and a question about "this"
-// names the thing once its picture can't be shown (askedWith), unless the name is one of its answers.
+// names the thing once its picture can't be shown (askedWith), unless the name is one of its answers. Spyglass's museum
+// pictures, named by their own address, are kept with them (24 Nov 2026).
 import { PICTURES } from "../pics-list.js";
+import { OBJECTS } from "../spyglass-objects.js";
+import { PAINTINGS } from "../spyglass-art.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -53,7 +56,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
 const pics = await import("../pics.js");
 const W = pics.OFFLINE_WIDTH, kept = () => cached.get("crates-pics-2") ?? new Map();
-const withImage = PICTURES.filter(t => t !== "Mona Lisa").length;
+const museum = [...new Set([...OBJECTS, ...PAINTINGS].map(p => p.pic))], withImage = PICTURES.filter(t => t !== "Mona Lisa").length + museum.length;
 
 check(PICTURES.length > 250 && PICTURES.includes("Mona Lisa") && PICTURES.some(t => t.startsWith("File:")), `the build lists every picture the games show (${PICTURES.length})`);
 let r = await pics.keepPicturesOffline();
@@ -72,7 +75,8 @@ const imagesBefore = net.images;
 r = await pics.keepPicturesOffline();
 check(r.done && !r.offline && r.kept === withImage && r.none === 1 && net.api === firstApi && net.images - imagesBefore === withImage - 100,
   `back online it carries on: only the ${withImage - 100} not kept yet come down, the addresses aren't asked again`);
-check(kept().size === withImage && [...kept().keys()].every(u => u.includes(`/${W}px.jpg`)), `every picture is kept, at ${W} pixels (${kept().size}; the page with no image counted apart, not as kept)`);
+check(kept().size === withImage && [...kept().keys()].every(u => u.includes(`/${W}px.jpg`) || museum.includes(u)) && museum.every(u => kept().has(u)),
+  `every picture is kept, a page's at ${W} pixels and the museum's own (${kept().size}; the page with no image counted apart, not as kept)`);
 
 const mapping = JSON.parse(localStorage.getItem("pics:v2"));
 check(mapping[`The Starry Night@${W}`]?.t === thumbOf("The Starry Night", W), "a title Wikipedia redirects is kept under the title the games ask for");

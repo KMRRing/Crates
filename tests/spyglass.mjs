@@ -103,5 +103,20 @@ const noArt = E.dealRun(3, "easy", { ...allPools, painting: [], building: [] });
 check(noArt.items.length === 5 && noArt.items.every(i => i.kind === "flag" || i.kind === "outline"), "a pool left empty (a region has no paintings) leaves the mix");
 check(E.dealRun(3, "easy", allPools, "painting").items.map(i => i.answer).join() === E.dealRun(3, "easy", allPools, "painting").items.map(i => i.answer).join(), "the same seed deals the same run");
 
+// the museum's paintings (Korbi, 24 Nov 2026: "more art for spyglass"): CC0 Cleveland images by painters a player may know, painted by 1930 by a
+// painter who died by 1955, none twice, nor a painting Punt's bank already shows; typed by the painter's names; dealt with the bank's
+const { PAINTINGS } = await import("../spyglass-art.js");
+const museum = E.museumPaintings(PAINTINGS), bankTitles = new Set(paint.map(p => p.caption.split(",")[0].toLowerCase()));
+check(museum.length >= 120 && museum.every(p => /^https:\/\/openaccess-cdn\.clevelandart\.org\//.test(p.pic) && p.direct && p.caption && p.year <= 1930 && !E.LATE.has(p.answer) && [3, 4, 5].includes(p.d)),
+  `${museum.length} museum paintings, each a Cleveland image painted by 1930 by a painter out of copyright`);
+check(new Set(museum.map(p => p.id)).size === museum.length && new Set(museum.map(p => p.pic)).size === museum.length && museum.every(p => !bankTitles.has(p.caption.split(",")[0].toLowerCase())),
+  "no museum painting twice, nor one the bank already shows");
+check(museum.every(p => E.matches(p, p.answer) && E.matches(p, E.painterNames(p.answer).at(-1))), "a museum painting's painter typed in full or by surname");
+const both = { painting: [...paint, ...museum] };
+for (const level of E.LEVELS) {
+  const run = E.dealRun(21, level, both, "painting").items;
+  check(run.length === 5 && new Set(run.map(i => i.answer)).size === 5 && run.every(i => !i.options.length || i.options.includes(i.answer) && new Set(i.options).size === i.options.length), `paintings from the bank and the museum dealt together at ${level}`);
+}
+
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
-console.log(`spyglass: ${paint.length} paintings, ${flag.length} flags, ${outline.length} outlines and ${obj.length} objects, runs dealt at every level, sharpening and scoring and typed answers checked`);
+console.log(`spyglass: ${paint.length} paintings and ${museum.length} from the museum, ${flag.length} flags, ${outline.length} outlines and ${obj.length} objects, runs dealt at every level, sharpening and scoring and typed answers checked`);
