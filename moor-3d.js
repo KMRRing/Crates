@@ -47,7 +47,10 @@ const skinOf = night => {
   const k = SEA[night ? "night" : "day"];
   return {
     ...k, ...town(night), night,
-    quay: k.stone, quayLo: k.stoneLo, plaza: k.sand, ground: k.grass, wood: k.timber, woodLo: k.timberLo,
+    // the harbour is timber (Korbi, 24 Nov 2026: "Moor the Harbour looks bad make it wood"): planks in three weathered tones over a dark
+    // frame, tarred piles, and the counts' plates; the stone is gone from the quays
+    quay: night ? 0x3d3226 : 0x4a3727, quayLo: k.timberLo, plaza: k.sand, ground: k.grass, wood: k.timber, woodLo: k.timberLo,
+    planks: night ? [0x9c7f5c, 0x8d7353, 0xa98b66] : [0xa8804f, 0x96714a, 0xb68f5f], pile: night ? 0x4f4237 : 0x3f3228,
     under: k.ground, horizon: k.haze, zenith: k.skyTop, orb: night ? 0xe9eefc : 0xfff3cf, lampOff: 0x6f6f6f, lampOn: night ? 0x6ff0a8 : 0x3fbf7a,
     bad: night ? 0xe8705a : 0xd0422e,
   };
@@ -114,7 +117,7 @@ export function createModel(host, opts = {}) {
   const M = {
     ship: shipMaterial(), swell: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false, side: 2 }),
     grid: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false, side: 2 }),
-    quay: solid(0x9c7b4f), quayLo: solid(0x6a4d2e), ground: solid(0x8e896f), plaza: solid(0xa89d86), wood: solid(0x8b5f35), woodLo: solid(0x4b331d),
+    quay: solid(0x4a3727), quayLo: solid(0x6a4d2e), plank0: solid(0xa8804f), plank1: solid(0x96714a), plank2: solid(0xb68f5f), pile: solid(0x3f3228), ground: solid(0x8e896f), plaza: solid(0xa89d86), wood: solid(0x8b5f35), woodLo: solid(0x4b331d),
     rock: solid(0x7b756a), rockHi: solid(0x8c857b), cream: solid(0xeee6d2),
     roof: [0, 1].map(() => solid(0x6b3a2e)), crate: [0, 1, 2].map(() => solid(0xb5432f)), wall: [0, 1, 2, 3].map(() => solid(0xd8cfb8)),
     win: new THREE.MeshBasicMaterial({ color: 0x34424e }), lantern: new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }),
@@ -129,7 +132,7 @@ export function createModel(host, opts = {}) {
     if (skin && skin.key === k.key) return;
     skin = k;
     fx?.sea?.paint(k.night); M.swell.color.setHex(k.foam); M.ripple.color.setHex(k.foam); M.iron.color.setHex(k.iron);
-    for (const [m, c] of [[M.quay, k.quay], [M.quayLo, k.quayLo], [M.ground, k.ground], [M.plaza, k.plaza], [M.wood, k.wood], [M.woodLo, k.woodLo], [M.rock, k.rock], [M.rockHi, k.rockHi], [M.win, k.win]]) m.color.setHex(c);
+    for (const [m, c] of [[M.quay, k.quay], [M.quayLo, k.quayLo], [M.plank0, k.planks[0]], [M.plank1, k.planks[1]], [M.plank2, k.planks[2]], [M.pile, k.pile], [M.ground, k.ground], [M.plaza, k.plaza], [M.wood, k.wood], [M.woodLo, k.woodLo], [M.rock, k.rock], [M.rockHi, k.rockHi], [M.win, k.win]]) m.color.setHex(c);
     M.roof.forEach((m, i) => m.color.setHex(k.roofs[i])); M.crate.forEach((m, i) => m.color.setHex(k.crates[i])); M.wall.forEach((m, i) => m.color.setHex(k.walls[i]));
     M.litMat.color.setHex(k.gilt); M.whyMat.color.setHex(k.gilt); M.lantern.color.setHex(k.night ? 0xffe28a : 0xf5efd8);
     M.beam.visible = k.night;
@@ -260,6 +263,31 @@ export function createModel(host, opts = {}) {
       const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), nx = -dz / len, nz = dx / len;
       put(geo.box, mat, len - inset, h, w, (a[0] + b[0]) / 2 + nx * out, y, (a[1] + b[1]) / 2 + nz * out, Math.atan2(-dz, dx));
     };
+    // the decking: planks across a strip of quay, laid one after another along it, in three tones; a frame of dark timber shows
+    // between them
+    const PLANK = 0.2, planks = [M.plank0, M.plank1, M.plank2];
+    const deckStrip = (x0, x1, z0, z1) => {
+      const longX = x1 - x0 >= z1 - z0, len = longX ? x1 - x0 : z1 - z0, span = (longX ? z1 - z0 : x1 - x0) - 0.03, n = Math.max(1, Math.round(len / PLANK));
+      for (let i = 0; i < n; i++) {
+        const c = (longX ? x0 : z0) + ((i + 0.5) * len) / n, w = len / n - 0.022, m = planks[hash(Math.round(c * 50) + (longX ? 7 : 3)) * 3 | 0];
+        if (longX) put(geo.box, m, w, 0.04, span, c, T + 0.01, (z0 + z1) / 2); else put(geo.box, m, span, 0.04, w, (x0 + x1) / 2, T + 0.01, c);
+      }
+    };
+    /** Planks laid across the quay along the edge a→b (a hex quay's side), `QUAY` wide, out from the edge. */
+    const deckEdge = (a, b) => {
+      const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), ux = dx / len, uz = dz / len, n = Math.max(1, Math.round(len / PLANK));
+      for (let i = 0; i < n; i++) {
+        const d = ((i + 0.5) * len) / n, m = planks[hash(i * 13 + Math.round((a[0] + a[1]) * 10)) * 3 | 0];
+        put(geo.box, m, len / n - 0.022, 0.04, QUAY - 0.05, a[0] + ux * d - uz * (QUAY / 2), T + 0.01, a[1] + uz * d + ux * (QUAY / 2), Math.atan2(-dz, dx));
+      }
+    };
+    /** The water face from a to b, the water on the side of `wet`: a capping beam along the edge and tarred piles before it. */
+    const face = (a, b, wet) => {
+      const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), ux = dx / len, uz = dz / len, off = 0.06;
+      const sg = Math.sign(uz * (wet[0] - (a[0] + b[0]) / 2) - ux * (wet[1] - (a[1] + b[1]) / 2)) || 1, nx = sg * uz, nz = -sg * ux;
+      put(geo.box, M.woodLo, len, 0.1, 0.12, (a[0] + b[0]) / 2, T - 0.03, (a[1] + b[1]) / 2, Math.atan2(-dz, dx));
+      for (let d = 0.15; d < len - 0.05; d += 0.32) put(geo.cyl, M.pile, 0.12, T + 0.48, 0.12, a[0] + ux * d + nx * off, (T + 0.48) / 2 - 0.42, a[1] + uz * d + nz * off);
+    };
     const zEnd = hz + ARM;
     if (hex) {
       // the quay round a hexagonal basin, cut open at its flat near side where the harbour mouth begins
@@ -267,24 +295,30 @@ export function createModel(host, opts = {}) {
       poly([...out, [-cw, zg], ...hull.slice().reverse(), [cw, zg]], M.quay, T);
       slab(half, MX, hz + QUAY - 0.02, zEnd, M.quay); slab(-MX, -half, hz + QUAY - 0.02, zEnd, M.quay);
       void o0; void oN; void bh;
-      // a darker lip along the water side of the quay, and the stone wall of the moles' inner faces
-      for (let i = 0; i + 1 < hull.length; i++) along(hull[i], hull[i + 1], M.quayLo, 0.12, T + 0.42, (T - 0.42) / 2 + 0.02);
-      for (const s of [-1, 1]) put(geo.box, M.quayLo, 0.12, T + 0.42, zEnd - hz, s * half, (T - 0.42) / 2 + 0.02, (zEnd + hz) / 2);
-      for (const s of [-1, 1]) for (let z = hz + QUAY; z < zEnd - 0.3; z += 0.55) put(geo.box, M.quayLo, QUAY, 0.008, 0.024, s * (half + QUAY / 2), T + 0.004, z);
+      // decked in planks, piles along every face that meets the basin's water and the moles' inner faces
+      for (let i = 0; i + 1 < hull.length; i++) { deckEdge(hull[i], hull[i + 1]); face(hull[i], hull[i + 1], [0, 0]); }
+      for (const s of [-1, 1]) { deckStrip(s > 0 ? half : -MX, s > 0 ? MX : -half, hz + QUAY - 0.02, zEnd - QUAY); face([s * half, hz], [s * half, zEnd - QUAY], [0, zEnd]); }
     } else {
       slab(-HX, HX, -HX, -half, M.quay);
       slab(-HX, -half, -HX, zEnd, M.quay); slab(half, HX, -HX, zEnd, M.quay);
       slab(-HX, -half + 0.0, zEnd - QUAY, zEnd, M.quay);
-      // the quay is planked: a seam every little way across its width, a darker line the counts are painted over
-      for (let x = -HX + 0.55; x < HX - 0.2; x += 0.55) put(geo.box, M.quayLo, 0.024, 0.008, QUAY, x, T + 0.004, -half - QUAY / 2);
-      for (const s of [-1, 1]) for (let z = -half + 0.1; z < zEnd - 0.3; z += 0.55) put(geo.box, M.quayLo, QUAY, 0.008, 0.024, s * (half + QUAY / 2), T + 0.004, z);
-      put(geo.box, M.quayLo, 2 * half + 0.12, T + 0.42, 0.12, 0, (T - 0.42) / 2 + 0.02, -half);
-      for (const s of [-1, 1]) put(geo.box, M.quayLo, 0.12, T + 0.42, zEnd + half, s * half, (T - 0.42) / 2 + 0.02, (zEnd - half) / 2);
+      // decked in planks across the quay, piles along the faces that meet the water
+      deckStrip(-half, half, -HX, -half);
+      for (const s of [-1, 1]) deckStrip(s > 0 ? half : -HX, s > 0 ? HX : -half, -HX, zEnd - QUAY);
+      face([half, -half], [-half, -half], [0, 0]);
+      for (const s of [-1, 1]) face([s * half, -half], [s * half, zEnd - QUAY], [0, 0]);
     }
-    // each mole's head bends in toward the mouth, with a pad for the light
+    // each mole's head bends in toward the mouth, decked to its end, with a raised timber stage for the light or the beacon
     for (const s of [-1, 1]) {
+      const x0 = s > 0 ? half - HOOK : -MX, x1 = s > 0 ? MX : -(half - HOOK);
       slab(s > 0 ? half - HOOK : -half, s > 0 ? half : -(half - HOOK), zEnd - QUAY, zEnd, M.quay);
-      put(geo.box, M.quayLo, 1.5, T + 0.42, 1.5, s * (half - HOOK + 0.35), (T - 0.42) / 2 + 0.02, zEnd - 0.4);
+      deckStrip(x0, x1, zEnd - QUAY, zEnd);
+      const ix = s * (half - HOOK);                 // the head's inner corner, on the mouth
+      face([ix, zEnd - QUAY], [s * half, zEnd - QUAY], [0, 0]);          // its face to the basin
+      face([s * MX, zEnd], [ix, zEnd], [0, zEnd + 5]);                    // its end, to the sea
+      face([ix, zEnd], [ix, zEnd - QUAY], [0, zEnd]);                     // its side, on the mouth
+      put(geo.box, M.woodLo, 1.5, 0.1, 1.5, s * (half - HOOK + 0.35), T + 0.05, zEnd - 0.4);
+      for (const [px, pz] of [[-0.68, -0.68], [0.68, -0.68], [-0.68, 0.68], [0.68, 0.68]]) put(geo.cyl, M.pile, 0.14, 0.3, 0.14, s * (half - HOOK + 0.35) + px, T + 0.1, zEnd - 0.4 + pz);
     }
     // the land behind and beside: ground, a paved strip along the quay, and a sea wall where it meets the water
     if (hex) {
@@ -303,9 +337,9 @@ export function createModel(host, opts = {}) {
       // bollards along the quay and the moles
       for (let i = 0; i + 1 < ring.hull.length; i++) {
         const a = ring.hull[i], b = ring.hull[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / len, dz = (b[1] - a[1]) / len;
-        for (let d = 1; d < len - 0.4; d += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, a[0] + dx * d - dz * 0.95, T + 0.03, a[1] + dz * d + dx * 0.95);
+        for (let d = 1; d < len - 0.4; d += 2) put(geo.cyl, M.pile, 0.12, 0.14, 0.12, a[0] + dx * d - dz * 0.95, T + 0.08, a[1] + dz * d + dx * 0.95);
       }
-      for (const s of [-1, 1]) for (let z = hz + QUAY + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, s * (half + 0.95), T + 0.03, z);
+      for (const s of [-1, 1]) for (let z = hz + QUAY + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.pile, 0.12, 0.14, 0.12, s * (half + 0.95), T + 0.08, z);
     } else {
       slab(-L, L, -L, -HX, M.ground, T + 0.3, (T - 0.3) / 2 - 0.02);
       for (const s of [-1, 1]) slab(s > 0 ? HX : -L, s > 0 ? L : -HX, -HX, half, M.ground, T + 0.3, (T - 0.3) / 2 - 0.02);
@@ -315,8 +349,8 @@ export function createModel(host, opts = {}) {
         slab(s > 0 ? HX : -L, s > 0 ? L : -HX, half, half + 0.3, M.quayLo, T + 0.6, (T - 0.6) / 2 - 0.02);
       }
       // bollards along the quay and the moles
-      for (let i = 0; i < N; i += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, i - half + 0.5, T + 0.03, -half - 0.95);
-      for (const s of [-1, 1]) for (let z = -half + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.woodLo, 0.12, 0.1, 0.12, s * (half + 0.95), T + 0.03, z);
+      for (let i = 0; i < N; i += 2) put(geo.cyl, M.pile, 0.12, 0.14, 0.12, i - half + 0.5, T + 0.08, -half - 0.95);
+      for (const s of [-1, 1]) for (let z = -half + 0.5; z < zEnd - 0.6; z += 2) put(geo.cyl, M.pile, 0.12, 0.14, 0.12, s * (half + 0.95), T + 0.08, z);
     }
     // rock armour on the right mole's sea face, and a white edge of surf on both
     const rocks = [];                                                  // [x, z, radius]: the water breaks round them
@@ -331,19 +365,19 @@ export function createModel(host, opts = {}) {
     const lx = half - HOOK + 0.35, lz = zEnd - 0.4, LHS = 2;
     const light = new THREE.Mesh(lighthouseGeometry(SEA.day), M.ship);
     light.name = "lighthouse";
-    light.scale.setScalar(LHS); light.position.set(lx, T, lz);
+    light.scale.setScalar(LHS); light.position.set(lx, T + 0.1, lz);
     world.add(light);
     const BK = new THREE.Matrix4().makeTranslation(-lx, 0, lz);
-    put(geo.cyl, M.woodLo, 0.2, 1.0, 0.2, 0, T + 0.5, 0, 0, 0, 0, BK);
-    put(geo.cyl, M.wood, 0.36, 0.14, 0.36, 0, T + 1.05, 0, 0, 0, 0, BK);
-    put(geo.cyl, M.lantern, 0.26, 0.22, 0.26, 0, T + 1.2, 0, 0, 0, 0, BK);
-    // sea walls: stone with a timber cap and a post at each end, on the edge between two cells
+    put(geo.cyl, M.woodLo, 0.2, 1.0, 0.2, 0, T + 0.6, 0, 0, 0, 0, BK);
+    put(geo.cyl, M.wood, 0.36, 0.14, 0.36, 0, T + 1.15, 0, 0, 0, 0, BK);
+    put(geo.cyl, M.lantern, 0.26, 0.22, 0.26, 0, T + 1.3, 0, 0, 0, 0, BK);
+    // sea walls: a timber breakwater on the edge between two cells, a row of piles behind planking with a cap along the top
     for (const key of P.walls) {
       const a = Math.floor(key / 1024), b = key % 1024, [ax, az] = cellXZ(a), [bx, bz] = cellXZ(b), len = (hex ? HEXS : 1) * 0.94;
       const mx = (ax + bx) / 2, mz = (az + bz) / 2, ry = Math.atan2(ax - bx, az - bz);   // (the wall lies across the line between the cells)
-      put(geo.box, M.quay, len, 0.46, 0.16, mx, 0.2, mz, ry);
-      put(geo.box, M.woodLo, len + 0.04, 0.05, 0.2, mx, 0.455, mz, ry);
-      for (const sg of [-1, 1]) put(geo.cyl, M.woodLo, 0.17, 0.62, 0.17, mx + Math.cos(ry) * sg * len / 2, 0.26, mz - Math.sin(ry) * sg * len / 2);
+      put(geo.box, M.plank1, len, 0.4, 0.08, mx, 0.18, mz, ry);
+      put(geo.box, M.woodLo, len + 0.06, 0.06, 0.16, mx, 0.4, mz, ry);
+      for (let d = -len / 2; d <= len / 2 + 1e-6; d += len / 3) put(geo.cyl, M.pile, 0.12, 0.66, 0.12, mx + Math.cos(ry) * d, 0.12, mz - Math.sin(ry) * d);
     }
     for (const { g, mat, ms } of acc.values()) {
       const im = new THREE.InstancedMesh(g, mat, ms.length);
@@ -354,7 +388,7 @@ export function createModel(host, opts = {}) {
     // the lighthouse's beam, which turns at night
     const beam = new THREE.Group();
     beam.add(box(7, 0.1, 0.3, M.beam, 3.5, 0, 0), box(7, 0.1, 0.3, M.beam, -3.5, 0, 0));
-    beam.position.set(lx, T + 1.23 * LHS, lz);
+    beam.position.set(lx, T + 0.1 + 1.23 * LHS, lz);
     world.add(beam);
     fx = { beam, ships: [], gulls: [], sea: null };
     // ships at anchor out at sea, gulls
@@ -367,31 +401,34 @@ export function createModel(host, opts = {}) {
       world.add(g);
       fx.gulls.push({ g, l, r, cx: (hash(i + 200) - 0.5) * half * 1.2, cz: hz + 1 + hash(i + 210) * 4, rad: 3 + hash(i + 220) * 5, h: 2.2 + hash(i + 230) * 2.5, sp: 0.25 + hash(i + 240) * 0.2, ph: hash(i + 250) * 6.28 });
     }
-    // the docks: round stone piers standing in the water (a double dock a long one with a lamp at each end), timber fenders round
-    // them, an iron bollard, and a lamp on a post that lights green once its barge is moored. Stone and round, so they never pass for
-    // a barge (Korbi, 24 Nov 2026: the timber stages read as boats)
-    const lampGeo = new THREE.SphereGeometry(0.065, 10, 8), drum = new THREE.CylinderGeometry(0.27, 0.3, 0.66, 14), cap = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 14);
-    const fender = new THREE.CylinderGeometry(0.032, 0.032, 0.56, 6), post = new THREE.CylinderGeometry(0.016, 0.02, 0.42, 6), bollard = new THREE.CylinderGeometry(0.045, 0.055, 0.1, 8);
+    // the docks: timber dolphins, a cluster of tarred piles bound with an iron band under a small planked cap, a bollard and a lamp
+    // on a post that lights green once its barge is moored (a double dock two of them joined by a plank walk). Upright piles, never
+    // a flat raft, so a dock does not pass for a boat (Korbi, 24 Nov 2026: the timber stages read as boats; the harbour is timber)
+    const lampGeo = new THREE.SphereGeometry(0.065, 10, 8), pileGeo = new THREE.CylinderGeometry(0.055, 0.06, 0.78, 7), band = new THREE.CylinderGeometry(0.25, 0.25, 0.05, 14);
+    const capGeo = new THREE.BoxGeometry(0.46, 0.05, 0.46), post = new THREE.CylinderGeometry(0.016, 0.02, 0.42, 6), bollard = new THREE.CylinderGeometry(0.04, 0.05, 0.09, 8);
+    const cluster = [[0, 0], ...Array.from({ length: 6 }, (_, i) => [0.17 * Math.cos((i * Math.PI) / 3 + 0.3), 0.17 * Math.sin((i * Math.PI) / 3 + 0.3)])];
     const piers = [];                                                  // [x, z, half length along x]: the water breaks round them too
     for (const d of P.docks) {
-      const [x, z] = cellXZ(d), g = new THREE.Group(), two = P.cap[d] === 2, lamps = [], ends = two ? [-0.25, 0.25] : [0];
+      const [x, z] = cellXZ(d), g = new THREE.Group(), two = P.cap[d] === 2, lamps = [], ends = two ? [-0.27, 0.27] : [0];
       g.position.set(x, 0, z);
       const add = (geom, mat, px, py, pz) => { const m = new THREE.Mesh(geom, mat); m.position.set(px, py, pz); g.add(m); return m; };
-      for (const ex of ends) { add(drum, M.quay, ex, -0.02, 0); add(cap, M.quayLo, ex, 0.33, 0); }
-      if (two) { g.add(box(0.5, 0.66, 0.56, M.quay, 0, -0.02, 0)); g.add(box(0.5, 0.05, 0.6, M.quayLo, 0, 0.33, 0)); }
-      const span = two ? 0.25 : 0;
-      for (const [fx_, fz] of [[span + 0.21, 0.21], [span + 0.21, -0.21], [-span - 0.21, 0.21], [-span - 0.21, -0.21]]) add(fender, M.woodLo, fx_, 0.04, fz);
-      add(bollard, M.iron, two ? 0 : 0.11, 0.4, two ? -0.12 : -0.1);
-      for (const ex of two ? [-0.3, 0.3] : [-0.06]) {
-        add(post, M.iron, ex, 0.56, 0.1);
+      for (const ex of ends) {
+        cluster.forEach(([px, pz], i) => add(pileGeo, M.pile, ex + px, 0.02 + (i ? 0 : 0.06), pz));
+        add(band, M.iron, ex, 0.22, 0);
+        add(capGeo, planks[(d + ex * 10) & 1 ? 0 : 2], ex, 0.43, 0);
+      }
+      if (two) add(new THREE.BoxGeometry(0.3, 0.04, 0.2), M.plank1, 0, 0.43, 0);
+      add(bollard, M.iron, two ? 0 : 0.12, 0.5, two ? -0.1 : -0.12);
+      for (const ex of two ? [-0.3, 0.3] : [-0.08]) {
+        add(post, M.iron, ex, 0.66, 0.1);
         const lamp = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0x6f6f6f }));
-        lamp.position.set(ex, 0.8, 0.1); g.add(lamp);
+        lamp.position.set(ex, 0.9, 0.1); g.add(lamp);
         lamps.push(lamp);
       }
       if (hex) g.scale.setScalar(0.94);
       world.add(g);
       docks.push({ cell: d, g, lamps, lit: 0 });
-      piers.push([x, z, span * (hex ? 0.94 : 1)]);
+      piers.push([x, z, (two ? 0.27 : 0) * (hex ? 0.94 : 1)]);
     }
     // the sea, made last because it breaks on everything above: quays, moles, rocks and piers. Calm in the basin and the channel,
     // the open sea's swell beyond the mouth
@@ -403,7 +440,7 @@ export function createModel(host, opts = {}) {
     })() : (x, z) => Math.abs(x) < half && z > -half && z < hz;
     const land = (x, z, withPiers = true) => {
       for (const [rx, rz, r] of rocks) if ((x - rx) ** 2 + (z - rz) ** 2 < r * r) return true;
-      if (withPiers) for (const [px, pz, sp] of piers) { const dx = Math.max(0, Math.abs(x - px) - sp); if (dx * dx + (z - pz) ** 2 < 0.09) return true; }
+      if (withPiers) for (const [px, pz, sp] of piers) { const dx = Math.max(0, Math.abs(x - px) - sp); if (dx * dx + (z - pz) ** 2 < 0.065) return true; }
       if (inside(x, z)) return false;
       if (Math.abs(x) < (z > zEnd - QUAY ? half - HOOK : half) && z > hz - 0.05 && z <= zEnd) return false;   // the channel out to the mouth
       if (z > zEnd) return false;

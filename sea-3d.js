@@ -41,7 +41,7 @@ const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(
 
 /** The water's colours: over the shallows, a few cells out, deep, the surf, the sky it reflects, and how bright the sun's glints are. */
 export const WATER = {
-  day: { shallow: 0x7ccfc8, sea: 0x3f8db4, deep: 0x22618f, foam: 0xf6f3ea, sky: 0xcfe2ec, glint: 0.85 },
+  day: { shallow: 0x67bdb8, sea: 0x3f8db4, deep: 0x22618f, foam: 0xf6f3ea, sky: 0xcfe2ec, glint: 0.6 },
   night: { shallow: 0x56828a, sea: 0x34566a, deep: 0x223a4c, foam: 0xc4d0d6, sky: 0x3d5a78, glint: 0.35 },
 };
 const GROW = 1.2;                                   // each line of the middle band this much further from the last
@@ -95,7 +95,7 @@ export function water({ x0, x1, z0, z1, near, fine = 0.34, far = 14, shore = () 
     uTime: { value: 0 }, uShallow: { value: new THREE.Color() }, uSea: { value: new THREE.Color() }, uDeep: { value: new THREE.Color() }, uFoam: { value: new THREE.Color() },
     uSky: { value: new THREE.Color() }, uGlint: { value: 0.8 }, uReach: { value: new THREE.Vector2(...reach) }, uSun: { value: new THREE.Vector3(0, 1, 0) },
   };
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0, flatShading: true });
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72, metalness: 0, flatShading: true });   // matt: a glossy sea mirrors the sun as one glare
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, u);
     shader.vertexShader = shader.vertexShader
@@ -120,9 +120,12 @@ export function water({ x0, x1, z0, z1, near, fine = 0.34, far = 14, shore = () 
         float fres = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 4.0);
         diffuseColor.rgb = mix(diffuseColor.rgb, uSky, fres * 0.6);`)
       .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
-        // the sun's glints: a facet turned just so throws it back
+        // the sun's glints: one facet in nine or so, turned just so, throws back a spark. Only sparks: a broad glare where the sun's
+        // reflection lies blinded the board when looked down on (Korbi, 24 Nov 2026: "the light is off putting on the water puzzles
+        // it blinds when looking down straight")
         vec3 hv = normalize(uSun + normalize(vViewPosition));
-        totalEmissiveRadiance += uGlint * pow(max(dot(normal, hv), 0.0), 90.0) * (1.0 - smoothstep(0.0, 0.08, -d));`);
+        float pick = step(0.89, fract(sin(dot(normal.xy, vec2(12.9898, 78.233)) * 43758.5453)));
+        totalEmissiveRadiance += uGlint * pick * pow(max(dot(normal, hv), 0.0), 240.0) * (1.0 - smoothstep(0.0, 0.08, -d));`);
   };
   mat.customProgramCacheKey = () => "sea-3d water";
   const mesh = new THREE.Mesh(g, mat);
