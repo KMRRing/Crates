@@ -9,7 +9,8 @@
 import fs from "fs";
 import { newLevel, move, hint, searchOn } from "./ingot-engine.js";
 
-// squares: row by row, r * side + c
+// squares: row by row, r * side + c. A chapter eases in on its twist alone, brings an older one back, and ends on its biggest bar or
+// mould (Korbi, 24 Nov 2026)
 export const CHAPTERS = [
   { id: "apprentice", name: "Apprentice", idea: "Commissions: cast a bar in so many swipes." },
   { id: "anvils", name: "Anvils", idea: "Anvils are part of the mould: bars slide up against them, and nothing moves them." },
@@ -38,8 +39,8 @@ export const DESIGN = [
   // Slag
   { id: "every-seventh", chapter: "slag", name: "Every seventh pour", side: 4, slag: 7, goal: { e: 7 }, note: "Every seventh pour is a lump of slag." },
   { id: "every-fifth", chapter: "slag", name: "Every fifth pour", side: 4, slag: 5, goal: { e: 7 }, note: "Slag every fifth pour." },
-  { id: "slag-anvils", chapter: "slag", name: "Slag among anvils", side: 5, anvils: corners5, slag: 6, goal: { e: 8 }, note: "Anvils in the corners, slag every sixth pour." },
   { id: "slag-mark", chapter: "slag", name: "Slag on the mark", side: 4, slag: 7, goal: { e: 7, at: 15 }, note: "Keep the hallmark clear of slag." },
+  { id: "slag-anvils", chapter: "slag", name: "Slag among anvils", side: 5, anvils: corners5, slag: 6, goal: { e: 8 }, note: "Anvils in the corners, slag every sixth pour." },
   // Quench
   { id: "cold-corner", chapter: "quench", name: "A cold corner", side: 4, cold: [0], goal: { e: 7 }, note: "The corner is cold: a bar on it merges with nothing on the swipe that starts there." },
   { id: "cold-row", chapter: "quench", name: "A cold row", side: 4, cold: [4, 5, 6, 7], goal: { e: 7 }, note: "A whole row is cold." },
