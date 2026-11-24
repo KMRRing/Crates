@@ -8,11 +8,14 @@
 
 /** What a step of a chapter is: the stack's size, how many questions, the hold, how many rounds, and how many wrong answers
  *  end the run (`lives`). Each chapter has four steps, easy to hard. */
+// Korbi, 23 Nov 2026: Manifest is "a bit too hard (slow the curve, make it more accessible)". So (24 Nov) the stack stays in view a
+// second longer at every step, a round asks two questions until the last steps ask three, the third step keeps four lives, and the
+// last runs four rounds, not five.
 const STEPS = [
-  { x: 3, y: 2, z: 2, orders: 2, exposure: 9000, rounds: 3, lives: 4 },
-  { x: 3, y: 3, z: 2, orders: 3, exposure: 8500, rounds: 3, lives: 4 },
-  { x: 3, y: 3, z: 3, orders: 3, exposure: 8000, rounds: 4, lives: 3 },
-  { x: 4, y: 3, z: 3, orders: 4, exposure: 7500, rounds: 5, lives: 3 },
+  { x: 3, y: 2, z: 2, orders: 2, exposure: 10000, rounds: 3, lives: 4 },
+  { x: 3, y: 3, z: 2, orders: 2, exposure: 9500, rounds: 3, lives: 4 },
+  { x: 3, y: 3, z: 3, orders: 3, exposure: 9000, rounds: 4, lives: 4 },
+  { x: 4, y: 3, z: 3, orders: 3, exposure: 8500, rounds: 4, lives: 3 },
 ];
 const BASIC = ["count", "total", "tier", "spot", "top", "most"];
 const ALL = ["layers", "all", "slices", "pair"];
@@ -35,24 +38,24 @@ const CHAPTER_SPECS = [
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "weight", "worth", "column"], want: ["worth"], views: ["layers", "all", "pair", "slices"], names: ["Salt sacks", "Light cargo", "A cheap hold", "The market"] },
   { name: "Changes", about: "The stack goes aboard and comes back with something different: one piece changed, turned round, or two swapped.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "weight", "worth"], want: [], views: ["layers", "all", "slices", "all"], names: ["Something's different", "A new angle", "Swapped about", "The night watch"],
-    changes: [{ 3: "ware" }, { 3: "turned" }, { 2: "ware", 4: "swap" }, { 2: "ware", 4: "turned", 5: "swap" }] },
+    changes: [{ 3: "ware" }, { 3: "turned" }, { 2: "ware", 4: "swap" }, { 2: "ware", 3: "turned", 4: "swap" }] },
   { name: "Loads", about: "What a piece bears, and what room is left: a column may carry only so much, and the quay stacks only so high.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "weight", "worth", "load", "fits"], want: ["load", "fits"], views: ["layers", "slices"], z: [3, 3, 4, 4], names: ["What it bears", "Room aloft", "Tall stacks", "The tallest tier"] },
   { name: "The quay master", about: "Everything together, every kind of question, and the stack shown any way round.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "which", "weight", "worth", "load", "fits", "column"], want: [], views: ALL, names: ["Morning tally", "Busy quay", "The harbour master", "The whole manifest"],
-    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 5: "swap" }] },
+    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 4: "swap" }] },
   // the two chapters after the quay master were added later, at the end, so that the stars already won (kept by level number) keep their levels
   { name: "White timber", about: "A second tree: birch logs, slender and pale with dark marks, lighter than oak and heavier than a crate. They lie in crossing layers like oak and go between oak and crates.",
     types: [1, 2, 3, 4, 5, 6, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "column"], want: ["weight"], views: ["layers", "all", "slices", "pair"], names: ["Silver birch", "Two trees", "The sawmill", "Pale and dark"],
-    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 3: "ware", 5: "swap" }] },
+    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 2: "ware", 4: "swap" }] },
   { name: "Gold", about: "Gold ingots weigh the most and are worth the most: they stand only on the quay or on more gold. Same shape as the ingots, richer, with a crown stamped on top.",
     types: [1, 2, 3, 4, 5, 6, 7, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "fits", "column"], want: ["worth", "weight"], views: ["layers", "all", "slices", "pair"], z: [3, 3, 3, 4], names: ["A glint", "The strongroom", "Bullion", "The royal hoard"],
-    changes: [{}, { 3: "ware" }, { 2: "turned", 4: "swap" }, { 2: "ware", 4: "turned", 5: "swap" }] },
+    changes: [{}, { 3: "ware" }, { 2: "turned", 4: "swap" }, { 2: "ware", 3: "turned", 4: "swap" }] },
   // the chapter after the two above, again at the end so that the stars already won keep their levels: a yard heavy with timber, once both trees are known
   { name: "Timber yard", about: "A quay stacked with logs, end to end along their layer: count a log once, and the key gives what a whole log weighs.",
     types: [1, 2, 3, 4, 5, 6, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "column"], want: ["weight"], views: ["layers", "all", "slices", "pair"], y: [3, 3, 3, 3], z: [2, 3, 3, 3],
     logs: [2, 2, 2, 3], names: ["A long log", "End to end", "The spar yard", "Masts and spars"],
-    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 3: "ware", 5: "swap" }] },
+    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 2: "ware", 4: "swap" }] },
 ];
 
 /** The chapters: where each begins in LEVELS, its name and what it brings. */

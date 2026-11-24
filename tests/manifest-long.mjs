@@ -187,7 +187,8 @@ const logWith = (fill, X = 3, Y = 2, Z = 3) => { const c = empty(X, Y, Z); c[0][
   console.log(`   (levels ${levels} over ${rounds} rounds)`);
   // 23 Nov 2026: the first chapter's views begin all at once (Korbi: "starting round 1 with 'how many were there' instead of 'how
   // many can you see' is already rough"), so its deals changed once, on purpose
-  check(levels === "e533b4adf8ef", "the first chapter's levels deal the stacks and questions they dealt since the chapter began all at once (a digest of them: change it only for a rebuilt bank, never for logs)");
+  // 24 Nov 2026: the steps eased (Korbi, 23 Nov: "a bit too hard"): fewer questions a round and four rounds at most, so again on purpose
+  check(levels === "29a18003ecb1", "the first chapter's levels deal the stacks and questions they dealt since the chapter began all at once (a digest of them: change it only for a rebuilt bank, never for logs)");
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");
