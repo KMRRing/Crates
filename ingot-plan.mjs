@@ -9,8 +9,8 @@
 import fs from "fs";
 import { newLevel, move, hint, searchOn } from "./ingot-engine.js";
 
-// squares: row by row, r * side + c. A chapter eases in on its twist alone, brings an older one back, and ends on its biggest bar or
-// mould (Korbi, 24 Nov 2026)
+// squares: row by row, r * side + c. Korbi, 24 Nov 2026 (the rule in campaign.js): a chapter eases in on its twist alone, brings the
+// older ones back with it, and ends on its hardest; the moulds stay 4 and 5 across, so the climb is in the twists meeting.
 export const CHAPTERS = [
   { id: "apprentice", name: "Apprentice", idea: "Commissions: cast a bar in so many swipes." },
   { id: "anvils", name: "Anvils", idea: "Anvils are part of the mould: bars slide up against them, and nothing moves them." },
@@ -45,7 +45,7 @@ export const DESIGN = [
   { id: "cold-corner", chapter: "quench", name: "A cold corner", side: 4, cold: [0], goal: { e: 7 }, note: "The corner is cold: a bar on it merges with nothing on the swipe that starts there." },
   { id: "cold-row", chapter: "quench", name: "A cold row", side: 4, cold: [4, 5, 6, 7], goal: { e: 7 }, note: "A whole row is cold." },
   { id: "quench-mark", chapter: "quench", name: "Quench and mark", side: 4, cold: [5, 6, 9, 10], goal: { e: 7, at: 3 }, note: "A cold middle, and the hallmark in a corner." },
-  { id: "cold-edges", chapter: "quench", name: "Cold edges", side: 5, cold: [2, 10, 14, 22], goal: { e: 8 }, note: "The middle of every edge is cold." },
+  { id: "cold-edges", chapter: "quench", name: "Cold edges", side: 5, anvils: corners5, cold: [2, 10, 14, 22], goal: { e: 8 }, note: "The middle of every edge is cold, and anvils hold the corners." },
   // The foundry
   { id: "anvils-frost", chapter: "foundry", name: "Anvils and frost", side: 5, anvils: [6, 18], cold: [12], goal: { e: 8 }, note: "Two anvils and a cold heart." },
   { id: "all-at-once", chapter: "foundry", name: "All at once", side: 5, anvils: corners5, slag: 7, cold: [7, 17], goal: { e: 8, at: 12 }, note: "Anvils, slag, cold squares and a hallmark in the middle." },

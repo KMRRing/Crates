@@ -51,7 +51,7 @@ export const LEVELS = [
   {"n":17,"id":"cold-corner","chapter":"quench","name":"A cold corner","side":4,"cold":[0],"goal":{"e":7,"par":72,"swipes":90},"note":"The corner is cold: a bar on it merges with nothing on the swipe that starts there.","seed":1040627951},
   {"n":18,"id":"cold-row","chapter":"quench","name":"A cold row","side":4,"cold":[4,5,6,7],"goal":{"e":7,"par":78,"swipes":100},"note":"A whole row is cold.","seed":2312071514},
   {"n":19,"id":"quench-mark","chapter":"quench","name":"Quench and mark","side":4,"cold":[5,6,9,10],"goal":{"e":7,"at":3,"par":147,"swipes":185},"note":"A cold middle, and the hallmark in a corner.","seed":687912324},
-  {"n":20,"id":"cold-edges","chapter":"quench","name":"Cold edges","side":5,"cold":[2,10,14,22],"goal":{"e":8,"par":154,"swipes":195},"note":"The middle of every edge is cold.","seed":3256848260},
+  {"n":20,"id":"cold-edges","chapter":"quench","name":"Cold edges","side":5,"anvils":[0,4,20,24],"cold":[2,10,14,22],"goal":{"e":8,"par":131,"swipes":165},"note":"The middle of every edge is cold, and anvils hold the corners.","seed":3256848260},
   {"n":21,"id":"anvils-frost","chapter":"foundry","name":"Anvils and frost","side":5,"anvils":[6,18],"cold":[12],"goal":{"e":8,"par":153,"swipes":195},"note":"Two anvils and a cold heart.","seed":1769656309},
   {"n":22,"id":"all-at-once","chapter":"foundry","name":"All at once","side":5,"anvils":[0,4,20,24],"slag":7,"cold":[7,17],"goal":{"e":8,"at":12,"par":224,"swipes":280},"note":"Anvils, slag, cold squares and a hallmark in the middle.","seed":2792359984},
   {"n":23,"id":"the-bell","chapter":"foundry","name":"The bell","side":5,"anvils":[0,4],"slag":8,"goal":{"e":9,"par":298,"swipes":375},"note":"A 512, the bell metal.","seed":1219311410},
