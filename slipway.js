@@ -24,7 +24,7 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 // a colour a piece, by the order of its lowest cube; the wood of the uncut block is the first
 const COLOURS = [[214, 176, 118], [201, 84, 66], [104, 160, 88], [66, 140, 178], [146, 98, 168], [226, 164, 48], [206, 120, 150], [92, 170, 160], [160, 126, 86], [150, 150, 150]];
 const rgb = c => `rgb(${c.join(",")})`;
-const DRIFT = 0.09;                                  // how far a piece moves from the middle of the block when it is cut free (in cubes)
+const DRIFT = 0.09;                                  // how far a piece moves from the middle of the block when it is cut free (in cubes; up, never down into the bench)
 const KERF = 0.05;                                   // how far each side of a broken joint is pulled back, so it shows as a slit (in cubes)
 const FLASH = 900;                                   // how long the joints a tap changed stay lit (ms)
 // a cut in steel blue, glue in honey: the fill and outline of the joints a tap changes, lit after it and dashed before it
@@ -121,7 +121,7 @@ function showDone() {
     ...(next ? [action(`Next block: ${next.name}`, () => { $("doneDlg").close(); newRun(next.id); }, "primary")] : []),
     action("Again", () => { $("doneDlg").close(); newRun(level.id); }, next ? "link" : "primary"));
   if (!$("doneDlg").open) $("doneDlg").showModal();
-  requestAnimationFrame(() => drawCubes($("doneView"), cubesOf(false), { ...REST }, { n: whole() ? N() : 0, frame: false, margin: 8 }));
+  requestAnimationFrame(() => drawCubes($("doneView"), cubesOf(false), { ...REST }, { n: whole() ? N() : 0, frame: false, margin: 8, night: night() }));
 }
 
 // ---------- the clues ----------
@@ -155,6 +155,9 @@ function drawHint() {
 // ---------- drawing ----------
 const pose = { ...REST, zoom: 1, px: 0, py: 0 };
 let hits = [];
+const night = () => { const m = document.documentElement.dataset.mode; return m ? m === "night" : matchMedia("(prefers-color-scheme: dark)").matches; };
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => drawAll());
+new MutationObserver(() => drawAll()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode"] });
 // the six faces in the view's order (+x, -x, +y, -y, +z, -z) as steps to the cube beyond
 const SIDES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 /** The cubes as drawn: a colour per piece, a slit at every broken joint, the pieces drifted a little apart once there is more than one. */
@@ -165,7 +168,7 @@ function cubesOf(marks = true) {
     const xs = p.map(k => xyz(n, k)), cen = [0, 1, 2].map(a => xs.reduce((t, c) => t + c[a], 0) / p.length - mid[a]);
     const drift = ps.length > 1 ? DRIFT : 0;
     for (const k of p) {
-      const [x, y, z] = xyz(n, k), c = { x, y, z, k, ox: cen[0] * drift, oy: cen[1] * drift, oz: cen[2] * drift, color: COLOURS[i % COLOURS.length] };
+      const [x, y, z] = xyz(n, k), c = { x, y, z, k, ox: cen[0] * drift, oy: cen[1] * drift, oz: Math.max(0, cen[2]) * drift, color: COLOURS[i % COLOURS.length] };
       c.trim = SIDES.map(d => { const q = [x + d[0], y + d[1], z + d[2]]; return inside(q) && now.has(joint(k, at(n, ...q))) ? KERF : 0; });
       if (level.gauge[k] != null) c.label = level.gauge[k];
       // red: cut too far, its piece is already smaller than its number (a piece still too big is just not cut yet, so it is not marked)
@@ -208,7 +211,7 @@ function marksOf(cubes) {
 function drawAll() {
   if (!S || !level) return;
   const cubes = cubesOf();
-  hits = drawCubes($("cube"), cubes, pose, { n: whole() ? N() : 0, frame: S.cuts.length === 0, margin: 10, frameColor: "rgba(140,130,110,.7)", edgeColor: "rgba(20,26,31,.32)", inner: 0.45, marks: marksOf(cubes) });
+  hits = drawCubes($("cube"), cubes, pose, { n: whole() ? N() : 0, frame: S.cuts.length === 0, margin: 10, frameColor: "rgba(140,130,110,.7)", inner: 0.45, marks: marksOf(cubes), night: night() });
 }
 function render() {
   if (!S || !level) return;
