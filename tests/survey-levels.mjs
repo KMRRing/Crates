@@ -66,7 +66,7 @@ const SEEDS = [0, 1, 2].map(k => (k ? 7919 * k + 31 : null));    // the level's 
   check(LEVELS.every((L, i) => Object.entries(brought).every(([t, ch]) => !L.twist?.[t] || chapterOf(i) >= at(ch))), "no level uses a twist before its chapter brings it");
   check(LEVELS.filter(L => L.twist).length >= 16 && new Set(LEVELS.map(L => L.id)).size === COUNT && LEVELS.every(L => Number.isInteger(L.id)), "sixteen or more levels with a twist, each with an id of its own");
   const sizes = LEVELS.map(L => L.n);
-  check(Math.max(...sizes) === 7 && sizes.slice(0, 4).every(n => n <= 5), "the first chapter is small blocks, and the ladder reaches seven cubes");
+  check(Math.max(...sizes) === 5 && sizes.slice(0, 4).every(n => n <= 5), "the blocks stay three to five cubes: harder by the ideas meeting, not by size (Korbi, 24 Nov 2026)");
 }
 
 // ---------- a block of every level, for several seeds ----------
@@ -164,7 +164,9 @@ let worst = 0, shortOfDepth = 0, total = 0;
 
 // ---------- the ladder before twists: the same blocks, wherever they now stand ----------
 {
-  const LEGACY = "0:3241f241bc 1:c9ee52a7b3 2:cca3b745ee 3:433372b9f6 4:c2bd9c1674 5:677fc28c6d 6:f3a0c6cd8e 7:1bf03eed5e 8:3827abd476 9:ba0e401e20 10:fb6f654efc 11:b38971cff4 12:b02c72d47e 13:d721bf00b5 14:c86bb98e5c 15:f16a9152f6 16:4f90356f27 17:028d31945f 18:dd658ebc21 19:5a05fa1842 20:caa0870a01 21:875d98d334 22:ea7c7b239b 23:1d02446dfd 24:eaeb5632fc".split(" ");
+  // 24 Nov 2026: the six- and seven-cube blocks became five (Korbi: harder by the ideas meeting, not by size), so ids 10, 11, 13, 15
+  // and 20 to 24 deal new first blocks; the rest are as they were
+  const LEGACY = "0:3241f241bc 1:c9ee52a7b3 2:cca3b745ee 3:433372b9f6 4:c2bd9c1674 5:677fc28c6d 6:f3a0c6cd8e 7:1bf03eed5e 8:3827abd476 9:ba0e401e20 10:035ceb8b9d 11:2e62653083 12:b02c72d47e 13:9ccbc112d4 14:c86bb98e5c 15:f7cf7317cd 16:4f90356f27 17:028d31945f 18:dd658ebc21 19:5a05fa1842 20:34325b05ae 21:267a0026f4 22:70ee49f05d 23:e6e1a2a82f 24:3b2cf41d6f".split(" ");
   const h = p => createHash("sha1").update(JSON.stringify([...p.ore]) + JSON.stringify(p.clues.map(c => c && [c.c, c.g, c.r]))).digest("hex").slice(0, 10);
   const wrong = LEGACY.filter(e => { const [id, hash] = e.split(":"), at = placeOfId(+id); return at < 0 || LEVELS[at].id !== +id || h(levelPuzzle(at, seedOf(at))) !== hash; });
   check(!wrong.length, `the 25 levels of the first ladder are all still there, each the same first block as before${wrong.length ? `: ${wrong.join(", ")}` : ""}`);
