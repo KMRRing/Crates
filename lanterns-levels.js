@@ -1,8 +1,9 @@
 // Lanterns' levels, pure (no page): a ladder of puzzles in chapters (5 November 2026, Korbi: "I like all the twists ... agree with
-// the chapters and mixed gauntlet levels"). The plain game on boards from 7×7 to 14×14; ranges, rocks that carry only a bound
+// the chapters and mixed gauntlet levels"). The plain game on boards of 7×7 and 10×10; ranges, rocks that carry only a bound
 // ("2+" at least, "≤1" at most); short beams, lanterns that light only so many cells each way; mirrors, slashes that bend a beam;
-// the hex board, six rays to a lantern; and the gauntlet, where they meet. Each chapter brings in one twist gently and ends on
-// a block that mixes it with what came before. A level is a kind of puzzle (a size, a level, a twist), not one puzzle: the
+// the hex board, six rays to a lantern; and the gauntlet, where they meet. Korbi, 24 November 2026 (the rule in campaign.js):
+// a chapter brings its twist alone on a small board, lets it be mastered, then brings the older twists back with it, and ends
+// on its hardest; the boards stay 7 and 10 across (9 on the hexagon), so the difficulty is in the twists meeting, not in size. A level is a kind of puzzle (a size, a level, a twist), not one puzzle: the
 // first time it is the same puzzle for everyone (the level's own seed), and a new puzzle of the level is another from the same
 // recipe, so a level can be replayed for its stars. Stars are for the score as everywhere in Lanterns (seconds plus 30 a hint,
 // lower is better): one for solving it, two for a score within twice the par, three within the par. Solving a level opens the
@@ -25,8 +26,8 @@ export const LEVELS = [
   level({ name: "Evening watch", size: 7, level: "medium" }),
   level({ name: "The long jetty", size: 10, level: "easy" }),
   level({ name: "Night shift", size: 10, level: "medium" }),
-  level({ name: "Fog bank", size: 10, level: "hard" }),
-  level({ name: "Storm coast", size: 14, level: "medium" }),
+  level({ name: "Fog bank", size: 10, level: "medium" }),
+  level({ name: "Storm coast", size: 10, level: "hard" }),
 
   level({ name: "Rough charts", size: 7, level: "easy", twist: "ranges" }),
   level({ name: "Tide marks", size: 7, level: "medium", twist: "ranges" }),
@@ -36,32 +37,32 @@ export const LEVELS = [
 
   level({ name: "Candle ends", size: 7, level: "easy", twist: "short" }),
   level({ name: "Dim wick", size: 7, level: "medium", twist: "short" }),
-  level({ name: "Close quarters", size: 10, level: "easy", twist: "short" }),
-  level({ name: "Lamp oil", size: 10, level: "medium", twist: "short" }),
-  level({ name: "Counted shoals", size: 10, level: "medium", twist: "ranges+short" }),
+  level({ name: "Close quarters", size: 10, level: "medium", twist: "short" }),
+  level({ name: "Lamp oil", size: 10, level: "medium", twist: "ranges+short" }),
+  level({ name: "Counted shoals", size: 10, level: "hard", twist: "ranges+short" }),
 
   level({ name: "Polished brass", size: 7, level: "easy", twist: "mirrors" }),
   level({ name: "Silver glass", size: 7, level: "medium", twist: "mirrors" }),
   level({ name: "The mirror strait", size: 10, level: "easy", twist: "mirrors" }),
-  level({ name: "Crossed beams", size: 10, level: "medium", twist: "mirrors" }),
-  level({ name: "Hall of mirrors", size: 10, level: "hard", twist: "mirrors" }),
-  level({ name: "Bent light", size: 10, level: "medium", twist: "short+mirrors" }),
-  level({ name: "Mirror ledger", size: 10, level: "medium", twist: "ranges+mirrors" }),
+  level({ name: "Crossed beams", size: 10, level: "medium", twist: "ranges+mirrors" }),
+  level({ name: "Hall of mirrors", size: 10, level: "medium", twist: "short+mirrors" }),
+  level({ name: "Bent light", size: 10, level: "hard", twist: "short+mirrors" }),
+  level({ name: "Mirror ledger", size: 10, level: "hard", twist: "ranges+short+mirrors" }),
 
   level({ name: "Honeycomb", size: 7, level: "easy", twist: "hex" }),
   level({ name: "Six rays", size: 7, level: "medium", twist: "hex" }),
   level({ name: "Hex harbour", size: 9, level: "easy", twist: "hex" }),
-  level({ name: "Beehive", size: 9, level: "medium", twist: "hex" }),
-  level({ name: "Wide comb", size: 9, level: "hard", twist: "hex" }),
-  level({ name: "The great comb", size: 11, level: "medium", twist: "hex" }),
-  level({ name: "Hex glass", size: 9, level: "medium", twist: "mirrors+hex" }),
+  level({ name: "Beehive", size: 9, level: "medium", twist: "ranges+hex" }),
+  level({ name: "Wide comb", size: 9, level: "medium", twist: "short+hex" }),
+  level({ name: "The great comb", size: 9, level: "hard", twist: "ranges+short+hex" }),
+  level({ name: "Hex glass", size: 9, level: "hard", twist: "mirrors+hex" }),
 
-  level({ name: "Hex ledgers", size: 9, level: "medium", twist: "ranges+hex" }),
-  level({ name: "Hex candles", size: 9, level: "medium", twist: "short+hex" }),
-  level({ name: "Short mirrors", size: 10, level: "medium", twist: "short+mirrors" }),
-  level({ name: "Triple lamp", size: 10, level: "medium", twist: "ranges+short+mirrors" }),
-  level({ name: "Mirrored ledgers", size: 9, level: "medium", twist: "ranges+mirrors+hex" }),
-  level({ name: "The grand light", size: 11, level: "hard", twist: "ranges+short+mirrors+hex" }),   // (24 Nov 2026: the hardest last, as every chapter ends)
+  level({ name: "Hex ledgers", size: 9, level: "medium", twist: "ranges+mirrors+hex" }),
+  level({ name: "Hex candles", size: 9, level: "medium", twist: "short+mirrors+hex" }),
+  level({ name: "Short mirrors", size: 10, level: "hard", twist: "short+mirrors" }),
+  level({ name: "Triple lamp", size: 10, level: "hard", twist: "ranges+short+mirrors" }),
+  level({ name: "Mirrored ledgers", size: 9, level: "hard", twist: "ranges+mirrors+hex" }),
+  level({ name: "The grand light", size: 9, level: "hard", twist: "ranges+short+mirrors+hex" }),
 ];
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */

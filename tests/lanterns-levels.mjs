@@ -25,6 +25,9 @@ const root = new URL("../", import.meta.url).pathname;
   check(gauntlet.every(L => L.twist.split("+").length >= 2) && gauntlet.some(L => L.twist.includes("hex")) && gauntlet.some(L => !L.twist.includes("hex")), "the gauntlet's levels all mix twists, on both boards");
   const endsMixed = [["short", 2], ["mirrors", 3], ["hex", 4]].every(([t, c]) => { const last = LEVELS.slice(CHAPTERS[c].from, CHAPTERS[c + 1].from).at(-1); return has(CHAPTERS[c + 1].from - 1, t) && last.twist.split("+").length >= 2; });
   check(endsMixed, "the short beams, mirrors and hex chapters end on a block that mixes their twist with one from before");
+  // Korbi, 24 Nov 2026 (campaign.js): the twist alone first, older twists back in the second half, the hardest last; no board past 10 across
+  const shaped = [1, 2, 3, 4].every(c => { const ch = LEVELS.slice(CHAPTERS[c].from, CHAPTERS[c + 1].from); return ch.slice(0, 2).every(L => !L.twist.includes("+")) && ch.at(-1).level === "hard" && (c === 1 || ch.slice(3).every(L => L.twist.includes("+"))); });
+  check(shaped && LEVELS.every(L => L.size <= 10), "each twist chapter opens on its twist alone, brings older ones back in its second half and ends hard, on boards no bigger than 10 across");
   check(chapterOf(0) === 0 && chapterOf(CHAPTERS[2].from) === 2 && chapterOf(COUNT - 1) === 5, "a level's chapter");
 }
 
