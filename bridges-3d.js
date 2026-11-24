@@ -18,6 +18,7 @@
 import * as THREE from "./vendor/three.js";
 import { createBatch, prep } from "./bridges-batch.js";
 import { coastOf, TAU } from "./bridges-coast.js";
+import { WAVE, shipGeometry, SEA } from "./sea-3d.js";
 import { straitLine, boxOf } from "./bridges-lattice.js";
 import { cellXZ, spanOf, frameTurn, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
 
@@ -30,7 +31,6 @@ const HOLD = 430, SLIP = 9;                     // ms a press takes to clear a l
 const BUSY_MS = 1000 / 30, CALM_MS = 1000 / 15, BUSY_FOR = 1400;   // the time between frames while something is being done, and when nothing is, and how long a doing counts
 const DECK = 0.17, VIADUCT = 0.8;               // the heights of a low bridge's deck and of the top of a viaduct
 const GUIDE = 0.09, GUIDE_HIGH = VIADUCT + 0.02;  // the dashes on a link without a bridge lie a little over the swell (a viaduct's in the air where it would stand)
-const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(z * 1.3 - t * 0.6) + 0.012 * Math.sin((x + z) * 2.1 + t * 1.7);
 const HOME_LOOK = [0, 0.15, 0];                 // what the camera looks at when the whole board is in view
 
 // ---------- the skins ----------
@@ -57,7 +57,6 @@ function skinNow() {
 }
 /** The colour of each role the batches name (bridges-batch.js) in a skin. */
 export const palette = k => ({ sand: k.sand, h0: k.hill[0], h1: k.hill[1], h2: k.hill[2], timber: k.timber, stone: k.stone, deck: k.deck, grass: k.grass, tree: k.tree, rail: k.rail, trim: 0xc9a23c, teal: 0x1e7f8c, ...k.realm, ...k.shore });
-const SHIP_COLORS = { hull: 0x6a4426, trim: 0xc9a23c, sail: 0xf0e6cc, flag: 0xb5432f };
 
 /** An extruded outline: points [x, y] along and up, `depth` thick (centred on z = 0). */
 function wall(points, depth) {
@@ -173,26 +172,7 @@ export function createModel(host, opts = {}) {
     pos.needsUpdate = true;
   }
 
-  // ---------- a ship: a hull from a side profile, three masts, square sails, a lateen on the mizzen, a flag; one geometry, drawn once for every ship ----------
-  function shipGeometry() {
-    const b = createBatch(), S = new THREE.Matrix4().makeScale(1.7, 1.7, 1.7), hullShape = new THREE.Shape();
-    const put = (geo, role, x = 0, y = 0, z = 0) => b.add("ship", geo, at(x, y, z).premultiply(S), role);
-    [[-0.3, 0.17], [-0.31, 0.02], [-0.24, -0.05], [0.14, -0.05], [0.31, 0.07], [0.29, 0.09], [0.13, 0.075], [-0.12, 0.075], [-0.12, 0.11], [-0.2, 0.11], [-0.2, 0.17]]
-      .forEach(([x, y], i) => (i ? hullShape.lineTo(x, y) : hullShape.moveTo(x, y)));
-    hullShape.closePath();
-    const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.15, bevelEnabled: false });
-    hullGeo.translate(0, 0, -0.075);
-    put(hullGeo, "hull");
-    put(new THREE.BoxGeometry(0.5, 0.012, 0.158), "trim", 0.02, 0.062, 0);
-    for (const [x, h] of [[0.04, 0.42], [0.2, 0.31], [-0.17, 0.28]]) put(new THREE.CylinderGeometry(0.009, 0.012, h, 6), "hull", x, 0.05 + h / 2, 0);
-    for (const [x, y, w, h] of [[0.055, 0.2, 0.25, 0.15], [0.055, 0.37, 0.18, 0.1], [0.215, 0.17, 0.18, 0.12], [0.215, 0.29, 0.12, 0.07]]) put(new THREE.BoxGeometry(0.008, h, w), "sail", x, y, 0);
-    const lateen = new THREE.Shape();
-    lateen.moveTo(-0.17, 0.12); lateen.lineTo(-0.17, 0.3); lateen.lineTo(-0.33, 0.14); lateen.closePath();
-    put(new THREE.ShapeGeometry(lateen), "sail");
-    put(new THREE.BoxGeometry(0.1, 0.045, 0.004), "flag", -0.01, 0.45, 0);
-    const mesh = b.build(M.ship, r => SHIP_COLORS[r]), geo = mesh.geometry;
-    return geo;
-  }
+  // ---------- a ship: the merchantman every water puzzle sails (sea-3d.js), one geometry drawn once for every ship ----------
   /** `out` as the matrix of a ship at (x, y, z) heading `ry`, rolled `rx` and pitched `rz` (a turn about x, then y, then z: three.js's own order). */
   function shipMatrix(out, x, y, z, rx, ry, rz) {
     out.makeRotationX(rx); MB.makeRotationY(ry); out.multiply(MB); MB.makeRotationZ(rz); out.multiply(MB);
@@ -430,7 +410,7 @@ export function createModel(host, opts = {}) {
       world.add(mesh);
     }
     fleet = createFleet(shipsFor(size), 1 + size);
-    hulls = new THREE.InstancedMesh(shipGeometry(), M.ship, fleet.ships.length);
+    hulls = new THREE.InstancedMesh(shipGeometry(SEA.day), M.ship, fleet.ships.length);
     lamps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.022 * 1.7, 8, 6), M.lamp, fleet.ships.length);
     for (const m of [hulls, lamps]) { m.frustumCulled = false; world.add(m); }
     scene.add(world);

@@ -143,7 +143,9 @@ export function landColour(h, d, x, y) {
   c = mix(c, ROCK, Math.min(1, Math.max(0, (h - 0.6) / 0.22)));
   return lin(c.map(v => Math.min(1, Math.max(0, v + n * 0.06))));
 }
-const SHALLOW = [0.42, 0.74, 0.72], MID = [0.13, 0.4, 0.6], DEEP = [0.05, 0.15, 0.36];
+// the shared sea's (sea-3d.js): its shallows by the coast, its water (0x3f8db4) a cell out, and deeper beyond (24 Nov 2026: the water
+// puzzles look alike)
+const SHALLOW = [0.52, 0.8, 0.8], MID = [0.247, 0.553, 0.706], DEEP = [0.11, 0.3, 0.46];
 export function seaColour(d) { return lin(d < 1 ? mix(SHALLOW, MID, d) : mix(MID, DEEP, Math.min(1, (d - 1) / 3))); }
 
 /**

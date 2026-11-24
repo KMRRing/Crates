@@ -9,6 +9,7 @@ import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 import { LINE, CROSS, INSIDE, OUTSIDE, labelOf } from "./slitherlink-engine.js";
 import { normalise, MARGIN, LAND_BASE, edgeEnds, insideCells, insideAt, loopPath, seaCourse, course, harbourOf, landMesh, seaMesh, coastDistance, heightAt, groundPoint, fitDistance, FOV, ELEVATION } from "./slitherlink-3d-geo.js";
 import * as T from "./slitherlink-3d-tex.js";
+import { SEA, shipGeometry, shipMaterial } from "./sea-3d.js";
 
 const BUSY_MS = 1000 / 40;
 const GROW_MS = 150, ERASE_MS = 70;                            // an edge inks in over this long; and fades out
@@ -167,7 +168,7 @@ export function createChart(host, opts = {}) {
   function buildBridges() {
     if (!g.tun?.length) return;
     bridges = new THREE.Group();
-    const stone = std({ color: 0xcdbb94, roughness: 0.9 }), rail = std({ color: 0x4a3a28, roughness: 0.85 }), water = std({ color: 0x4f8fb0, roughness: 0.3, transparent: true, opacity: 0.85 });
+    const stone = std({ color: 0xcdbb94, roughness: 0.9 }), rail = std({ color: 0x4a3a28, roughness: 0.85 }), water = std({ color: SEA.day.sea, roughness: 0.3, transparent: true, opacity: 0.85 });
     for (const t of g.tun) {
       const [x, y] = g.dots[t], gr = new THREE.Group();
       mesh(box, water, [0.2, 0.004, 0.62], [0, 0.009, 0], gr, false);
@@ -423,16 +424,9 @@ export function createChart(host, opts = {}) {
     // the cog and its course
     const poly = seaCourse(path, 0.34, free ? (x, y) => !!insideAt(lm.segs, x, y) : null), crs = course(poly), dock = hb ? crs.nearest(hb.x + ox * 0.34, hb.y + oy * 0.34) : 0;
     const ship = new THREE.Group(), sc = 0.9 * Math.min(S, 1.4);
-    { const shape = new THREE.Shape();
-      shape.moveTo(-0.3, 0.12); shape.lineTo(-0.22, 0); shape.lineTo(0.2, 0); shape.lineTo(0.36, 0.12); shape.lineTo(0.2, 0.09); shape.lineTo(-0.2, 0.09); shape.lineTo(-0.3, 0.12);
-      const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: false }), std({ color: 0x5a3b22, roughness: 0.85 }));
-      hull.geometry.translate(0, 0, -0.1); hull.castShadow = true; hull.receiveShadow = true; ship.add(hull);
-      mesh(box, std({ color: 0x6b4628, roughness: 0.85 }), [0.14, 0.1, 0.19], [-0.24, 0.17, 0], ship);
-      mesh(cyl, std({ color: 0x4a3524 }), [0.012, 0.52, 0.012], [0.02, 0.35, 0], ship);
-      mesh(box, std({ color: 0xf1e8d2, roughness: 0.95 }), [0.016, 0.3, 0.36], [0.03, 0.4, 0], ship);
-      mesh(box, std({ color: 0xa8382b, roughness: 0.9 }), [0.018, 0.1, 0.05], [0.032, 0.42, 0], ship, false);
-      mesh(box, std({ color: 0xa8382b, roughness: 0.9 }), [0.018, 0.05, 0.1], [0.032, 0.42, 0], ship, false);
-      mesh(box, std({ color: 0xc8923a }), [0.1, 0.045, 0.01], [0.07, 0.64, 0], ship, false);
+    // the merchantman every water puzzle sails (sea-3d.js), at the chart's scale
+    { const hull = new THREE.Mesh(shipGeometry(SEA.day), shipMaterial());
+      hull.scale.setScalar(0.62); hull.castShadow = true; hull.receiveShadow = true; ship.add(hull);
       ship.scale.setScalar(sc); board.add(ship); }
     island = { landGroup, sea, ship, pier, crs, dock, houses, trees, treeMesh, flag, lm, ground, hs, hb, span: [] };
     island.treeMatrix = pop => { trees.forEach((t, i) => { const s = pop * t[3] * S * 0.7; treeMesh.setMatrixAt(i, MA.compose(PV.set(t[0], t[2] + 0.13 * s * 0.5 / 0.7 * 1.4, t[1]), Q.identity(), SV.set(0.1 * s, 0.26 * s, 0.1 * s))); }); treeMesh.instanceMatrix.needsUpdate = true; if (treeMesh.instanceColor) treeMesh.instanceColor.needsUpdate = true; };

@@ -16,6 +16,7 @@
 import * as THREE from "./vendor/three.js";
 import { groundOf, cellAtOn, wayVec, hexHalf, edgeDistance, fitDistance, homeElevation } from "./lanterns-model.js";
 import { puzzleOf, trace, numberText } from "./lanterns-engine.js";
+import { SEA, WAVE, shipGeometry, shipMaterial } from "./sea-3d.js";
 
 const DEG = Math.PI / 180;
 const FOV = 58 * DEG, MIN_EL = 20 * DEG, MAX_EL = 82 * DEG, HOME_AZ = 0;
@@ -24,21 +25,22 @@ const HOLD = 430, SLIP = 9;                      // ms a press takes to dot a ce
 const SPILL = 2.6;                               // cells a beam that runs off the board goes on over the water, thinning out
 const SIDE = 0.9;                                // cells of water kept in the frame beside the board, so the strait is seen
 const SLAB = 0.12, TOWER = 0.95;                 // the shoal's thickness, and a tower's height
-const LANE0 = 1.0, LANE_GAP = 0.9;   // ships keep to lanes beside the board, this far from its edge
+const LANE0 = 1.0, LANE_GAP = 0.9, SHIP = 1.25;   // ships keep to lanes beside the board, this far from its edge; how big a ship is
 // side (−1 left, 1 right), lane, way (1 towards the viewer, −1 away), speed in cells a second, where on the strait it starts (0..1), size
 const SHIPS = [
   [-1, 0, -1, 1.3, 0.42, 0.9], [-1, 0, -1, 1.3, 0.92, 1], [-1, 1, 1, 0.9, 0.62, 0.95], [-1, 1, 1, 0.9, 0.12, 0.9],
   [1, 0, 1, 1.1, 0.5, 0.95], [1, 0, 1, 1.1, 0.0, 1], [1, 1, -1, 1.6, 0.35, 0.85], [1, 1, -1, 1.6, 0.85, 0.9],
 ];
-const WAVE = (x, z, t) => 0.022 * Math.sin(x * 0.9 + t * 0.8) + 0.016 * Math.sin(z * 1.3 - t * 0.6) + 0.01 * Math.sin((x + z) * 2.1 + t * 1.7);
 
+// The water, the light and the sky are the shared sea's (sea-3d.js: the water puzzles look alike, Korbi, 24 Nov 2026); the rest is the strait's own.
+const shared = k => ({ sea: k.sea, hemi: k.hemi, sky: k.sky, ground: k.ground, key: k.key, keyI: k.keyI, exposure: k.exposure, haze: k.haze, skyTop: k.skyTop, rock: k.rock, rockHi: k.rockHi });
 export const SKINS = {
   day: { sea: 0x3f8db4, slab: 0xcfe7e1, lit: 0xffe39a, dark: 0xd98a78, hint: 0xf2c14e, rock: 0x77716a, rockHi: 0x8c857b, tower: 0xf4efe2, band: 0xb5432f, lamp: 0xffd98a, cap: 0x3b4a58, buoy: 0xf4efe2,
     beam: 0xffe9a0, beamA: 0.3, comet: 0xfff6d0, cometA: 0.55, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.3, exposure: 1.0, clash: 0xd0422e,
-    haze: 0xd3e4ea, skyTop: 0x86b8de, cliff: 0x7b7168, hull: 0x5b3e2d, sail: 0xf3ecd9, cloth: 0xc4533a },
+    haze: 0xd3e4ea, skyTop: 0x86b8de, cliff: 0x7b7168, hull: 0x5b3e2d, sail: 0xf3ecd9, cloth: 0xc4533a, ...shared(SEA.day) },
   night: { sea: 0x1d4361, slab: 0x7da3b3, lit: 0xf1cf78, dark: 0xb86a58, hint: 0xf4cf6a, rock: 0x8d877d, rockHi: 0xa29c91, tower: 0xe8e3d4, band: 0xc9543c, lamp: 0xffe29a, cap: 0x2a3644, buoy: 0xe8e3d4,
     beam: 0xffe08a, beamA: 0.42, comet: 0xfff1bd, cometA: 0.7, hemi: 0.95, sky: 0x9fb2d6, ground: 0x14202c, key: 0xb9cbef, keyI: 1.5, exposure: 1.1, clash: 0xe8705a,
-    haze: 0x3a5c82, skyTop: 0x0c1a30, cliff: 0x59606b, hull: 0x7a5640, sail: 0xd9d3c0, cloth: 0xa8483a },
+    haze: 0x3a5c82, skyTop: 0x0c1a30, cliff: 0x59606b, hull: 0x7a5640, sail: 0xd9d3c0, cloth: 0xa8483a, ...shared(SEA.night) },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -71,7 +73,7 @@ export function createModel(host, opts = {}) {
     sea: solid({ color: 0x3f8db4, roughness: 0.55, metalness: 0.05 }), slab: solid({ color: 0xffffff }), rock: solid({ color: 0xffffff }),
     tower: solid({ color: 0xffffff }), band: solid({ color: 0xb5432f }), cap: solid({ color: 0x3b4a58 }), buoy: solid({ color: 0xf4efe2 }),
     lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }), beam: glass(0xffe9a0, 0.3), comet: glass(0xfff6d0, 0.55),
-    cliff: solid({ color: 0xffffff, vertexColors: true, roughness: 0.95 }), hull: solid({ color: 0x5b3e2d }), sail: solid({ color: 0xffffff, side: 2 }),
+    cliff: solid({ color: 0xffffff, vertexColors: true, roughness: 0.95 }), ship: shipMaterial(),
     mirror: new THREE.MeshStandardMaterial({ color: 0xe6f2f8, emissive: 0x58727f, roughness: 0.2, metalness: 0.4, flatShading: true }),
   };
   // a beam that runs off the board goes on over the water and thins out: its opacity falls with the distance past the board's edge
@@ -111,7 +113,7 @@ export function createModel(host, opts = {}) {
   let Pz = null, ground = [], beamCap = 0, beamParts = [];            // Pz: the engine's puzzle; ground: each cell's middle on the water; beamParts: each beam as a polyline (see refresh)
   const hexed = () => Pz?.shape === "hex";
   const at = x => ground[x];                                           // a cell's [x, z]
-  let cliffs = [], ships = [], shipParts = null, shipPose = null, HALF = 60, ZMIN = -59, ZMAX = 18;   // the strait runs ±HALF; ships sail from ZMIN (in the haze) to ZMAX (below the frame)
+  let cliffs = [], ships = [], shipParts = null, HALF = 60, ZMIN = -59, ZMAX = 18;   // the strait runs ±HALF; ships sail from ZMIN (in the haze) to ZMAX (below the frame)
   let marks = "", br = null, hint = null, fitPts = [], tightPts = [], lightList = [];   // what is on show
   const disposeWorld = () => {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
@@ -161,8 +163,23 @@ export function createModel(host, opts = {}) {
       world.add(panels);
     }
     const stone = blacks.filter(x => !Pz.mir[x]).concat(mirrors);     // (every rock gets its boulders; a mirror's are low)
-    rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), M.rock, Math.max(1, stone.length * 2));
-    rocks.count = stone.length * 2;
+    // two rocks side by side are one reef (Korbi, 24 Nov 2026): a ridge of rock along the line between them, as high as the rocks' shoulders
+    const reef = [];
+    for (const x of blacks) if (!Pz.mir[x]) for (const y of Pz.board.nb[x]) if (y > x && black[y] && !Pz.mir[y]) reef.push([x, y]);
+    rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), M.rock, Math.max(1, stone.length * 2 + reef.length * 2));
+    rocks.count = stone.length * 2 + reef.length * 2;
+    reef.forEach(([x, y], i) => {
+      const [ax, az] = at(x), [bx, bz] = at(y), mx = (ax + bx) / 2, mz = (az + bz) / 2, len = Math.hypot(bx - ax, bz - az), turn = Math.atan2(-(bz - az), bx - ax);
+      for (let k = 0; k < 2; k++) {
+        // a long low ridge across the gap, and a smaller boulder on its flank so the join is not a straight bar
+        const sx = k ? 0.42 : len * 1.05, sy = (k ? 0.36 : 0.5 + jitter(x + y, 7) * 0.1) * (hexed() ? 0.92 : 1), sz = k ? 0.4 : 0.6 + jitter(x + y, 8) * 0.12;
+        QA.setFromAxisAngle(UP, turn + (k ? jitter(x + y, 9) * 6.28 : (jitter(x + y, 10) - 0.5) * 0.3));
+        const off = k ? (jitter(x + y, 11) - 0.5) * 0.36 : 0;
+        MA.compose(VA.set(mx + off * Math.sin(turn), sy * 0.5 - 0.04, mz + off * Math.cos(turn)), QA, VB.set(sx, sy, sz));
+        rocks.setMatrixAt(stone.length * 2 + i * 2 + k, MA);
+        rocks.setColorAt(stone.length * 2 + i * 2 + k, CA.set(k ? 0xd9d4ca : 0xeeeae2));
+      }
+    });
     stone.forEach((x, i) => {
       const [cx, cz] = at(x), low = Pz.mir[x] ? 0.45 : 1;
       for (let k = 0; k < 2; k++) {
@@ -270,26 +287,14 @@ export function createModel(host, opts = {}) {
   const paintCliffs = k => { for (const m of cliffs) { m.userData.tints.forEach((t, i) => m.setColorAt(i, CA.set(k.cliff).multiplyScalar(t))); m.instanceColor.needsUpdate = true; } };
 
   // ---------- the ships: cogs in lanes beside the board, some sailing each way, a few meshes in all ----------
+  /** The ships: the merchantmen every water puzzle sails (sea-3d.js), one instanced mesh, bows to +z. */
   function buildShips() {
-    const hullG = new THREE.BoxGeometry(0.46, 0.22, 1.3), hp = hullG.attributes.position;
-    for (let i = 0; i < hp.count; i++) {                      // the bow narrows and rises, the keel is narrower than the deck
-      const z = hp.getZ(i), y = hp.getY(i);
-      let x = hp.getX(i);
-      if (z > 0) { x *= 1 - 0.85 * (z / 0.65); hp.setY(i, y + 0.07 * (z / 0.65)); }
-      if (y < 0) x *= 0.7;
-      hp.setX(i, x);
-    }
-    const piece = (g, mat, n) => { const m = new THREE.InstancedMesh(g, mat, n); m.frustumCulled = false; world.add(m); return m; }, n = SHIPS.length;
-    shipParts = {
-      hull: piece(hullG, M.hull, n),
-      castle: piece(new THREE.BoxGeometry(0.4, 0.17, 0.4), M.hull, n),
-      mast: piece(new THREE.CylinderGeometry(0.022, 0.03, 1.15, 6), M.hull, n),
-      sail: piece(new THREE.BoxGeometry(1, 1, 0.03), M.sail, n * 2),
-    };
-    // where each piece sits on a ship (its bow is +z)
-    const at = (x, y, z, sx = 1, sy = 1) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, 1));
-    shipPose = { hull: [at(0, 0.06, 0)], castle: [at(0, 0.24, -0.5)], mast: [at(0, 0.7, 0.05)], sail: [at(0, 0.78, 0.1, 0.8, 0.5), at(0, 1.18, 0.1, 0.52, 0.28)] };
-    ships = SHIPS.map(([side, lane, way, speed, from, size], i) => ({ x: side * (N / 2 + LANE0 + lane * LANE_GAP), way, speed, from, s: from, size, ph: i * 1.7, cloth: i % 3 === 1 }));
+    const geo = shipGeometry(skinNow());
+    geo.rotateY(-Math.PI / 2);
+    shipParts = { all: new THREE.InstancedMesh(geo, M.ship, SHIPS.length) };
+    shipParts.all.frustumCulled = false;
+    world.add(shipParts.all);
+    ships = SHIPS.map(([side, lane, way, speed, from, size], i) => ({ x: side * (N / 2 + LANE0 + lane * LANE_GAP), way, speed, from, s: from, size, ph: i * 1.7 }));
   }
   const QY = new THREE.Quaternion(), QP = new THREE.Quaternion(), QR = new THREE.Quaternion(), AX = new THREE.Vector3(1, 0, 0), AZ = new THREE.Vector3(0, 0, 1), MS = new THREE.Matrix4();
   /** Put every ship at its place along the channel, bobbing on the water; small at either end, where it is out of sight in the haze. */
@@ -299,9 +304,8 @@ export function createModel(host, opts = {}) {
     ships.forEach((sh, i) => {
       const z = sh.way > 0 ? ZMIN + sh.s * span : ZMAX - sh.s * span, k = Math.min(1, Math.max(0.001, Math.min(z - ZMIN, ZMAX - z) / 6)) * sh.size;
       QA.copy(QY.setFromAxisAngle(UP, sh.way > 0 ? 0 : Math.PI)).multiply(QP.setFromAxisAngle(AX, 0.03 * Math.sin(t * 1.3 + sh.ph))).multiply(QR.setFromAxisAngle(AZ, 0.05 * Math.sin(t * 1.7 + sh.ph)));
-      MS.compose(VA.set(sh.x, WAVE(sh.x, z, t) + 0.01, z), QA, VB.set(k, k, k));
-      for (const key of ["hull", "castle", "mast"]) shipParts[key].setMatrixAt(i, MA.multiplyMatrices(MS, shipPose[key][0]));
-      shipPose.sail.forEach((pm, j) => shipParts.sail.setMatrixAt(i * 2 + j, MA.multiplyMatrices(MS, pm)));
+      MS.compose(VA.set(sh.x, WAVE(sh.x, z, t) + 0.01, z), QA, VB.set(k * SHIP, k * SHIP, k * SHIP));
+      shipParts.all.setMatrixAt(i, MS);
     });
     for (const m of Object.values(shipParts)) m.instanceMatrix.needsUpdate = true;
   }
@@ -312,8 +316,10 @@ export function createModel(host, opts = {}) {
   }
   const paintShips = k => {
     if (!shipParts) return;
-    ships.forEach((sh, i) => { for (let j = 0; j < 2; j++) shipParts.sail.setColorAt(i * 2 + j, CA.set(sh.cloth && j === 0 ? k.cloth : k.sail)); });
-    shipParts.sail.instanceColor.needsUpdate = true;
+    const geo = shipGeometry(k);
+    geo.rotateY(-Math.PI / 2);
+    shipParts.all.geometry.dispose();
+    shipParts.all.geometry = geo;
   };
 
   // ---------- what the marks show ----------
@@ -444,7 +450,7 @@ export function createModel(host, opts = {}) {
     const k = skinNow();
     M.sea.color.set(k.sea); M.band.color.set(k.band); M.cap.color.set(k.cap); M.buoy.color.set(k.buoy); M.lamp.color.set(k.lamp);
     M.beam.color.set(k.beam); M.beam.opacity = k.beamA; M.comet.color.set(k.comet); M.comet.opacity = k.cometA;
-    M.rock.color.set(k.rock); M.slab.color.set(0xffffff); M.tower.color.set(0xffffff); M.hull.color.set(k.hull);
+    M.rock.color.set(k.rock); M.slab.color.set(0xffffff); M.tower.color.set(0xffffff);
     scene.fog.color.set(k.haze);
     paintSky(k); paintCliffs(k); paintShips(k);
     hemi.color.set(k.sky); hemi.groundColor.set(k.ground); hemi.intensity = k.hemi;
