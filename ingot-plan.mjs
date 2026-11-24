@@ -9,7 +9,10 @@
 import fs from "fs";
 import { newLevel, move, hint, searchOn } from "./ingot-engine.js";
 
-// squares: row by row, r * side + c. Korbi, 24 Nov 2026 (the rule in campaign.js): a chapter eases in on its twist alone, brings the
+// squares: row by row, r * side + c. `slack`: the swipes allowed over the par (1.25 unless said). Korbi's rule for simple players
+// (Nov 2026: they win a level 0 to 30% of the time at most): after a chapter's first, the corner player (always down, then left) never
+// meets a goal in the swipes allowed and random swipes rarely do (24 Nov 2026: The centre mark was met by random swipes every time,
+// so it asks for a 256; Every fifth pour fell to the corner player, so an anvil stands beside the corner; three were tightened). Korbi, 24 Nov 2026 (the rule in campaign.js): a chapter eases in on its twist alone, brings the
 // older ones back with it, and ends on its hardest; the moulds stay 4 and 5 across, so the climb is in the twists meeting.
 export const CHAPTERS = [
   { id: "apprentice", name: "Apprentice", idea: "Commissions: cast a bar in so many swipes." },
@@ -29,18 +32,18 @@ export const DESIGN = [
   // Anvils
   { id: "one-anvil", chapter: "anvils", name: "One anvil", side: 4, anvils: [5], goal: { e: 7 }, note: "An anvil in the mould: bars stop against it." },
   { id: "two-anvils", chapter: "anvils", name: "Two anvils", side: 4, anvils: [5, 10], goal: { e: 7 }, note: "Two anvils across the middle." },
-  { id: "forge-floor", chapter: "anvils", name: "The forge floor", side: 5, anvils: corners5, goal: { e: 8 }, note: "The big mould with its corners filled: no corner to build in." },
+  { id: "forge-floor", chapter: "anvils", name: "The forge floor", side: 5, anvils: corners5, goal: { e: 8 }, slack: 1.12, note: "The big mould with its corners filled: no corner to build in." },
   { id: "split-mould", chapter: "anvils", name: "A split mould", side: 5, anvils: [2, 7, 17, 22], goal: { e: 8 }, note: "A wall of anvils down the middle, with one gap." },
   // Hallmarks
   { id: "corner-mark", chapter: "hallmarks", name: "The corner mark", side: 4, goal: { e: 7, at: 0 }, note: "Cast the 128 on the hallmark." },
   { id: "edge-mark", chapter: "hallmarks", name: "The edge mark", side: 4, goal: { e: 7, at: 1 }, note: "The hallmark is on the edge, beside the corner." },
   { id: "mark-anvil", chapter: "hallmarks", name: "Mark by the anvil", side: 4, anvils: [0], goal: { e: 7, at: 1 }, note: "An anvil holds the corner: the hallmark leans on it." },
-  { id: "centre-mark", chapter: "hallmarks", name: "The centre mark", side: 5, anvils: corners5, goal: { e: 7, at: 12 }, note: "The hallmark is in the middle of the big mould." },
+  { id: "centre-mark", chapter: "hallmarks", name: "The centre mark", side: 5, anvils: corners5, goal: { e: 8, at: 12 }, slack: 1.1, note: "Cast a 256 on the hallmark in the middle of the big mould." },
   // Slag
   { id: "every-seventh", chapter: "slag", name: "Every seventh pour", side: 4, slag: 7, goal: { e: 7 }, note: "Every seventh pour is a lump of slag." },
-  { id: "every-fifth", chapter: "slag", name: "Every fifth pour", side: 4, slag: 5, goal: { e: 7 }, note: "Slag every fifth pour." },
+  { id: "every-fifth", chapter: "slag", name: "Every fifth pour", side: 4, slag: 5, anvils: [13], goal: { e: 7 }, note: "Slag every fifth pour. An anvil stands beside the corner." },
   { id: "slag-mark", chapter: "slag", name: "Slag on the mark", side: 4, slag: 7, goal: { e: 7, at: 15 }, note: "Keep the hallmark clear of slag." },
-  { id: "slag-anvils", chapter: "slag", name: "Slag among anvils", side: 5, anvils: corners5, slag: 6, goal: { e: 8 }, note: "Anvils in the corners, slag every sixth pour." },
+  { id: "slag-anvils", chapter: "slag", name: "Slag among anvils", side: 5, anvils: corners5, slag: 6, goal: { e: 8 }, slack: 1.12, note: "Anvils in the corners, slag every sixth pour." },
   // Quench
   { id: "cold-corner", chapter: "quench", name: "A cold corner", side: 4, cold: [0], goal: { e: 7 }, note: "The corner is cold: a bar on it merges with nothing on the swipe that starts there." },
   { id: "cold-row", chapter: "quench", name: "A cold row", side: 4, cold: [4, 5, 6, 7], goal: { e: 7 }, note: "A whole row is cold." },
@@ -63,7 +66,7 @@ function trial(d, seed) {
 export function prove(d) {
   for (let k = 0; k < 40; k++) {
     const seed = (hash(d.id) + k * 7919) >>> 0, par = trial(d, seed);
-    if (par != null) return { ...d, seed, goal: { ...d.goal, par, swipes: Math.max(par + 5, Math.ceil((par * 1.25) / 5) * 5) } };
+    if (par != null) return { ...d, seed, goal: { ...d.goal, par, swipes: Math.max(par + 5, Math.ceil((par * (d.slack ?? 1.25)) / 5) * 5) } };
   }
   return null;
 }
