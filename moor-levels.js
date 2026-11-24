@@ -8,6 +8,9 @@
 // steady solver needs for the reasoning the puzzle asks. Solving a level opens the next; any open level can be played at any
 // time. A level's number is its identity (stars and half-played puzzles are kept by it): new levels go at the end of their
 // chapter only if no player has met the chapter yet, otherwise at the very end, and none is ever removed or moved.
+// Korbi, 24 November 2026 (the rule in campaign.js): a chapter brings its twist alone on a small board, lets it be mastered, then
+// brings the older twists back with it, and ends on its hardest. Basins stay 6 and 8 across (5 to 9 on the hexagon; the 10 and 11
+// ones went): the difficulty is in the twists meeting and the grade, not in size.
 import { generate, puzzleOf, effortOf, BARGE_SECONDS } from "./moor-engine.js";
 
 const level = spec => ({ twist: "none", shape: "square", ...spec });
@@ -24,50 +27,50 @@ export const CHAPTERS = [
 export const LEVELS = [
   level({ name: "First berth", size: 6, level: "easy" }),
   level({ name: "Quiet water", size: 8, level: "easy" }),
-  level({ name: "Open harbour", size: 10, level: "easy" }),
+  level({ name: "Open harbour", size: 8, level: "easy" }),
   level({ name: "The channel", size: 8, level: "medium" }),
   level({ name: "Deep soundings", size: 8, level: "hard" }),
-  level({ name: "The long quay", size: 10, level: "medium" }),
+  level({ name: "The long quay", size: 8, level: "hard" }),
 
   level({ name: "Breakwater", size: 6, level: "easy", twist: "walls" }),
   level({ name: "Mole and jetty", size: 8, level: "easy", twist: "walls" }),
   level({ name: "Stone stair", size: 8, level: "medium", twist: "walls" }),
-  level({ name: "The sea gate", size: 10, level: "medium", twist: "walls" }),
+  level({ name: "The sea gate", size: 8, level: "medium", twist: "walls" }),
   level({ name: "Harbour wall", size: 8, level: "hard", twist: "walls" }),
 
   level({ name: "Wide berth", size: 6, level: "easy", twist: "doubles" }),
   level({ name: "Landing stage", size: 8, level: "easy", twist: "doubles" }),
   level({ name: "A pair of barges", size: 8, level: "medium", twist: "doubles" }),
-  level({ name: "Two by two", size: 10, level: "medium", twist: "doubles" }),
+  level({ name: "Two by two", size: 8, level: "medium", twist: "walls+doubles" }),
   level({ name: "Stage and wall", size: 8, level: "medium", twist: "walls+doubles" }),
-  level({ name: "The custom house", size: 10, level: "medium", twist: "walls+doubles" }),
+  level({ name: "The custom house", size: 8, level: "hard", twist: "walls+doubles" }),
 
   level({ name: "Rough tally", size: 6, level: "easy", twist: "ranges" }),
   level({ name: "Soundings", size: 8, level: "easy", twist: "ranges" }),
   level({ name: "Fog signals", size: 8, level: "medium", twist: "ranges" }),
-  level({ name: "Tide tables", size: 10, level: "medium", twist: "ranges" }),
-  level({ name: "The ledger", size: 8, level: "hard", twist: "ranges" }),
-  level({ name: "Walls and bounds", size: 8, level: "medium", twist: "walls+ranges" }),
-  level({ name: "Stages and bounds", size: 10, level: "medium", twist: "doubles+ranges" }),
+  level({ name: "Tide tables", size: 8, level: "medium", twist: "walls+ranges" }),
+  level({ name: "The ledger", size: 8, level: "medium", twist: "doubles+ranges" }),
+  level({ name: "Walls and bounds", size: 8, level: "hard", twist: "walls+ranges" }),
+  level({ name: "Stages and bounds", size: 8, level: "hard", twist: "doubles+ranges" }),
 
   hex({ name: "First basin", size: 5, level: "easy" }),
   hex({ name: "Six sides", size: 7, level: "easy" }),
   hex({ name: "Honeycomb", size: 9, level: "easy" }),
   hex({ name: "The wide basin", size: 9, level: "medium" }),
-  hex({ name: "The deep basin", size: 9, level: "hard" }),
-  hex({ name: "The great basin", size: 11, level: "medium" }),
-  hex({ name: "Hex breakwater", size: 7, level: "easy", twist: "walls" }),
-  hex({ name: "Hex stage", size: 7, level: "medium", twist: "doubles" }),
-  hex({ name: "Hex soundings", size: 9, level: "medium", twist: "ranges" }),
-  hex({ name: "Walled basin", size: 9, level: "medium", twist: "walls+doubles" }),
+  hex({ name: "The deep basin", size: 9, level: "medium", twist: "walls" }),
+  hex({ name: "The great basin", size: 9, level: "medium", twist: "doubles" }),
+  hex({ name: "Hex breakwater", size: 9, level: "medium", twist: "ranges" }),
+  hex({ name: "Hex stage", size: 9, level: "medium", twist: "walls+doubles" }),
+  hex({ name: "Hex soundings", size: 9, level: "medium", twist: "doubles+ranges" }),
+  hex({ name: "Walled basin", size: 9, level: "hard", twist: "walls+ranges" }),
 
   level({ name: "Customs run", size: 8, level: "medium", twist: "walls+doubles+ranges" }),
-  hex({ name: "Rival quays", size: 7, level: "medium", twist: "walls+doubles" }),
-  level({ name: "Spring tide", size: 10, level: "medium", twist: "walls+doubles+ranges" }),
-  hex({ name: "Hex tally", size: 9, level: "medium", twist: "doubles+ranges" }),
-  level({ name: "Deep water", size: 10, level: "hard", twist: "walls+ranges" }),
+  hex({ name: "Rival quays", size: 9, level: "medium", twist: "walls+doubles" }),
+  level({ name: "Spring tide", size: 8, level: "hard", twist: "walls+doubles+ranges" }),
+  hex({ name: "Hex tally", size: 9, level: "hard", twist: "doubles+ranges" }),
+  level({ name: "Deep water", size: 8, level: "hard", twist: "walls+ranges" }),
   hex({ name: "The grand basin", size: 9, level: "hard", twist: "walls+doubles+ranges" }),
-  hex({ name: "The lighthouse", size: 11, level: "expert", twist: "walls+doubles+ranges" }),
+  hex({ name: "The lighthouse", size: 9, level: "expert", twist: "walls+doubles+ranges" }),
 ];
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */

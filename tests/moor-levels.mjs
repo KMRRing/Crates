@@ -24,6 +24,8 @@ const root = new URL("../", import.meta.url).pathname;
   check(inChapter(4).some(L => L.shape === "hex" && L.twist === "none") && inChapter(4).every(L => L.shape === "hex") && inChapter(4).some(L => L.twist !== "none"), "the hex basin begins plain and ends with the twists");
   check(inChapter(5).every(L => L.twist.split("+").length >= 2) && inChapter(5).some(L => L.shape === "hex") && inChapter(5).some(L => L.shape === "square"), "the gauntlet mixes two or three twists, on both boards");
   check(first(0).level === "easy" && LEVELS.at(-1).level === "expert", "the ladder runs from Easy to Expert");
+  // Korbi, 24 Nov 2026 (campaign.js): a twist chapter opens on its twist alone and ends hard, older twists back in its second half; small basins
+  check([2, 3].every(c => { const ch = inChapter(c); return ch.slice(0, 3).every(L => !L.twist.includes("+")) && ch.slice(3).some(L => L.twist.includes("+")) && ch.at(-1).level === "hard"; }) && LEVELS.every(L => L.size <= (L.shape === "hex" ? 9 : 8)), "double docks and ranges open on their twist alone, bring older twists back and end hard, on basins no bigger than 8 (9 on the hexagon)");
   check(new Set(LEVELS.map((_, i) => seedOf(i))).size === COUNT, "every level has a seed of its own");
   check(JSON.stringify(kindOf(3)) === JSON.stringify({ size: LEVELS[3].size, level: LEVELS[3].level, twist: "none", shape: "square" }), "a level's kind is what the generator is asked for");
 }
