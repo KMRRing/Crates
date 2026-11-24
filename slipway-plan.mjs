@@ -12,6 +12,7 @@
 //
 // Usage: node slipway-plan.mjs check [chapter]     the levels a plan gives, drawn, with the solver's steps
 //        node slipway-plan.mjs write                writes slipway-book.js
+//        node slipway-plan.mjs order                puts the book's chapters in order without making them again
 import fs from "fs";
 import { solutions, censusOf, kindOf, neighbours, at, xyz, reachable } from "./slipway-rules.js";
 
@@ -298,8 +299,31 @@ if (mode === "check") {
     for (const l of picture(L)) console.log("   " + l);
   }
 }
+/**
+ * A chapter's levels in the order they get harder (Korbi, 24 Nov 2026: every chapter eases in, gets harder and ends on its hardest),
+ * by the solver's steps. The level that teaches the chapter's rule stays first (it may be the only one with a new tool alone), unless
+ * it is hard for a first level (over three times the chapter's middle): then its words go to the easiest, which comes first.
+ */
+export function ordered(levels) {
+  const out = [];
+  for (const ch of [...new Set(levels.map(l => l.chapter))]) {
+    const mine = levels.filter(l => l.chapter === ch), intro = mine.find(l => l.rule) || null;
+    const steps = mine.map(l => l.nodes).sort((a, b) => a - b), middle = steps[steps.length >> 1];
+    const keep = intro && intro.nodes <= 3 * middle;
+    const rest = mine.filter(l => !keep || l !== intro).sort((a, b) => a.nodes - b.nodes).map(({ rule: _, ...l }) => l);
+    if (keep) out.push(intro, ...rest);
+    else { if (intro) rest[0] = { ...rest[0], rule: intro.rule }; out.push(...rest); }
+  }
+  return out;
+}
+if (mode === "order") {
+  const { BOOK } = await import("./slipway-book.js");
+  fs.writeFileSync(new URL("./slipway-book.js", import.meta.url), `// Slipway: the book of levels made from slipway-plan.mjs's plan (node slipway-plan.mjs write), never by hand.\n` +
+    `export const CHAPTERS = ${JSON.stringify(CHAPTERS)};\nexport const BOOK = [\n${ordered(BOOK).map(l => "  " + JSON.stringify(l)).join(",\n")}\n];\n`);
+  console.log(`${BOOK.length} levels put in order`);
+}
 if (mode === "write") {
-  const levels = PLAN.map(make);
+  const levels = ordered(PLAN.map(make));
   fs.writeFileSync(new URL("./slipway-book.js", import.meta.url), `// Slipway: the book of levels made from slipway-plan.mjs's plan (node slipway-plan.mjs write), never by hand.\n` +
     `export const CHAPTERS = ${JSON.stringify(CHAPTERS)};\nexport const BOOK = [\n${levels.map(l => "  " + JSON.stringify(l)).join(",\n")}\n];\n`);
   console.log(`${levels.length} levels written`);
