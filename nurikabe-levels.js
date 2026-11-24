@@ -17,6 +17,8 @@ export const CHAPTERS = [
   { name: "Arch bridges", from: 16, about: "An arched cell is part of the island on either side of it and counts in its size, while the water runs under it: it joins the sea at its two sides." },
   { name: "The gauntlet", from: 21, about: "The twists together." },
 ];
+// Korbi, 24 November 2026: a chapter eases in, gets harder, brings an older twist back, then ends: so a chapter of a new twist
+// ends on it with an older one
 export const LEVELS = [
   level({ name: "Nursery plot", size: 6, level: "easy" }),
   level({ name: "Two ditches", size: 6, level: "medium" }),
@@ -35,13 +37,13 @@ export const LEVELS = [
   level({ name: "Wild paddies", size: 8, level: "easy", twist: "unknown" }),
   level({ name: "Common land", size: 8, level: "medium", twist: "unknown" }),
   level({ name: "The long fallow", size: 6, level: "hard", twist: "unknown" }),
-  level({ name: "Deep water", size: 8, level: "hard", twist: "unknown" }),
+  level({ name: "Deep water", size: 8, level: "hard", twist: "ranges+unknown" }),
 
   level({ name: "First arch", size: 6, level: "easy", twist: "bridges" }),
   level({ name: "The causeway", size: 8, level: "easy", twist: "bridges" }),
   level({ name: "Moon bridge", size: 8, level: "medium", twist: "bridges" }),
   level({ name: "Nine arches", size: 10, level: "easy", twist: "bridges" }),
-  level({ name: "The great span", size: 8, level: "hard", twist: "bridges" }),
+  level({ name: "The great span", size: 8, level: "hard", twist: "unknown+bridges" }),
 
   level({ name: "Tally and arch", size: 8, level: "medium", twist: "ranges+bridges" }),
   level({ name: "Nameless crossing", size: 8, level: "medium", twist: "unknown+bridges" }),

@@ -12,8 +12,9 @@ check(LEVELS.every(L => SIZES.includes(L.size) && ORDER.includes(L.level) && twi
 check(CHAPTERS[0].from === 0 && CHAPTERS.every((c, i) => !i || c.from > CHAPTERS[i - 1].from) && CHAPTERS.at(-1).from < COUNT && chapterOf(0) === 0 && chapterOf(COUNT - 1) === CHAPTERS.length - 1, "the chapters run in order from the first level to the last");
 // each chapter brings its one twist; the gauntlet mixes them
 const chapterTwists = CHAPTERS.map((c, i) => new Set(LEVELS.slice(c.from, CHAPTERS[i + 1]?.from ?? COUNT).map(L => L.twist)));
-check(chapterTwists[0].size === 1 && chapterTwists[0].has("none") && chapterTwists[1].size === 1 && chapterTwists[1].has("ranges") && chapterTwists[2].size === 1 && chapterTwists[2].has("unknown") && chapterTwists[3].size === 1 && chapterTwists[3].has("bridges")
-  && [...chapterTwists.at(-1)].every(t => t.includes("+")), "the plain game, then bounds, unknown islands and arch bridges each in a chapter of their own, then a gauntlet of mixed twists");
+check(chapterTwists[0].size === 1 && chapterTwists[0].has("none") && chapterTwists[1].size === 1 && chapterTwists[1].has("ranges") && chapterTwists[2].size === 2 && chapterTwists[2].has("unknown") && chapterTwists[3].size === 2 && chapterTwists[3].has("bridges")
+  && [2, 3].every(k => { const last = LEVELS[(CHAPTERS[k + 1]?.from ?? COUNT) - 1]; return last.twist.includes("+") && last.level === "hard"; })
+  && [...chapterTwists.at(-1)].every(t => t.includes("+")), "the plain game, then bounds, unknown islands and arch bridges each in a chapter of their own (the last two ending with an older twist back: Korbi, 24 Nov 2026), then a gauntlet of mixed twists");
 check(new Set(LEVELS.map((_, i) => seedOf(i))).size === COUNT && kindOf(3).size === LEVELS[3].size, "each level has a seed of its own");
 check(levelPuzzle(1)?.grid === levelPuzzle(1)?.grid && levelPuzzle(1).grid !== levelPuzzle(1, 4).grid, "a level's first puzzle is the same every time, and a new seed makes another");
 {
