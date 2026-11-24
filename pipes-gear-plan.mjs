@@ -52,12 +52,12 @@ export const CHAPTERS = [
   // 20 Nov 2026, Korbi: "still missing the remaining gear levels ... it's getting a tad repetitive": chapters 10 to 14 of the plan, made by
   // pipes-gear-forge.js from the design log's rows (pipes-gear-forged.mjs), each bringing a new kind of piece or train
   { key: "nj", book: "C", name: "Layers and ratios", from: 52, rule: "A stack is a wheel and a pinion on one arbor: entered at its wheel it slows the train, at its pinion it speeds it up. Wheels on two layers pass over each other." },
-  { key: "nk", book: "C", name: "Complications", from: 61, rule: "One train can drive more than one dial: from a branch, every dial must turn its own way." },
-  { key: "nl", book: "C", name: "Several trains", from: 70, rule: "Each colour is its own train, and two trains on one layer must never mesh. On two layers they pass beside each other unmeshed, and at a crossing one runs over the other." },
-  { key: "nm", book: "C", name: "The crown", from: 80, rule: "Pull the crown and the train runs another way: the movement must run in both positions." },
-  { key: "nn", book: "C", name: "Full plate", from: 90, rule: "No square is left empty: duos and trios are how a train keeps its count and passes beside itself." },
+  { key: "nk", book: "C", name: "Complications", from: 63, rule: "One train can drive more than one dial: from a branch, every dial must turn its own way." },
+  { key: "nl", book: "C", name: "Several trains", from: 72, rule: "Each colour is its own train, and two trains on one layer must never mesh. On two layers they pass beside each other unmeshed, and at a crossing one runs over the other." },
+  { key: "nm", book: "C", name: "The crown", from: 82, rule: "Pull the crown and the train runs another way: the movement must run in both positions." },
+  { key: "nn", book: "C", name: "Full plate", from: 92, rule: "No square is left empty: duos and trios are how a train keeps its count and passes beside itself." },
   // 24 Nov 2026, Korbi: "three layers can be chapter specific but not recurring theme"
-  { key: "no", book: "C", name: "Three storeys", from: 101, rule: "A third layer: three trains, one to a layer, pass over and under one another unmeshed. A crossing joins the two layers of the trains it carries." },
+  { key: "no", book: "C", name: "Three storeys", from: 103, rule: "A third layer: three trains, one to a layer, pass over and under one another unmeshed. A crossing joins the two layers of the trains it carries." },
 ];
 // the drawn levels replace Book I (17 Nov 2026); the forged ones from 52 are the complications (20 Nov 2026)
 export const BOOKS = [{ key: "N", name: "The bench", rule: "Gears, duos and trios, the three powers, and the clues and tricks that come with them." },
