@@ -18,7 +18,7 @@
 import * as THREE from "./vendor/three.js";
 import { createBatch, prep } from "./bridges-batch.js";
 import { coastOf, TAU } from "./bridges-coast.js";
-import { WAVE, shipGeometry, SEA } from "./sea-3d.js";
+import { shipGeometry, SEA, water, shoreField } from "./sea-3d.js";
 import { straitLine, boxOf } from "./bridges-lattice.js";
 import { cellXZ, spanOf, frameTurn, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
 
@@ -47,9 +47,9 @@ export const SHORE = {
   night: { cSand: 0xb4a98a, cliff: 0x7a7060, cliffHi: 0x877c69, grass: 0x5f7a4a, grassHi: 0x546d42, hill: 0x45603f, rock: 0x6c675f, pine: 0x34583a, white: 0xd9d5c8, red: 0xa04230 },
 };
 export const MODES = {
-  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b, realm: REALMS.day, shore: SHORE.day },
+  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, rail: 0x6b4a2b, realm: REALMS.day, shore: SHORE.day },
   // by night the timber and stone are lighter than the day's, or they sink into the dark sea
-  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], timber: 0xb5854d, stone: 0xcbc4b4, deck: 0xb0a995, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x8a6439, realm: REALMS.night, shore: SHORE.night },
+  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], timber: 0xb5854d, stone: 0xcbc4b4, deck: 0xb0a995, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, rail: 0x8a6439, realm: REALMS.night, shore: SHORE.night },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -142,34 +142,25 @@ export function createModel(host, opts = {}) {
 
   const solid = (extra = {}) => new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, flatShading: true, ...extra });
   const M = {
-    sea: solid({ color: 0x3f8db4, roughness: 0.55, metalness: 0.05 }), land: solid({ vertexColors: true }), ship: solid({ vertexColors: true, side: DOUBLE_SIDE }),
+    land: solid({ vertexColors: true }), ship: solid({ vertexColors: true, side: DOUBLE_SIDE }),
     buoyTeal: solid({ color: 0x1e7f8c }), buoyWhite: solid({ color: 0xf4efe2 }), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
-    shallow: new THREE.MeshBasicMaterial({ color: 0xb9e6e3, transparent: true, opacity: 0.4, depthWrite: false }),
     guide: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: DOUBLE_SIDE }),
     halo: new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.5, depthWrite: false, side: DOUBLE_SIDE }),
   };
   const MA = new THREE.Matrix4(), MB = new THREE.Matrix4();       // scratch: a frame allocates nothing
 
-  // ---------- the sea ----------
-  let sea = null, seaTop = [], seaSize = 0;
-  function buildSea(half) {
-    if (sea) { scene.remove(sea); sea.geometry.dispose(); }
-    seaSize = 2 * half;                              // the coast's bay and a little over: the land hides the rest of the box, wherever the camera is
-    const cuts = Math.max(24, Math.min(56, Math.ceil(seaSize / 0.6)));      // a swell is seven cells long at least: a cell of 0.6 draws it
-    const g = new THREE.BoxGeometry(seaSize, 0.5, seaSize, cuts, 1, cuts), pos = g.attributes.position;
-    seaTop = [];
-    for (let i = 0; i < pos.count; i++) if (pos.getY(i) > 0) seaTop.push(i);
-    g.translate(0, -0.25, 0);
-    sea = new THREE.Mesh(g, M.sea);
-    sea.receiveShadow = true;
-    sea.frustumCulled = false;                       // its vertices move; it fills the view anyway
-    scene.add(sea);
-  }
-  function stirSea(t) {
-    if (!sea) return;
-    const pos = sea.geometry.attributes.position;
-    for (const i of seaTop) pos.setY(i, WAVE(pos.getX(i), pos.getZ(i), t));
-    pos.needsUpdate = true;
+  // ---------- the sea: sea-3d.js's water, pale over the shallows and breaking in surf on the coast, the islands and the rocks ----------
+  let sea = null;
+  function buildSea() {
+    if (sea) { scene.remove(sea.mesh); sea.mesh.geometry.dispose(); sea.mesh.material.dispose(); }
+    const n = coast.n, reach = Math.max(...coast.water) + 0.5;
+    const isles = lay.isl.map(o => { const [x, z] = xz(o.r, o.c); return [x, z, islandRadius(o.n) + 0.03]; });
+    const bay = (x, z) => { const t = (((Math.atan2(z, x) / TAU) * n) % n + n) % n, i = Math.floor(t), f = t - i; return coast.water[i % n] * (1 - f) + coast.water[(i + 1) % n] * f; };
+    const land = (x, z) => Math.hypot(x, z) > bay(x, z) || isles.some(([ix, iz, r]) => (x - ix) ** 2 + (z - iz) ** 2 < r * r) || coast.rocks.some(r => (x - r.x) ** 2 + (z - r.z) ** 2 < (r.s * 0.8) ** 2);
+    sea = water({ x0: -reach - 3, x1: reach + 3, z0: -reach - 3, z1: reach + 3, near: [-reach, reach, -reach, reach], fine: 0.3, sun, shore: shoreField(-reach, reach, -reach, reach, land) });
+    sea.mesh.receiveShadow = true;                   // the bridges' shadows fall on it
+    sea.paint(skinNow().night);
+    scene.add(sea.mesh);
   }
 
   // ---------- a ship: the merchantman every water puzzle sails (sea-3d.js), one geometry drawn once for every ship ----------
@@ -203,8 +194,8 @@ export function createModel(host, opts = {}) {
     return batch;
   }
 
-  /** An island as big as its number: on sand, a beach, a lawn and trees (more of them the bigger it is); a hill in terraces; and a pale ring of shallows round it. */
-  function island(land, rings, i) {
+  /** An island as big as its number: on sand, a beach, a lawn and trees (more of them the bigger it is); a hill in terraces. (The water pales round it of itself.) */
+  function island(land, i) {
     const isle = lay.isl[i], [x, z] = xz(isle.r, isle.c), R = islandRadius(isle.n), here = y => at(x, y, z);
     const clay = !!isle.realm;                                          // an orange realm's island: square-cut clay, no lawn or trees; a blue one is round and green as an island always was
     // a hill or islet is round or square; a square one's four-sided cylinder is turned to the axes (its corners are `r` from the middle, its sides 0.7 r)
@@ -228,7 +219,6 @@ export function createModel(host, opts = {}) {
         }
       }
     }
-    rings.add("all", new THREE.CylinderGeometry(R + 0.2, R + 0.26, 0.012, 22), here(0.07), "shallow");      // over the swell's crests
     if (realmed) {
       // a gilt rim round the collar of an island whose number is met (shown by update, a group of the land: no mesh of its own): "done" and, by its shape, whose
       const q = (clay ? 2 * R * 0.9 + 0.3 : 2 * R + 0.3) / 2, g = `m${i}`;
@@ -301,9 +291,9 @@ export function createModel(host, opts = {}) {
 
   /**
    * The shore round the sea (bridges-coast.js): its land in the colours of its slopes (sand, cliff, grass, hill), rocks, clumps of pines and a lighthouse, all
-   * one mesh with the board's land colours, and a pale ribbon of shallows along the waterline in the translucent batch. Built once with the puzzle.
+   * one mesh with the board's land colours. Built once with the puzzle.
    */
-  function shoreOf(batch, shallows) {
+  function shoreOf(batch) {
     const roles = new Map();
     for (const t of coast.tris) { const list = roles.get(t.role) || roles.set(t.role, []).get(t.role); for (let q = 0; q < 9; q++) list.push(t.p[q]); }
     for (const [role, list] of roles) {
@@ -329,18 +319,6 @@ export function createModel(host, opts = {}) {
       batch.add("all", new THREE.ConeGeometry(0.14, 0.15, 8), m.clone().multiply(at(0, 1.36, 0)), "red");
       batch.add("all", new THREE.CylinderGeometry(0.22, 0.26, 0.1, 8), m.clone().multiply(at(0, -0.02, 0)), "cliff");
     }
-    // shallows: a ribbon of pale water along the waterline, outside it, over the swell's crests
-    const pos = [], idx = [], n = coast.n;
-    for (let i = 0; i < n; i++) {
-      const t = (i / n) * TAU, r = coast.water[i], c = Math.cos(t), s = Math.sin(t);
-      pos.push(c * (r - 0.55), 0.075, s * (r - 0.55), c * (r + 0.04), 0.075, s * (r + 0.04));
-      const j = (i + 1) % n;
-      idx.push(i * 2, j * 2, i * 2 + 1, i * 2 + 1, j * 2, j * 2 + 1);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    shallows.add("all", g, null, "shallow");
   }
 
   /** Shows a puzzle: `p` is { lay, size, seed } (the page's P and the run's seed, which gives the shore). */
@@ -352,11 +330,10 @@ export function createModel(host, opts = {}) {
     disposeWorld();
     world = new THREE.Group();
     coast = coastOf(p.seed ?? lay.isl.map(o => `${o.r}${o.c}${o.n}`).join(""), size);       // every puzzle has a bay of its own
-    buildSea(coast.seaHalf);
     zoom = 1; pan.x = pan.z = 0; orbited = false; az = HOME_AZ; el = homeElevation(width / height);       // a new board is seen from the first view, all of it
-    const land = createBatch(), rings = createBatch(), bridges = createBatch(), dashes = createBatch(), halos = createBatch(), shore = createBatch();
+    const land = createBatch(), bridges = createBatch(), dashes = createBatch(), halos = createBatch(), shore = createBatch();
     lay.isl.forEach((isle, i) => {
-      island(land, rings, i);
+      island(land, i);
       const plate = document.createElement("span"), [x, z] = xz(isle.r, isle.c);
       plate.className = "brg3-n";
       plate.textContent = labelOf(isle);
@@ -395,9 +372,10 @@ export function createModel(host, opts = {}) {
     // the board's own square, so a sparse board is framed as a full one is
     const [bw, bh] = boxOf(size, !!lay.hex), sqx = (bw / 2 - 0.5) * 0.9 + 0.55, sqz = (bh / 2 - 0.5) * 0.9 + 0.55;
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(sx * sqx, 0, sz * sqz);
-    shoreOf(shore, rings);
-    batches = { land: mount(land, M.land, { shadows: true }), bridges: mount(bridges, M.land, { shadows: true }), shore: mount(shore, M.land), rings: mount(rings, M.shallow), dashes: mount(dashes, M.guide, { order: 1 }), halos: mount(halos, M.halo, { order: 2 }) };
-    batches.land.show(null); batches.rings.show(null); batches.shore.show(null);
+    shoreOf(shore);
+    buildSea();
+    batches = { land: mount(land, M.land, { shadows: true }), bridges: mount(bridges, M.land, { shadows: true }), shore: mount(shore, M.land), dashes: mount(dashes, M.guide, { order: 1 }), halos: mount(halos, M.halo, { order: 2 }) };
+    batches.land.show(null); batches.shore.show(null);
     // the buoys: two instanced meshes, a colour each; the ships: one, and a lamp for each at night
     buoys = [];
     for (const white of [false, true]) {
@@ -482,7 +460,7 @@ export function createModel(host, opts = {}) {
   // ---------- the skin ----------
   function applySkin() {
     const k = skinNow(), pal = palette(k);
-    M.sea.color.set(k.sea); M.shallow.color.set(k.shallow); M.shallow.opacity = k.shallowA; M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
+    sea?.paint(k.night); M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
     batches?.land.recolor(r => pal[r]);
     batches?.bridges.recolor(r => pal[r]);
     batches?.shore.recolor(r => pal[r]);
@@ -561,16 +539,16 @@ export function createModel(host, opts = {}) {
     const t = still ? 0 : (now - t0) / 1000, dt = Math.min(0.1, Math.max(0, (now - lastSail) / 1000));       // seconds since the last frame, never a jump after a pause
     lastSail = now;
     if (spinUntil > now) { az += 0.35 * dt; fit(); }
-    stirSea(t);
+    sea?.stir(t);
     M.halo.opacity = still ? 0.5 : 0.42 + 0.18 * Math.sin(t * 5);
     if (winUntil && now > winUntil) { winUntil = 0; glow(); }
-    for (const { mesh, i, x, z } of buoys) mesh.setMatrixAt(i, MA.makeTranslation(x, 0.05 + WAVE(x, z, t), z));
+    for (const { mesh, i, x, z } of buoys) mesh.setMatrixAt(i, MA.makeTranslation(x, 0.05 + sea.height(x, z, t), z));
     for (const m of buoyMeshes) m.instanceMatrix.needsUpdate = true;
     if (!still) fleet?.advance(dt);
     const ships = fleet?.ships || [];
     for (let i = 0; i < ships.length; i++) {
       const sh = ships[i];
-      shipMatrix(MA, sh.x, WAVE(sh.x, sh.z, t) + 0.01, sh.z, 0.05 * Math.sin(t * 0.9 + sh.x), sh.heading, 0.04 * Math.sin(t * 0.7 + sh.z));
+      shipMatrix(MA, sh.x, sea.height(sh.x, sh.z, t) + 0.01, sh.z, 0.05 * Math.sin(t * 0.9 + sh.x), sh.heading, 0.04 * Math.sin(t * 0.7 + sh.z));
       hulls.setMatrixAt(i, MA);
       if (lamps.visible) { V.set(-0.51, 0.34, 0).applyMatrix4(MA); lamps.setMatrixAt(i, MB.makeTranslation(V.x, V.y, V.z)); }
     }
