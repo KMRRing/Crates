@@ -47,7 +47,7 @@ export const LEVELS = [
   level({ name: "Twin boards", mode: "boards", len: 5, boards: 2, level: "easy", par: 5 }),
   level({ name: "Twin, tougher", mode: "boards", len: 5, boards: 2, level: "medium", par: 5 }),
   level({ name: "Four at once", mode: "boards", len: 5, boards: 4, level: "easy", par: 8 }),
-  level({ name: "Four, tougher", mode: "boards", len: 5, boards: 4, level: "medium", par: 7 }),
+  level({ name: "Four long words", mode: "boards", len: 6, boards: 4, level: "medium", par: 6 }),   // (24 Nov 2026: an older theme, long words, comes back before the chapter's last)
   level({ name: "Octet", mode: "boards", len: 5, boards: 8, level: "easy", par: 11 }),
 
   level({ name: "Slippery four", mode: "dodge", len: 4, level: "easy", par: 6 }),
