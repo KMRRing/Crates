@@ -26,7 +26,7 @@ export const LEVELS = [
   level({ name: "Evening watch", size: 7, level: "medium" }),
   level({ name: "The long jetty", size: 10, level: "easy" }),
   level({ name: "Night shift", size: 10, level: "medium" }),
-  level({ name: "Fog bank", size: 10, level: "medium" }),
+  level({ name: "Fog bank", size: 7, level: "hard" }),
   level({ name: "Storm coast", size: 10, level: "hard" }),
 
   level({ name: "Rough charts", size: 7, level: "easy", twist: "ranges" }),

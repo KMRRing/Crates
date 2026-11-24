@@ -54,7 +54,7 @@ const root = new URL("../", import.meta.url).pathname;
   check(starsFor(p, par) === 3 && starsFor(p, par + 1) === 2 && starsFor(p, 2 * par) === 2 && starsFor(p, 2 * par + 1) === 1 && starsFor(p, 0) === 3 && starsFor(p, 100000) === 1, "three stars within the par, two within twice it, one for solving it");
   const pars = [0, 5, 14, 22, 28].map(i => parOf({ ...levelPuzzle(i), size: LEVELS[i].size }));
   check(pars.every(x => x >= 15 && x <= 900), `every par is between fifteen seconds and fifteen minutes (${Math.min(...pars)} to ${Math.max(...pars)} s)`);
-  const easy = parOf({ ...levelPuzzle(0), size: 6 }), big = parOf({ ...levelPuzzle(5), size: 10 });
+  const easy = parOf({ ...levelPuzzle(0), size: 6 }), big = parOf({ ...levelPuzzle(5), size: LEVELS[5].size });
   check(big > easy, "a bigger, harder puzzle has a longer par");
 }
 

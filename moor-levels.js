@@ -27,21 +27,21 @@ export const CHAPTERS = [
 export const LEVELS = [
   level({ name: "First berth", size: 6, level: "easy" }),
   level({ name: "Quiet water", size: 8, level: "easy" }),
-  level({ name: "Open harbour", size: 8, level: "easy" }),
-  level({ name: "The channel", size: 8, level: "medium" }),
+  level({ name: "Open harbour", size: 8, level: "medium" }),
+  level({ name: "The channel", size: 6, level: "hard" }),
   level({ name: "Deep soundings", size: 8, level: "hard" }),
-  level({ name: "The long quay", size: 8, level: "hard" }),
+  level({ name: "The long quay", size: 8, level: "expert" }),
 
   level({ name: "Breakwater", size: 6, level: "easy", twist: "walls" }),
   level({ name: "Mole and jetty", size: 8, level: "easy", twist: "walls" }),
   level({ name: "Stone stair", size: 8, level: "medium", twist: "walls" }),
-  level({ name: "The sea gate", size: 8, level: "medium", twist: "walls" }),
+  level({ name: "The sea gate", size: 6, level: "hard", twist: "walls" }),
   level({ name: "Harbour wall", size: 8, level: "hard", twist: "walls" }),
 
   level({ name: "Wide berth", size: 6, level: "easy", twist: "doubles" }),
   level({ name: "Landing stage", size: 8, level: "easy", twist: "doubles" }),
   level({ name: "A pair of barges", size: 8, level: "medium", twist: "doubles" }),
-  level({ name: "Two by two", size: 8, level: "medium", twist: "walls+doubles" }),
+  level({ name: "Two by two", size: 6, level: "hard", twist: "walls+doubles" }),
   level({ name: "Stage and wall", size: 8, level: "medium", twist: "walls+doubles" }),
   level({ name: "The custom house", size: 8, level: "hard", twist: "walls+doubles" }),
 

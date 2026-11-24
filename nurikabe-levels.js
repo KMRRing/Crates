@@ -25,13 +25,13 @@ export const LEVELS = [
   level({ name: "Two ditches", size: 6, level: "medium" }),
   level({ name: "The terrace", size: 8, level: "easy" }),
   level({ name: "Sluice and weir", size: 8, level: "medium" }),
-  level({ name: "The broad polder", size: 8, level: "medium" }),
-  level({ name: "Flood season", size: 6, level: "hard" }),
+  level({ name: "The broad polder", size: 6, level: "hard" }),
+  level({ name: "Flood season", size: 8, level: "hard" }),
 
   level({ name: "Rough plots", size: 6, level: "easy", twist: "ranges" }),
   level({ name: "Fallow", size: 8, level: "easy", twist: "ranges" }),
   level({ name: "Silt and stone", size: 8, level: "medium", twist: "ranges" }),
-  level({ name: "The ledger", size: 8, level: "medium", twist: "ranges" }),
+  level({ name: "The ledger", size: 6, level: "hard", twist: "ranges" }),
   level({ name: "The tax roll", size: 8, level: "hard", twist: "ranges" }),
 
   level({ name: "Unnamed field", size: 6, level: "easy", twist: "unknown" }),

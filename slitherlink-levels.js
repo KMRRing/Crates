@@ -25,20 +25,20 @@ export const LEVELS = [
   level({ name: "Coastwise", size: 5, level: "medium" }),
   level({ name: "Open water", size: 7, level: "easy" }),
   level({ name: "Dead reckoning", size: 7, level: "medium" }),
-  level({ name: "Deep soundings", size: 7, level: "medium" }),
+  level({ name: "Deep soundings", size: 5, level: "hard" }),
   level({ name: "The long coast", size: 7, level: "hard" }),
 
   level({ name: "Rough numbers", size: 5, level: "easy", twist: "ranges" }),
   level({ name: "Soundings", size: 7, level: "easy", twist: "ranges" }),
   level({ name: "Fog signals", size: 7, level: "medium", twist: "ranges" }),
-  level({ name: "Tide tables", size: 7, level: "medium", twist: "ranges" }),
+  level({ name: "Tide tables", size: 5, level: "hard", twist: "ranges" }),
   level({ name: "The ledger", size: 7, level: "hard", twist: "ranges" }),
 
   level({ name: "First ford", size: 5, level: "easy", twist: "tunnels" }),
   level({ name: "The causeway", size: 7, level: "easy", twist: "tunnels" }),
   level({ name: "Over and under", size: 7, level: "medium", twist: "tunnels" }),
   level({ name: "Long bridge", size: 7, level: "medium", twist: "ranges+tunnels" }),
-  level({ name: "Ledger and ford", size: 7, level: "medium", twist: "ranges+tunnels" }),
+  level({ name: "Ledger and ford", size: 5, level: "hard", twist: "ranges+tunnels" }),
   level({ name: "Causeway ledger", size: 7, level: "hard", twist: "ranges+tunnels" }),
 
   level({ name: "Six sides", board: "hex", size: 5, level: "easy" }),
@@ -46,7 +46,7 @@ export const LEVELS = [
   level({ name: "Open comb", board: "hex", size: 7, level: "easy" }),
   level({ name: "Cells", board: "hex", size: 7, level: "medium" }),
   level({ name: "Wax and honey", board: "hex", size: 7, level: "medium", twist: "ranges" }),
-  level({ name: "Rough comb", board: "hex", size: 7, level: "medium", twist: "ranges" }),
+  level({ name: "Rough comb", board: "hex", size: 5, level: "hard", twist: "ranges" }),
   level({ name: "Wax ledger", board: "hex", size: 7, level: "hard", twist: "ranges" }),
 
   level({ name: "Fogbound ford", size: 7, level: "medium", twist: "ranges+tunnels" }),

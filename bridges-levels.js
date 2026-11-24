@@ -50,13 +50,13 @@ export const LEVELS = [
   level({ name: "Two shores", size: 7, level: "medium", was: 1 }),
   level({ name: "Open water", size: 9, level: "easy", was: 2 }),
   level({ name: "The channel", size: 9, level: "medium", was: 3 }),
-  level({ name: "The long haul", size: 9, level: "medium", was: 4 }),
+  level({ name: "The long haul", size: 7, level: "hard", was: 4 }),
   level({ name: "Deep soundings", size: 9, level: "hard", was: 5 }),
 
   level({ name: "Rough numbers", size: 7, level: "easy", twist: "ranges", was: 11 }),
   level({ name: "Soundings", size: 9, level: "easy", twist: "ranges", was: 12 }),
   level({ name: "Fog signals", size: 9, level: "medium", twist: "ranges", was: 13 }),
-  level({ name: "Tide tables", size: 9, level: "medium", twist: "ranges", was: 14 }),
+  level({ name: "Tide tables", size: 7, level: "hard", twist: "ranges", was: 14 }),
   level({ name: "The ledger", size: 9, level: "hard", twist: "ranges", was: 15 }),
 
   level({ name: "Two flags", size: 7, level: "easy", twist: "realms", was: 16 }),
@@ -66,7 +66,7 @@ export const LEVELS = [
   level({ name: "The partition", size: 9, level: "hard", twist: "ranges+realms", was: 20 }),
 
   level({ name: "Ledger and flag", size: 9, level: "medium", twist: "ranges+realms" }),
-  level({ name: "Rival ledgers", size: 9, level: "hard", twist: "ranges+realms", was: 23 }),
+  level({ name: "Rival ledgers", size: 7, level: "hard", twist: "ranges+realms", was: 23 }),
   level({ name: "Admiralty chart", size: 9, level: "hard", twist: "ranges+realms", was: 24 }),
 
   level({ name: "First arch", size: 7, level: "easy", twist: "hills", was: 25 }),
@@ -111,13 +111,13 @@ export const LEVELS = [
   hex({ name: "Six ways", size: 7, level: "medium" }),
   hex({ name: "Beehive", size: 9, level: "easy" }),
   hex({ name: "Cell and comb", size: 9, level: "medium" }),
-  hex({ name: "The wide hive", size: 9, level: "medium" }),
+  hex({ name: "The wide hive", size: 7, level: "hard" }),
   hex({ name: "Deep honey", size: 9, level: "hard" }),
 
   hex({ name: "Loose cells", size: 7, level: "easy", twist: "ranges" }),
   hex({ name: "Bounded comb", size: 9, level: "easy", twist: "ranges" }),
   hex({ name: "Hive ledger", size: 9, level: "medium", twist: "ranges" }),
-  hex({ name: "Swarm count", size: 9, level: "medium", twist: "ranges" }),
+  hex({ name: "Swarm count", size: 7, level: "hard", twist: "ranges" }),
   hex({ name: "The queen's bound", size: 9, level: "hard", twist: "ranges" }),
 
   hex({ name: "Two hives", size: 7, level: "easy", twist: "realms" }),

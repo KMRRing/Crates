@@ -55,14 +55,14 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   check(SQ.slice(1).every(name => chap(name).slice(2).some(L => L.twist.includes("+")) && chap(name).at(-1).twist.includes("+")), "from Two realms on, the older twists come back in a chapter's second half and its capstone");
   check(chap("The grand charts").every(L => L.twist.includes("+")) && Object.keys(TWISTS).every(t => t === "none" || chap("The grand charts").some(L => flagsOf(L.twist)[t])), "the grand charts put the twists together, and every twist meets another there");
   check(Object.keys(TWISTS).every(t => t === "none" || LEVELS.some(L => flagsOf(L.twist)[t])), "every twist is on some level");
-  const sizeOf = L => [7, 9, 11].indexOf(L.size), grows = c => c.every((L, k) => k === 0 || sizeOf(L) >= sizeOf(c[k - 1]));
-  check(["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops", "The grand charts"].every(name => grows(chap(name))), "within a chapter the charts never get smaller");
+  // within a chapter a chart of the same size never comes at an easier grade (a small hard chart may follow a bigger medium one)
+  const rank = L => ["easy", "medium", "hard", "expert"].indexOf(L.level), climbs = c => c.every((L, k) => k === 0 || L.size !== c[k - 1].size || rank(L) >= rank(c[k - 1]));
+  check(CHAPTERS.every(c => climbs(chap(c.name))), "within a chapter no chart comes easier than the one before it on the same size");
+  check(CHAPTERS.every(c => chap(c.name).every((L, k, a) => k === 0 || JSON.stringify(kindOf(LEVELS.indexOf(L))) !== JSON.stringify(kindOf(LEVELS.indexOf(a[k - 1]))))), "no level repeats the one before it: size, grade and twists");
   // the hexagon (5 November 2026): a chapter plain, then each twist one at a time ending on a mix, then the gauntlets
   const HEX = ["The hexagon", "Hex ranges", "Hex realms", "Hex viaducts", "Hex narrow roads", "Hex wide roads", "Hex straits", "Hex no loops"], TW = [null, "ranges", "realms", "hills", "narrow", "wide", "straits", "tree"];
   check(HEX.every(name => chap(name).length >= 5 && chap(name).every(L => L.shape === "hex")), "each hex chapter has five levels or more, all on the hex board");
   check(chap("The hexagon").every(L => L.twist === "none") && HEX.slice(1).every((name, k) => { const c = chap(name), t = TW[k + 1], known = new Set(TW.slice(1, k + 2)); return c.slice(0, 2).every(L => L.twist === t) && c.every(L => flagsOf(L.twist)[t] && L.twist.split("+").every(x => known.has(x))) && (k === 0 || c.at(-1).twist.includes("+")); }), "plain hex first, then each twist on the hex board: alone at first, then with the hex twists before it, each chapter after the first ending on a mix");
-  const sz = L => [7, 9, 11].indexOf(L.size);
-  check(HEX.every(name => chap(name).every((L, k, c) => k === 0 || sz(L) >= sz(c[k - 1]))), "within a hex chapter the charts never get smaller");
   check(Object.keys(TWISTS).every(t => t === "none" || LEVELS.some(L => L.shape === "hex" && flagsOf(L.twist)[t])), "every twist is on some hex level");
   const gs = chap("Gauntlet: the square charts"), gh = chap("Gauntlet: the hexagon");
   check(gs.length >= 8 && gs.every(L => !L.shape && L.twist.includes("+")) && gh.length >= 6 && gh.every(L => L.shape === "hex" && L.twist.includes("+")), "the gauntlets mix two twists or more, on the square board and on the hex one");
