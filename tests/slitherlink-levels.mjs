@@ -21,6 +21,8 @@ const root = new URL("../", import.meta.url).pathname;
   check(ranges.every(L => L.twist === "ranges" && L.board === "square"), "chapter 2 brings ranges alone");
   check(tunnels.filter(L => L.twist === "ranges+tunnels").length >= 1 && tunnels.filter(L => L.twist === "tunnels").length >= 3, "chapter 3: tunnels first, then a block mixing them with ranges");
   check(hex.every(L => L.board === "hex") && hex.some(L => L.twist === "ranges"), "chapter 4 is the honeycomb, ending with ranges on it");
+  // Korbi, 24 Nov 2026 (campaign.js): the twist alone first, older twists back later, the hardest last; nothing past 7 across
+  check([tunnels, hex].every(c => c.slice(0, 2).every(L => !/ranges/.test(L.twist)) && c.at(-1).level === "hard" && /ranges/.test(c.at(-1).twist)) && LEVELS.every(L => L.size <= 7), "the causeway and honeycomb chapters open on their twist alone and end hard with ranges back, on boards no bigger than 7 across");
   check(gauntlet.every(L => /ranges/.test(L.twist)) && gauntlet.some(L => /tunnels/.test(L.twist)) && gauntlet.some(L => L.board === "hex"), "the gauntlet mixes ranges, tunnels and the honeycomb");
   check(chapterOf(0) === 0 && chapterOf(COUNT - 1) === CHAPTERS.length - 1, "a level knows its chapter");
 }

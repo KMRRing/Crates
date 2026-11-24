@@ -6,6 +6,9 @@
 // within the par, which grows with the cells and the level. Solving a level opens the next; any level open can be played at any time.
 //
 // A level's number never changes once shipped; new levels go at the end of their chapter's list only by adding a chapter after the last.
+// Korbi, 24 November 2026 (the rule in campaign.js): a chapter brings its twist alone on a small board, lets it be mastered, then
+// brings the older twists back with it, and ends on its hardest. Boards stay 5 and 7 across (the 9 and 10 ones went): the difficulty
+// is in the twists meeting and the grade, not in size.
 import { generate } from "./slitherlink-engine.js";
 
 const level = spec => ({ board: "square", twist: "none", ...spec });
@@ -22,34 +25,34 @@ export const LEVELS = [
   level({ name: "Coastwise", size: 5, level: "medium" }),
   level({ name: "Open water", size: 7, level: "easy" }),
   level({ name: "Dead reckoning", size: 7, level: "medium" }),
-  level({ name: "Deep soundings", size: 7, level: "hard" }),
-  level({ name: "The long coast", size: 10, level: "medium" }),
+  level({ name: "Deep soundings", size: 7, level: "medium" }),
+  level({ name: "The long coast", size: 7, level: "hard" }),
 
   level({ name: "Rough numbers", size: 5, level: "easy", twist: "ranges" }),
   level({ name: "Soundings", size: 7, level: "easy", twist: "ranges" }),
   level({ name: "Fog signals", size: 7, level: "medium", twist: "ranges" }),
-  level({ name: "Tide tables", size: 10, level: "medium", twist: "ranges" }),
+  level({ name: "Tide tables", size: 7, level: "medium", twist: "ranges" }),
   level({ name: "The ledger", size: 7, level: "hard", twist: "ranges" }),
 
   level({ name: "First ford", size: 5, level: "easy", twist: "tunnels" }),
   level({ name: "The causeway", size: 7, level: "easy", twist: "tunnels" }),
   level({ name: "Over and under", size: 7, level: "medium", twist: "tunnels" }),
-  level({ name: "Long bridge", size: 10, level: "medium", twist: "tunnels" }),
+  level({ name: "Long bridge", size: 7, level: "medium", twist: "ranges+tunnels" }),
   level({ name: "Ledger and ford", size: 7, level: "medium", twist: "ranges+tunnels" }),
-  level({ name: "Causeway ledger", size: 10, level: "medium", twist: "ranges+tunnels" }),
+  level({ name: "Causeway ledger", size: 7, level: "hard", twist: "ranges+tunnels" }),
 
   level({ name: "Six sides", board: "hex", size: 5, level: "easy" }),
   level({ name: "The hive", board: "hex", size: 5, level: "medium" }),
   level({ name: "Open comb", board: "hex", size: 7, level: "easy" }),
   level({ name: "Cells", board: "hex", size: 7, level: "medium" }),
-  level({ name: "Wax and honey", board: "hex", size: 7, level: "hard" }),
+  level({ name: "Wax and honey", board: "hex", size: 7, level: "medium", twist: "ranges" }),
   level({ name: "Rough comb", board: "hex", size: 7, level: "medium", twist: "ranges" }),
-  level({ name: "Wax ledger", board: "hex", size: 9, level: "medium", twist: "ranges" }),
+  level({ name: "Wax ledger", board: "hex", size: 7, level: "hard", twist: "ranges" }),
 
-  level({ name: "Fogbound ford", size: 7, level: "medium", twist: "ranges+tunnels" }),   // (24 Nov 2026: a chapter eases in; this was hard, and first)
-  level({ name: "Admiralty chart", size: 10, level: "medium", twist: "ranges+tunnels" }),
+  level({ name: "Fogbound ford", size: 7, level: "medium", twist: "ranges+tunnels" }),
+  level({ name: "Admiralty chart", size: 7, level: "hard", twist: "ranges+tunnels" }),
   level({ name: "Hive and ledger", board: "hex", size: 7, level: "hard", twist: "ranges" }),
-  level({ name: "The grand survey", size: 10, level: "hard", twist: "ranges+tunnels" }),
+  level({ name: "The grand survey", size: 7, level: "hard", twist: "ranges+tunnels" }),
 ];
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */
