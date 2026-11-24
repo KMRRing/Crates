@@ -94,6 +94,9 @@ const CORE = [
 // The chapters (23 November 2026, Korbi: "We discussed a general template for fun level progression. Apply this to Columbiad": chapters as long
 // as their lessons, three to five levels each bringing one idea). The twelve worlds above and in columbiad-levels-far.js hold the levels; a
 // chapter is a run of one world's levels with one idea, in the order the worlds had them.
+// Korbi, 24 November 2026: every chapter eases in, gets harder and ends on its hardest. Within a chapter the levels run by the window
+// of aims that win (columbiad-proofs.js: angles × powers, and launch seconds where the world moves), widest first; the first stays
+// where it teaches the chapter's idea, and a level whose words lean on another stays after it (Last light ends the planets).
 const CHAPTERS = [
   ["Beside the Moon", "The Moon pulls: aim past it and let it draw you in", "1-1 1-2 1-10 1-11"],
   ["Close passes", "A Moon turns only a shot that passes close: the smaller it is, the closer", "1-12 1-13 1-7 1-8 1-14"],
@@ -101,24 +104,24 @@ const CHAPTERS = [
   ["The long way round", "A heavy Moon and the cloud far round its back", "2-3 2-10 2-5 2-8 2-9"],
   ["Free return", "Out by one side of the Moon through the gate, and home to the pad", "3-1 3-4 3-5 3-6"],
   ["Figure of eight", "Out one side, round the back, and home down the other", "3-2 3-3 3-7 3-8"],
-  ["Clockwork", "The Moon moves: set the countdown as well as the aim, and tweak a shot you have fired", "4-8 4-1 4-9 4-3"],
-  ["Moving targets", "Clouds that ride and swing: meet them where they will be", "4-4 4-5 4-6 4-7"],
+  ["Clockwork", "The Moon moves: set the countdown as well as the aim, and tweak a shot you have fired", "4-8 4-9 4-1 4-3"],
+  ["Moving targets", "Clouds that ride and swing: meet them where they will be", "4-4 4-7 4-5 4-6"],
   ["Moonrise", "Launch from the Moon: the Earth is the great pull now", "5-7 5-9 5-8 5-2"],
-  ["Round the Earth", "The Earth's pull as the engine: a second moon, a gate, an orbit", "5-3 5-10 5-5 5-6"],
+  ["Round the Earth", "The Earth's pull as the engine: a second moon, a gate, an orbit", "5-3 5-10 5-6 5-5"],
   ["Station", "Launch from a station in orbit: it carries you, so the countdown picks where it is", "6-7 6-9 6-10 6-11"],
   ["Rendezvous", "From the station to a Moon on the move, and back", "6-12 6-5 6-13 6-14"],
-  ["Giants", "A gas giant pulls like nine Moons", "7-7 7-1 7-4 7-5"],
+  ["Giants", "A gas giant pulls like nine Moons", "7-7 7-4 7-5 7-1"],
   ["Cloud planes", "The giant's clouds burn a shot that crosses them: through a gap or over the top", "7-2 7-3 7-8 7-6"],
-  ["The Sun", "A star pulls the hardest and burns what comes close: round it, but not too near", "8-7 8-8 8-1 8-9"],
-  ["Two stars", "A pair of suns, a close pass and a cold dwarf", "8-3 8-11 8-5 8-10"],
-  ["The Belt", "Rocks fill the way: thread them, and the pull will help you do it", "9-6 9-12 9-2 9-9"],
+  ["The Sun", "A star pulls the hardest and burns what comes close: round it, but not too near", "8-7 8-9 8-8 8-1"],
+  ["Two stars", "A pair of suns, a close pass and a cold dwarf", "8-3 8-11 8-10 8-5"],
+  ["The Belt", "Rocks fill the way: thread them, and the pull will help you do it", "9-6 9-12 9-9 9-2"],
   ["Rubble", "Rock round the Moon and across the way", "9-7 9-10 9-5 9-11"],
-  ["Short tank", "Less powder than a full tank: let the Moon do the work", "10-1 10-9 10-2 10-10 10-5"],
-  ["Windows and air", "A cloud that opens and shuts, and air that slows a shot", "10-3 10-4 10-6 10-7"],
+  ["Short tank", "Less powder than a full tank: let the Moon do the work", "10-1 10-5 10-9 10-2 10-10"],
+  ["Windows and air", "Air that slows a shot, and a cloud that opens and shuts", "10-7 10-6 10-3 10-4"],
   ["Arrivals", "Not just a cloud: land softly, orbit, meet a comet", "11-1 11-2 11-5 11-7"],
   ["Clouds in order", "Two clouds, three, and a gate on the way: one shot through them all", "11-8 11-10 11-9 11-11"],
   ["Apollo", "The Moon missions: land, orbit, and come home", "12-6 12-7 12-8 12-10"],
-  ["The planets", "Out among the worlds: a transfer, a slingshot, a grand tour", "12-12 12-3 12-4 12-9 12-11"],
+  ["The planets", "Out among the worlds: a transfer, a slingshot, a grand tour", "12-12 12-4 12-9 12-3 12-11"],
 ];
 const POOL = new Map([...CORE, ...FAR].flatMap(w => w.levels).map(l => [l.id, l]));
 export const SECTIONS = CHAPTERS.map(([name, idea, ids], c) => ({ id: c + 1, name, idea, levels: ids.split(" ").map(id => POOL.get(id)) }));
