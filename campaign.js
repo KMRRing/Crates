@@ -3,15 +3,17 @@
 //
 // Korbi, 10 November 2026: the minigames and puzzles follow a few patterns, the same in every game of a kind.
 //   Campaign  levels in chapters (this file): Gears, Bridges, Shunt, Stow, Columbiad, Survey, Moor, Lanterns, Portolan, Dujiang,
-//             Drift, Slipway, Asterism, Loom, Settle, Manifest, and Landfall's voyages. 6 to 10 chapters, each as long as its
-//             lessons and no longer (Korbi, 10 November 2026, on Shunt: the learning curve must be steep; its first chapter taught
-//             in seven levels what takes three, and the rest were as flat), so most are three to five levels and the count follows
-//             from the twists, Endless carrying the volume; a level that only repeats one before it goes, and each asks more than
-//             the last. A chapter brings one twist and explores it, as Gears' first books do ("introduction, familiarity, a fun
-//             quirk, mastery, next mechanic introduction"): the twist alone on a small board, with no way to win but by it; a
-//             quirk, where it does something unexpected or meets an older rule; mastery, larger boards
-//             with all that came before; a capstone, the chapter's hardest. Each chapter opens easier than the last one closed
-//             (a sawtooth), and every three or four twists a chapter mixes them. Levels are made by a script (a solver proves
+//             Drift, Slipway, Asterism, Loom, Settle, Manifest, and Landfall's voyages. 6 to 10 chapters; the learning curve
+//             steep (Korbi, 10 November 2026, on Shunt: its first chapter taught in seven levels what takes three), Endless
+//             carrying the volume; a level that only repeats one before it goes, and each asks more than the last.
+//             Korbi, 24 November 2026 (and 11 November for Gears: "returning to the common themes frequently and chapter themes
+//             rare, mostly in the chapter. So almost like permutations"): twists are of two kinds. A generic twist, once its
+//             chapter has taught it, comes back in every chapter after; a chapter twist lives in its own chapter. A chapter
+//             introduces its twist alone on a small board, with no way to win but by it; lets it be mastered a little; then
+//             brings the generic twists back as interactions with it; and ends on a capstone, its hardest. Chapters run about
+//             the same length (they may grow as the generic twists pile up, but need not), and a later chapter may climb more
+//             steeply than an early one. Difficulty comes from interactions and density, not size: boards stay in a narrow
+//             band, no bigger late in the game than early. Each chapter opens easier than the last one closed (a sawtooth). Levels are made by a script (a solver proves
 //             each has its answer, needs its chapter's twist and grades it) and frozen as data, never tuned by hand; the same
 //             for everyone; a one-line rule a chapter, no tutorial pages; stars for the score (one solved, two within twice the
 //             par, three within it). A level's id is its identity: stars are kept by it, so levels can be added.

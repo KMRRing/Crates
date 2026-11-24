@@ -1,5 +1,5 @@
 // Bridges' levels, pure (no page): a ladder of puzzles in chapters, each chapter bringing something to the one before: the
-// plain game on charts from 7×7 to 11×11; ranges, numbers that are only a bound ("4+", "≤3"); two realms, two colours of
+// plain game on charts of 7×7 and 9×9; ranges, numbers that are only a bound ("4+", "≤3"); two realms, two colours of
 // island each with a network of its own; the admiralty's charts, where they meet; viaducts, hills whose bridges go over
 // the lowland's; narrow roads that hold one bridge and wide roads that hold three; straits, lines across the sea with the
 // bridges that cross them counted; no loops; and the grand charts where they meet. A level is a kind of puzzle (a size, a
@@ -9,8 +9,10 @@
 // three within the par, which is a few seconds an island and grows with how hard the puzzle is. Solving a level opens the next;
 // any level open can be played at any time.
 //
-// Korbi, 24 November 2026: every chapter eases in, gets harder, brings an older twist back, then ends: so each chapter of one new
-// twist ends on it with an older one (the hexagon's chapters already did).
+// Korbi, 24 November 2026 (the rule in campaign.js): a chapter brings its twist alone on a small chart, lets it be mastered, then
+// brings the older twists back with it, and ends on its hardest. Difficulty comes from the twists meeting and from the grade, not
+// from size: every chart is 7×7 or 9×9 (the 11×11 charts went), so each twist chapter runs 7 easy, 9 easy or medium, two mediums
+// with an older twist each, and a hard capstone with one or more.
 //
 // The ladder was reordered on 3 November 2026, when reefs and fairways were taken out: `was` is the number a level had before
 // (a level new then has none), and `migrate` carries the stars and the puzzles left half done from the old numbers to the new.
@@ -40,7 +42,7 @@ export const CHAPTERS = [
   { name: "Hex wide roads", from: 76, about: "Roads that hold up to three bridges, on the hexagon." },
   { name: "Hex straits", from: 81, about: "A line across the sea counts the bridges that cross it; on the hexagon it can run along any of the three directions." },
   { name: "Hex no loops", from: 86, about: "No ring of bridges, on the hexagon: its triangles are rings of three, so the rule bites everywhere." },
-  { name: "Gauntlet: the square charts", from: 91, about: "Mixed gauntlet: twists that have not met yet, two and more at a time, on the square board." },
+  { name: "Gauntlet: the square charts", from: 91, about: "Mixed gauntlet: three twists and more at a time, in mixes no chapter has met, on the square board." },
   { name: "Gauntlet: the hexagon", from: 102, about: "Mixed gauntlet on the hexagon: the twists together, up to all five roads, bounds, hills and colours at once." },
 ];
 export const LEVELS = [
@@ -48,133 +50,133 @@ export const LEVELS = [
   level({ name: "Two shores", size: 7, level: "medium", was: 1 }),
   level({ name: "Open water", size: 9, level: "easy", was: 2 }),
   level({ name: "The channel", size: 9, level: "medium", was: 3 }),
-  level({ name: "The long haul", size: 11, level: "easy", was: 4 }),
+  level({ name: "The long haul", size: 9, level: "medium", was: 4 }),
   level({ name: "Deep soundings", size: 9, level: "hard", was: 5 }),
 
   level({ name: "Rough numbers", size: 7, level: "easy", twist: "ranges", was: 11 }),
   level({ name: "Soundings", size: 9, level: "easy", twist: "ranges", was: 12 }),
   level({ name: "Fog signals", size: 9, level: "medium", twist: "ranges", was: 13 }),
-  level({ name: "Tide tables", size: 11, level: "medium", twist: "ranges", was: 14 }),
-  level({ name: "The ledger", size: 11, level: "hard", twist: "ranges", was: 15 }),
+  level({ name: "Tide tables", size: 9, level: "medium", twist: "ranges", was: 14 }),
+  level({ name: "The ledger", size: 9, level: "hard", twist: "ranges", was: 15 }),
 
   level({ name: "Two flags", size: 7, level: "easy", twist: "realms", was: 16 }),
   level({ name: "Rival ports", size: 9, level: "easy", twist: "realms", was: 17 }),
   level({ name: "Border waters", size: 9, level: "medium", twist: "realms", was: 18 }),
-  level({ name: "Two crowns", size: 11, level: "medium", twist: "realms", was: 19 }),
-  level({ name: "The partition", size: 11, level: "hard", twist: "realms", was: 20 }),
+  level({ name: "Two crowns", size: 9, level: "medium", twist: "ranges+realms", was: 19 }),
+  level({ name: "The partition", size: 9, level: "hard", twist: "ranges+realms", was: 20 }),
 
   level({ name: "Ledger and flag", size: 9, level: "medium", twist: "ranges+realms" }),
-  level({ name: "Rival ledgers", size: 11, level: "medium", twist: "ranges+realms", was: 23 }),
-  level({ name: "Admiralty chart", size: 11, level: "hard", twist: "ranges+realms", was: 24 }),
+  level({ name: "Rival ledgers", size: 9, level: "hard", twist: "ranges+realms", was: 23 }),
+  level({ name: "Admiralty chart", size: 9, level: "hard", twist: "ranges+realms", was: 24 }),
 
   level({ name: "First arch", size: 7, level: "easy", twist: "hills", was: 25 }),
-  level({ name: "The causeway", size: 9, level: "easy", twist: "hills", was: 26 }),
-  level({ name: "Pier and pillar", size: 9, level: "medium", twist: "hills", was: 27 }),
-  level({ name: "High road", size: 11, level: "medium", twist: "hills", was: 28 }),
-  level({ name: "The great span", size: 11, level: "hard", twist: "ranges+realms+hills", was: 29 }),
+  level({ name: "The causeway", size: 9, level: "medium", twist: "hills", was: 26 }),
+  level({ name: "Pier and pillar", size: 9, level: "medium", twist: "ranges+hills", was: 27 }),
+  level({ name: "High road", size: 9, level: "medium", twist: "realms+hills", was: 28 }),
+  level({ name: "The great span", size: 9, level: "hard", twist: "ranges+realms+hills", was: 29 }),
 
   level({ name: "Single file", size: 7, level: "easy", twist: "narrow" }),
-  level({ name: "Toll gate", size: 9, level: "easy", twist: "narrow" }),
-  level({ name: "Cart tracks", size: 9, level: "medium", twist: "narrow" }),
-  level({ name: "Hairpin", size: 11, level: "medium", twist: "narrow" }),
-  level({ name: "The bottleneck", size: 11, level: "hard", twist: "realms+narrow" }),
+  level({ name: "Toll gate", size: 9, level: "medium", twist: "narrow" }),
+  level({ name: "Cart tracks", size: 9, level: "medium", twist: "realms+narrow" }),
+  level({ name: "Hairpin", size: 9, level: "medium", twist: "hills+narrow" }),
+  level({ name: "The bottleneck", size: 9, level: "hard", twist: "realms+hills+narrow" }),
 
   level({ name: "Broad way", size: 7, level: "easy", twist: "wide" }),
-  level({ name: "High street", size: 9, level: "easy", twist: "wide" }),
-  level({ name: "Triple span", size: 9, level: "medium", twist: "wide" }),
-  level({ name: "Three abreast", size: 11, level: "medium", twist: "wide" }),
-  level({ name: "The great road", size: 11, level: "hard", twist: "ranges+wide" }),
+  level({ name: "High street", size: 9, level: "medium", twist: "wide" }),
+  level({ name: "Triple span", size: 9, level: "medium", twist: "ranges+wide" }),
+  level({ name: "Three abreast", size: 9, level: "medium", twist: "hills+wide" }),
+  level({ name: "The great road", size: 9, level: "hard", twist: "realms+narrow+wide" }),
 
   level({ name: "Harbour mouth", size: 7, level: "easy", twist: "straits" }),
-  level({ name: "Ferry line", size: 9, level: "easy", twist: "straits" }),
-  level({ name: "Tide gauge", size: 9, level: "medium", twist: "straits" }),
-  level({ name: "The long strait", size: 11, level: "medium", twist: "straits" }),
-  level({ name: "Channel count", size: 11, level: "hard", twist: "narrow+wide+straits" }),
+  level({ name: "Ferry line", size: 9, level: "medium", twist: "straits" }),
+  level({ name: "Tide gauge", size: 9, level: "medium", twist: "realms+straits" }),
+  level({ name: "The long strait", size: 9, level: "medium", twist: "wide+straits" }),
+  level({ name: "Channel count", size: 9, level: "hard", twist: "narrow+wide+straits" }),
 
   level({ name: "Straight roads", size: 7, level: "easy", twist: "tree" }),
-  level({ name: "No way back", size: 9, level: "easy", twist: "tree" }),
-  level({ name: "Treeline", size: 9, level: "medium", twist: "tree" }),
-  level({ name: "Root and branch", size: 11, level: "medium", twist: "tree" }),
-  level({ name: "The great tree", size: 11, level: "hard", twist: "narrow+tree" }),
+  level({ name: "No way back", size: 9, level: "medium", twist: "tree" }),
+  level({ name: "Treeline", size: 9, level: "medium", twist: "narrow+tree" }),
+  level({ name: "Root and branch", size: 9, level: "medium", twist: "realms+tree" }),
+  level({ name: "The great tree", size: 9, level: "hard", twist: "wide+straits+tree" }),
 
-  level({ name: "Narrow and broad", size: 9, level: "medium", twist: "narrow+wide" }),
-  level({ name: "Toll viaduct", size: 9, level: "medium", twist: "hills+narrow" }),
-  level({ name: "Counted ledgers", size: 9, level: "medium", twist: "ranges+straits" }),
-  level({ name: "Rival rings", size: 11, level: "medium", twist: "realms+tree" }),
-  level({ name: "Great span road", size: 11, level: "medium", twist: "hills+wide" }),
-  level({ name: "Grand chart", size: 11, level: "hard", twist: "ranges+realms+hills+narrow+wide" }),
+  level({ name: "Narrow and broad", size: 9, level: "medium", twist: "ranges+realms+hills" }),
+  level({ name: "Toll viaduct", size: 9, level: "medium", twist: "hills+narrow+straits" }),
+  level({ name: "Counted ledgers", size: 9, level: "medium", twist: "ranges+straits+tree" }),
+  level({ name: "Rival rings", size: 9, level: "hard", twist: "realms+wide+tree" }),
+  level({ name: "Great span road", size: 9, level: "hard", twist: "ranges+hills+wide" }),
+  level({ name: "Grand chart", size: 9, level: "hard", twist: "ranges+realms+hills+narrow+wide" }),
 
   // the hexagon (a level's id is its place here: new chapters go at the end, nothing above moves)
   hex({ name: "Honeycomb", size: 7, level: "easy" }),
   hex({ name: "Six ways", size: 7, level: "medium" }),
   hex({ name: "Beehive", size: 9, level: "easy" }),
   hex({ name: "Cell and comb", size: 9, level: "medium" }),
-  hex({ name: "The wide hive", size: 11, level: "medium" }),
-  hex({ name: "Deep honey", size: 11, level: "hard" }),
+  hex({ name: "The wide hive", size: 9, level: "medium" }),
+  hex({ name: "Deep honey", size: 9, level: "hard" }),
 
   hex({ name: "Loose cells", size: 7, level: "easy", twist: "ranges" }),
   hex({ name: "Bounded comb", size: 9, level: "easy", twist: "ranges" }),
   hex({ name: "Hive ledger", size: 9, level: "medium", twist: "ranges" }),
-  hex({ name: "Swarm count", size: 11, level: "medium", twist: "ranges" }),
-  hex({ name: "The queen's bound", size: 11, level: "hard", twist: "ranges" }),
+  hex({ name: "Swarm count", size: 9, level: "medium", twist: "ranges" }),
+  hex({ name: "The queen's bound", size: 9, level: "hard", twist: "ranges" }),
 
   hex({ name: "Two hives", size: 7, level: "easy", twist: "realms" }),
   hex({ name: "Rival combs", size: 9, level: "easy", twist: "realms" }),
   hex({ name: "Border cells", size: 9, level: "medium", twist: "realms" }),
-  hex({ name: "Twin crowns", size: 11, level: "medium", twist: "realms" }),
-  hex({ name: "Hive and flag", size: 11, level: "hard", twist: "ranges+realms" }),
+  hex({ name: "Twin crowns", size: 9, level: "medium", twist: "ranges+realms" }),
+  hex({ name: "Hive and flag", size: 9, level: "hard", twist: "ranges+realms" }),
 
   hex({ name: "Hex arch", size: 7, level: "easy", twist: "hills" }),
-  hex({ name: "Honey causeway", size: 9, level: "easy", twist: "hills" }),
-  hex({ name: "Comb and pillar", size: 9, level: "medium", twist: "hills" }),
-  hex({ name: "The high hive", size: 9, level: "hard", twist: "hills" }),
-  hex({ name: "The great hex span", size: 11, level: "hard", twist: "realms+hills" }),
+  hex({ name: "Honey causeway", size: 9, level: "medium", twist: "hills" }),
+  hex({ name: "Comb and pillar", size: 9, level: "medium", twist: "ranges+hills" }),
+  hex({ name: "The high hive", size: 9, level: "medium", twist: "realms+hills" }),
+  hex({ name: "The great hex span", size: 9, level: "hard", twist: "ranges+realms+hills" }),
 
   hex({ name: "Single comb", size: 7, level: "easy", twist: "narrow" }),
-  hex({ name: "Hex toll", size: 9, level: "easy", twist: "narrow" }),
-  hex({ name: "Cart cells", size: 9, level: "medium", twist: "narrow" }),
-  hex({ name: "Hex hairpin", size: 11, level: "medium", twist: "narrow" }),
-  hex({ name: "Narrow arches", size: 11, level: "medium", twist: "hills+narrow" }),
+  hex({ name: "Hex toll", size: 9, level: "medium", twist: "narrow" }),
+  hex({ name: "Cart cells", size: 9, level: "medium", twist: "realms+narrow" }),
+  hex({ name: "Hex hairpin", size: 9, level: "medium", twist: "hills+narrow" }),
+  hex({ name: "Narrow arches", size: 9, level: "hard", twist: "realms+hills+narrow" }),
 
   hex({ name: "Broad comb", size: 7, level: "easy", twist: "wide" }),
-  hex({ name: "Slant street", size: 9, level: "easy", twist: "wide" }),
-  hex({ name: "Triple cells", size: 9, level: "medium", twist: "wide" }),
-  hex({ name: "The wide road", size: 11, level: "medium", twist: "wide" }),
-  hex({ name: "Narrow and wide cells", size: 11, level: "medium", twist: "narrow+wide" }),
+  hex({ name: "Slant street", size: 9, level: "medium", twist: "wide" }),
+  hex({ name: "Triple cells", size: 9, level: "medium", twist: "ranges+wide" }),
+  hex({ name: "The wide road", size: 9, level: "medium", twist: "narrow+wide" }),
+  hex({ name: "Narrow and wide cells", size: 9, level: "hard", twist: "realms+narrow+wide" }),
 
   hex({ name: "Hex harbour mouth", size: 7, level: "easy", twist: "straits" }),
-  hex({ name: "Slant ferry", size: 9, level: "easy", twist: "straits" }),
-  hex({ name: "Three tides", size: 9, level: "medium", twist: "straits" }),
-  hex({ name: "The slant strait", size: 11, level: "medium", twist: "straits" }),
-  hex({ name: "Counted combs", size: 11, level: "medium", twist: "ranges+straits" }),
+  hex({ name: "Slant ferry", size: 9, level: "medium", twist: "straits" }),
+  hex({ name: "Three tides", size: 9, level: "medium", twist: "realms+straits" }),
+  hex({ name: "The slant strait", size: 9, level: "medium", twist: "wide+straits" }),
+  hex({ name: "Counted combs", size: 9, level: "hard", twist: "narrow+wide+straits" }),
 
   hex({ name: "Triangles", size: 7, level: "easy", twist: "tree" }),
-  hex({ name: "No way round", size: 9, level: "easy", twist: "tree" }),
-  hex({ name: "Hive treeline", size: 9, level: "medium", twist: "tree" }),
-  hex({ name: "Hive roots", size: 11, level: "medium", twist: "tree" }),
-  hex({ name: "Rival hex rings", size: 11, level: "medium", twist: "realms+tree" }),
+  hex({ name: "No way round", size: 9, level: "medium", twist: "tree" }),
+  hex({ name: "Hive treeline", size: 9, level: "medium", twist: "narrow+tree" }),
+  hex({ name: "Hive roots", size: 9, level: "medium", twist: "realms+tree" }),
+  hex({ name: "Rival hex rings", size: 9, level: "hard", twist: "wide+straits+tree" }),
 
-  // the gauntlet on the square board: twists that have not met yet
-  level({ name: "Contour ledger", size: 9, level: "medium", twist: "ranges+hills" }),
-  level({ name: "Two peaks", size: 9, level: "medium", twist: "realms+hills" }),
-  level({ name: "Bounded branches", size: 9, level: "medium", twist: "ranges+tree" }),
-  level({ name: "Broad branches", size: 9, level: "medium", twist: "wide+tree" }),
-  level({ name: "Tide and tree", size: 11, level: "medium", twist: "straits+tree" }),
-  level({ name: "Peak soundings", size: 11, level: "medium", twist: "hills+straits" }),
-  level({ name: "Rival tides", size: 11, level: "medium", twist: "realms+straits" }),
-  level({ name: "Rival heights", size: 11, level: "medium", twist: "ranges+realms+hills+narrow" }),
-  level({ name: "Toll counts", size: 11, level: "medium", twist: "wide+straits" }),
-  level({ name: "Gauntlet's end", size: 11, level: "hard", twist: "ranges+hills+wide+straits" }),
-  level({ name: "The great gauntlet", size: 11, level: "hard", twist: "realms+hills+wide+straits" }),
+  // the gauntlet on the square board: three twists and more, in mixes the chapters have not met
+  level({ name: "Contour ledger", size: 9, level: "medium", twist: "ranges+hills+straits" }),
+  level({ name: "Two peaks", size: 9, level: "medium", twist: "realms+hills+wide" }),
+  level({ name: "Bounded branches", size: 9, level: "medium", twist: "ranges+wide+tree" }),
+  level({ name: "Broad branches", size: 9, level: "medium", twist: "narrow+wide+tree" }),
+  level({ name: "Tide and tree", size: 9, level: "medium", twist: "realms+straits+tree" }),
+  level({ name: "Peak soundings", size: 9, level: "medium", twist: "hills+wide+straits" }),
+  level({ name: "Rival tides", size: 9, level: "hard", twist: "ranges+realms+straits" }),
+  level({ name: "Rival heights", size: 9, level: "hard", twist: "ranges+realms+hills+narrow" }),
+  level({ name: "Toll counts", size: 9, level: "hard", twist: "ranges+narrow+wide" }),
+  level({ name: "Gauntlet's end", size: 9, level: "hard", twist: "ranges+hills+wide+straits" }),
+  level({ name: "The great gauntlet", size: 9, level: "hard", twist: "realms+hills+wide+straits" }),
 
   // the gauntlet on the hexagon
-  hex({ name: "Hex ledger and flag", size: 9, level: "medium", twist: "ranges+realms" }),
-  hex({ name: "Hex toll strait", size: 9, level: "medium", twist: "narrow+straits" }),
-  hex({ name: "Hex broad rivals", size: 9, level: "medium", twist: "realms+wide" }),
-  hex({ name: "Hex tides", size: 11, level: "medium", twist: "hills+straits" }),
-  hex({ name: "Hex counted tree", size: 11, level: "hard", twist: "ranges+straits+tree" }),
-  hex({ name: "Hex rival heights", size: 11, level: "medium", twist: "ranges+realms+hills+narrow" }),
-  hex({ name: "Hex grand chart", size: 11, level: "hard", twist: "ranges+realms+hills+narrow+wide" }),
+  hex({ name: "Hex ledger and flag", size: 9, level: "medium", twist: "ranges+realms+straits" }),
+  hex({ name: "Hex toll strait", size: 9, level: "medium", twist: "hills+narrow+straits" }),
+  hex({ name: "Hex broad rivals", size: 9, level: "medium", twist: "realms+hills+wide" }),
+  hex({ name: "Hex tides", size: 9, level: "medium", twist: "hills+wide+straits" }),
+  hex({ name: "Hex counted tree", size: 9, level: "hard", twist: "ranges+straits+tree" }),
+  hex({ name: "Hex rival heights", size: 9, level: "hard", twist: "ranges+realms+hills+narrow" }),
+  hex({ name: "Hex grand chart", size: 9, level: "hard", twist: "ranges+realms+hills+narrow+wide" }),
 ];
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */

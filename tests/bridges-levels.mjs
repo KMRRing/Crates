@@ -45,12 +45,14 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   check(first("Harbour charts").twist === "none" && first("Ranges").twist === "ranges" && first("Two realms").twist === "realms" && first("Viaducts").twist === "hills" && first("Narrow roads").twist === "narrow" && first("Wide roads").twist === "wide" && first("Straits").twist === "straits" && first("No loops").twist === "tree", "each chapter's first level brings its twist");
   const chap = name => { const c = CHAPTERS.findIndex(x => x.name === name); return LEVELS.slice(CHAPTERS[c].from, CHAPTERS[c + 1]?.from ?? COUNT); };
   check(chap("Harbour charts").every(L => L.twist === "none") && chap("The admiralty").every(L => L.twist === "ranges+realms"), "the first chapter is plain and the admiralty puts ranges and realms together");
-  // Korbi, 24 November 2026: a chapter eases in, gets harder, brings an older twist back, then ends: the twist alone first, an older one
-  // with it in the last level (from the Viaducts on: Ranges is the first twist, and the Admiralty follows Two realms)
-  const has = (L, t) => L.twist.split("+").includes(t);
-  check(["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"].every(name => chap(name).length >= 5 && chap(name).every(L => has(L, first(name).twist)) && chap(name).slice(0, -1).every(L => L.twist === first(name).twist)),
-    "each chapter of a twist keeps to it, for five levels at least, all but its last on the twist alone");
-  check(["Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"].every(name => chap(name).at(-1).twist.includes("+") && chap(name).at(-1).level === "hard"), "and its last, the hardest, brings an older twist back with it");
+  // Korbi, 24 November 2026 (campaign.js): a chapter brings its twist alone, lets it be mastered, brings the older twists back with
+  // it, and ends on its hardest; the charts stay 7×7 and 9×9, so the difficulty is in the twists meeting, not in size
+  const has = (L, t) => L.twist.split("+").includes(t), SQ = ["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"];
+  const taught = name => new Set(SQ.slice(0, SQ.indexOf(name) + 1).map(n => first(n).twist));
+  check(LEVELS.every(L => L.size === 7 || L.size === 9), "every chart is 7×7 or 9×9");
+  check(SQ.every(name => { const c = chap(name), t = first(name).twist; return c.length >= 5 && c.every(L => has(L, t) && L.twist.split("+").every(x => taught(name).has(x))) && c.slice(0, 2).every(L => L.twist === t) && c.at(-1).level === "hard"; }),
+    "each chapter of a twist keeps to it for five levels at least, the first two on the twist alone, the rest with no twist not yet taught, and the last hard");
+  check(SQ.slice(1).every(name => chap(name).slice(2).some(L => L.twist.includes("+")) && chap(name).at(-1).twist.includes("+")), "from Two realms on, the older twists come back in a chapter's second half and its capstone");
   check(chap("The grand charts").every(L => L.twist.includes("+")) && Object.keys(TWISTS).every(t => t === "none" || chap("The grand charts").some(L => flagsOf(L.twist)[t])), "the grand charts put the twists together, and every twist meets another there");
   check(Object.keys(TWISTS).every(t => t === "none" || LEVELS.some(L => flagsOf(L.twist)[t])), "every twist is on some level");
   const sizeOf = L => [7, 9, 11].indexOf(L.size), grows = c => c.every((L, k) => k === 0 || sizeOf(L) >= sizeOf(c[k - 1]));
@@ -58,7 +60,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   // the hexagon (5 November 2026): a chapter plain, then each twist one at a time ending on a mix, then the gauntlets
   const HEX = ["The hexagon", "Hex ranges", "Hex realms", "Hex viaducts", "Hex narrow roads", "Hex wide roads", "Hex straits", "Hex no loops"], TW = [null, "ranges", "realms", "hills", "narrow", "wide", "straits", "tree"];
   check(HEX.every(name => chap(name).length >= 5 && chap(name).every(L => L.shape === "hex")), "each hex chapter has five levels or more, all on the hex board");
-  check(chap("The hexagon").every(L => L.twist === "none") && HEX.slice(1).every((name, k) => { const c = chap(name), t = TW[k + 1]; return c.slice(0, -1).every(L => L.twist === t) && flagsOf(c.at(-1).twist)[t] && (k === 0 || c.at(-1).twist.includes("+")); }), "plain hex first, then each twist alone on the hex board, and each chapter after the first ends on a block that mixes it with another twist (ranges, first on the hex board, has nothing before it to mix with)");
+  check(chap("The hexagon").every(L => L.twist === "none") && HEX.slice(1).every((name, k) => { const c = chap(name), t = TW[k + 1], known = new Set(TW.slice(1, k + 2)); return c.slice(0, 2).every(L => L.twist === t) && c.every(L => flagsOf(L.twist)[t] && L.twist.split("+").every(x => known.has(x))) && (k === 0 || c.at(-1).twist.includes("+")); }), "plain hex first, then each twist on the hex board: alone at first, then with the hex twists before it, each chapter after the first ending on a mix");
   const sz = L => [7, 9, 11].indexOf(L.size);
   check(HEX.every(name => chap(name).every((L, k, c) => k === 0 || sz(L) >= sz(c[k - 1]))), "within a hex chapter the charts never get smaller");
   check(Object.keys(TWISTS).every(t => t === "none" || LEVELS.some(L => L.shape === "hex" && flagsOf(L.twist)[t])), "every twist is on some hex level");
@@ -69,7 +71,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   check(LEVELS.every((L, i) => !L.shape || kindOf(i).shape === "hex") && !("shape" in kindOf(0)), "a hex level asks the generator for the hex board, a square one says nothing of it");
   check(!LEVELS.some(L => /reef|lane/.test(L.twist)) && !CHAPTERS.some(c => /reef|fairway/i.test(c.name)), "no level or chapter is built on reefs or fairways");
   const rungs = { 7: 0, 9: 1, 11: 2 };
-  check(chap("Narrow roads").map(L => L.level).join() === "easy,easy,medium,medium,hard" && chap("Wide roads").map(L => rungs[L.size]).join() === "0,1,1,2,2", "a twist chapter climbs from a small easy chart to a big hard one");
+  check(chap("Narrow roads").map(L => L.level).join() === "easy,medium,medium,medium,hard" && chap("Wide roads").map(L => rungs[L.size]).join() === "0,1,1,1,1", "a twist chapter climbs from a small easy chart to a hard one of the same size as the rest");
 }
 
 // ---------- the ladder before 3 November 2026: stars and unfinished runs follow ----------
@@ -101,7 +103,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   const pars = [0, 5, 12, 23, 28, 33, 38, 43, 49, 50, 55, 60, 85].map(i => parOf(levelPuzzle(i, seedOf(i))));
   check(pars.every(x => x >= 15 && x <= 1200), `every par is between fifteen seconds and twenty minutes (${Math.min(...pars)} to ${Math.max(...pars)} s)`);
   check(parOf({ ...p, level: "hard" }) > parOf({ ...p, level: "easy" }) && parOf({ ...p, grid: p.grid.replace(/\./, "3") }) > par && PAR_PER_ISLAND > 0, "a harder puzzle, or one with more islands, has a longer par");
-  check(kindOf(31).twist === "wide" && kindOf(31).size === LEVELS[31].size && kindOf(0).twist === "none", "a level asks the generator for its size, difficulty and twist");
+  check(kindOf(30).twist === "wide" && kindOf(30).size === LEVELS[30].size && kindOf(0).twist === "none", "a level asks the generator for its size, difficulty and twist");
 }
 
 // ---------- puzzles from before the twists ----------
