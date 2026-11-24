@@ -58,10 +58,10 @@ export const LEVELS = [
 
   level({ name: "Hex ledgers", size: 9, level: "medium", twist: "ranges+hex" }),
   level({ name: "Hex candles", size: 9, level: "medium", twist: "short+hex" }),
-  level({ name: "Short mirrors", size: 10, level: "hard", twist: "short+mirrors" }),
+  level({ name: "Short mirrors", size: 10, level: "medium", twist: "short+mirrors" }),
   level({ name: "Triple lamp", size: 10, level: "medium", twist: "ranges+short+mirrors" }),
   level({ name: "Mirrored ledgers", size: 9, level: "medium", twist: "ranges+mirrors+hex" }),
-  level({ name: "The grand light", size: 11, level: "medium", twist: "ranges+short+mirrors+hex" }),
+  level({ name: "The grand light", size: 11, level: "hard", twist: "ranges+short+mirrors+hex" }),   // (24 Nov 2026: the hardest last, as every chapter ends)
 ];
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */
