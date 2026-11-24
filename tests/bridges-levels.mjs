@@ -45,7 +45,12 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   check(first("Harbour charts").twist === "none" && first("Ranges").twist === "ranges" && first("Two realms").twist === "realms" && first("Viaducts").twist === "hills" && first("Narrow roads").twist === "narrow" && first("Wide roads").twist === "wide" && first("Straits").twist === "straits" && first("No loops").twist === "tree", "each chapter's first level brings its twist");
   const chap = name => { const c = CHAPTERS.findIndex(x => x.name === name); return LEVELS.slice(CHAPTERS[c].from, CHAPTERS[c + 1]?.from ?? COUNT); };
   check(chap("Harbour charts").every(L => L.twist === "none") && chap("The admiralty").every(L => L.twist === "ranges+realms"), "the first chapter is plain and the admiralty puts ranges and realms together");
-  check(["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"].every(name => chap(name).length >= 5 && chap(name).every(L => L.twist === first(name).twist)), "each chapter of a twist keeps to it, for five levels at least");
+  // Korbi, 24 November 2026: a chapter eases in, gets harder, brings an older twist back, then ends: the twist alone first, an older one
+  // with it in the last level (from the Viaducts on: Ranges is the first twist, and the Admiralty follows Two realms)
+  const has = (L, t) => L.twist.split("+").includes(t);
+  check(["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"].every(name => chap(name).length >= 5 && chap(name).every(L => has(L, first(name).twist)) && chap(name).slice(0, -1).every(L => L.twist === first(name).twist)),
+    "each chapter of a twist keeps to it, for five levels at least, all but its last on the twist alone");
+  check(["Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"].every(name => chap(name).at(-1).twist.includes("+") && chap(name).at(-1).level === "hard"), "and its last, the hardest, brings an older twist back with it");
   check(chap("The grand charts").every(L => L.twist.includes("+")) && Object.keys(TWISTS).every(t => t === "none" || chap("The grand charts").some(L => flagsOf(L.twist)[t])), "the grand charts put the twists together, and every twist meets another there");
   check(Object.keys(TWISTS).every(t => t === "none" || LEVELS.some(L => flagsOf(L.twist)[t])), "every twist is on some level");
   const sizeOf = L => [7, 9, 11].indexOf(L.size), grows = c => c.every((L, k) => k === 0 || sizeOf(L) >= sizeOf(c[k - 1]));

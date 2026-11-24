@@ -9,6 +9,9 @@
 // three within the par, which is a few seconds an island and grows with how hard the puzzle is. Solving a level opens the next;
 // any level open can be played at any time.
 //
+// Korbi, 24 November 2026: every chapter eases in, gets harder, brings an older twist back, then ends: so each chapter of one new
+// twist ends on it with an older one (the hexagon's chapters already did).
+//
 // The ladder was reordered on 3 November 2026, when reefs and fairways were taken out: `was` is the number a level had before
 // (a level new then has none), and `migrate` carries the stars and the puzzles left half done from the old numbers to the new.
 import { generate } from "./bridges-engine.js";
@@ -68,31 +71,31 @@ export const LEVELS = [
   level({ name: "The causeway", size: 9, level: "easy", twist: "hills", was: 26 }),
   level({ name: "Pier and pillar", size: 9, level: "medium", twist: "hills", was: 27 }),
   level({ name: "High road", size: 11, level: "medium", twist: "hills", was: 28 }),
-  level({ name: "The great span", size: 11, level: "hard", twist: "hills", was: 29 }),
+  level({ name: "The great span", size: 11, level: "hard", twist: "ranges+realms+hills", was: 29 }),
 
   level({ name: "Single file", size: 7, level: "easy", twist: "narrow" }),
   level({ name: "Toll gate", size: 9, level: "easy", twist: "narrow" }),
   level({ name: "Cart tracks", size: 9, level: "medium", twist: "narrow" }),
   level({ name: "Hairpin", size: 11, level: "medium", twist: "narrow" }),
-  level({ name: "The bottleneck", size: 11, level: "hard", twist: "narrow" }),
+  level({ name: "The bottleneck", size: 11, level: "hard", twist: "realms+narrow" }),
 
   level({ name: "Broad way", size: 7, level: "easy", twist: "wide" }),
   level({ name: "High street", size: 9, level: "easy", twist: "wide" }),
   level({ name: "Triple span", size: 9, level: "medium", twist: "wide" }),
   level({ name: "Three abreast", size: 11, level: "medium", twist: "wide" }),
-  level({ name: "The great road", size: 11, level: "hard", twist: "wide" }),
+  level({ name: "The great road", size: 11, level: "hard", twist: "ranges+wide" }),
 
   level({ name: "Harbour mouth", size: 7, level: "easy", twist: "straits" }),
   level({ name: "Ferry line", size: 9, level: "easy", twist: "straits" }),
   level({ name: "Tide gauge", size: 9, level: "medium", twist: "straits" }),
   level({ name: "The long strait", size: 11, level: "medium", twist: "straits" }),
-  level({ name: "Channel count", size: 11, level: "hard", twist: "straits" }),
+  level({ name: "Channel count", size: 11, level: "hard", twist: "narrow+wide+straits" }),
 
   level({ name: "Straight roads", size: 7, level: "easy", twist: "tree" }),
   level({ name: "No way back", size: 9, level: "easy", twist: "tree" }),
   level({ name: "Treeline", size: 9, level: "medium", twist: "tree" }),
   level({ name: "Root and branch", size: 11, level: "medium", twist: "tree" }),
-  level({ name: "The great tree", size: 11, level: "hard", twist: "tree" }),
+  level({ name: "The great tree", size: 11, level: "hard", twist: "narrow+tree" }),
 
   level({ name: "Narrow and broad", size: 9, level: "medium", twist: "narrow+wide" }),
   level({ name: "Toll viaduct", size: 9, level: "medium", twist: "hills+narrow" }),
