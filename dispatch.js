@@ -1,6 +1,7 @@
 // Dispatch: a day of meetings with notable people, read once; then your notes of the day come back spoiled (a name swapped for
 // another's, a place wrong, a line left blank) and you put them right from memory. The score is the share of slots right.
-// The meetings are dispatch-bank.js's, the dealing, spoiling and marking dispatch-engine.js's; this file keeps the run and the page.
+// The meetings are dispatch-bank.js's, the dealing, spoiling and marking dispatch-engine.js's, the chart that follows the day's
+// journey dispatch-map.js's; this file keeps the run and the page.
 import { continentOf, MEETINGS, LEVELS, LEVEL_IDS, SLOTS, SLOT_LABEL, meetingOf, textOf, dealDay, dailyDay, takeNotes, options, score } from "./dispatch-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -13,6 +14,8 @@ import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { showPicture, pictureName } from "./pics.js";
+import { PLACES } from "./dispatch-bank.js";
+import { createChart, sealMark } from "./dispatch-map.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "dispatch:run", BEST = "dispatch:best", DAILY = "dispatch:daily";
@@ -102,6 +105,12 @@ function showDone() {
 
 // ---------- drawing ----------
 const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+// the charts (dispatch-map.js): one that follows the meetings as they are read, flying from place to place, and one of the whole day
+// once the notes are in; kept, not remade, so the first can fly on from where it was. None while the notes are written: the map
+// would tell you where.
+let readMap = null, dayMap = null;
+const chartOf = kind => (kind === "read" ? (readMap ||= createChart(el("figure", "dp-chart"))) : (dayMap ||= createChart(el("figure", "dp-chart dp-chart-day"))));
+const placesOf = ids => ids.map((id, k) => { const m = meetingOf(id), [lat, lon] = PLACES[m.place]; return { lat, lon, name: m.place, n: k + 1 }; });
 function render() {
   if (!S) return;
   const stage = $("stage"), n = S.ids.length, level = `${S.level[0].toUpperCase()}${S.level.slice(1)}${S.daily ? " · today's" : ""}`;
@@ -120,7 +129,11 @@ function render() {
     const face = el("figure", "dp-face");
     face.hidden = true;
     if (x.face && x.face !== x.pic) { scene.querySelector(".dp-who").before(face); showPicture(face, x.face, { width: 160, alt: x.who }); }
-    stage.replaceChildren(bar, scene);
+    const chart = chartOf("read");
+    chart.el.setAttribute("aria-label", `${x.place} on the map${S.idx ? `, after ${S.ids.slice(0, S.idx).map(id => meetingOf(id).place).join(", ")}` : ""}`);
+    stage.classList.add("reading");
+    stage.replaceChildren(bar, chart.el, scene);
+    chart.show(placesOf(S.ids.slice(0, S.idx + 1)), "read");
     if (x.pic) showPicture(pic, x.pic, { width: 500, caption: pictureName(x.pic), alt: x.pic });
     $("goBtn").textContent = S.idx + 1 < n ? "Next" : "To my notes";
     drawTime();
@@ -129,6 +142,8 @@ function render() {
     $("where").textContent = done ? `${level} · ${s.right} of ${s.total} right` : `${level} · your notes`;
     $("clock").textContent = "";
     const nodes = [];
+    stage.classList.remove("reading");
+    if (done) { const day = chartOf("day"); day.el.setAttribute("aria-label", `The day on the map: ${S.ids.map(id => meetingOf(id).place).join(", ")}`); nodes.push(day.el); }
     if (!done) nodes.push(el("p", "dp-help", "Your notes were written in a hurry. Some details are wrong and some are blank: tap a detail to change it, then hand the notes in. A person can appear twice, and a fact may be worded another way from how you read it."));
     S.ids.forEach((id, i) => {
       const x = meetingOf(id), card = el("section", "dp-note");
@@ -136,7 +151,9 @@ function render() {
       // handed in: the person the note was about, as the picture of them (while writing it would give the answer away)
       const head = el("div", "dp-head");
       if (done && x.face) { const f = el("figure", "dp-face"); f.hidden = true; head.append(f); showPicture(f, x.face, { width: 160, alt: x.who }); }
-      head.prepend(el("h3", wrongYear ? "dp-year-wrong" : "", wrongYear ? `${i + 1} · ${x.year}: this story is ${from.year}` : `${i + 1} · ${x.year}`));
+      const h3 = el("h3", wrongYear ? "dp-year-wrong" : "", wrongYear ? `${x.year}: this story is ${from.year}` : `${x.year}`);
+      h3.prepend(sealMark(i + 1));
+      head.prepend(h3);
       card.append(head);
       for (const slot of SLOTS) {
         const v = S.notes[i][slot], held = v ? meetingOf(v) : null, row = el("div", "dp-row"), b = el("button", "dp-slot", held ? textOf(slot, held) : "—");
@@ -150,6 +167,7 @@ function render() {
       nodes.push(card);
     });
     stage.replaceChildren(...nodes);
+    if (done) chartOf("day").show(placesOf(S.ids), "day");
     $("goBtn").textContent = done ? "Another day" : "Hand in";
   }
 }

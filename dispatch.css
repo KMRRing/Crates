@@ -1,34 +1,68 @@
 /* Dispatch: a meeting at a time to read, then the day's notes to put right, slot by slot. */
-:root { --dp-in: var(--c2); --dp-good: #2F7D5B; --dp-miss: #A8382B; }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --dp-good: #7FC2A8; --dp-miss: #E8806F; } }
-html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; }
+:root { --dp-in: var(--c2); --dp-good: #2F7D5B; --dp-miss: #A8382B; --dp-wax-ink: var(--sheet); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --dp-good: #7FC2A8; --dp-miss: #E8806F; --dp-wax-ink: var(--ink); } }
+html[data-mode="night"] { --dp-good: #7FC2A8; --dp-miss: #E8806F; --dp-wax-ink: var(--ink); }
 
 .dp-mark { display: inline-block; }
 .dp-mark svg { width: 100%; height: 100%; display: block; }
 .dispatch .dp-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .5rem; color: var(--ink-soft); font-size: .86rem; }
 .dp-clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dp-stage { min-height: 0; }
+.dp-stage.reading { display: flex; flex-direction: column; }
+
+/* the chart (dispatch-map.js): a paper sea ruled every ten degrees, the land a wash of brass, the coasts water-lined in two rings,
+   the place under a wax seal; it takes what the letter leaves of the height, never under 9rem */
+.dp-chart { position: relative; flex: 1 1 12rem; min-height: 9rem; max-height: 26rem; margin: 0 0 .7rem; border: 1px solid var(--tile-edge); border-radius: 4px;
+  outline: 1px solid var(--brass); outline-offset: -5px; overflow: hidden; background: var(--sheet); }
+.dp-chart-day { flex: none; height: 13rem; }
+.dp-note-seal { width: 1.45rem; height: 1.45rem; margin: -.2rem .45rem 0 0; vertical-align: middle; overflow: visible; }
+.dp-chart-svg { display: block; width: 100%; height: 100%; }
+.dp-chart { --dp-sea: color-mix(in srgb, var(--c2) 9%, var(--sheet)); }
+.dp-sea { fill: var(--dp-sea); }
+.dp-grid { fill: none; stroke: var(--ink); stroke-opacity: .08; stroke-width: 1; }
+.dp-wl { fill: none; stroke-linejoin: round; }
+.dp-wl-far { stroke: color-mix(in srgb, var(--ink) 18%, var(--dp-sea)); stroke-width: 15; }
+.dp-wl-sea-far { stroke: var(--dp-sea); stroke-width: 13; }
+.dp-wl-near { stroke: color-mix(in srgb, var(--ink) 30%, var(--dp-sea)); stroke-width: 8; }
+.dp-wl-sea-near { stroke: var(--dp-sea); stroke-width: 6; }
+.dp-wl-coast { stroke: color-mix(in srgb, var(--ink) 75%, var(--sheet)); stroke-width: 2; }
+.dp-land { fill: color-mix(in srgb, var(--brass) 32%, var(--sheet)); }
+.dp-track { fill: none; stroke: var(--c3); stroke-width: 1.8; stroke-dasharray: 1 5; stroke-linecap: round; }
+.dp-dot { fill: var(--ink); stroke: var(--sheet); stroke-width: 1.5; }
+.dp-dot-n, .dp-place-name, .dp-seal-n, .dp-rose-n { font-family: var(--font); font-weight: 700; }
+.dp-dot-n { font-size: .64rem; fill: var(--ink); paint-order: stroke; stroke: var(--sheet); stroke-width: 3px; stroke-linejoin: round; }
+.dp-place-name { font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; fill: var(--ink); paint-order: stroke; stroke: var(--sheet); stroke-width: 3.5px; stroke-linejoin: round; }
+.dp-wax { fill: var(--c3); stroke: color-mix(in srgb, #000 22%, var(--c3)); stroke-width: 1; }
+.dp-press { fill: none; stroke: color-mix(in srgb, #000 28%, var(--c3)); stroke-width: 1.3; }
+.dp-seal-n { font-size: .62rem; fill: var(--dp-wax-ink); }
+.dp-stamp { transform-box: fill-box; transform-origin: center; animation: dp-stamp .42s cubic-bezier(.3, 1.4, .6, 1) both; }
+@keyframes dp-stamp { from { transform: scale(1.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dp-stamp { animation: none; } }
+.dp-rose path { fill: var(--brass); fill-opacity: .75; }
+.dp-rose-hub { fill: var(--sheet); stroke: var(--brass); stroke-width: 1.2; }
+.dp-rose-n { font-size: .62rem; fill: var(--brass); }
 
 /* reading */
 .dp-time { height: .3rem; margin: 0 0 .9rem; background: var(--tile-edge); }
 .dp-time i { display: block; height: 100%; width: 0; background: var(--dp-in); }
-.dp-scene { padding: 1rem .9rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); }
+/* the letter: a tile's paper with its inner brass rule, the dateline in small capitals */
+.dp-scene { flex: none; padding: 1rem 1rem .95rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); outline: 1px solid var(--brass); outline-offset: -5px; }
 .dp-pic { margin: 0 0 .7rem; display: grid; gap: .25rem; justify-items: center; }
 .dp-pic[hidden] { display: none; }
-.dp-pic img { width: 100%; height: 9.5rem; object-fit: contain; background: var(--tile); border-radius: 3px; }
+.dp-pic img { width: 100%; height: 7.5rem; object-fit: contain; background: var(--sheet); border-radius: 3px; }
 .dp-pic small { font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
-.dp-place { margin: 0; font-size: .86rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.dp-place { margin: 0; font-size: .86rem; letter-spacing: .12em; text-transform: uppercase; color: var(--c3); font-weight: 700; }
 .dp-who { margin: .35rem 0 .5rem; font-size: 1.45rem; line-height: 1.15; letter-spacing: .04em; color: var(--ink); }
 .dp-flag { display: inline-block; width: 1.5rem; height: 1.125rem; margin-right: .5rem; vertical-align: -.2rem; border: 1px solid var(--brass); box-sizing: content-box; line-height: 0; }
 .dp-flag svg { width: 100%; height: 100%; display: block; }
 .dp-nat { margin: -.3rem 0 .55rem; font-size: .88rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
-.dp-said { margin: 0 0 .8rem; font-size: 1.1rem; line-height: 1.35; }
+.dp-said { margin: 0 0 .8rem; padding-left: .7rem; border-left: 2px solid var(--brass); font-size: 1.12rem; line-height: 1.35; }
 .dp-why { margin: 0; font-size: .9rem; line-height: 1.4; color: var(--ink-soft); }
 
 /* the notes */
 .dp-help { margin: 0 0 .6rem; font-size: .88rem; line-height: 1.35; color: var(--ink-soft); }
 .dp-note { margin: 0 0 .6rem; padding: .5rem .6rem .6rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); }
-.dp-note h3 { margin: 0 0 .35rem; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
+.dp-note h3 { display: flex; align-items: center; margin: 0 0 .35rem; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
 .dp-row { display: grid; grid-template-columns: 3.3rem minmax(0, 1fr); gap: .5rem; align-items: center; margin-top: .3rem; }
 .dp-row > span { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .dp-slot { display: block; width: 100%; padding: .4rem .55rem; text-align: left; font: inherit; font-size: .95rem; line-height: 1.25; color: var(--ink); background: transparent; border: 1px solid var(--tile-edge); border-radius: 3px; cursor: pointer; }

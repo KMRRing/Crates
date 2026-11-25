@@ -254,6 +254,35 @@ export const MEETINGS = [
 ];
 
 for (const table of [PIC, PERSON, ALT]) for (const k of Object.keys(table)) if (!MEETINGS.some(x => x.id === k || (table === PERSON && x.pid === k))) throw new Error(`dispatch-bank: ${k} is no meeting`);
+// Where each place is, [latitude, longitude], for the chart the page draws as you read (dispatch-map.js): the town, or for a coast,
+// an island, a strait or a region the spot the meeting is tied to (Cabot's landfall, Tasman's anchorage, Barentsz's winter).
+export const PLACES = {
+  "Pisa": [43.72, 10.40], "Constantinople": [41.01, 28.98], "Rimini": [44.06, 12.57], "Genoa": [44.41, 8.93], "Fez": [34.03, -5.00],
+  "Visby": [57.64, 18.30], "Prato": [43.88, 11.10], "Kalmar": [56.66, 16.36], "Nanjing": [32.06, 118.80], "Helsingør": [56.04, 12.61],
+  "Florence": [43.77, 11.26], "Sagres": [37.01, -8.94], "Mainz": [50.00, 8.27], "Milan": [45.46, 9.19], "Santa Fe": [37.19, -3.72],
+  "Lisbon": [38.72, -9.14], "Novgorod": [58.52, 31.28], "Venice": [45.44, 12.33], "Calicut": [11.25, 75.78], "Newfoundland": [48.65, -53.4],
+  "Porto Seguro": [-16.45, -39.06], "Saint-Dié": [48.28, 6.95], "Goa": [15.50, 73.83], "Isthmus of Panama": [8.9, -79.0],
+  "San Casciano": [43.66, 11.19], "Basel": [47.56, 7.59], "Augsburg": [48.37, 10.90], "Sanlúcar de Barrameda": [36.78, -6.35],
+  "Tenochtitlan": [19.43, -99.13], "Worms": [49.63, 8.36], "Stockholm": [59.33, 18.07], "Cajamarca": [-7.16, -78.51], "Lübeck": [53.87, 10.69],
+  "London": [51.51, -0.13], "Gaspé": [48.83, -64.48], "Frombork": [54.36, 19.68], "Kagoshima": [31.60, 130.56], "Brussels": [50.85, 4.35],
+  "Duisburg": [51.43, 6.76], "Antwerp": [51.22, 4.40], "Hven": [55.91, 12.70], "Plymouth": [50.38, -4.14], "The Hague": [52.08, 4.30],
+  "El Escorial": [40.59, -4.15], "Banten": [-6.03, 106.15], "Novaya Zemlya": [75.5, 62.0], "Bungo": [33.24, 131.61], "Beijing": [39.90, 116.40],
+  "Cape York": [-10.69, 142.53], "Prague": [50.08, 14.42], "Hudson River": [41.5, -73.95], "Leiden": [52.16, 4.49], "Edinburgh": [55.95, -3.19],
+  "Ajmer": [26.45, 74.64], "Batavia": [-6.13, 106.81], "Tasmania": [-42.5, 147.0], "Table Bay": [-33.9, 18.42], "Delft": [52.01, 4.36],
+  "Riga": [56.95, 24.11], "Kirina": [12.7, -8.1], "Maragha": [37.39, 46.24], "Shangdu": [42.36, 116.18], "Paris": [48.86, 2.35],
+  "Cairo": [30.04, 31.24], "Helsingborg": [56.05, 12.69], "Stralsund": [54.31, 13.09], "Bruges": [51.21, 3.22], "Samarkand": [39.65, 66.96],
+  "Axum": [14.12, 38.72], "Benin City": [6.34, 5.63], "Hanyang": [37.57, 126.98], "Naples": [40.85, 14.27], "Timbuktu": [16.77, -3.01],
+  "Gao": [16.27, -0.04], "Munich": [48.14, 11.58], "Mbanza Kongo": [-6.27, 14.25], "Malacca": [2.19, 102.25], "Gelibolu": [40.41, 26.67],
+  "Tabasco": [18.3, -92.7], "Cebu": [10.32, 123.89], "Mactan": [10.30, 123.97], "Panipat": [29.39, 76.97], "Agra": [27.18, 78.01],
+  "Fushimi": [34.94, 135.77], "Luanda": [-8.84, 13.23], "Fort Zeelandia": [23.00, 120.16], "Raigad": [18.23, 73.44], "Arbroath": [56.56, -2.58],
+  "Hamburg": [53.55, 9.99], "Barcelona": [41.39, 2.17], "Jamaica": [18.1, -77.3], "Wittenberg": [51.87, 12.65], "Wartburg": [50.97, 10.31],
+  "Padua": [45.41, 11.88], "Rome": [41.90, 12.50], "Linz": [48.31, 14.29], "Ulm": [48.40, 9.99], "Santa Maria delle Grazie": [45.47, 9.17],
+  "Grudziądz": [53.48, 18.75], "Olsztyn": [53.78, 20.49], "Deptford": [51.48, -0.03], "Tilbury": [51.46, 0.36], "Gravelines": [50.99, 2.13],
+  "Tomar": [39.60, -8.41], "Frankfurt": [50.11, 8.68], "Bologna": [44.49, 11.34], "Fuggerei": [48.37, 10.91], "Leuven": [50.88, 4.70],
+  "Herrevad Abbey": [56.09, 13.24], "Tangier": [35.77, -5.80], "Mali": [12.0, -7.5], "Cochin": [9.97, 76.27], "Banda": [-4.53, 129.90],
+  "Strait of Magellan": [-53.5, -70.5], "Guînes": [50.84, 1.87], "Westminster": [51.50, -0.13], "Ceuta": [35.89, -5.32], "Stadacona": [46.81, -71.21],
+  "Dadu": [39.92, 116.39], "Fatehpur Sikri": [27.09, 77.66]
+};
 export const REGIONS = [...new Set(MEETINGS.map(x => x.region))];
 export const meetingOf = id => MEETINGS.find(x => x.id === id) || null;
 /** Every meeting of one person, in the order of their years. */

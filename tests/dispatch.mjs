@@ -24,6 +24,9 @@ check(MEETINGS.every(x => !x.what.includes(x.who.split(" ")[0]) || x.who.split("
 check(MEETINGS.every(x => [1, 2, 3].includes(x.fame)) && MEETINGS.filter(x => x.fame === 1).length >= 20 && MEETINGS.filter(x => x.fame === 3).length >= 20, "every meeting has a fame, with at least twenty of the best known and twenty of the least");
 check(["africa", "asia", "americas"].every(r => MEETINGS.filter(x => x.region === r).length >= 5), "the wider world has five meetings or more in each region");
 check(REGIONS.length >= 8, "regions are tagged for confusion at the hard level");
+// 25 Nov 2026 (Korbi: "dispatch is ugly, needs more visuals"): the chart pins every place, so every place has its spot
+const { PLACES } = await import("../dispatch-bank.js");
+check(MEETINGS.every(x => { const p = PLACES[x.place]; return p && Math.abs(p[0]) <= 80 && Math.abs(p[1]) <= 180; }) && Object.keys(PLACES).every(p => MEETINGS.some(x => x.place === p)), `every place has its latitude and longitude for the chart, and the chart no place that isn't met (${Object.keys(PLACES).length})`);
 
 // ---- dealing
 for (const level of LEVEL_IDS) {
