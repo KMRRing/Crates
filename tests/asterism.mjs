@@ -182,6 +182,16 @@ const made = [];
   check(fits && smallest >= 20, `at rest the pane fits its box and the smallest cell is ${smallest.toFixed(1)} px on a 350×420 phone box (10×10)`);
   const R = poseMatrix(REST.yaw, REST.pitch), f = fitScale(8, W, H, 8), out = (u, v) => { const [sx, sy] = project(R, 8, f, W / 2, H / 2 + 2, u - 4, v - 4, 0.15); return pickCell(R, 8, f, W / 2, H / 2 + 2, sx, sy); };
   check(out(-0.2, 3.5) === 24 && out(7.9, 8.2) === 63 && out(-1, 3) === -1 && out(4, 9) === -1, "a touch just past the pane's edge picks its edge cell (a third of a cell of slack), a far one nothing");
+  // a ball turns freely (25 Nov 2026, Korbi: no axis may restrict it): each drag turns it about the screen's own axes, so sixty drags
+  // upward carry it over its poles as one turn about the screen's level, and its pose stays a true turn after thousands of small ones
+  const { mul, turnBy, spin, trued, quatOf, fromQuat, slerp } = await import("../asterism-space.js");
+  const B0 = poseMatrix(0.7, 0.55), T = m => [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]], off = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
+  let U = B0;
+  for (let i = 0; i < 60; i++) U = trued(mul(turnBy(0, 0.06), U));
+  let B = B0;
+  for (let i = 0; i < 5000; i++) B = trued(mul(i % 7 ? turnBy(Math.sin(i) * 0.05, Math.cos(i * 1.3) * 0.05) : spin(0.03), B));
+  check(off(mul(U, T(B0)), poseMatrix(0, 3.6)) < 1e-9 && off(mul(B, T(B)), [1, 0, 0, 0, 1, 0, 0, 0, 1]) < 1e-9 && off(fromQuat(quatOf(B)), B) < 1e-9 && off(fromQuat(slerp(quatOf(B0), quatOf(B), 1)), B) < 1e-9,
+    "a ball turns freely: drags upward carry it over its poles, its pose stays a true turn, and it glides home by the short way");
 }
 
 // ---------- the pages ----------

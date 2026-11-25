@@ -6,7 +6,10 @@
 // the perspective inside it is below a pixel), the rest is paths and a few pre-drawn glow sprites.
 //
 // The page turns the pane like a turntable, tilted back (drag, twist), a flick spins on a moment and stops, and the pane
-// stays where it was left (4 November 2026, Korbi: the ease-back to rest was annoying); `resetView` is the way home. A tap
+// stays where it was left (4 November 2026, Korbi: the ease-back to rest was annoying); `resetView` is the way home. A ball
+// turns freely instead, as one in the hand: each drag turns it about the screen's own axes, so it has no pole to stop at and
+// no axis it keeps (25 November 2026, Korbi: "the user should be able to turn it freely but it feels like there's an axis that
+// restricts user movement"). A tap
 // picks through the same projection run backwards (`pickCell`), with the slack of a third of a cell round the pane. The
 // page asks it what it asks the flat view: what to show (set), which cell is under a finger (cellAt), where a cell is
 // (where), and where a finger is on the board (boardPoint, for the dotting stroke).
@@ -22,8 +25,8 @@ import { SKY as DARK } from "./asterism-solid.js";      // a ball's cells in no 
 export const REST = { yaw: -0.14, pitch: 0.42 };
 /** How far a finger may turn it. */
 export const LIMITS = { yaw: 0.95, lo: 0.0, hi: 1.12 };
-/** A ball turns all the way round, and over its poles (almost). */
-export const SOLID = { rest: { yaw: 0.7, pitch: 0.55 }, lo: -1.45, hi: 1.45 };
+/** A ball's opening pose, when nothing better is found. */
+export const SOLID = { rest: { yaw: 0.7, pitch: 0.55 } };
 export const ZOOM = [0.45, 1.8];                       // how much further off and nearer a pinch can take the board
 const DIST = 2.9;                      // the eye's distance from the pane's middle, in pane widths: a gentle perspective
 const LIFT = 0.3;                      // how far a star hovers over the glass, in cells
@@ -34,6 +37,34 @@ export function poseMatrix(yaw, pitch) {
   const cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
   // Ry(yaw) · Rx(pitch), with Rx: y' = y·cp − z·sp, z' = y·sp + z·cp
   return [cy, sy * sp, sy * cp, 0, cp, -sp, -sy, cy * sp, cy * cp];
+}
+/** a·b, for 3×3 turns row by row. */
+export const mul = (a, b) => [0, 1, 2].flatMap(r => [0, 1, 2].map(c => a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]));
+/** A turn about the eye's own axes: `h` about its upright (as a drag across turns a ball), then `v` about its level (a drag up or down). */
+export const turnBy = (h, v) => mul(poseMatrix(h, 0), poseMatrix(0, v));
+/** A turn in the screen's plane, clockwise by `a` (y runs down). */
+export const spin = a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; };
+/** A turn made true again (many small ones let rounding creep in): its rows made unit length and square to each other. */
+export function trued(m) {
+  const n = v => { const l = Math.hypot(...v); return v.map(x => x / l); }, dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const x = n(m.slice(0, 3)), y0 = m.slice(3, 6), y = n(y0.map((v, i) => v - dot(y0, x) * x[i]));
+  return [...x, ...y, x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]];
+}
+/** A turn as a quaternion [x, y, z, w], and back; and the turn part way from one to another the short way round. */
+export function quatOf(m) {
+  const [a, b, c, d, e, f, g, h, i] = m, t = a + e + i;
+  if (t > 0) { const s = Math.sqrt(t + 1) * 2; return [(h - f) / s, (c - g) / s, (d - b) / s, s / 4]; }
+  if (a > e && a > i) { const s = Math.sqrt(1 + a - e - i) * 2; return [s / 4, (b + d) / s, (c + g) / s, (h - f) / s]; }
+  if (e > i) { const s = Math.sqrt(1 + e - a - i) * 2; return [(b + d) / s, s / 4, (f + h) / s, (c - g) / s]; }
+  const s = Math.sqrt(1 + i - a - e) * 2; return [(c + g) / s, (f + h) / s, s / 4, (d - b) / s];
+}
+export const fromQuat = ([x, y, z, w]) => [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w), 2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w), 2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)];
+export function slerp(p, q, t) {
+  let d = p[0] * q[0] + p[1] * q[1] + p[2] * q[2] + p[3] * q[3];
+  if (d < 0) { q = q.map(v => -v); d = -d; }
+  const [u, v] = d > 0.9995 ? [1 - t, t] : (() => { const th = Math.acos(d), s = Math.sin(th); return [Math.sin((1 - t) * th) / s, Math.sin(t * th) / s]; })();
+  const r = p.map((x, i) => u * x + v * q[i]), l = Math.hypot(...r);
+  return r.map(x => x / l);
 }
 /** A point of the pane (cells from its middle; z toward you) to the screen: [x, y, px per cell there]. */
 export function project(R, N, f, cx, cy, x, y, z) {
@@ -107,6 +138,7 @@ export function createSpace(host, hooks = {}) {
   let zoom = 1;                                          // a pinch or the wheel: nearer (above 1) or further off (below)
   const moves = [];                                      // the last moves of a drag [t, dyaw, dpitch], for a flick
   let R = poseMatrix(yaw, pitch);                        // the pose last drawn (a tap is picked with it)
+  let ball = null, restBall = null;                      // a ball's own pose (yaw and pitch then only count how far it has turned, for the sky)
   let VX = new Float32Array(0), VY = new Float32Array(0);
   let tex = null, edges = [], groupsDone = null, regionOf = null;
   let born = null, gone = null, dust = null;             // per cell: when its star ignited / went out / its dot appeared
@@ -259,6 +291,7 @@ export function createSpace(host, hooks = {}) {
       born = new Float64Array(cellsN).fill(-1e9); gone = new Float64Array(cellsN).fill(-1e9); dust = new Float64Array(cellsN).fill(-1e9);
       sweeps = []; winAt = S.done ? -1e9 : null; lastPlaced = -1;
       yaw = rest.yaw; pitch = rest.pitch; vyaw = vpitch = 0; homing = null;
+      ball = restBall = mesh?.closed ? poseMatrix(rest.yaw, rest.pitch) : null;
       fit();
       if (!mesh) buildNebula();
       groupsDone = completeGroups(S.marks, opts.bad);
@@ -302,13 +335,14 @@ export function createSpace(host, hooks = {}) {
 
   // ---------- turning ----------
   const clampPose = () => {
-    if (mesh?.closed) { yaw = ((yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; pitch = Math.max(SOLID.lo, Math.min(SOLID.hi, pitch)); return; }
+    if (ball) return;
     yaw = Math.max(-LIMITS.yaw, Math.min(LIMITS.yaw, yaw)); pitch = Math.max(LIMITS.lo, Math.min(LIMITS.hi, pitch));
   };
   function grab() { grabbed = true; vyaw = vpitch = 0; homing = null; moves.length = 0; touchedAt = performance.now(); wake(); }
   function drag(dx, dy) {
     const now = performance.now(), ky = 0.0062, kp = 0.0058;
     yaw += dx * ky; pitch -= dy * kp; clampPose();
+    if (ball) ball = trued(mul(turnBy(dx * ky, -dy * kp), ball));
     moves.push([now, dx * ky, -dy * kp]);
     while (moves.length && now - moves[0][0] > 90) moves.shift();
     touchedAt = now; wake();
@@ -316,7 +350,7 @@ export function createSpace(host, hooks = {}) {
   /** Nearer or further off by a factor (a pinch, the wheel), within ZOOM. */
   function zoomBy(r) { const z = Math.max(ZOOM[0], Math.min(ZOOM[1], zoom * r)); if (z !== zoom) { zoom = z; fit(); touchedAt = performance.now(); wake(); } }
   /** Two fingers twisting: the pane turns about the vertical by the angle (radians, clockwise on the screen is positive). */
-  function twist(a) { yaw += a * 0.9; clampPose(); touchedAt = performance.now(); wake(); }
+  function twist(a) { if (ball) ball = trued(mul(spin(a), ball)); else { yaw += a * 0.9; clampPose(); } touchedAt = performance.now(); wake(); }
   function release() {
     if (!grabbed) return;
     grabbed = false;
@@ -332,7 +366,7 @@ export function createSpace(host, hooks = {}) {
   /** Back to the opening pose (the menu's Reset view): a short glide, at once for reduced motion. */
   function resetView() {
     vyaw = vpitch = 0; zoom = 1; fit();
-    if (still()) { yaw = rest.yaw; pitch = rest.pitch; homing = null; } else { clampPose(); homing = { t0: performance.now(), y0: yaw, p0: pitch }; }
+    if (still()) { yaw = rest.yaw; pitch = rest.pitch; ball &&= restBall; homing = null; } else { clampPose(); homing = { t0: performance.now(), y0: yaw, p0: pitch, q0: ball && quatOf(ball) }; }
     wake();
   }
   const HOME_MS = 380;
@@ -341,11 +375,13 @@ export function createSpace(host, hooks = {}) {
     if (homing) {
       const t = Math.min(1, (now - homing.t0) / HOME_MS), e = 1 - (1 - t) ** 3;
       yaw = homing.y0 + (rest.yaw - homing.y0) * e; pitch = homing.p0 + (rest.pitch - homing.p0) * e;
+      if (ball) ball = t >= 1 ? restBall : fromQuat(slerp(homing.q0, quatOf(restBall), e));
       if (t >= 1) homing = null;
       return;
     }
     if (Math.abs(vyaw) > 1e-5 || Math.abs(vpitch) > 1e-5) {
       yaw += vyaw * dt; pitch += vpitch * dt;
+      if (ball) ball = trued(mul(turnBy(vyaw * dt, vpitch * dt), ball));
       const k = Math.exp(-dt / 280); vyaw *= k; vpitch *= k;
       clampPose();
       if (Math.abs(vyaw) < 4e-5 && Math.abs(vpitch) < 4e-5) vyaw = vpitch = 0;
@@ -407,7 +443,7 @@ export function createSpace(host, hooks = {}) {
   function facing() {
     let best = SOLID.rest, most = -1;
     for (let i = 0; i < 48; i++) for (let j = -6; j <= 6; j++) {
-      const yw = i * Math.PI / 24, pt = j * SOLID.hi / 7, R = poseMatrix(yw, pt);
+      const yw = i * Math.PI / 24, pt = j * 1.45 / 7, R = poseMatrix(yw, pt);
       let seen = 0;
       mesh.cells.forEach((c, x) => { if (P.reg[x] !== DARK) { const z = R[6] * c.c[0] + R[7] * c.c[1] + R[8] * c.c[2]; if (z > 0.3) seen += z; } });
       if (seen > most) { most = seen; best = { yaw: yw, pitch: pt }; }
@@ -632,7 +668,7 @@ export function createSpace(host, hooks = {}) {
     const win = winAt != null, wage = win ? (calm ? 1e9 : now - winAt) : 0, wb = win ? easeIO(Math.min(1, wage / 3200)) : 0;   // wb: the end's slow brightening, 0 to 1
     const fy = calm ? 0 : Math.sin(now / 2300) * 0.016 + (win ? Math.sin(now / 5200) * 0.05 : 0), fp = calm ? 0 : Math.sin(now / 1900 + 1) * 0.011;
     const yw = yaw + fy, pt = pitch + fp;
-    R = poseMatrix(yw, pt);
+    R = ball ? mul(poseMatrix(fy, fp), ball) : poseMatrix(yw, pt);
     if (mesh) { frameMesh(now, calm, win, wage, wb, yw, pt); return; }
     const d = DIST * N, half = N / 2, M = N + 1;
     for (let r = 0; r <= N; r++) for (let c = 0; c <= N; c++) {
