@@ -1,6 +1,6 @@
 // Settle's sounds, made as they play with Web Audio, no files, so they are there offline. A foundry's (Korbi, 23 Nov 2026: "change
 // the sounds so they're more appropriate with the theme"):
-//   the hearth: the furnace drawing, a deep roar that swells as the bellows breathe, coals ticking and now and then a log settling;
+//   the hearth: embers crackling quietly over a barely-there warm bed, calm, no roar and no bellows (Korbi, 25 Nov 2026);
 //   pick and lift: iron tongs closing on a clay crucible, a short clink and the clay's knock;
 //   pour: molten metal running, a soft rush with a sizzle of oxide through it (not water's gurgle), heavier and lower for heavier
 //   metal, as long as the pour, and the thick plop where it lands;
@@ -125,28 +125,27 @@ export const SOUNDS = {
   },
 };
 
-/** The hearth: the furnace drawing (on while a level is open and the page is in view), the bellows swelling it every few seconds,
- *  the coals ticking, and now and then a settling thump. */
+/** The hearth (on while a level is open and the page is in view). Korbi, 25 Nov 2026: "make it an ambient crackling, not the weird
+ *  wooshing. very quiet and calm, not a wild fire" - so no bellows and no roar: a barely-there warm bed, and over it embers
+ *  crackling at uneven moments, mostly single dry ticks, sometimes a little run of them, rarely a soft pop. */
 function setHearth(want) {
   const c = want ? audio() : ctx;
   if (!c) return;
   if (want && !hearth) {
-    const src = c.createBufferSource(), lo = c.createBiquadFilter(), g = c.createGain(), breath = c.createGain();
+    const src = c.createBufferSource(), lo = c.createBiquadFilter(), g = c.createGain();
     src.buffer = noise(c); src.loop = true;
-    lo.type = "lowpass"; lo.frequency.value = 160; lo.Q.value = 0.7;
-    g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(0.07, c.currentTime + 1.5);
-    breath.gain.value = 1;
-    src.connect(lo).connect(breath).connect(g).connect(master); src.start();
-    let beat = 0;
+    lo.type = "lowpass"; lo.frequency.value = 140; lo.Q.value = 0.5;
+    g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(0.012, c.currentTime + 2.5);
+    src.connect(lo).connect(g).connect(master); src.start();
+    const crackle = (t, level) => burst(c, t, { freq: 1100 + Math.random() * 2400, q: 3, gain: level * (0.5 + Math.random()),
+      dur: 0.008 + Math.random() * 0.014, attack: 0.001, sweep: 0.6 });
     const tick = setInterval(() => {
-      const now = c.currentTime;
-      if (Math.random() < 0.5) burst(c, now + Math.random() * 0.2, { freq: 1800 + Math.random() * 2600, q: 5, gain: 0.025 + Math.random() * 0.035, dur: 0.02, attack: 0.001 });
-      if (++beat % 14 === 0) {                                                                       // the bellows: the roar swells and the draught brightens
-        breath.gain.setTargetAtTime(1.9, now, 0.35); breath.gain.setTargetAtTime(1, now + 1.1, 0.6);
-        lo.frequency.setTargetAtTime(320, now, 0.35); lo.frequency.setTargetAtTime(160, now + 1.1, 0.6);
-      }
-      if (Math.random() < 0.02) tone(c, now, { freq: 70, gain: 0.12, dur: 0.3, drop: 0.7, type: "triangle" });   // a coal settling
-    }, 250);
+      const now = c.currentTime, roll = Math.random();
+      if (roll < 0.22) crackle(now + Math.random() * 0.18, 0.012);                                    // a single ember ticking
+      else if (roll < 0.27) for (let i = 0, n = 2 + Math.floor(Math.random() * 3); i < n; i++)       // a little run of them
+        crackle(now + i * (0.03 + Math.random() * 0.05), 0.014);
+      else if (roll < 0.285) burst(c, now, { freq: 420, q: 1.2, gain: 0.02, dur: 0.06, attack: 0.002, sweep: 0.5 });   // a soft pop
+    }, 180);
     hearth = { src, g, tick };
   } else if (!want && hearth) {
     const h = hearth; hearth = null;
