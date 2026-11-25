@@ -1,19 +1,21 @@
 // Settle's foundry in 3D, drawn with three.js (vendor/three.js, kept on the device, so it works offline). Rebuilt twice on 23 November
-// 2026 (Korbi: "the 3D view needs to be rebuilt and beautiful and topical", then "3d settle: not pretty enough"): a furnace mouth in
-// a brick wall, its fire moving behind a stone hearth, and on the hearth a row of graphite crucibles turned on a lathe, glowing red
-// at the foot where the coals touch them, each cut away at the front as the old smelting books drew them (the cut hatched, as an
-// engraver's section is) so the molten metal shows in layers by weight, each in its own colour with its sign, its surface bright.
-// The fire lights the crucibles' edges from behind; embers drift up. A pour lifts the crucible over the one it pours into and tips it;
-// a bright stream falls; what is heavier sinks through what is lighter. A cast flares white-gold, throws sparks and drains away. The
-// same scene as the 2D view (settle-draw.js), handed over each frame by the page. Throws where there is no WebGL (the page then keeps
-// the 2D foundry).
-// Frame cost: a few dozen meshes, three lights and one shadow map, one instanced mesh for sparks, drops and embers, pixel ratio at most
-// 2; nothing is made per frame (the stream's rings are moved, the fire's texture scrolled).
+// 2026 (Korbi: "the 3D view needs to be rebuilt and beautiful and topical", then "3d settle: not pretty enough"), its fire again on
+// 25 November ("crucible is still ugly. especially the fire."): a furnace mouth in a brick wall, behind it a firebox of black firebrick
+// with a bed of coals glowing through their cracks and sheets of flame rising off them, one behind another; before it a stone hearth
+// and on it a row of graphite crucibles turned on a lathe, glowing red at the foot where the coals touch them, each cut away at the
+// front as the old smelting books drew them (the cut hatched, as an engraver's section is) so the molten metal shows in layers by
+// weight, each in its own colour with its sign, its surface glinting with the fire. The fire lights the crucibles' edges from behind;
+// embers drift up the throat. A pour lifts the crucible over the one it pours into and tips it; a bright stream falls; what is heavier
+// sinks through what is lighter. A cast flares white-gold, throws sparks and drains away. The same scene as the 2D view
+// (settle-draw.js), handed over each frame by the page. Throws where there is no WebGL (the page then keeps the 2D foundry).
+// Frame cost: a few dozen meshes, three lights and one shadow map, one instanced mesh each for the coals and for sparks, drops and
+// embers, pixel ratio at most 2; the flames are three quads whose shader samples one noise texture four times. Nothing is made per
+// frame (the stream's rings are moved; the fire's shaders read a clock).
 import * as THREE from "./vendor/three.js";
 import { CanvasTexture } from "./vendor/three-tex.js";
 import { METALS } from "./settle-alloys.js";
 
-const DOUBLE = 2, ADD = 2, REPEAT = 1000;                     // THREE.DoubleSide, AdditiveBlending, RepeatWrapping (not in the bundle's exports)
+const BACK = 1, DOUBLE = 2, ADD = 2, REPEAT = 1000;           // THREE.BackSide, DoubleSide, AdditiveBlending, RepeatWrapping (not in the bundle's exports)
 const R = 0.5, SLAB = 0.52, BASE = 0.2, GAP = 0.34;           // a crucible's inner radius, a measure's height, its foot, the room between
 const CUT = Math.PI * 0.62;                                   // how much of the front is cut away
 const WALL = 0.16;                                            // the crucible's wall at its belly
@@ -59,30 +61,38 @@ const heat = () => drawn(4, 256, (c, w, h) => {
 });
 /** An engraver's section: the cut clay pale and hatched across. */
 const hatch = () => drawn(64, 64, (c, w, h) => {
-  c.fillStyle = "#cdb48c"; c.fillRect(0, 0, w, h);
-  c.strokeStyle = "rgba(92,58,32,.75)"; c.lineWidth = 3;
+  c.fillStyle = "#94704f"; c.fillRect(0, 0, w, h);
+  c.strokeStyle = "rgba(52,30,16,.7)"; c.lineWidth = 2.5;
   for (let k = -h; k < w + h; k += 12) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k - h, h); c.stroke(); }
 });
-/** The fire behind the furnace mouth: white-yellow at the grate, through orange to a dark red throat. */
-const fireBack = () => drawn(64, 256, (c, w, h) => {
-  const g = c.createLinearGradient(0, h, 0, 0);
-  g.addColorStop(0, "#f0a040"); g.addColorStop(0.2, "#c8460e"); g.addColorStop(0.5, "#6e1a06"); g.addColorStop(0.8, "#2a0803"); g.addColorStop(1, "#120402");
-  c.fillStyle = g; c.fillRect(0, 0, w, h);
-});
-/** Tongues of flame, tiled up and down so they can climb without a seam. */
-const flames = () => drawn(256, 256, (c, w, h) => {
-  c.fillStyle = "#000"; c.fillRect(0, 0, w, h);
-  c.globalCompositeOperation = "lighter";
-  for (let k = 0; k < 90; k++) {
-    const x = rnd() * w, y = rnd() * h, rx = 6 + rnd() * 14, ry = 22 + rnd() * 46, a = 0.12 + rnd() * 0.22;
-    for (const dy of [-h, 0, h]) for (const dx of [-w, 0, w]) {
-      const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, ry);
-      g.addColorStop(0, `rgba(255,170,70,${a})`); g.addColorStop(0.5, `rgba(230,80,20,${a * 0.5})`); g.addColorStop(1, "rgba(0,0,0,0)");
-      c.save(); c.translate(x + dx, y + dy); c.scale(rx / ry, 1); c.translate(-x - dx, -y - dy);
-      c.fillStyle = g; c.beginPath(); c.arc(x + dx, y + dy, ry, 0, Math.PI * 2); c.fill(); c.restore();
+/** Three tileable clouds of noise, one in each channel (five octaves of smoothed lattice noise each), which the fire's shaders sample
+ *  and scroll: far cheaper on a phone than noise worked out for every pixel. Data, not colour; no alpha (the canvas would premultiply). */
+const noise = () => {
+  const S = 256, c = document.createElement("canvas"), ctx = c.getContext("2d");
+  c.width = c.height = S;
+  const img = ctx.createImageData(S, S), out = new Float32Array(S * S), fade = t => t * t * (3 - 2 * t);
+  for (let ch = 0; ch < 3; ch++) {
+    out.fill(0);
+    for (let o = 0, cells = 4, amp = 1; o < 5; o++, cells *= 2, amp *= 0.5) {
+      const lat = Float32Array.from({ length: cells * cells }, rnd), cs = S / cells;
+      for (let y = 0; y < S; y++) {
+        const gy = y / cs, y0 = Math.floor(gy), sy = fade(gy - y0), r0 = (y0 % cells) * cells, r1 = ((y0 + 1) % cells) * cells;
+        for (let x = 0; x < S; x++) {
+          const gx = x / cs, x0 = Math.floor(gx), sx = fade(gx - x0), c0 = x0 % cells, c1 = (x0 + 1) % cells;
+          const a = lat[r0 + c0] + (lat[r0 + c1] - lat[r0 + c0]) * sx, b = lat[r1 + c0] + (lat[r1 + c1] - lat[r1 + c0]) * sx;
+          out[y * S + x] += (a + (b - a) * sy) * amp;
+        }
+      }
     }
+    let lo = Infinity, hi = -Infinity;
+    for (const v of out) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    for (let k = 0; k < S * S; k++) { img.data[k * 4 + ch] = (out[k] - lo) / (hi - lo) * 255; img.data[k * 4 + 3] = 255; }
   }
-});
+  ctx.putImageData(img, 0, 0);
+  const t = new CanvasTexture(c);
+  t.wrapS = t.wrapT = REPEAT;
+  return t;
+};
 const glowTex = () => drawn(128, 128, (c, w) => { const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,.45)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, w, w); });
 /** A metal's sign, stamped on a clear ground, for the cut face of each layer. */
 const signTex = m => drawn(128, 128, (c, w) => {
@@ -128,13 +138,14 @@ const potOf = tall => [
   [R + 0.004, tall - 0.04], [R + 0.004, BASE + 0.03], [R - 0.07, BASE], [0, BASE],
 ];
 const POT_OUT = 7;
-/** An arch: a rectangle `w` wide with a round head, its springing at `spring`; as a path, for a shape or a hole. */
-function arch(path, w, spring, cw = true) {
-  path.moveTo(-w / 2, 0); path.lineTo(-w / 2, spring);
+/** An arch: a rectangle `w` wide from `foot` up, with a round head, its springing at `spring`; as a path, for a shape or a hole. */
+function arch(path, w, spring, cw = true, foot = 0) {
+  path.moveTo(-w / 2, foot); path.lineTo(-w / 2, spring);
   path.absarc(0, spring, w / 2, Math.PI, 0, cw);
-  path.lineTo(w / 2, 0); path.lineTo(-w / 2, 0);
+  path.lineTo(w / 2, foot); path.lineTo(-w / 2, foot);
   return path;
 }
+const SILL = 0.3, DEEP = 1.5, MOUTH = -2.1;                   // the firebox's floor above the hearth, its depth, the wall's face
 
 export function createFoundry(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "low-power" });
@@ -190,8 +201,53 @@ export function createFoundry(host) {
   const std = o => new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0, ...o });
   const glow = glowTex();
   const wrap = (t, x, y) => { t.wrapS = t.wrapT = REPEAT; t.repeat.set(x, y); return t; };
-  const brickTex = wrap(bricks(), 60 / 2.6, 40 / 1.3), stoneTex = wrap(stone(), 1, 1), clayTex = wrap(graphite(), 3, 2), heatTex = heat(), hatchTex = wrap(hatch(), 7, 7);
-  const fireTex = fireBack(), flameTex = wrap(flames(), 1, 1);
+  const brickTex = wrap(bricks(), 1 / 2.6, 1 / 1.3), stoneTex = wrap(stone(), 1, 1), clayTex = wrap(graphite(), 3, 2), heatTex = heat(), hatchTex = wrap(hatch(), 7, 7);
+  // the fire: one noise texture and one clock for everything that burns (the flames, the coals, the firebox's glow)
+  const FIRE = { uTime: { value: 0 }, uFlick: { value: 1 }, uNoise: { value: noise() }, uSill: { value: SILL } };
+  /** A standard material that glows as well by `glsl`, which adds to totalEmissiveRadiance knowing vStW, its point in the world (after
+   *  whatever the material did to its shader already, as envify's reflections). */
+  function burning(mat, key, glsl) {
+    const before = mat.onBeforeCompile.bind(mat), keyBefore = mat.customProgramCacheKey.bind(mat);
+    mat.customProgramCacheKey = () => keyBefore() + key;
+    mat.onBeforeCompile = sh => {
+      before(sh);
+      Object.assign(sh.uniforms, FIRE);
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vStW;").replace("#include <project_vertex>", `#include <project_vertex>
+        vec4 stP = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          stP = instanceMatrix * stP;
+        #endif
+        vStW = (modelMatrix * stP).xyz;`);
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTime, uFlick, uSill;\nuniform sampler2D uNoise;\nvarying vec3 vStW;")
+        .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${glsl}`);
+    };
+    return mat;
+  }
+  /** A sheet of flame: tongues rising off the coals, bent by slow noise and torn by fast, white-gold at the root through orange to a
+   *  dull red, gone before its top. Sheets further back are dimmer (`gain`); `seed` keeps them from moving as one. */
+  function flameSheet(seed, gain) {
+    const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: ADD });
+    const u = { uSeed: { value: seed }, uGain: { value: gain }, uSize: { value: new THREE.Vector2(1, 1) } };
+    mat.customProgramCacheKey = () => "stflame";
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, FIRE, u);
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vStUv;").replace("#include <uv_vertex>", "#include <uv_vertex>\nvStUv = uv;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTime, uFlick, uSeed, uGain;\nuniform vec2 uSize;\nuniform sampler2D uNoise;\nvarying vec2 vStUv;")
+        .replace("vec4 diffuseColor = vec4( diffuse, opacity );", `
+          vec2 uv = vStUv, p = uv * uSize;
+          float t = uTime;
+          vec2 bend = vec2(texture2D(uNoise, p * vec2(0.45, 0.28) + vec2(uSeed, -t * 0.14)).r, texture2D(uNoise, p * vec2(0.45, 0.28) + vec2(uSeed + 0.43, -t * 0.14)).g) - 0.5;
+          vec2 q = p + bend * vec2(0.55, 0.3) * (0.2 + uv.y);
+          float n = texture2D(uNoise, q * vec2(0.8, 0.38) + vec2(uSeed * 1.7, -t * 0.45)).b * 0.65 + texture2D(uNoise, q * vec2(1.9, 0.9) + vec2(uSeed * 2.3, -t * 0.8)).r * 0.45;
+          float f = n * 1.35 - uv.y * 1.15 + 0.1 * (1.0 - smoothstep(0.0, 0.3, uv.y)) - 0.12;
+          float i = smoothstep(0.0, 0.55, f) * smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x) * (0.85 + 0.15 * uFlick);
+          vec3 fire = mix(vec3(0.5, 0.04, 0.0), vec3(1.0, 0.3, 0.03), smoothstep(0.05, 0.35, i));
+          fire = mix(fire, vec3(1.0, 0.66, 0.2), smoothstep(0.35, 0.7, i));
+          fire = mix(fire, vec3(1.0, 0.93, 0.72), smoothstep(0.7, 1.0, i));
+          vec4 diffuseColor = vec4(fire * i * uGain, 1.0);`);
+    };
+    return { mat, u };
+  }
   const M = {
     brick: std({ map: brickTex, roughness: 0.95 }),
     stone: std({ map: stoneTex, roughness: 0.9, color: 0xb8a898 }),
@@ -201,8 +257,17 @@ export function createFoundry(host) {
     smoke: new THREE.MeshBasicMaterial({ map: glow, color: 0xdde4e8, transparent: true, depthWrite: false, opacity: 0.3 }),
     soot: std({ color: 0x1a1210, roughness: 0.95, side: DOUBLE, emissive: 0x5a1a06, emissiveIntensity: 0.25 }),
     cut: std({ map: hatchTex, roughness: 0.9, side: DOUBLE, emissive: 0x3a1a08, emissiveIntensity: 0.4 }),
-    fire: new THREE.MeshBasicMaterial({ map: fireTex }),
-    flame: new THREE.MeshBasicMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: ADD, opacity: 0.9 }),
+    // the firebox: old firebrick, black but where the coals light it from below
+    inside: burning(std({ map: wrap(bricks(), 1 / 2.6, 1 / 1.3), color: 0x8a6a58, roughness: 0.95, side: BACK }), "stinside", `
+      float lick = texture2D(uNoise, vec2(vStW.x * 0.25, vStW.y * 0.18 - uTime * 0.06)).r;
+      diffuseColor.rgb *= mix(1.0, 0.4, smoothstep(0.4, 2.6, vStW.y - uSill));          // soot, thicker up the throat
+      totalEmissiveRadiance += diffuseColor.rgb * vec3(2.6, 1.0, 0.32) * exp(-max(0.0, vStW.y - uSill) * 0.75) * (0.55 + 0.9 * lick) * uFlick;`),
+    // a coal: a dark lump, its crust cracked where the heat comes through, the cracks wandering
+    coal: burning(std({ color: 0x241a16, roughness: 0.9, flatShading: true }), "stcoal", `
+      float h1 = texture2D(uNoise, vStW.xz * 0.5 + vec2(uTime * 0.011, -uTime * 0.017)).r;
+      float h2 = texture2D(uNoise, vStW.xz * 1.7 + vStW.y * 0.9 + vec2(-uTime * 0.023, 0.0)).g;
+      float heat = smoothstep(0.42, 0.85, h1 * 0.55 + h2 * 0.55) * (0.7 + 0.3 * uFlick);
+      totalEmissiveRadiance += mix(vec3(0.45, 0.03, 0.0), vec3(2.2, 0.85, 0.18), heat) * (0.15 + heat * 1.4);`),
     coals: new THREE.MeshBasicMaterial({ map: glow, color: 0xff5a14, transparent: true, depthWrite: false, blending: ADD, opacity: 0.85 }),
     ring: new THREE.MeshBasicMaterial({ map: glow, color: 0xffd98a, transparent: true, depthWrite: false, blending: ADD, opacity: 0 }),
     spark: new THREE.MeshBasicMaterial({ map: glow, color: 0xffc070, transparent: true, depthWrite: false, blending: ADD }),
@@ -226,8 +291,8 @@ export function createFoundry(host) {
     }
     mat.color.set(k.base).lerp(white, hot * 0.8);
     mat.metalness = 0.75; mat.roughness = (top ? 0.22 : 0.28) - 0.08 * k.shine;
-    mat.emissive.set(top ? k.hi : k.base).lerp(ember, 0.1).lerp(gold, hot);
-    mat.emissiveIntensity = (HEAT[m] ?? 0.3) * (top ? 1.35 : 1) + hot * 2.2;
+    mat.emissive.set(k.base).lerp(ember, 0.1).lerp(gold, hot);        // the surface its metal's colour, not white: its shine is the light's
+    mat.emissiveIntensity = (HEAT[m] ?? 0.3) * (top ? 1.15 : 1) + hot * 2.2;
     mat.opacity = a; mat.transparent = a < 0.99; mat.depthWrite = a > 0.98;
   };
 
@@ -236,18 +301,20 @@ export function createFoundry(host) {
   const room = new THREE.Group();
   world.add(room);
   const quad = new THREE.BoxGeometry(1, 1, 0.001);          // (the bundle has no PlaneGeometry: a thin box serves)
-  // the wall, well past the view whatever its shape, with soot darkening it upward away from the fire
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(60, 40, 0.2), M.brick);
-  wall.position.set(0, 18, -2.2);
+  // the wall's face, well past the view whatever its shape, the furnace mouth cut through it (made with the furnace), with soot
+  // darkening it upward away from the fire
+  const wall = new THREE.Mesh(new THREE.BufferGeometry(), M.brick);
+  wall.position.z = MOUTH; wall.receiveShadow = true; wall.castShadow = true;       // the lamp does not light the firebox
   const soot = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, map: drawn(4, 256, (c, w, h) => { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(6,3,2,.96)"); g.addColorStop(0.6, "rgba(6,3,2,.6)"); g.addColorStop(1, "rgba(6,3,2,0)"); c.fillStyle = g; c.fillRect(0, 0, w, h); }) }));
   soot.position.z = -2.08;
-  // the hearth: a stone slab the crucibles stand on, its front edge catching the coals; the floor beyond it in shadow
-  const hearth = new THREE.Mesh(new THREE.BoxGeometry(1, 0.4, 2.6), M.stone);
+  // the hearth: a stone slab the crucibles stand on, from the furnace to its front edge catching the coals; the floor beyond it in shadow
+  const hearth = new THREE.Mesh(new THREE.BoxGeometry(1, 0.4, 3.5), M.stone);
   hearth.receiveShadow = true;
   const floor = new THREE.Mesh(new THREE.BoxGeometry(60, 0.3, 30), std({ color: 0x120b08, roughness: 1 }));
   floor.position.set(0, -0.55, 14);
   room.add(wall, soot, hearth, floor);
-  // the furnace: an arched mouth in the wall, a ring of stone round it, the fire inside with flames climbing it
+  // the furnace: an arched mouth in the wall, a ring of stone round it, and behind it a firebox of black firebrick, a bed of coals on its
+  // floor and sheets of flame rising off them, one behind another
   const furnace = new THREE.Group();
   room.add(furnace);
   const coals = [];
@@ -257,31 +324,58 @@ export function createFoundry(host) {
   }
   const wallGlow = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: glow, color: 0xff7a2a, transparent: true, depthWrite: false, blending: ADD, opacity: 0.3 }));
   room.add(wallGlow);
-  let archW = 0;
+  const firebox = new THREE.Mesh(new THREE.BufferGeometry(), M.inside);
+  firebox.position.z = MOUTH - DEEP; firebox.receiveShadow = true;
+  const coalBed = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), M.coal, 900);
+  coalBed.frustumCulled = false;
+  const sheets = [[0.85, 0.84, 0.32, 0.0], [0.5, 0.92, 0.48, 3.7], [0.12, 0.98, 0.66, 7.3]].map(([back, wide, gain, seed]) => {
+    const { mat, u } = flameSheet(seed, gain), m = new THREE.Mesh(quad, mat);
+    m.userData = { back, wide, u };
+    return m;
+  });
+  room.add(firebox, coalBed, ...sheets);
+  let archW = 0, crownY = 0;
   function buildFurnace(w, h) {
-    if (Math.abs(w - archW) < 0.05 && furnace.children.length) return;
-    archW = w;
-    for (const m of furnace.children) m.geometry.dispose();
+    if (Math.abs(w - archW) < 0.05 && Math.abs(h - crownY) < 0.05) return;
+    archW = w; crownY = h;
+    for (const m of [...furnace.children, wall, firebox]) m.geometry.dispose();
     furnace.clear();
-    const spring = Math.max(0.6, h - w / 2), shape = arch(new THREE.Shape(), w, spring);
-    const back = new THREE.Mesh(new THREE.ShapeGeometry(shape, 24), M.fire);
-    back.position.z = -2.0;
-    const front = new THREE.Mesh(new THREE.ShapeGeometry(shape, 24), M.flame);
-    front.position.z = -1.98;
-    // the stone ring: the arch a block wider all round, less the opening
+    const spring = Math.max(SILL + 0.6, h - w / 2), mouth = () => arch(new THREE.Path(), w, spring, true, SILL);
+    const face = new THREE.Shape([new THREE.Vector2(-30, -0.4), new THREE.Vector2(30, -0.4), new THREE.Vector2(30, 40), new THREE.Vector2(-30, 40)]);
+    face.holes.push(mouth());
+    wall.geometry = new THREE.ShapeGeometry(face, 24);
+    // the firebox is the mouth carried back into the wall and seen from inside: its sides, its roof, its back, its floor
+    firebox.geometry = new THREE.ExtrudeGeometry(arch(new THREE.Shape(), w, spring, true, SILL), { depth: DEEP, bevelEnabled: false, curveSegments: 24 });
+    // the stone ring: the arch a block wider all round, less the opening, its foot a sill under it
     const T = 0.36, ring = arch(new THREE.Shape(), w + 2 * T, spring);
-    ring.holes.push(arch(new THREE.Path(), w, spring, true));
+    ring.holes.push(mouth());
     const stoneRing = new THREE.Mesh(new THREE.ExtrudeGeometry(ring, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 28 }), M.archStone);
-    stoneRing.position.z = -2.1;
+    stoneRing.position.z = MOUTH;
     stoneRing.receiveShadow = true;
     // a keystone at the crown
     const keyStone = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.38), M.archStone);
-    keyStone.position.set(0, spring + w / 2 + T / 2, -1.92);
-    furnace.add(back, front, stoneRing, keyStone);
-    // the fire's textures in the shape's own units: its foot to its crown
-    for (const t of [fireTex]) { t.repeat.set(1 / w, 1 / (spring + w / 2)); t.offset.set(0.5, 0); }
-    flameTex.repeat.set(1.6 / w, 1.2 / (spring + w / 2));
+    keyStone.position.set(0, spring + w / 2 + T / 2, MOUTH + 0.18);
+    furnace.add(stoneRing, keyStone);
     M.archStone.map.repeat.set(0.9, 0.9);
+    // the coals: two layers of lumps across the floor, heaped toward the middle and the back
+    const m4 = new THREE.Matrix4(), at = new THREE.Vector3(), turn = new THREE.Quaternion(), axis = new THREE.Vector3(), size = new THREE.Vector3();
+    const cols = Math.round(w / 0.15), rows = Math.round((DEEP - 0.3) / 0.15), wide = w - 0.24;
+    let n = 0;
+    for (let a = 0; a < cols; a++) for (let b = 0; b < rows; b++) for (let layer = 0; layer < 2 && n < coalBed.instanceMatrix.count; layer++) {
+      const x = ((a + 0.5 + (rnd() - 0.5) * 0.8) / cols - 0.5) * wide, back = (b + 0.5 + (rnd() - 0.5) * 0.8) / rows;
+      const heap = 0.08 + 0.14 * (1 - (2 * x / wide) ** 2) * (0.6 + 0.4 * back), r = 0.06 + rnd() * 0.06;
+      at.set(x, SILL + layer * heap + rnd() * 0.04, MOUTH - 0.2 - back * (DEEP - 0.35));
+      turn.setFromAxisAngle(axis.set(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize(), rnd() * Math.PI);
+      coalBed.setMatrixAt(n++, m4.compose(at, turn, size.set(r * (0.9 + rnd() * 0.5), r * (0.55 + rnd() * 0.3), r * (0.8 + rnd() * 0.4))));
+    }
+    coalBed.count = n; coalBed.instanceMatrix.needsUpdate = true;
+    // the flames: each sheet nearly the mouth's width, rising from the coals most of the way to the crown
+    const rise = Math.min((h - SILL) * 0.85, 3.4);
+    for (const m of sheets) {
+      const { back, wide: k, u } = m.userData;
+      m.scale.set(w * k, rise, 1); m.position.set(0, SILL + 0.06 + rise / 2, MOUTH - 0.15 - back * (DEEP - 0.3));
+      u.uSize.value.set(w * k, rise);
+    }
   }
 
   // sparks and embers: one instanced mesh of glowing quads facing the camera
@@ -289,7 +383,7 @@ export function createFoundry(host) {
   const fx = new THREE.InstancedMesh(quad, M.spark, N_FX);
   fx.frustumCulled = false;
   scene.add(fx);
-  const embers = Array.from({ length: 44 }, (_, i) => ({ x: Math.random() * 2 - 1, z: Math.random() * 1.2 - 1.6, s: 0.6 + Math.random() * 0.8, p: i * 1.7 }));
+  const embers = Array.from({ length: 44 }, (_, i) => ({ x: Math.random() * 2 - 1, z: Math.random(), s: 0.6 + Math.random() * 0.8, p: i * 1.7 }));
   let sparks = [];
 
   let caps = [], pots = [], xs = [], tallOf = [], span = 1;
@@ -377,7 +471,10 @@ export function createFoundry(host) {
         return m;
       });
       const marks = Array.from({ length: k + 2 }, () => { const m = new THREE.Mesh(signGeo, signs.Sn); g.add(m); return m; });
-      const smat = envify(std({}), 0.35), surface = new THREE.Mesh(discGeo, smat), haze = new THREE.Mesh(quad, M.haze.clone());
+      // the surface mirrors the fire behind it in moving glints (nothing on charcoal or dross, which are not metal)
+      const smat = burning(envify(std({}), 0.15), "stsurface", `
+        float glint = smoothstep(0.5, 0.85, texture2D(uNoise, vStW.xz * vec2(1.3, 2.4) + vec2(0.0, -uTime * 0.22)).b);
+        totalEmissiveRadiance += vec3(1.0, 0.42, 0.1) * glint * smoothstep(0.25, -0.45, vStW.z) * metalnessFactor * uFlick * 0.9;`), surface = new THREE.Mesh(discGeo, smat), haze = new THREE.Mesh(quad, M.haze.clone());
       smat.clippingPlanes = [new THREE.Plane(), new THREE.Plane()];      // the rim and the floor, turned with the crucible
       surface.rotation.x = -Math.PI / 2; haze.rotation.x = -Math.PI / 2; haze.scale.set(R * 3.2, R * 3.2, 1);
       world.add(surface, haze);
@@ -386,7 +483,7 @@ export function createFoundry(host) {
       pots.push({ g, ring, slabs, marks, surface, haze, tall, levels: levelTable(tall) });
     });
     // the hearth and the coals under the row, the furnace behind it
-    hearth.scale.x = span + 2.4; hearth.position.set(0, -0.2, 0.1);
+    hearth.scale.x = span + 2.4; hearth.position.set(0, -0.2, MOUTH + 1.75);
     coals.forEach((c, k) => { c.position.set((k / (coals.length - 1) - 0.5) * span * 1.02, 0.015, 0.05 + (k % 2) * 0.12); c.scale.set(1.3, 1, 1); });
     wallGlow.scale.set(span * 2.6, 4.2, 1); wallGlow.position.set(0, 1.4, -1.9);
     resize();
@@ -494,13 +591,13 @@ export function createFoundry(host) {
 
   function frame(sc, now) {
     if (!caps.length || !sc) return;
-    // the fire moves: flames climb and waver, the light it throws breathes with it
-    flameTex.offset.y = (now / 2600) % 1; flameTex.offset.x = 0.5 + Math.sin(now / 1900) * 0.03;
-    M.flame.opacity = 0.55 + 0.12 * Math.sin(now / 310) + 0.06 * Math.sin(now / 97);
+    // the fire moves: its shaders run on, and everything it lights flickers with it
+    const t = now / 1000, flick = 0.82 + 0.09 * Math.sin(t * 7.1) + 0.06 * Math.sin(t * 13.7 + 1.3) + 0.03 * Math.sin(t * 23.3);
+    FIRE.uTime.value = t % 600; FIRE.uFlick.value = flick;
     coals.forEach((c, k) => { c.material.opacity = 0.55 + 0.3 * Math.sin(now / (430 + k * 37) + k); });
-    wallGlow.material.opacity = 0.24 + 0.06 * Math.sin(now / 1700);
-    back.intensity = 1.7 + 0.3 * Math.sin(now / 520) + 0.12 * Math.sin(now / 173);
-    coal.intensity = 0.65 + 0.12 * Math.sin(now / 640);
+    wallGlow.material.opacity = 0.2 * flick;
+    back.intensity = 2.1 * flick;
+    coal.intensity = 0.8 * flick;
     const surfaceY = [], poses = [];
     sc.cups.forEach((cup, i) => {
       const P = pots[i], H = P.tall - BASE;
@@ -597,7 +694,7 @@ export function createFoundry(host) {
     for (const e of embers) {
       if (n >= N_FX) break;
       const t = (now / 9000 * e.s + e.p) % 1, size = 0.04 * (1 - t);
-      m4.compose(new THREE.Vector3(e.x * archW * 0.45 + Math.sin(now / 1300 + e.p) * 0.15, 0.2 + t * 5, e.z), qCam, new THREE.Vector3(size, size, size));
+      m4.compose(new THREE.Vector3(e.x * archW * 0.42 + Math.sin(now / 1300 + e.p) * 0.15, SILL + 0.2 + t * (crownY - SILL), MOUTH - 0.2 - e.z * (DEEP - 0.4)), qCam, new THREE.Vector3(size, size, size));
       fx.setMatrixAt(n++, m4);
     }
     fx.count = n; fx.instanceMatrix.needsUpdate = true;
