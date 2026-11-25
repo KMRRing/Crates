@@ -41,7 +41,7 @@ export const PEOPLE = [
   { kb: "alexander-the-great", for: "both", n: "Alexander the Great",
     c: ["A king of Macedon", "Lived 356–323 BC", "Conquered the Persian Empire, from Egypt to India", "Tutored by Aristotle",
       "Founded Alexandria in Egypt; his horse was Bucephalus", "Died at 32, in Babylon"] },
-  { id: "gaius-julius-caesar", for: "both", n: "Julius Caesar",
+  { kb: "gaius-julius-caesar", for: "both", n: "Julius Caesar",
     c: ["A Roman general and dictator", "Lived 100–44 BC", "Conquered Gaul, then crossed the Rubicon into civil war",
       "Veni, vidi, vici: I came, I saw, I conquered", "Stabbed in the Senate on the Ides of March: “Et tu, Brute?”", "July is named after him"] },
   { kb: "cleopatra", for: "both", n: "Cleopatra",

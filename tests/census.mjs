@@ -9,7 +9,11 @@ const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } e
 // ---------- the sets ----------
 const COUNTS = { africa: 54, "south-america": 12, "central-america": 7, eu: 27, "eu-capitals": 27, g20: 19, g7: 7, "germany-borders": 9, nordic: 5, alpine: 8, asean: 11, cantons: 26, laender: 16,
   "us-states": 50, canada: 13, australia: 8, "great-lakes": 5, oceans: 5, continents: 7, "seven-summits": 7, planets: 8, "noble-gases": 7, alkali: 6, halogens: 6, "first-20": 20, pgms: 6,
-  rainbow: 7, "greek-letters": 24, nato: 26, wonders: 7, "henry-wives": 6, tudors: 6, olympians: 12, muses: 9, tragedies: 10, "first-growths": 5, "bordeaux-grapes": 6, "base-metals": 6 };
+  rainbow: 7, "greek-letters": 24, nato: 26, wonders: 7, "henry-wives": 6, tudors: 6, olympians: 12, muses: 9, tragedies: 10, "first-growths": 5, "bordeaux-grapes": 6, "base-metals": 6,
+  // 25 Nov 2026 (Korbi: "census is ok, maybe more topics")
+  "france-regions": 13, "italy-regions": 20, "spain-communities": 17, "bavaria-districts": 7, emirates: 7, gcc: 6, "central-asia": 5, "baltic-sea": 9, danube: 10, caspian: 5,
+  "si-base-units": 7, "si-prefixes": 24, "alkaline-earth": 6, "dwarf-planets": 5, quarks: 6, "galilean-moons": 4, "twelve-caesars": 12, "kings-of-rome": 7, "eec-founders": 6, "nato-founders": 12,
+  "un-security-council": 5, "ring-cycle": 4, "deadly-sins": 7, zodiac: 12, "chinese-zodiac": 12, "beaujolais-crus": 10, "medoc-appellations": 6, "german-wine-regions": 13, pradikat: 6, incoterms: 11 };
 check(E.SETS.length === Object.keys(COUNTS).length && E.SETS.every(s => COUNTS[s.id] === s.items.length), `${E.SETS.length} sets, each the size it says (${E.SETS.filter(s => COUNTS[s.id] !== s.items.length).map(s => `${s.id} ${s.items.length}`).join(", ") || "all"})`);
 check(new Set(E.SETS.map(s => s.id)).size === E.SETS.length && E.SETS.every(s => E.GROUPS.includes(s.group) && s.title && /\.$/.test(s.ask)), "every set has its own id, a group, a title and a question");
 // no two members of a set may answer to the same name (or the typing would not know which was meant)
