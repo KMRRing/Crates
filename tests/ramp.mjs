@@ -36,6 +36,15 @@ ramp("lw", ["x", "y"], { start: "x" });
 check(ramp.levels().join() === "easy,hard,auto" && ramp.pick("medium") === null && ramp.pick("hard") === "y", "two steps: Easy, Hard and Auto");
 ramp("lx", ["only"]);
 check(ramp.levels().length === 0 && ramp.level() === null && ramp.pick("easy") === null, "one step: no row");
+// 25 Nov 2026 (Korbi: Schafkopf's "Monte zero"): an extra level after Hard, with its own label, picked only, never reached by Auto
+ramp("mz", S, { start: "hard", extra: [["monte", "Monte zero"]] });
+check(ramp.levels().join() === "easy,medium,hard,monte,auto" && ramp.label("monte") === "Monte zero" && ramp.label("hard") === "Hard", "an extra level: after Hard, before Auto, with its own label");
+ramp.won(); ramp.won();
+check(ramp("mz", S, { extra: [["monte", "Monte zero"]] }) === "hard", "Auto climbs to Hard and no further");
+check(ramp.pick("monte") === "monte" && ramp.level() === "monte" && ramp("mz", S, { extra: [["monte", "Monte zero"]] }) === "monte", "picked, the ramp plays it");
+check(ramp.lost() === "monte" && ramp.won() === "monte", "and it stays put");
+check(ramp.pick("auto") === "hard" && ramp("mz", S, { extra: [["monte", "Monte zero"]] }) === "hard", "Auto again: back on the last step");
+check(ramp("mz", S) === "hard" && !ramp.levels().includes("monte"), "a ramp read without it offers no extra level");
 // 7 Nov 2026 (Korbi: the Level row showed three times in Lode): the row sits inside the Settings part, so menu.js must look
 // for an existing one anywhere in the menu, not only among its direct children.
 { const { readFileSync } = await import("node:fs");

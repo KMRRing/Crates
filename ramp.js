@@ -14,7 +14,10 @@
 const mem = new Map();
 const read = k => { try { return localStorage.getItem(k) ?? mem.get(k) ?? null; } catch { return mem.get(k) ?? null; } };
 const write = (k, v) => { mem.set(k, v); try { localStorage.setItem(k, v); } catch { /* storage may be blocked */ } };
-const last = { key: null, steps: [], start: 0 };
+// Korbi, 25 Nov 2026 (Schafkopf's "Monte zero"): a game may offer `extra` levels after Hard ([key, label] pairs): picked only, never
+// reached by Auto, kept as the ramp's step while picked; picking Auto again puts the ramp back on its last (hardest) step.
+const last = { key: null, steps: [], start: 0, extra: [] };
+const extraKeys = () => last.extra.map(([k]) => k);
 
 const index = (steps, key, start) => {
   const raw = read(key);
@@ -27,9 +30,11 @@ const index = (steps, key, start) => {
 };
 
 /** The current step of the game's ramp (`steps` in order, easiest first). */
-export function ramp(game, steps, { start, id = "" } = {}) {
+export function ramp(game, steps, { start, id = "", extra = [] } = {}) {
   const key = `${game}:ramp${id ? ":" + id : ""}`;
-  Object.assign(last, { key, steps, start });
+  Object.assign(last, { key, steps, start, extra });
+  const p = read(`${key}-pick`);
+  if (p && extraKeys().includes(p)) return p;
   return steps[index(steps, key, start)];
 }
 
@@ -40,7 +45,9 @@ const move = by => {
   const { key, steps, start } = last;
   if (!key) return null;
   const i = index(steps, key, start);
-  if (pickOf(key) !== AUTO) return steps[i];      // a level the player picked stays put
+  const p = pickOf(key);
+  if (extraKeys().includes(p)) return p;          // an extra level stays put, like any picked one
+  if (p !== AUTO) return steps[i];                // a level the player picked stays put
   const j = Math.max(0, Math.min(steps.length - 1, i + by));
   write(key, String(steps[j]));
   return steps[j];
@@ -54,7 +61,9 @@ ramp.lost = () => move(-1);
 const bands = () => { const n = last.steps.length; return n < 2 ? [] : n === 2 ? ["easy", "hard"] : ["easy", "medium", "hard"]; };
 /** The levels the shared menu row offers for the ramp read last: Easy and Hard (its first and last step), Medium between them when
  *  there is a step between, and Auto. None when the ramp has a single step, or none has been read. */
-ramp.levels = () => (bands().length ? [...bands(), AUTO] : []);
+ramp.levels = () => (bands().length ? [...bands(), ...extraKeys(), AUTO] : []);
+/** A level's name in the menu row: an extra level's own label, else the level capitalised. */
+ramp.label = b => last.extra.find(([k]) => k === b)?.[1] ?? b[0].toUpperCase() + b.slice(1);
 const stepOf = band => (band === "easy" ? 0 : band === "hard" ? last.steps.length - 1 : Math.round((last.steps.length - 1) / 2));
 /** The level the ramp read last is set to: "auto" (the default), or the level the player picked. */
 ramp.level = () => {
@@ -74,8 +83,9 @@ ramp.near = () => {
 ramp.pick = band => {
   if (!ramp.levels().includes(band)) return null;
   write(`${last.key}-pick`, band);
+  if (extraKeys().includes(band)) return band;
   if (band !== AUTO) write(last.key, String(last.steps[stepOf(band)]));
   return last.steps[index(last.steps, last.key, last.start)];
 };
 /** The page has left the game whose ramp it read (Party, back to its games from a game against the computer): no row now. */
-ramp.forget = () => { Object.assign(last, { key: null, steps: [], start: 0 }); };
+ramp.forget = () => { Object.assign(last, { key: null, steps: [], start: 0, extra: [] }); };

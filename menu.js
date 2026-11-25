@@ -251,7 +251,7 @@ function shape(body) {
     // the shared level row (Korbi, 7 Nov 2026), for a page that has a ramp: it moves the ramp and the next deal uses it;
     // Easy / Medium / Hard / Auto, Auto first chosen, a picked level kept (22 Nov 2026)
     if (!IN_FRAME && !body.querySelector("[data-level]") && ramp.levels().length) {
-      const row = choice("Level, from the next game", ramp.levels().map(b => [b, b[0].toUpperCase() + b.slice(1)]), ramp.level(), v => ramp.pick(v));
+      const row = choice("Level, from the next game", ramp.levels().map(b => [b, ramp.label(b)]), ramp.level(), v => ramp.pick(v));
       row.dataset.level = "1";
       part(body, "settings").append(row);
     }

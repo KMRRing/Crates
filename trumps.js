@@ -6,7 +6,7 @@
 // hand the trick's size (fitTable); Full screen (the menu) gives them the header's row too.
 import { rules } from "./trumps-rules.js";
 import { GAMES, teamOf, laufende, sortHand } from "./trumps-games.js";
-import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
+import { LEVEL_NAMES, MONTE_LEVEL, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
 import { weighCards, bidOptions, signalFirst } from "./trumps-think.js";
 import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
 import { waitMark } from "./loading.js";
@@ -72,7 +72,8 @@ const readRun = k => { try { return JSON.parse(localStorage.getItem(k)); } catch
 }
 let wore = null;                                                // the tile the page wears now (wearTile)
 const tileNow = () => tileOf(V?.state?.game || opts.game) || "jass";
-const levelNow = () => lesson || ramp("trumps", LEVEL_NAMES.map(([k]) => k), { id: V?.state?.game || opts.game, start: OLD_LEVEL });
+// Schafkopf alone offers Monte zero after Hard (Korbi, 25 Nov 2026), picked from the level row, never reached by Auto
+const levelNow = () => { const game = V?.state?.game || opts.game; return lesson || ramp("trumps", LEVEL_NAMES.map(([k]) => k), { id: game, start: OLD_LEVEL, extra: game === "schafkopf" ? [MONTE_LEVEL] : [] }); };
 /** This tile's own record (its streak is noteStreak's, trumps:<tile>:streak). */
 const recordKey = () => `trumps:${tileNow()}:record`;
 // Schafkopf's cards simple (the suits' marks, the rank in the corner) or as the whole Bavarian pack, drawn

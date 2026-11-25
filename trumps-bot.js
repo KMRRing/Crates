@@ -10,6 +10,8 @@ import { sample } from "./trumps-deals.js";
 import { thinkPlay, thinkBid } from "./trumps-think.js";
 
 export const LEVEL_NAMES = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]];
+/** Schafkopf's level after Hard (Korbi, 25 Nov 2026): Monte zero, the lab's engine (trumps-monte.js), thinking in the worker. */
+export const MONTE_LEVEL = ["monte", "Monte zero"];
 const SAMPLES = { medium: 14, hard: 40 };
 
 // Moves worked out ahead, off the page's thread (trumps-worker.js), for the decision each answers: the table's move
@@ -25,8 +27,10 @@ export function remember(key, move) {
  *  limit, so a slow phone isn't held up long. */
 export const THINK = { ms: 0 };
 /** Whether Schafkopf's Hard players think further at this level (and so are worth working out ahead). */
-export const thinksAhead = (game, level) => game === "schafkopf" && level === "hard";
+export const thinksAhead = (game, level) => game === "schafkopf" && (level === "hard" || level === "monte");
 
+// Monte zero's move comes from the worker (trumps-worker.js) and is taken here from `ahead`; where it isn't in by the table's pace
+// (a table with others, this phone driving), the seat plays as Hard does this once rather than hold everyone up.
 export function botMove(s, seat, level = "medium", rng = Math.random) {
   const key = aheadKey(s, seat, level), known = ahead.get(key);
   if (known) {
