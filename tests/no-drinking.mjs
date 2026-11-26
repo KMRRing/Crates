@@ -7,8 +7,9 @@ import fs from "fs";
 const root = new URL("..", import.meta.url).pathname;
 
 // whole files that are subject matter: knowledge banks and word lists, the Wine course, the clue and definition data,
-// the language courses (they teach "I drink tea"), a bill-splitting sum, the kinds of a thing, museum objects (a drinking vessel)
-const SUBJECT = /(-bank|-data|-words|-pool|-labels|-regions|-service|-subjects|-layout|-themes|-objects)\.js$|^(clues-data|slate-defs|kb-index|wine-bank|chart-geo|pics-list)\.js$/;
+// the language courses (they teach "I drink tea"), a bill-splitting sum, the kinds of a thing, museum objects (a drinking vessel),
+// Spyglass's museum paintings (a title is the museum's: Carracci's "Boy Drinking"; 26 Nov 2026)
+const SUBJECT = /(-bank|-data|-words|-pool|-labels|-regions|-service|-subjects|-layout|-themes|-objects)\.js$|^(clues-data|slate-defs|kb-index|wine-bank|chart-geo|pics-list|spyglass-art)\.js$/;
 // lines that are not a drink being taken: a topic's name, a lesson's saved id (renaming it would reset a player's progress)
 const LINE_OK = [/food (and|&amp;|&) drink/i, /\bid: "drink"/, /\bkind: "drink"|\bdrink: "food"/];
 
