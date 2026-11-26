@@ -67,7 +67,9 @@ const stepAt = x => x < 3000 ? 45 : x < 15000 ? 120 : x < 50000 ? 300 : 600;
 export function visible(at, from, to, { slack = 0.03 } = {}) {
   const { d, b } = distanceBearing(from.lat, from.lon, to.lat, to.lon);
   const eye = (from.h ?? at(from.lat, from.lon)) + EYE, th = to.h ?? at(to.lat, to.lon), target = angleTo(eye, th, d);
-  for (let x = 30; x < d - 150; x += stepAt(x)) {
+  // the first 120 m are left out: a 90 m grid flattens a summit into a little plateau that would hide everything lower, where a
+  // walker would step to its edge and look down
+  for (let x = 120; x < d - 150; x += stepAt(x)) {
     const [la, lo] = destination(from.lat, from.lon, b, x);
     if (angleTo(eye, at(la, lo), x) > target + slack) return false;
   }

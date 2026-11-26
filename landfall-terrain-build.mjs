@@ -146,6 +146,25 @@ function summitNear(g, lat, lon, m = 300) {
   }
   return best;
 }
+/**
+ * Gives a summit back its height. The 90 m grid averages a sharp top away (the Matterhorn came out 200 m low), so each landmark
+ * whose listed height stands above the grid's has it restored at its top, the ground round it raised no steeper than 45 degrees
+ * toward it. A listed height more than 450 m above the grid's is taken for a mistake (feet for metres) and left alone.
+ */
+function burnIn(g, lat, lon, listed) {
+  const h0 = heightIn(g, lat, lon);
+  if (!(listed > h0) || listed - h0 > 450) return Math.round(h0);
+  const dy = (g.n - g.s) / (g.rows - 1), dx = (g.e - g.w) / (g.cols - 1), mLat = 111320, mLon = 111320 * Math.cos(lat * Math.PI / 180);
+  const reach = (listed - h0) + 50, ry = Math.ceil(reach / (dy * mLat)), rx = Math.ceil(reach / (dx * mLon));
+  const r0 = Math.round((g.n - lat) / dy), c0 = Math.round((lon - g.w) / dx);
+  for (let r = r0 - ry; r <= r0 + ry; r++) for (let c = c0 - rx; c <= c0 + rx; c++) {
+    if (r < 0 || c < 0 || r >= g.rows || c >= g.cols) continue;
+    const d = Math.hypot((r - (g.n - lat) / dy) * dy * mLat, (c - (lon - g.w) / dx) * dx * mLon), want = Math.round(listed - d);
+    if (g.data[r * g.cols + c] < want) g.data[r * g.cols + c] = want;
+  }
+  return Math.round(listed);
+}
+
 /** How evenly a set of bearings covers the compass: the widest gap between neighbours, less is better. */
 const widestGap = bs => { const s = [...bs].sort((a, b) => a - b); let g = 360 - s[s.length - 1] + s[0]; for (let i = 1; i < s.length; i++) g = Math.max(g, s[i] - s[i - 1]); return g; };
 
@@ -161,7 +180,12 @@ async function buildArea(region, area) {
   const known = found.filter(p => p.kind === "summit").filter(p => inside(fine, p.lat, p.lon)
     ? (p.ele ?? 0) >= Math.min(3000, top * 0.65) || p.links >= 5
     : (p.ele ?? 0) >= 4000 || p.links >= 30);
-  const landmarks = known.map(p => { const g = inside(fine, p.lat, p.lon) ? fine : far, t = summitNear(g, p.lat, p.lon, g === fine ? 300 : 900); return { id: p.id, name: p.name, lat: R3(t.lat), lon: R3(t.lon), ele: Math.round(t.h), listed: p.ele, links: p.links, near: g === fine }; })
+  const landmarks = known.map(p => {
+    const g = inside(fine, p.lat, p.lon) ? fine : far, t = summitNear(g, p.lat, p.lon, g === fine ? 300 : 900);
+    let ele = Math.round(t.h);
+    for (const G of [fine, far]) if (inside(G, t.lat, t.lon)) ele = Math.max(ele, burnIn(G, t.lat, t.lon, p.ele));
+    return { id: p.id, name: p.name, lat: R3(t.lat), lon: R3(t.lon), ele, listed: p.ele, links: p.links, near: g === fine };
+  })
     .sort((a, b) => b.links - a.links);
   landmarks.splice(0, landmarks.length, ...landmarks.filter(l => l.near).slice(0, 40), ...landmarks.filter(l => !l.near).slice(0, 30));
   log(area.id, `${landmarks.length} landmarks (${landmarks.filter(l => l.near).length} in the area)`);

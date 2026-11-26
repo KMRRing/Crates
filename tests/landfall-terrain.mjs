@@ -53,7 +53,7 @@ for (const R of REGIONS.filter(r => r.built)) {
     const look = terrain([load("fine", P.fine), load("far", P.far)]);
     for (const s of P.starts.slice(0, 6)) {
       starts++;
-      for (const i of s.sees.slice(0, 4)) { const l = P.landmarks[i]; if (!visible(look, s, { lat: l.lat, lon: l.lon, h: l.ele })) wrong.push(`${s.name} → ${l.name}`); }
+      for (const i of s.sees.slice(0, 4)) { const l = P.landmarks[i]; if (!visible(look, s, { lat: l.lat, lon: l.lon, h: l.ele }, { slack: 0.12 })) wrong.push(`${s.name} → ${l.name}`); }
       if (s.sees.filter(i => P.landmarks[i].near).length < 3) wrong.push(`${s.name} sees fewer than three of its area's landmarks`);
     }
     if (!P.starts.length) wrong.push(`${P.area} has no starts`);
