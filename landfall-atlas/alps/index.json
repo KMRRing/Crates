@@ -1,0 +1,67 @@
+{
+ "region": "alps",
+ "built": "2026-11-26",
+ "areas": [
+  {
+   "id": "mont-blanc",
+   "name": "Mont Blanc massif",
+   "landmarks": 70,
+   "starts": 40
+  },
+  {
+   "id": "pennine",
+   "name": "Pennine Alps",
+   "landmarks": 70,
+   "starts": 40
+  },
+  {
+   "id": "bernese",
+   "name": "Bernese Alps",
+   "landmarks": 70,
+   "starts": 40
+  },
+  {
+   "id": "ecrins",
+   "name": "Écrins",
+   "landmarks": 70,
+   "starts": 35
+  },
+  {
+   "id": "bernina",
+   "name": "Bernina",
+   "landmarks": 61,
+   "starts": 40
+  },
+  {
+   "id": "oetztal",
+   "name": "Ötztal and Stubai",
+   "landmarks": 51,
+   "starts": 40
+  },
+  {
+   "id": "hohe-tauern",
+   "name": "Hohe Tauern",
+   "landmarks": 47,
+   "starts": 40
+  },
+  {
+   "id": "dolomites",
+   "name": "Dolomites",
+   "landmarks": 52,
+   "starts": 40
+  },
+  {
+   "id": "limestone",
+   "name": "Northern Limestone Alps",
+   "landmarks": 50,
+   "starts": 40
+  },
+  {
+   "id": "julian",
+   "name": "Julian Alps",
+   "landmarks": 44,
+   "starts": 40
+  }
+ ],
+ "attribution": "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)."
+}
