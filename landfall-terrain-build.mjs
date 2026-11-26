@@ -80,8 +80,9 @@ function sampleGrid(box, step, pool = 1) {
 async function sparql(query) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(query), { headers: { "User-Agent": UA, Accept: "application/sparql-results+json" } });
-    if (res.ok) return (await res.json()).results.bindings;
-    log("wikidata", res.status, "retrying");
+    // a query that runs out of time still answers 200, its JSON cut off where the timeout's message begins: asked again
+    if (res.ok) { const text = await res.text(); try { return JSON.parse(text).results.bindings; } catch { log("wikidata answer cut short, retrying"); } }
+    else log("wikidata", res.status, "retrying");
     await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
   }
   throw new Error("Wikidata did not answer");
