@@ -1,0 +1,37 @@
+# Traverse's Atlas packs (landfall-atlas/): elevation from the Copernicus DEM and places from Wikidata, cut per area by
+# landfall-terrain-build.mjs. Run by hand only (Korbi, 27 Nov 2026: "decisions you do what's sensible, build the whole thing"):
+# the data changes rarely, and the build downloads about a gigabyte. It commits the packs it made; they load when a player
+# first opens the region and are kept offline from then, so the app's own download does not grow.
+name: Traverse terrain
+on:
+  workflow_dispatch:
+    inputs:
+      regions:
+        description: "Regions to build, comma-separated (ids from landfall-atlas-regions.js), or all"
+        default: alps
+permissions:
+  contents: write
+concurrency:
+  group: terrain
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The GeoTIFF reader, for this run only
+        run: npm install --no-save --no-package-lock geotiff@2
+      - name: Build the packs
+        run: node landfall-terrain-build.mjs "${{ inputs.regions }}"
+      - name: Commit them
+        run: |
+          git add landfall-atlas
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Traverse terrain: ${{ inputs.regions }}"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep 10; done
+          exit 1

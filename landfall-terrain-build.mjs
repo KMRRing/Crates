@@ -1,0 +1,194 @@
+// Builds Traverse's Atlas packs: `node landfall-terrain-build.mjs alps` (or several, comma-separated). Run by the "Traverse terrain"
+// GitHub job (.github/workflows/landfall-terrain.yml), never on a push: it downloads the Copernicus DEM GLO-90 tiles round each area
+// (ESA, free to use with attribution; https://registry.opendata.aws/copernicus-dem/) and the peaks, huts, passes and villages in
+// it from Wikidata (CC0), and writes landfall-atlas/<region>/: per area a fine grid, a far grid and a list of landmarks and starts.
+// It needs the geotiff package (MIT), which the job installs for the run only; nothing of it is shipped.
+//
+// What makes a start: a hut, a pass, a village or a summit inside the area from which at least three of the area's landmarks can
+// be seen, spread round the compass enough that their bearings cross well. What makes a landmark: a summit inside the area that
+// is high or well known (its Wikipedia articles), placed on the highest ground near Wikidata's point, since the two often differ.
+import { mkdirSync, writeFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
+import { REGIONS, regionById, farBox, FAR_STEP } from "./landfall-atlas-regions.js";
+import { grid, heightIn, inside, terrain, visible, distanceBearing, encode } from "./landfall-terrain.js";
+
+const UA = "Traverse-atlas-build/1 (https://github.com/KMRRing/Crates)";
+const OUT = "landfall-atlas";
+const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+
+// ---------- the elevation tiles ----------
+const tiles = new Map(), byBox = new Map();          // tiles by the name asked for; by the square they really cover
+const tileName = (lat, lon) => {
+  const ns = lat >= 0 ? `N${String(lat).padStart(2, "0")}` : `S${String(-lat).padStart(2, "0")}`;
+  const ew = lon >= 0 ? `E${String(lon).padStart(3, "0")}` : `W${String(-lon).padStart(3, "0")}`;
+  return `Copernicus_DSM_COG_30_${ns}_00_${ew}_00_DEM`;
+};
+async function tile(lat, lon) {
+  const key = `${lat},${lon}`;
+  if (tiles.has(key)) return tiles.get(key);
+  const name = tileName(lat, lon), url = `https://copernicus-dem-90m.s3.amazonaws.com/${name}/${name}.tif`;
+  let t = null;
+  for (let attempt = 0; attempt < 4 && !t; attempt++) {
+    const res = await fetch(url);
+    if (res.status === 404 || res.status === 403) break;            // open sea: no tile
+    if (!res.ok) { await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); continue; }
+    const { fromArrayBuffer } = await import("geotiff");
+    const img = await (await fromArrayBuffer(await res.arrayBuffer())).getImage();
+    const [w, s, e, n] = img.getBoundingBox(), cols = img.getWidth(), rows = img.getHeight();
+    const [raster] = await img.readRasters();
+    const data = new Int16Array(cols * rows);
+    for (let i = 0; i < data.length; i++) data[i] = Math.max(-500, Math.min(9000, Math.round(raster[i] || 0)));
+    t = { box: [w, s, e, n], cols, rows, data };
+    byBox.set(`${Math.round(s)},${Math.round(w)}`, t);            // placed by its own box, whatever its name's convention
+  }
+  tiles.set(key, t);
+  return t;
+}
+/** Loads every tile a box touches. */
+async function loadBox([w, s, e, n]) {
+  const jobs = [];
+  for (let la = Math.floor(s) - 1; la <= Math.ceil(n); la++) for (let lo = Math.floor(w); lo < Math.ceil(e); lo++) jobs.push([la, lo]);
+  for (let i = 0; i < jobs.length; i += 6) await Promise.all(jobs.slice(i, i + 6).map(([la, lo]) => tile(la, lo)));
+}
+/** The DEM's height at a point: the tile holding it, read as a grid (0 where no tile, at sea). */
+function dem(lat, lon) {
+  const t = byBox.get(`${Math.floor(lat)},${Math.floor(lon)}`);
+  if (!t) return 0;
+  const [w, s, e, n] = t.box;
+  // tile samples sit at cell centres: the grid's edge is half a cell in from the box
+  const dx = (e - w) / t.cols, dy = (n - s) / t.rows;
+  return heightIn({ w: w + dx / 2, s: s + dy / 2, e: e - dx / 2, n: n - dy / 2, cols: t.cols, rows: t.rows, data: t.data }, lat, lon);
+}
+
+/** A grid over a box at a step in degrees, each sample the DEM's height there, or the highest within its cell (`pool`). */
+function sampleGrid(box, step, pool = 1) {
+  const [w, s, e, n] = box, cols = Math.round((e - w) / step) + 1, rows = Math.round((n - s) / step) + 1, g = grid(box, cols, rows);
+  for (let r = 0; r < rows; r++) {
+    const lat = n - r * step;
+    for (let c = 0; c < cols; c++) {
+      const lon = w + c * step;
+      let h = -Infinity;
+      if (pool <= 1) h = dem(lat, lon);
+      else for (let i = 0; i < pool; i++) for (let j = 0; j < pool; j++) h = Math.max(h, dem(lat + (i / (pool - 1) - 0.5) * step, lon + (j / (pool - 1) - 0.5) * step));
+      g.data[r * cols + c] = Math.round(h);
+    }
+  }
+  return g;
+}
+
+// ---------- Wikidata ----------
+async function sparql(query) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(query), { headers: { "User-Agent": UA, Accept: "application/sparql-results+json" } });
+    if (res.ok) return (await res.json()).results.bindings;
+    log("wikidata", res.status, "retrying");
+    await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
+  }
+  throw new Error("Wikidata did not answer");
+}
+const TYPES = {
+  summit: ["Q8502", "Q207326"],                              // mountain, summit
+  hut: ["Q182676"],                                          // mountain hut
+  pass: ["Q133056"],                                         // mountain pass
+  village: ["Q532", "Q3957", "Q70208", "Q667509", "Q747074", "Q484170", "Q262166", "Q2039348", "Q15077340"], // village, town, municipalities (CH, AT, IT, FR, DE, SI and the like)
+  viewpoint: ["Q6017969"],
+};
+async function places([w, s, e, n]) {
+  const all = Object.entries(TYPES).flatMap(([kind, qs]) => qs.map(q => `(wd:${q} "${kind}")`)).join(" ");
+  const rows = await sparql(`SELECT ?item ?label ?lat ?lon ?ele ?links ?kind WHERE {
+    SERVICE wikibase:box { ?item wdt:P625 ?c . bd:serviceParam wikibase:cornerSouthWest "Point(${w} ${s})"^^geo:wktLiteral ; wikibase:cornerNorthEast "Point(${e} ${n})"^^geo:wktLiteral . }
+    VALUES (?type ?kind) { ${all} }
+    ?item wdt:P31 ?type .
+    OPTIONAL { ?item wdt:P2044 ?ele . }
+    ?item wikibase:sitelinks ?links .
+    BIND(geof:latitude(?c) AS ?lat) BIND(geof:longitude(?c) AS ?lon)
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en,de,fr,it,sl,es,ja,ne,zh". ?item rdfs:label ?label . }
+  }`);
+  const seen = new Map();
+  for (const b of rows) {
+    const id = b.item.value.split("/").pop(), name = b.label?.value;
+    if (!name || /^Q\d+$/.test(name)) continue;
+    const p = seen.get(id) || { id, name, lat: +b.lat.value, lon: +b.lon.value, ele: b.ele ? +b.ele.value : null, links: +b.links.value, kinds: new Set() };
+    p.kinds.add(b.kind.value);
+    seen.set(id, p);
+  }
+  return [...seen.values()].map(p => ({ ...p, kind: ["summit", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
+}
+
+// ---------- an area ----------
+const R3 = x => Math.round(x * 1e5) / 1e5;
+/** The highest fine-grid sample within `m` metres of a point: where the summit really is. */
+function summitNear(g, lat, lon, m = 300) {
+  const dLat = m / 111320, dLon = m / (111320 * Math.cos(lat * Math.PI / 180)), step = (g.n - g.s) / (g.rows - 1);
+  let best = { lat, lon, h: heightIn(g, lat, lon) };
+  for (let la = lat - dLat; la <= lat + dLat; la += step) for (let lo = lon - dLon; lo <= lon + dLon; lo += step) {
+    if (!inside(g, la, lo)) continue;
+    const h = heightIn(g, la, lo);
+    if (h > best.h) best = { lat: la, lon: lo, h };
+  }
+  return best;
+}
+/** How evenly a set of bearings covers the compass: the widest gap between neighbours, less is better. */
+const widestGap = bs => { const s = [...bs].sort((a, b) => a - b); let g = 360 - s[s.length - 1] + s[0]; for (let i = 1; i < s.length; i++) g = Math.max(g, s[i] - s[i - 1]); return g; };
+
+async function buildArea(region, area) {
+  const step = area.res / 3600, fb = farBox(area.box);
+  await loadBox(fb);
+  const fine = sampleGrid(area.box, step), far = sampleGrid(fb, FAR_STEP, 5);
+  fine.fine = true;
+  const at = terrain([fine, far]);
+  const found = await places(fb);
+  // landmarks: the area's summits that are high or known, at their true tops; the giants round about too, for a far view
+  const top = Math.max(...found.filter(p => p.kind === "summit" && inside(fine, p.lat, p.lon)).map(p => p.ele || 0), 1000);
+  const known = found.filter(p => p.kind === "summit").filter(p => inside(fine, p.lat, p.lon)
+    ? (p.ele ?? 0) >= Math.min(3000, top * 0.65) || p.links >= 8
+    : (p.ele ?? 0) >= 4000 || p.links >= 30);
+  const landmarks = known.map(p => { const g = inside(fine, p.lat, p.lon) ? fine : far, t = summitNear(g, p.lat, p.lon, g === fine ? 300 : 900); return { id: p.id, name: p.name, lat: R3(t.lat), lon: R3(t.lon), ele: Math.round(t.h), listed: p.ele, links: p.links, near: g === fine }; })
+    .sort((a, b) => b.links - a.links).slice(0, 60);
+  log(area.id, `${landmarks.length} landmarks (${landmarks.filter(l => l.near).length} in the area)`);
+  // starts: places inside the area that see at least three landmarks, spread round the compass
+  const candidates = found.filter(p => p.kind !== "summit" || p.links >= 3).filter(p => inside(fine, p.lat, p.lon, step * 2));
+  const starts = [];
+  for (const p of candidates) {
+    const h = at(p.lat, p.lon), from = { lat: p.lat, lon: p.lon, h };
+    const sees = [];
+    landmarks.forEach((l, i) => {
+      if (l.id === p.id) return;
+      const { d } = distanceBearing(p.lat, p.lon, l.lat, l.lon);
+      if (d > 90000 || d < 400) return;
+      if (visible(at, from, { lat: l.lat, lon: l.lon, h: l.ele })) sees.push(i);
+    });
+    const near = sees.filter(i => landmarks[i].near);
+    if (near.length < 3) continue;
+    const gap = widestGap(sees.map(i => distanceBearing(p.lat, p.lon, landmarks[i].lat, landmarks[i].lon).b));
+    if (gap > 300) continue;
+    starts.push({ id: p.id, name: p.name, kind: p.kind, lat: R3(p.lat), lon: R3(p.lon), ele: Math.round(h), sees, gap: Math.round(gap) });
+  }
+  // the best forty, no two within half a kilometre
+  starts.sort((a, b) => b.sees.length - a.sees.length || a.gap - b.gap);
+  const kept = [];
+  for (const s of starts) if (kept.length < 40 && !kept.some(k => distanceBearing(k.lat, k.lon, s.lat, s.lon).d < 500)) kept.push(s);
+  log(area.id, `${kept.length} starts of ${candidates.length} places`);
+  const dir = `${OUT}/${region.id}`;
+  mkdirSync(dir, { recursive: true });
+  const pack = g => ({ w: g.w, s: g.s, e: g.e, n: g.n, cols: g.cols, rows: g.rows });
+  writeFileSync(`${dir}/${area.id}.fine.bin.gz`, gzipSync(encode(fine), { level: 9 }));
+  writeFileSync(`${dir}/${area.id}.far.bin.gz`, gzipSync(encode(far), { level: 9 }));
+  writeFileSync(`${dir}/${area.id}.json`, JSON.stringify({ area: area.id, name: area.name, box: area.box, res: area.res, fine: pack(fine), far: pack(far), landmarks, starts: kept }));
+  return { id: area.id, name: area.name, landmarks: landmarks.length, starts: kept.length };
+}
+
+// ---------- main ----------
+const want = (process.argv[2] || "").split(",").filter(Boolean);
+const todo = want.includes("all") ? REGIONS.filter(r => r.kind === "mountains") : want.map(id => regionById(id) || (() => { throw new Error(`no region ${id}`); })());
+for (const region of todo) {
+  if (region.kind !== "mountains") { log(region.id, "is not a mountain region: its builder comes later"); continue; }
+  const areas = [];
+  for (const area of region.areas) {
+    areas.push(await buildArea(region, area));
+    tiles.clear(); byBox.clear();                                   // a region's tiles are many: keep only the area's at a time
+  }
+  writeFileSync(`${OUT}/${region.id}/index.json`, JSON.stringify({ region: region.id, built: new Date().toISOString().slice(0, 10), areas,
+    attribution: "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)." }, null, 1));
+  log(region.id, "done");
+}
