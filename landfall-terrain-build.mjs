@@ -97,6 +97,8 @@ const TYPES = {
   pass: ["Q133056"],                                         // mountain pass
   village: ["Q532", "Q3957", "Q70208", "Q667509", "Q747074", "Q484170", "Q262166", "Q2039348", "Q15077340"], // village, town, municipalities (CH, AT, IT, FR, DE, SI and the like)
   viewpoint: ["Q6017969"],
+  light: ["Q39715"],                                         // lighthouse
+  cape: ["Q185113", "Q191992"],                              // cape, headland
 };
 // Names in the Latin alphabet only, English first, then Wikidata's one-for-all-languages label, then the mountain peoples' own: a
 // summit known only by a Chinese or Japanese label in the Alps is too obscure to ask for (one showed on the Dolomites map).
@@ -104,11 +106,12 @@ const LANGS = ["en", "mul", "de", "fr", "it", "rm", "lld", "fur", "sl", "es", "p
 /** Items of the kinds wanted inside a box, without their names (asking for names in the same query made Wikidata time out). */
 async function inBox([w, s, e, n], kinds, extra = "") {
   const vals = kinds.flatMap(kind => TYPES[kind].map(q => `(wd:${q} "${kind}")`)).join(" ");
-  return sparql(`SELECT ?item ?lat ?lon ?ele ?links ?kind WHERE {
+  return sparql(`SELECT ?item ?lat ?lon ?ele ?focal ?links ?kind WHERE {
     SERVICE wikibase:box { ?item wdt:P625 ?c . bd:serviceParam wikibase:cornerSouthWest "Point(${w} ${s})"^^geo:wktLiteral ; wikibase:cornerNorthEast "Point(${e} ${n})"^^geo:wktLiteral . }
     VALUES (?type ?kind) { ${vals} }
     ?item wdt:P31 ?type .
     OPTIONAL { ?item wdt:P2044 ?ele . }
+    OPTIONAL { ?item wdt:P2923 ?focal . }
     ?item wikibase:sitelinks ?links .
     BIND(geof:latitude(?c) AS ?lat) BIND(geof:longitude(?c) AS ?lon)
     ${extra}
@@ -126,18 +129,20 @@ async function names(ids) {
   }
   return out;
 }
-/** The places of an area: everything of every kind inside it, and the great summits within sight round it. */
-async function places(box, far) {
-  const rows = [...await inBox(box, Object.keys(TYPES)), ...await inBox(far, ["summit", "group"], "FILTER(?ele >= 3800 || ?links >= 25)")];
+/** The places of an area: everything of every kind inside it, and what can be seen round it: the great summits among mountains, the
+ *  lights and the well-known hills on a coast. */
+async function places(box, far, coast = false) {
+  const rows = [...await inBox(box, Object.keys(TYPES)), ...await (coast ? inBox(far, ["light", "summit"], `FILTER(?kind = "light" || ?links >= 15)`)
+    : inBox(far, ["summit", "group"], "FILTER(?ele >= 3800 || ?links >= 25)"))];
   const seen = new Map();
   for (const b of rows) {
     const id = b.item.value.split("/").pop();
-    const p = seen.get(id) || { id, lat: +b.lat.value, lon: +b.lon.value, ele: b.ele ? +b.ele.value : null, links: +b.links.value, kinds: new Set() };
+    const p = seen.get(id) || { id, lat: +b.lat.value, lon: +b.lon.value, ele: b.ele ? +b.ele.value : null, focal: b.focal ? +b.focal.value : null, links: +b.links.value, kinds: new Set() };
     p.kinds.add(b.kind.value);
     seen.set(id, p);
   }
   const named = await names([...seen.keys()]);
-  return [...seen.values()].filter(p => named.has(p.id)).map(p => ({ ...p, name: named.get(p.id), kind: ["summit", "group", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
+  return [...seen.values()].filter(p => named.has(p.id)).map(p => ({ ...p, name: named.get(p.id), kind: ["light", "summit", "group", "cape", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
 }
 
 // ---------- an area ----------
@@ -181,7 +186,8 @@ async function buildArea(region, area) {
   const fine = sampleGrid(area.box, step), far = sampleGrid(fb, FAR_STEP, 5);
   fine.fine = true;
   const at = terrain([fine, far]);
-  const found = await places(area.box, fb);
+  const found = await places(area.box, fb, region.kind === "coast");
+  if (region.kind === "coast") return writeArea(region, area, fine, far, ...coastMarks(found, fine, far, at, area, step));
   // landmarks: the area's summits that are high or known, at their true tops; the giants round about too, for a far view
   // a group's point is often its middle, a kilometre or so from its top (Marmolada's is 1.2 km from Punta Penia): its top is looked
   // for within 1.5 km, and it counts only if the height found there is the one listed
@@ -226,6 +232,11 @@ async function buildArea(region, area) {
   // most of them where people stand (villages, huts, passes); summits, where a hut's view is lacking, at most fifteen
   for (const s of starts) if (!kept.includes(s) && kept.length < 40 && (s.kind !== "summit" || kept.filter(k => k.kind === "summit").length < 15) && !kept.some(k => distanceBearing(k.lat, k.lon, s.lat, s.lon).d < 500)) kept.push(s);
   log(area.id, `${kept.length} starts of ${candidates.length} places`);
+  return writeArea(region, area, fine, far, landmarks, kept);
+}
+
+/** Writes an area's pack: its two grids and its landmarks and starts. */
+function writeArea(region, area, fine, far, landmarks, kept) {
   const dir = `${OUT}/${region.id}`;
   mkdirSync(dir, { recursive: true });
   const pack = g => ({ w: g.w, s: g.s, e: g.e, n: g.n, cols: g.cols, rows: g.rows });
@@ -235,11 +246,76 @@ async function buildArea(region, area) {
   return { id: area.id, name: area.name, landmarks: landmarks.length, starts: kept.length };
 }
 
+// ---------- a coast ----------
+const POINTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const DECK = 3;                                                     // a deck's height above the sea, to which the eye adds its own
+/**
+ * A coast's marks and starts. Marks are what a chart gives bearings on: lights (at the height of their lantern, their focal height
+ * where Wikidata has it, else 25 m over the ground), headlands, and the hills that are known; lights first. Starts are at sea, on a
+ * lattice over the area: water all round for 600 m, land within 25 km, three marks in sight and spread round; each named by its
+ * nearest mark ("3.2 km SSW of Bishop Rock") and given an id from its place, so a lesson can name it.
+ */
+function coastMarks(found, fine, far, at, area, step) {
+  const where = p => (inside(fine, p.lat, p.lon) ? fine : far);
+  const marks = [];
+  for (const p of found) {
+    const near = inside(fine, p.lat, p.lon);
+    if (p.kind === "light") {
+      const ground = Math.max(0, heightIn(where(p), p.lat, p.lon));
+      marks.push({ id: p.id, name: p.name, kind: "light", lat: R3(p.lat), lon: R3(p.lon), ele: Math.round(p.focal ?? ground + 25), links: p.links, near, rank: 1000 + p.links });
+    } else if (p.kind === "cape" && near) {
+      const t = summitNear(fine, p.lat, p.lon, 200);
+      if (t.h > 2) marks.push({ id: p.id, name: p.name, kind: "cape", lat: R3(t.lat), lon: R3(t.lon), ele: Math.round(t.h + 2), links: p.links, near, rank: 500 + p.links });
+    } else if ((p.kind === "summit" || p.kind === "group") && (near ? p.links >= 2 || (p.ele ?? 0) >= 250 : p.links >= 15)) {
+      const g = where(p), t = summitNear(g, p.lat, p.lon, 300);
+      if (t.h < 20) continue;
+      marks.push({ id: p.id, name: p.name, kind: "summit", lat: R3(t.lat), lon: R3(t.lon), ele: Math.round(Math.max(t.h, burnIn(g, t.lat, t.lon, p.ele))), listed: p.ele, links: p.links, near, rank: p.links });
+    }
+  }
+  marks.sort((a, b) => b.rank - a.rank);
+  const landmarks = [...marks.filter(m => m.near).slice(0, 40), ...marks.filter(m => !m.near).slice(0, 25)].map(({ rank, ...m }) => m);
+  log(area.id, `${landmarks.length} marks (${landmarks.filter(l => l.kind === "light").length} lights)`);
+  // the lattice, every 1.5 km, and any point a lesson names
+  const [w, s, e, n] = area.box, kLon = Math.cos((s + n) / 2 * Math.PI / 180), dLat = 1500 / 111320, dLon = dLat / kLon;
+  const pts = [];
+  for (let la = s + dLat / 2; la < n; la += dLat) for (let lo = w + dLon / 2; lo < e; lo += dLon) pts.push([la, lo]);
+  for (const L of LESSONS) { const m = /^sea-(-?[\d.]+)-(-?[\d.]+)$/.exec(L.start || ""); if (m && L.area === area.id) pts.unshift([+m[1], +m[2]]); }
+  const wet = (la, lo) => at(la, lo) <= 1;
+  const atSea = ([la, lo]) => wet(la, lo) && [0, 45, 90, 135, 180, 225, 270, 315].every(b => { const [a, o] = destOf(la, lo, b, 600); return wet(a, o); });
+  const starts = [];
+  for (const [la, lo] of pts) {
+    if (!atSea([la, lo])) continue;
+    const from = { lat: la, lon: lo, h: DECK }, sees = [];
+    let land = Infinity;
+    landmarks.forEach((l, i) => {
+      const { d } = distanceBearing(la, lo, l.lat, l.lon);
+      if (l.near) land = Math.min(land, d);
+      if (d > 60000 || d < 300) return;
+      if (visible(at, from, { lat: l.lat, lon: l.lon, h: l.ele })) sees.push(i);
+    });
+    if (land > 25000 || sees.filter(i => landmarks[i].near).length < 3) continue;
+    const gap = widestGap(sees.map(i => distanceBearing(la, lo, landmarks[i].lat, landmarks[i].lon).b));
+    if (gap > 300) continue;
+    const id = `sea-${la.toFixed(4)}-${lo.toFixed(4)}`;
+    const ni = sees.reduce((a, i) => (distanceBearing(la, lo, landmarks[i].lat, landmarks[i].lon).d < distanceBearing(la, lo, landmarks[a].lat, landmarks[a].lon).d ? i : a), sees[0]);
+    const nm = landmarks[ni], db = distanceBearing(nm.lat, nm.lon, la, lo);
+    starts.push({ id, name: `${(db.d / 1000).toFixed(1)} km ${POINTS[Math.round(db.b / 22.5) % 16]} of ${nm.name}`, kind: "sea", lat: R3(la), lon: R3(lo), ele: DECK, sees, gap: Math.round(gap) });
+  }
+  const lessonStarts = new Set(LESSONS.filter(L => L.area === area.id).map(L => L.start));
+  starts.sort((a, b) => lessonStarts.has(b.id) - lessonStarts.has(a.id) || b.sees.length - a.sees.length || a.gap - b.gap);
+  const kept = [];
+  for (const st of starts) if (kept.length < 40 && (lessonStarts.has(st.id) || !kept.some(k => distanceBearing(k.lat, k.lon, st.lat, st.lon).d < 2500))) kept.push(st);
+  log(area.id, `${kept.length} starts at sea of ${pts.length} points`);
+  return [landmarks, kept];
+}
+const destOf = (lat, lon, b, d) => { const k = d / 111320; return [lat + k * Math.cos(b * Math.PI / 180), lon + k * Math.sin(b * Math.PI / 180) / Math.cos(lat * Math.PI / 180)]; };
+
 // ---------- main ----------
 const want = (process.argv[2] || "").split(",").filter(Boolean);
-const todo = want.includes("all") ? REGIONS.filter(r => r.kind === "mountains") : want.map(id => regionById(id) || (() => { throw new Error(`no region ${id}`); })());
+const BUILDS = ["mountains", "coast"];
+const todo = want.includes("all") ? REGIONS.filter(r => BUILDS.includes(r.kind)) : want.map(id => regionById(id) || (() => { throw new Error(`no region ${id}`); })());
 for (const region of todo) {
-  if (region.kind !== "mountains") { log(region.id, "is not a mountain region: its builder comes later"); continue; }
+  if (!BUILDS.includes(region.kind)) { log(region.id, `has no builder yet (${region.kind})`); continue; }
   const areas = [];
   const only = (process.env.AREAS || "").split(",").filter(Boolean);      // AREAS=mont-blanc builds just that one (for a trial)
   for (const area of region.areas.filter(a => !only.length || only.includes(a.id))) {
