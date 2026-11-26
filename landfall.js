@@ -1,4 +1,4 @@
-// Landfall: the page. A window onto the sky above a chart table; the sextant when it is in the hand. The voyage itself is
+// Traverse (once Landfall, so the files and keys keep that name): the page. A window onto the sky above a chart table; the sextant when it is in the hand. The voyage itself is
 // landfall-engine.js (pure, seeded, saved whole under `landfall:run`); this file puts it on the screen, runs the twilight's clock while the
 // navigator looks about, and keeps what the player has learned (`landfall:mastery`, `landfall:best`). Everything the screen shows is
 // in the voyage or in `landfall:` keys, so a partner watching in a frame draws the same page from them.

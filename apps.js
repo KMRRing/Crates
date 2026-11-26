@@ -183,7 +183,7 @@ const SLIPWAY_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx=
 // Timegrapher: the instrument's paper trace, a ruled strip hanging from its brass slot and rolled at its foot, the
 // tick's dots and the tock's (cobalt) climbing in two parallel lines: a watch gaining, slightly out of beat
 // Reckoning: the quay running away to the horizon under a gull, the lane marks across it, the swipe up the middle
-// Landfall: a brass sextant under the pole star, the index arm set on a sight
+// Traverse (landfall.*): a brass sextant under the pole star, the index arm set on a sight
 // A gilt frame round a small landscape, for Art history.
 // A chart disc: a navy-ruled parchment world with a dashed trade route and a compass star in oxblood and gilt, for History of trade.
 // A pediment on three columns over a blue step, with an oxblood seal in the gable, for Constitutions and institutions.
@@ -447,7 +447,8 @@ export const APPS = [
   { id: "drift", sec: "minigames", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
   { id: "slipway", sec: "puzzle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
   { id: "loose", sec: "minigames", name: "Loose cargo", href: "./stow.html?mode=loose", logo: LOGO("loose", LOOSE_LOGO), players: [1, 1] },   // Stow's Loose cargo: the same page and keys, its own tile (4 November 2026, the split review)
-  { id: "landfall", sec: "minigames", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
+  // Landfall renamed Traverse (Korbi, 26 Nov 2026), to hold navigation at sea, on ice, sand and mountains and in the air; files and `landfall:` keys keep the old name
+  { id: "landfall", sec: "minigames", name: "Traverse", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
   { id: "ingot", sec: "minigames", name: "Ingot", href: "./ingot.html", logo: LOGO("ingot", INGOT_LOGO), players: [1, 1] },
   // Casino: games of chance, played to learn the floor rather than to get good at (README, Casino)
 ];

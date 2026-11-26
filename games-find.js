@@ -67,7 +67,7 @@ export const AKA = {
   flank: "reversi", attaque: "lattaque stratego attack flag bomb hidden army", crown: "draughts checkers", ingot: "2048 sliding tiles",
   lanterns: "akari light up bulbs lights lamps", asterism: "star battle two not touch stars regions", shunt: "gears hex shove jam train mesh", topple: "dominoes hex", orrery: "match three planets",
   settle: "foundry crucible metal alloy pewter brass solder", slipway: "cube cut timber block saw chisel rules 3d puzzle ship",
-  landfall: "celestial navigation sextant astrolabe stars constellations night sky pole star polaris orion sirius sailing voyage latitude longitude chronometer compass noon sun notebook mercator tide",
+  landfall: "traverse landfall celestial navigation sextant astrolabe stars constellations night sky pole star polaris orion sirius sailing voyage latitude longitude chronometer compass noon sun notebook mercator tide",
 };
 /** Lower case, no accents or punctuation, an apostrophe dropped (Hold'em is holdem): what a name and a search are compared as. */
 export const fold = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/['’]/g, "")
