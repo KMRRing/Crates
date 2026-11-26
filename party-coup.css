@@ -20,50 +20,64 @@
 .cp-mini:not(.back) { border-color: var(--cc); background: color-mix(in srgb, var(--cc) 12%, var(--tile)); color: var(--cc); }
 .cp-mini-glyph { width: .95rem; height: .95rem; }
 
-.cp-ask { display: grid; place-items: center; min-height: 2.4rem; font-size: 1rem; line-height: 1.2; }
-.cp-sub { text-align: center; font-size: .85rem; }
+.cp-ask { display: grid; place-items: center; min-height: 2.2rem; margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.2; text-align: center; }
+.cp-sub { margin: 0; text-align: center; font-size: .85rem; color: var(--ink-soft); }
+
+/* the card room's controls (26 Nov 2026, Korbi: "the UI should be more similar to the other card games"): the brass plate on top
+   (cardroom.css), the moves as the bid buttons of Schafkopf and Jass (.btn, a name in capitals with the character's picture, a
+   small line under it), the answers a row of them, and your cards held big at the bottom as the card games hold a hand */
+.cp-plate { justify-content: space-between; flex: none; }
+.cp-plate .cr-sides { margin-left: 0; flex: 1; justify-content: flex-end; overflow: hidden; }
+.cp-plate .cr-side small { max-width: 3.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-plate .cr-side.out { opacity: .45; }
 .cp-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
-.cp-act { display: grid; align-content: center; gap: .1rem; min-height: 2.6rem; padding: .25rem .2rem; border: 1.5px solid var(--tile-edge); border-top: 4px solid var(--cc, var(--brass)); border-radius: 6px;
-  background: var(--tile); color: var(--ink); font: inherit; text-align: center; cursor: pointer; }
-.cp-act b { font-size: .88rem; }
-.cp-act span { font-size: .66rem; line-height: 1.15; color: var(--ink-soft); }
-.cp-act:disabled { opacity: .4; cursor: default; }
-.cp-act.tax { --cc: var(--cc-duke); }
-.cp-act.assassinate { --cc: var(--cc-assassin); }
-.cp-act.steal { --cc: var(--cc-captain); }
-.cp-act.exchange { --cc: var(--cc-ambassador); }
-.cp-act.coup { --cc: var(--bad); grid-column: 1 / -1; }
-.cp-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .45rem; }
-.cp-row .pk-btn { min-height: 2.6rem; padding-left: .3rem; padding-right: .3rem; }
+.cp-bid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; min-width: 0; min-height: 2.8rem; padding: .25rem .25rem; line-height: 1.15;
+  font-size: .76rem; letter-spacing: calc(.05em * var(--track)); }
+.cp-bid-name { display: inline-flex; align-items: center; gap: .25rem; max-width: 100%; white-space: nowrap; }
+.cp-bid-glyph { flex: none; width: 1rem; height: 1rem; }
+.cp-bid small { font-size: .66rem; font-weight: 600; opacity: .85; text-transform: none; letter-spacing: 0; }
+.cp-bid.tax { --cc: var(--cc-duke); } .cp-bid.assassinate { --cc: var(--cc-assassin); } .cp-bid.steal { --cc: var(--cc-captain); } .cp-bid.exchange { --cc: var(--cc-ambassador); }
+.cp-bid .cp-bid-glyph { color: var(--cc, currentColor); }
+.cp-bid.coup { grid-column: 1 / -1; }
+.cp-bid.cp-cancel { border-style: dashed; }
+.cp-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .35rem; }
+.cp-go { min-height: 2.8rem; padding-left: .3rem; padding-right: .3rem; }
+.cp-go.cp-bid { min-height: 2.8rem; }
 .cp-challenge { border-color: var(--bad); color: var(--bad); }
 .cp-row .chosen { outline: 2px solid var(--pa-in); outline-offset: 1px; }
-.cp-row .pk-btn:disabled:not(.chosen) { opacity: .45; }
+.cp-row .btn:disabled:not(.chosen) { opacity: .45; }
+@media (max-height: 700px) and (orientation: portrait) { .cp-bid small { display: none; } .cp-bid, .cp-go { min-height: 2.5rem; } }
 
-/* a card: ivory framed in its enamel, a gilt rule inside the frame, its picture and name in the enamel */
-.cp-card { display: flex; align-items: center; gap: .45rem; min-width: 0; padding: .3rem .5rem; border: 2px solid var(--cc); border-radius: 4px;
-  background: linear-gradient(color-mix(in srgb, var(--cc) 11%, var(--tile)), var(--tile)); box-shadow: inset 0 0 0 2px var(--tile), inset 0 0 0 3px color-mix(in srgb, var(--cp-gilt) 70%, transparent); color: var(--cc); }
-.cp-card.duke, .cp-mini.duke { --cc: var(--cc-duke); }
-.cp-card.assassin, .cp-mini.assassin { --cc: var(--cc-assassin); }
-.cp-card.captain, .cp-mini.captain { --cc: var(--cc-captain); }
-.cp-card.ambassador, .cp-mini.ambassador { --cc: var(--cc-ambassador); }
-.cp-card.contessa, .cp-mini.contessa { --cc: var(--cc-contessa); }
-.cp-card.back { --cc: var(--brass); min-height: 2.3rem; }
-.cp-glyph { flex: none; width: 1.6rem; height: 1.6rem; }
-.cp-card b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
-.cp-pool { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
-.cp-pick { padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
-.cp-pick .cp-card { min-height: 2.8rem; }
-.cp-col .pk-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
-.cp-col .pk-pick button { min-height: 2.4rem; padding: .25rem .3rem; font-size: .9rem; }
-.cp-col .pk-pick .cp-back { border-style: dashed; font-weight: 600; color: var(--ink-soft); }
-.cp-col .pk-btn { min-height: 2.6rem; }
-.cp-col .pk-wait { font-size: .85rem; }
-.cp-pick[aria-pressed="true"] { outline: 3px solid var(--pa-in); outline-offset: 1px; }
-
-.cp-hand { display: grid; gap: .25rem; width: 100%; padding: .35rem .45rem .45rem; border: 1.5px solid var(--pa-in); border-radius: 6px; background: var(--pa-soft); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.cp-hand-label { display: flex; justify-content: space-between; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
-.cp-hand-label em { font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; }
-.cp-hand-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; min-height: 2.3rem; }
+/* a big card: ivory framed in the character's enamel with a gilt rule inside, its picture in a pale medallion, its name under it */
+.cp-big { position: relative; display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; box-sizing: border-box; width: 4.4rem; aspect-ratio: 0.69;
+  padding: .45rem .3rem .4rem; border: 3px solid var(--cc); border-radius: 6px; background: #f1e7d1; color: var(--cc);
+  box-shadow: inset 0 0 0 2px #f1e7d1, inset 0 0 0 3px var(--cp-gilt), 0 .15rem .35rem rgba(0, 0, 0, .22); }
+.cp-medal { display: grid; place-items: center; width: 76%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--cc); background: color-mix(in srgb, var(--cc) 22%, #f6eedc); }
+.cp-big-glyph { width: 74%; height: 74%; }
+.cp-big b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .52rem; font-weight: 800; letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); }
+.cp-big.back { background-color: var(--cp-back); border-color: var(--cp-gilt); background-image: repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in srgb, var(--cp-gilt) 40%, transparent) 5px 6px),
+  repeating-linear-gradient(-45deg, transparent 0 5px, color-mix(in srgb, var(--cp-gilt) 40%, transparent) 5px 6px); box-shadow: inset 0 0 0 3px var(--cp-back), inset 0 0 0 4px var(--cp-gilt), 0 .15rem .35rem rgba(0, 0, 0, .22); }
+.cp-big.lost { opacity: .5; transform: rotate(4deg); }
+.cp-big.duke { --cc: var(--cc-duke); } .cp-big.assassin { --cc: var(--cc-assassin); } .cp-big.captain { --cc: var(--cc-captain); } .cp-big.ambassador { --cc: var(--cc-ambassador); } .cp-big.contessa { --cc: var(--cc-contessa); }
+/* your hand: the cards side by side, a little fanned, as the card games show theirs; a tap hides them */
+.cp-hand { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: .45rem; width: 100%; margin: .1rem 0 0; padding: .2rem 0 .1rem; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.cp-hand .cp-big:first-child:not(:only-of-type) { transform: rotate(-3deg); }
+.cp-hand .cp-big:nth-child(2):not(.lost) { transform: rotate(3deg); }
+.cp-hand-hint { position: absolute; right: 0; bottom: .1rem; font-size: .66rem; font-style: normal; font-weight: 700; color: var(--ink-soft); }
+.cp-choose { cursor: default; }
+.cp-pick { padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; color: inherit; cursor: pointer; transition: transform .1s; }
+.cp-pick[aria-pressed="true"] { transform: translateY(-.45rem); }
+.cp-pick[aria-pressed="true"] .cp-big { outline: 3px solid var(--pa-in); outline-offset: 2px; }
+@media (max-height: 700px) and (orientation: portrait) { .cp-big { width: 3.5rem; } .cp-big b { font-size: .4rem; letter-spacing: 0; } .cp-col .cp-sub { display: none; } }
+/* a tablet on its side: the table on the left, the plate across the top, and your cards and moves beside the table under your
+   thumb, as the card games sit (cardroom.css); the table keeps one height whatever the moves beside it are */
+@media (orientation: landscape) and (min-width: 700px) {
+  .cp-col:has(> .cp-3d) { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); grid-auto-rows: min-content; column-gap: 1rem; align-content: start; }
+  .cp-col:has(> .cp-3d) > * { grid-column: 2; }
+  .cp-col:has(> .cp-3d) > .cp-plate { grid-column: 1 / -1; }
+  .cp-col:has(> .cp-3d) > .cp-3d { grid-column: 1; grid-row: 2 / span 12; height: min(64svh, 32rem); }
+  .cp-col:has(> .cp-3d) .cp-big { width: 5.2rem; }
+}
 .cp-log { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; font-size: .78rem; line-height: 1.25; color: var(--ink-soft); }
 .cp-log li:first-child { color: var(--ink); }
 .cp-final li span:last-child { text-align: right; }
@@ -76,7 +90,7 @@
 .cp-solo .pk-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
 .cp-solo .pk-pick button { min-height: 2.6rem; }
 
-html[data-theme="office"] :is(.cp-p, .cp-act, .cp-hand, .cp-pick) { border-radius: 4px; }
+html[data-theme="office"] :is(.cp-p, .cp-pick, .cp-big) { border-radius: 4px; }
 @media (max-height: 700px) { .cp-log li:nth-child(n+3) { display: none; } }
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) .cp-col { --cc-duke: #B58AD9; --cc-assassin: #A3A3B2; --cc-captain: #6FA5DC; --cc-ambassador: #7FC2A8; --cc-contessa: #E8806F; --bad: #E8806F; }
@@ -88,7 +102,7 @@ html[data-mode="night"] .cp-col { --cp-back: #15213d; }
 /* The 3D table (party-coup-3d.js): a candle-lit back room behind a transparent canvas (its floor drawn, the dark round it here),
    the seats' tags laid over it as brass-edged plates of dark lacquer with the names in spaced capitals, the same by day and night
    since the room is dark either way. Its height is fixed, so nothing moves as the game does; the flat list stays for a screen reader. */
-.cp-3d { --cp-plate: rgba(20, 14, 9, .8); --cp-letter: #f1e4c4; position: relative; flex: none; height: clamp(12.5rem, 38svh, 23rem); overflow: hidden;
+.cp-3d { --cp-plate: rgba(20, 14, 9, .8); --cp-letter: #f1e4c4; position: relative; flex: none; height: clamp(11rem, 31svh, 20rem); overflow: hidden;
   border: 1.5px solid var(--brass); border-radius: 4px; background: #120c08; }
 .cp-3d .cp3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cp3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }

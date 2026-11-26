@@ -18,7 +18,7 @@
 // read as an answer to the next. Everyone answers a challenge or a block window at once, on their own phone; it closes
 // when all have answered, or when the clock (an option) runs out and the silent allow it. Like Undercover, the state
 // holds every hand and each phone shows only its own: a table of friends, not a casino.
-import { h, button, pickPlayer, waitingFor, countdown } from "./party-kit.js";
+import { h, button, waitingFor, countdown } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
 import { play } from "./party-coup-solo.js";
 import { wants3D, pick3D, sceneOf, signature } from "./party-coup-table.js";
@@ -402,6 +402,24 @@ function card(c, { back = false } = {}) {
   if (back) return h("span", { class: "cp-card back", "aria-label": "A card face down" });
   return h("span", { class: `cp-card ${c}` }, emblemNode(c), h("b", {}, CARD[c].name));
 }
+/** A card as the card games hold theirs (26 Nov 2026, Korbi: "the UI should be more similar to the other card games"): ivory,
+ *  framed in the character's enamel, its picture in a medallion and its name under it, as on the 3D table; or its back. */
+function bigCard(c, { back = false, lost = false } = {}) {
+  if (back) return h("span", { class: "cp-big back", "aria-label": "A card face down" });
+  return h("span", { class: `cp-big ${c}${lost ? " lost" : ""}`, "aria-label": `${CARD[c].name}${lost ? ", lost" : ""}` }, h("span", { class: "cp-medal" }, emblemNode(c, "cp-big-glyph")), h("b", {}, CARD[c].name));
+}
+/** The card room's brass plate (cardroom.css): the court deck, then each seat's coins (whose turn it is lit, the out ones faint). */
+function plate(s, name, me) {
+  return h("div", { class: "cr-plate cp-plate" },
+    h("span", { class: "cr-side" }, h("small", {}, "Deck"), h("b", {}, String(s.deck?.length ?? 0))),
+    h("span", { class: "cr-sides" }, ...s.seats.map(u => h("span", { class: `cr-side${u === s.turn && s.phase !== "over" ? " on" : ""}${hand(s, u).length ? "" : " out"}` },
+      h("small", {}, u === me ? "You" : name(u)), h("b", {}, hand(s, u).length ? String(s.coins[u] ?? 0) : "–")))));
+}
+// the card room's look (cardroom.css) for the plate; Party's page doesn't load it of itself
+const roomCss = () => {
+  if (document.querySelector('link[href$="cardroom.css"]')) return;
+  document.head.append(h("link", { rel: "stylesheet", href: "./cardroom.css" }));
+};
 
 function drawCoup(stage, ctx) {
   const { state: s, me, players, inputs } = ctx;
@@ -417,8 +435,10 @@ function drawCoup(stage, ctx) {
   const send = value => ctx.send(value);
   const others = alive(s).filter(u => u !== me.uid);
   const parts = [];
+  roomCss();
 
-  // the table: who is whose turn, the coins, the cards face down and face up
+  // the plate, then the table: who is whose turn, the coins, the cards face down and face up
+  parts.push(plate(s, name, me.uid));
   const box = box3D();
   if (box) parts.push(box);
   parts.push(h("ul", { class: `cp-players${box ? " cp-sr" : ""}` }, ...s.seats.map(u => {
@@ -442,18 +462,18 @@ function drawCoup(stage, ctx) {
       if (local.pick) {
         const a = ACTIONS[local.pick];
         parts.push(ask(`${a.name}: which player?`));
-        const targets = pickPlayer(others.map(u => ({ uid: u, name: `${name(u)} · ${s.coins[u]}` })), { label: "Targets", onPick: u => send({ do: local.pick, target: u }) });
-        targets.append(h("button", { type: "button", class: "cp-back", onclick: () => { local.pick = null; draw(); } }, "Back"));
-        parts.push(targets);
+        parts.push(h("div", { class: "cp-acts", role: "radiogroup", "aria-label": "Targets" }, ...others.map(u => h("button", { type: "button", role: "radio", "aria-checked": "false", class: "btn cp-bid",
+          onclick: () => send({ do: local.pick, target: u }) }, h("span", { class: "cp-bid-name" }, name(u)), h("small", {}, `${s.coins[u]} coins · ${hand(s, u).length} card${hand(s, u).length === 1 ? "" : "s"}`))),
+          h("button", { type: "button", class: "btn cp-bid cp-cancel", onclick: () => { local.pick = null; draw(); } }, h("span", { class: "cp-bid-name" }, "Back"), h("small", {}, "another action"))));
       } else {
         parts.push(ask(must ? `You have ${coins} coins: you must Oust` : "Your turn"));
         parts.push(h("div", { class: "cp-acts" }, ...ORDER.map(kind => {
-          const a = ACTIONS[kind], ok = must ? kind === "coup" : !a.cost || coins >= a.cost;
-          return h("button", { type: "button", class: `cp-act ${kind}`, disabled: !ok, onclick: () => {
+          const a = ACTIONS[kind], ok = must ? kind === "coup" : !a.cost || coins >= a.cost, by = a.claim;
+          return h("button", { type: "button", class: `btn cp-bid ${kind}`, disabled: !ok, onclick: () => {
             if (!a.target) return send({ do: kind });
             if (others.length === 1) return send({ do: kind, target: others[0] });
             local.pick = kind; draw();
-          } }, h("b", {}, a.name), h("span", {}, a.sub));
+          } }, h("span", { class: "cp-bid-name" }, by ? emblemNode(by, "cp-bid-glyph") : null, a.name), h("small", {}, a.sub));
         })));
       }
     } else parts.push(ask(`${name(cur)} is choosing an action`));
@@ -466,8 +486,8 @@ function drawCoup(stage, ctx) {
     if (el.includes(me.uid)) {
       parts.push(sub("Do you believe them?"));
       parts.push(h("div", { class: "cp-row" },
-        button("Challenge", () => send({ c: "challenge" }), { primary: false, cls: `cp-challenge${mine === "challenge" ? " chosen" : ""}`, disabled: !!mine }),
-        button("Allow", () => send({ c: "allow" }), { cls: mine === "allow" ? "chosen" : "", disabled: !!mine })));
+        button("Challenge", () => send({ c: "challenge" }), { primary: false, cls: `cp-go cp-challenge${mine === "challenge" ? " chosen" : ""}`, disabled: !!mine }),
+        button("Allow", () => send({ c: "allow" }), { cls: `cp-go${mine === "allow" ? " chosen" : ""}`, disabled: !!mine })));
     } else if (c.by === me.uid && live) parts.push(sub(`Anyone may challenge. If they do, you show the ${CARD[c.card].name}.`));
     parts.push(h("p", { class: "pk-wait" }, waitingFor(peopleOf(el), el.filter(u => inputs[u]?.c))));
     parts.push(clock());
@@ -477,8 +497,9 @@ function drawCoup(stage, ctx) {
     if (el.includes(me.uid)) {
       parts.push(sub(`You may block it, claiming the ${a.blockedBy.map(c => CARD[c].name).join(" or the ")}.`));
       parts.push(h("div", { class: "cp-row" },
-        ...a.blockedBy.map(c => button(`Block: ${CARD[c].name}`, () => send({ b: c }), { primary: false, cls: mine === c ? "chosen" : "", disabled: !!mine })),
-        button("Allow", () => send({ b: "allow" }), { cls: mine === "allow" ? "chosen" : "", disabled: !!mine })));
+        ...a.blockedBy.map(c => h("button", { type: "button", class: `btn pk-btn cp-go cp-bid${mine === c ? " chosen" : ""}`, disabled: !!mine, onclick: () => send({ b: c }) },
+          h("span", { class: "cp-bid-name" }, emblemNode(c, "cp-bid-glyph"), "Block"), h("small", {}, `as the ${CARD[c].name}`))),
+        button("Allow", () => send({ b: "allow" }), { cls: `cp-go${mine === "allow" ? " chosen" : ""}`, disabled: !!mine })));
     }
     parts.push(h("p", { class: "pk-wait" }, waitingFor(peopleOf(el), el.filter(u => inputs[u]?.b))));
     parts.push(clock());
@@ -486,7 +507,7 @@ function drawCoup(stage, ctx) {
     const u = s.loser;
     if (u === me.uid) {
       parts.push(ask("Choose an influence to lose"));
-      parts.push(h("div", { class: "cp-pool" }, ...hand(s, u).map((c, i) => h("button", { type: "button", class: "cp-pick", onclick: () => send({ lose: i }) }, card(c)))));
+      parts.push(h("div", { class: "cp-hand cp-choose" }, ...hand(s, u).map((c, i) => h("button", { type: "button", class: "cp-pick", onclick: () => send({ lose: i }) }, bigCard(c)))));
     } else parts.push(ask(`${name(u)} is choosing an influence to lose`));
     parts.push(clock());
   } else if (s.phase === "exchange") {
@@ -494,11 +515,11 @@ function drawCoup(stage, ctx) {
     if (by === me.uid) {
       const pool = [...hand(s, by), ...s.exch.drawn], k = hand(s, by).length;
       parts.push(ask(`Keep ${k} of these ${pool.length}`));
-      parts.push(h("div", { class: "cp-pool" }, ...pool.map((c, i) => h("button", { type: "button", class: "cp-pick", "aria-pressed": String(local.keep.has(i)), onclick: () => {
+      parts.push(h("div", { class: "cp-hand cp-choose" }, ...pool.map((c, i) => h("button", { type: "button", class: "cp-pick", "aria-pressed": String(local.keep.has(i)), onclick: () => {
         if (local.keep.has(i)) local.keep.delete(i); else if (local.keep.size < k) local.keep.add(i);
         draw();
-      } }, card(c)))));
-      parts.push(button("Keep these", () => send({ keep: [...local.keep] }), { disabled: local.keep.size !== k }));
+      } }, bigCard(c)))));
+      parts.push(button("Keep these", () => send({ keep: [...local.keep] }), { cls: "cp-go", disabled: local.keep.size !== k }));
     } else parts.push(ask(`${name(by)} is exchanging with the court deck`));
     parts.push(clock());
   } else if (over) {
@@ -511,9 +532,13 @@ function drawCoup(stage, ctx) {
   const choosing = (s.phase === "lose" && s.loser === me.uid) || (s.phase === "exchange" && s.act.by === me.uid);   // the choice shows the cards
   if (seated && !choosing) {
     const mine = hand(s, me.uid), up = faceUp(s, me.uid);
-    parts.push(h("button", { type: "button", class: `cp-hand${handHidden ? " hidden" : ""}`, "aria-pressed": String(handHidden), onclick: () => { handHidden = !handHidden; draw(); } },
-      h("span", { class: "cp-hand-label" }, "Your influence", h("em", {}, handHidden ? "tap to show" : "tap to hide")),
-      h("span", { class: "cp-hand-cards" }, ...mine.map(c => card(c, { back: handHidden })), ...up.map(c => h("span", { class: "cp-faceup" }, card(c))))));
+    const held = h("button", { type: "button", class: `cp-hand${handHidden ? " hidden" : ""}`, "aria-pressed": String(handHidden), "aria-label": handHidden ? "Your cards, hidden: tap to show" : "Your cards: tap to hide",
+      onclick: () => { handHidden = !handHidden; draw(); } },
+      ...mine.map(c => bigCard(c, { back: handHidden })), ...up.map(c => bigCard(c, { lost: true })),
+      h("em", { class: "cp-hand-hint" }, handHidden ? "Tap to show" : "Tap to hide"));
+    // held above your moves, as the card games hold a hand above their buttons
+    const at = parts.findIndex(n => n?.classList && ["cp-acts", "cp-row", "cp-go"].some(c => n.classList.contains(c)));
+    parts.splice(at < 0 ? parts.length : at, 0, held);
   }
   // what has happened, the newest first
   const log = (s.log || []).slice(-4).reverse();
