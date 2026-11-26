@@ -74,7 +74,34 @@
   </section>
 
   <div id="pass" class="lf-pass" aria-live="polite"><p id="passTxt"></p></div>
+
+  <section id="atlas" class="lf-atlas fit-grow" aria-label="The Atlas" hidden>
+    <div class="lf-at-view">
+      <canvas id="atViewCv" class="lf-at-cv"></canvas>
+      <p id="atRead" class="lf-at-read" title="What the compass reads on the line">000°</p>
+      <div class="lf-at-bar">
+        <button type="button" id="atWider" class="lf-round" aria-label="Wider">−</button>
+        <button type="button" id="atCloser" class="lf-round" aria-label="Closer">+</button>
+      </div>
+    </div>
+    <div class="lf-at-map">
+      <canvas id="atMapCv" class="lf-at-cv"></canvas>
+      <div class="lf-at-bar">
+        <button type="button" id="atMapOut" class="lf-round" aria-label="Map out">−</button>
+        <button type="button" id="atMapIn" class="lf-round" aria-label="Map in">+</button>
+      </div>
+    </div>
+    <div class="lf-at-foot">
+      <p id="atTask" class="lf-task" aria-live="polite"></p>
+      <div id="atActs" class="lf-acts"></div>
+    </div>
+  </section>
 </div>
+
+<dialog id="atPick" class="sheet lf-sheet" aria-labelledby="atPickHead">
+  <div class="pick-head"><h2 id="atPickHead">Which summit?</h2><button class="btn" type="button" id="atPickClose">Close</button></div>
+  <div id="atPickList" class="lf-at-names"></div>
+</dialog>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>

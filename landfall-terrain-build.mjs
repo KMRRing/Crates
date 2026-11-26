@@ -93,7 +93,9 @@ const TYPES = {
   village: ["Q532", "Q3957", "Q70208", "Q667509", "Q747074", "Q484170", "Q262166", "Q2039348", "Q15077340"], // village, town, municipalities (CH, AT, IT, FR, DE, SI and the like)
   viewpoint: ["Q6017969"],
 };
-const LANGS = ["en", "de", "fr", "it", "sl", "es", "ja", "ne", "zh"];
+// Names in the Latin alphabet only, English first, then Wikidata's one-for-all-languages label, then the mountain peoples' own: a
+// summit known only by a Chinese or Japanese label in the Alps is too obscure to ask for (one showed on the Dolomites map).
+const LANGS = ["en", "mul", "de", "fr", "it", "rm", "lld", "fur", "sl", "es", "pt", "nl", "pl", "cs", "sk", "nb", "sv", "is"];
 /** Items of the kinds wanted inside a box, without their names (asking for names in the same query made Wikidata time out). */
 async function inBox([w, s, e, n], kinds, extra = "") {
   const vals = kinds.flatMap(kind => TYPES[kind].map(q => `(wd:${q} "${kind}")`)).join(" ");
@@ -233,7 +235,7 @@ for (const region of todo) {
     areas.push(await buildArea(region, area));
     tiles.clear(); byBox.clear();                                   // a region's tiles are many: keep only the area's at a time
   }
-  writeFileSync(`${OUT}/${region.id}/index.json`, JSON.stringify({ region: region.id, built: new Date().toISOString().slice(0, 10), areas,
+  writeFileSync(`${OUT}/${region.id}/index.json`, JSON.stringify({ region: region.id, built: new Date().toISOString().slice(0, 16), areas,
     attribution: "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)." }, null, 1));
   log(region.id, "done");
 }

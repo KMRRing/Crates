@@ -25,6 +25,19 @@ export function heightIn(g, lat, lon) {
   return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + e * fx) * fy;
 }
 
+/**
+ * A grid's height by a Catmull-Rom spline through the 4 x 4 samples round the point: smooth where bilinear is a patchwork of flat
+ * facets, which shows at close range in the view. For drawing only; what is seen from where is judged on `heightIn`.
+ */
+export function smoothIn(g, lat, lon) {
+  const x = Math.min(g.cols - 1, Math.max(0, (lon - g.w) / (g.e - g.w) * (g.cols - 1)));
+  const y = Math.min(g.rows - 1, Math.max(0, (g.n - lat) / (g.n - g.s) * (g.rows - 1)));
+  const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, d = g.data, C = g.cols - 1, R = g.rows - 1;
+  const cr = (p0, p1, p2, p3, t) => p1 + 0.5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
+  const row = r => { const o = Math.min(R, Math.max(0, r)) * g.cols; return cr(d[o + Math.max(0, x0 - 1)], d[o + x0], d[o + Math.min(C, x0 + 1)], d[o + Math.min(C, x0 + 2)], fx); };
+  return cr(row(y0 - 1), row(y0), row(y0 + 1), row(y0 + 2), fy);
+}
+
 /** A region's terrain as one lookup: the finest grid that holds the point (areas first, then the region's coarse grid), else sea level. */
 export function terrain(grids) {
   const fine = grids.filter(g => g.fine), coarse = grids.filter(g => !g.fine);

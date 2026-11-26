@@ -232,3 +232,27 @@
 /* Kelvin's line of soundings, on tracing paper over the chart */
 /* square, and no taller than the sheet leaves room for beside its words and buttons */
 .lf-trace { display: block; aspect-ratio: 1; width: min(100%, calc(88vh - 19rem)); width: min(100%, calc(88svh - 19rem)); border: 1px solid var(--rule); border-radius: 3px; cursor: grab; margin: .3rem auto .6rem; }
+
+/* the Atlas (landfall-atlas.js): real ground round you above, the map of the area below; held sideways the two stand side by side.
+   It takes the voyage's place while the menu's Play is Atlas (#app.lf-atlas-on hides the rest). */
+#app.lf-atlas-on > section:not(#atlas), #app.lf-atlas-on > .lf-pass { display: none !important; }
+.lf-atlas { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: minmax(0, 42fr) minmax(0, 45fr) auto; gap: .45rem; margin-top: .5rem;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .4rem); }
+.lf-atlas[hidden] { display: none; }
+.lf-at-view, .lf-at-map { position: relative; min-height: 0; border: 3px solid var(--lf-wood); border-radius: 6px; overflow: hidden; background: #08121a; }
+.lf-at-map { background: var(--lf-paper); }
+.lf-at-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.lf-at-read { position: absolute; left: 50%; bottom: .35rem; transform: translateX(-50%); margin: 0; padding: .1rem .45rem; border: 1px solid rgba(201, 162, 74, .75); border-radius: 3px;
+  background: rgba(8, 18, 26, .7); font: 700 .85rem var(--lf-mono); color: var(--lf-gilt-hi); pointer-events: none; }
+.lf-at-bar { position: absolute; right: .4rem; bottom: .4rem; display: flex; gap: .35rem; }
+.lf-at-foot { padding: .45rem .5rem .5rem; border: 1px solid rgba(201, 162, 74, .7); border-radius: 6px; color: var(--lf-cream);
+  background: radial-gradient(ellipse at 50% 15%, var(--lf-teal-hi), var(--lf-teal) 78%); box-shadow: inset 0 0 1.2rem rgba(0, 0, 0, .45); }
+.lf-at-foot .lf-task { height: 3.4rem; margin: 0 0 .4rem; }
+.lf-at-names { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .35rem; max-height: 60svh; overflow-y: auto; }
+.lf-at-name { justify-content: flex-start; text-align: left; font-size: .85rem; text-transform: none; letter-spacing: 0; }
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.landfall > .lf-atlas { grid-column: 1 / -1; grid-row: 2; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .lf-at-view { grid-column: 1; grid-row: 1; }
+  .lf-at-map { grid-column: 2; grid-row: 1; }
+  .lf-at-foot { grid-column: 1 / 3; }
+}

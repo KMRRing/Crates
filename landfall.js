@@ -40,13 +40,14 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", seenKelvin: "landfall:seen-kelvin", notes: "landfall:notes", view: "landfall:view" };
+const KEY = { mode: "landfall:mode", run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", seen: "landfall:seen", seenSun: "landfall:seen-noon", seenStar: "landfall:seen-star", seenLead: "landfall:seen-lead", seenLights: "landfall:seen-lights", seenLand: "landfall:seen-land", seenCloud: "landfall:seen-cloud", seenBirds: "landfall:seen-birds", seenKelvin: "landfall:seen-kelvin", notes: "landfall:notes", view: "landfall:view" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
 let stage = null;                                // the 3D deck (landfall-stage.js), or null while the page is flat
 let S = null;                                    // the voyage, with `S.ui` (what the page keeps about it)
 let paused = false;
+let atlasOn = false, atlas = null;                 // the Atlas shown in the voyage's place (setMode), and its module once loaded
 let note = "";                                   // a line the last move earned, shown in the task line until the next
 let reveal = null;                               // the latitude reveal under way
 let ff = 0;                                      // game minutes still to run fast (the Wait button)
@@ -1173,15 +1174,21 @@ let menuChapter = 0;                             // the chapter the menu is show
 function openMenu() {
   const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {}), here = chapterOf(S.level), ch = menuChapter || here || 1;
   body.replaceChildren();
-  part(body, "play").append(action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
+  part(body, "play").append(atlasOn ? action("A new start", () => { $("menuDlg").close(); atlas?.newStart(); }, "primary")
+    : action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
   const content = part(body, "content");
-  const chapters = playable(), shown = chapters.find(c => c.n === ch) || chapters[0];
-  content.append(choice("Chapter", chapters.map(c => [String(c.n), `${c.n} ${c.name}`]), String(shown.n), v => { menuChapter = Number(v); openMenu(); }));
-  content.append(choice("Voyage", shown.levels.map((id, i) => { const l = levelById(id); return [id, `${i + 1} ${l.name}${best[id] ? ` ${"★".repeat(best[id])}` : ""}`]; }), shown.n === here ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
+  if (!IN_FRAME) content.append(choice("Play", [["campaign", "Campaign"], ["atlas", "Atlas"]], atlasOn ? "atlas" : "campaign", v => { $("menuDlg").close(); setMode(v); }));
+  if (atlasOn) atlas?.menuInto(content, again => { if (again) openMenu(); else $("menuDlg").close(); });
+  else {
+    const chapters = playable(), shown = chapters.find(c => c.n === ch) || chapters[0];
+    content.append(choice("Chapter", chapters.map(c => [String(c.n), `${c.n} ${c.name}`]), String(shown.n), v => { menuChapter = Number(v); openMenu(); }));
+    content.append(choice("Voyage", shown.levels.map((id, i) => { const l = levelById(id); return [id, `${i + 1} ${l.name}${best[id] ? ` ${"★".repeat(best[id])}` : ""}`]; }), shown.n === here ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
+  }
   const set = part(body, "settings");
   set.append(volume(v => { if (v) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
-  set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
+  if (!atlasOn) set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
   const about = part(body, "about");
+  if (atlasOn) { atlas?.credit().then(c => c && about.append(line(c))); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
   about.append(action("Notebook", openNotes, "link"), action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"), action("Any star, and the intercept", () => openHelp("star"), "link"), action("The lead", () => openHelp("lead"), "link"), action("Lights by their character", () => openHelp("lights"), "link"), action("The lie of the land", () => openHelp("land"), "link"), action("Stars through cloud", () => openHelp("cloud"), "link"), action("Birds and the land", () => openHelp("birds"), "link"), action("Kelvin's machine", () => openHelp("kelvin"), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
@@ -1270,13 +1277,14 @@ const sightTarget = () => { const d = skyData(), W = S.watch; return isDay() ? d
 /** Goes to the 3D deck, or back to the flat window. Returns whether 3D is up. */
 async function setView(v, remember = true) {
   if (viewBusy) return !!stage;
-  const want = v === "3d";
+  const want = v === "3d" && !atlasOn;              // the Atlas draws its own view: no deck behind it
   if (want === !!stage) { if (remember) write(KEY.view, v); return !!stage; }
   viewBusy = true;
   try {
     if (want) {
       let made = null;
       try { made = (await import("./landfall-stage.js")).createStage($("stageGl"), stageHooks); } catch (e) { made = null; console.warn("Landfall: no 3D here, staying flat", e); }
+      if (made && atlasOn) { made.dispose(); made = null; }   // the Atlas was opened while the deck loaded
       if (!made) return false;
       stage = made;
       dress(true);
@@ -1306,7 +1314,7 @@ onDefaultChange(is3D => { if (read(KEY.view, null) == null) setView(is3D ? "3d" 
 
 // ---------- the frame loop: draws only while something moves ----------
 let raf = 0, lastT = 0, lastPersist = 0, lastSky = 0, lastText = 0;
-function wake() { if (!raf && !document.hidden && !paused) { lastT = performance.now(); raf = requestAnimationFrame(frame); } }
+function wake() { if (!raf && !document.hidden && !paused && !atlasOn) { lastT = performance.now(); raf = requestAnimationFrame(frame); } }
 function frame(now) {
   raf = 0;
   if (!S || paused || document.hidden) return;
@@ -1354,10 +1362,28 @@ new ResizeObserver(() => { fitTop(); dirty.sky = dirty.chart = true; wake(); }).
 for (const c of [skyCv, chartCv, scopeCv]) new ResizeObserver(() => { dirty.sky = dirty.chart = true; wake(); }).observe(c);
 addEventListener("resize", resized);
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { sound.pause(); persist(); } else { if (!paused) sound.resume(); wake(); }
+  if (document.hidden) { sound.pause(); persist(); } else { if (!paused && !atlasOn) sound.resume(); wake(); }
 });
 addEventListener("pagehide", persist);
-onPause(() => { paused = true; sound.pause(); persist(); }, () => { paused = false; sound.resume(); wake(); });
+onPause(() => { paused = true; sound.pause(); persist(); }, () => { paused = false; if (!atlasOn) sound.resume(); wake(); });
+
+// ---------- the Atlas: real places to master (landfall-atlas.js), in the voyage's place while Play is Atlas ----------
+async function setMode(m) {
+  if (!IN_FRAME) write(KEY.mode, m);
+  atlasOn = m === "atlas";
+  $("app").classList.toggle("lf-atlas-on", atlasOn);
+  if (atlasOn) {
+    sound.pause(); persist();
+    if (stage) await setView("flat", false);       // `want` is false now the Atlas is on, so this takes the deck down
+    atlas ||= await import("./landfall-atlas.js");
+    atlas.show();
+  } else {
+    atlas?.hide();
+    if (!paused) sound.resume();
+    if (wants3D(read(KEY.view, null), "3d") && !IN_FRAME) setView("3d", false);
+    dirty.sky = dirty.chart = true; wake();
+  }
+}
 document.addEventListener("pointerdown", () => sound.unlock(), { capture: true });
 
 bindSwitcher($("appsBtn"), "landfall");
@@ -1373,12 +1399,13 @@ sound.setMuted(false);   // how loud is the app's volume (volume.js)
 }
 fitTop();
 renderAll();
-if (!IN_FRAME && wants3D(read(KEY.view, null), "3d")) setView("3d", false);
+if (!IN_FRAME && wants3D(read(KEY.view, null), "3d") && read(KEY.mode, "campaign") !== "atlas") setView("3d", false);
 if (S.phase === "sight") openScope(true);
 else if (S.phase === "book") openBook();
 else if (S.phase === "end") showEnd();
-if (!IN_FRAME) { sound.bed(S.phase !== "end"); sound.day(isDay() && S.phase !== "end"); if (!read(KEY.seen, 0)) openHelp(); }
+if (!IN_FRAME) { sound.bed(S.phase !== "end"); sound.day(isDay() && S.phase !== "end"); if (!read(KEY.seen, 0) && read(KEY.mode, "campaign") !== "atlas") openHelp(); }
 wake();
+if (!IN_FRAME && read(KEY.mode, "campaign") === "atlas") setMode("atlas");
 
 // for tests and debugging
 window.__landfall = {
