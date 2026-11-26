@@ -79,7 +79,7 @@ function sampleGrid(box, step, pool = 1) {
 
 // ---------- Wikidata ----------
 async function sparql(query) {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(query), { headers: { "User-Agent": UA, Accept: "application/sparql-results+json" } });
     // a query that runs out of time still answers 200, its JSON cut off where the timeout's message begins: asked again
     if (res.ok) { const text = await res.text(); try { return JSON.parse(text).results.bindings; } catch { log("wikidata answer cut short, retrying"); } }
@@ -103,8 +103,18 @@ const TYPES = {
 // Names in the Latin alphabet only, English first, then Wikidata's one-for-all-languages label, then the mountain peoples' own: a
 // summit known only by a Chinese or Japanese label in the Alps is too obscure to ask for (one showed on the Dolomites map).
 const LANGS = ["en", "mul", "de", "fr", "it", "rm", "lld", "fur", "sl", "es", "pt", "nl", "pl", "cs", "sk", "nb", "sv", "is"];
-/** Items of the kinds wanted inside a box, without their names (asking for names in the same query made Wikidata time out). */
+/**
+ * Items of the kinds wanted inside a box, without their names (asking for names in the same query made Wikidata time out), asked
+ * a piece at a time: no piece wider than 0.8 degrees, one kind at a time (the Bernese Alps' far box in one query timed out four
+ * times running, 27 Nov 2026).
+ */
 async function inBox([w, s, e, n], kinds, extra = "") {
+  const nx = Math.ceil((e - w) / 0.8), ny = Math.ceil((n - s) / 0.8), out = [];
+  for (const kind of kinds) for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++)
+    out.push(...await inPiece([w + (e - w) * i / nx, s + (n - s) * j / ny, w + (e - w) * (i + 1) / nx, s + (n - s) * (j + 1) / ny], [kind], extra));
+  return out;
+}
+async function inPiece([w, s, e, n], kinds, extra = "") {
   const vals = kinds.flatMap(kind => TYPES[kind].map(q => `(wd:${q} "${kind}")`)).join(" ");
   return sparql(`SELECT ?item ?lat ?lon ?ele ?focal ?links ?kind WHERE {
     SERVICE wikibase:box { ?item wdt:P625 ?c . bd:serviceParam wikibase:cornerSouthWest "Point(${w} ${s})"^^geo:wktLiteral ; wikibase:cornerNorthEast "Point(${e} ${n})"^^geo:wktLiteral . }
