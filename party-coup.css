@@ -1,7 +1,9 @@
 /* Cabal (Party): the table as a row of tiles (name, coins, the cards face down or turned up), what is happening and what
    this phone can do about it, your own two cards, and the last few lines of what happened. The five characters have
-   an enamel each (a card's border and band) and a picture, so nobody reads them by colour alone. */
-.cp-col { --cc-duke: #7B4FA2; --cc-assassin: #5A5A66; --cc-captain: #2C6AA8; --cc-ambassador: #2F7D5B; --cc-contessa: #A8382B; --bad: #A8382B; gap: .4rem; }
+   an enamel each (a card's frame and its picture, party-coup-art.js) and a picture, so nobody reads them by colour alone.
+   A card's back is navy latticed in gilt, as on the 3D table. */
+.cp-col { --cc-duke: #7B4FA2; --cc-assassin: #5A5A66; --cc-captain: #2C6AA8; --cc-ambassador: #2F7D5B; --cc-contessa: #A8382B; --bad: #A8382B;
+  --cp-back: #1e2f55; --cp-gilt: #d9ad52; gap: .4rem; }
 .cp-players { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem; }
 .cp-p { display: flex; align-items: center; gap: .35rem; min-width: 0; padding: .25rem .4rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
 .cp-p.turn, .cp-p.won { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1px var(--pa-in); }
@@ -12,10 +14,11 @@
 .cp-coins { flex: none; display: inline-flex; align-items: center; gap: .25rem; font-size: .85rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .cp-coin { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; background: var(--brass); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brass) 50%, var(--ink)); }
 .cp-minis { flex: none; display: flex; gap: .15rem; min-width: 2.55rem; justify-content: flex-end; }
-.cp-mini { display: grid; place-items: center; width: 1.2rem; height: 1.5rem; border: 1.5px solid var(--brass); border-radius: 3px; font-style: normal; font-size: .7rem; line-height: 1;
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
-.cp-mini.back, .cp-card.back { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--brass) 35%, var(--sheet)) 0 3px, var(--sheet) 3px 6px); }
-.cp-mini:not(.back) { border-color: var(--cc); background: color-mix(in srgb, var(--cc) 16%, var(--sheet)); opacity: .8; }
+.cp-mini { display: grid; place-items: center; width: 1.2rem; height: 1.6rem; border: 1px solid var(--cp-gilt); border-radius: 3px; font-style: normal; }
+.cp-mini.back, .cp-card.back { background-color: var(--cp-back); background-image: repeating-linear-gradient(45deg, transparent 0 4px, color-mix(in srgb, var(--cp-gilt) 45%, transparent) 4px 5px),
+  repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--cp-gilt) 45%, transparent) 4px 5px); box-shadow: inset 0 0 0 2px var(--cp-back), inset 0 0 0 3px var(--cp-gilt); }
+.cp-mini:not(.back) { border-color: var(--cc); background: color-mix(in srgb, var(--cc) 12%, var(--tile)); color: var(--cc); }
+.cp-mini-glyph { width: .95rem; height: .95rem; }
 
 .cp-ask { display: grid; place-items: center; min-height: 2.4rem; font-size: 1rem; line-height: 1.2; }
 .cp-sub { text-align: center; font-size: .85rem; }
@@ -36,17 +39,17 @@
 .cp-row .chosen { outline: 2px solid var(--pa-in); outline-offset: 1px; }
 .cp-row .pk-btn:disabled:not(.chosen) { opacity: .45; }
 
-/* a card: its band and picture in its own enamel */
-.cp-card { display: flex; align-items: center; gap: .3rem; min-width: 0; padding: .3rem .4rem; border: 1.5px solid var(--cc); border-left-width: 5px; border-radius: 5px;
-  background: color-mix(in srgb, var(--cc) 14%, var(--sheet)); color: var(--ink); }
+/* a card: ivory framed in its enamel, a gilt rule inside the frame, its picture and name in the enamel */
+.cp-card { display: flex; align-items: center; gap: .45rem; min-width: 0; padding: .3rem .5rem; border: 2px solid var(--cc); border-radius: 4px;
+  background: linear-gradient(color-mix(in srgb, var(--cc) 11%, var(--tile)), var(--tile)); box-shadow: inset 0 0 0 2px var(--tile), inset 0 0 0 3px color-mix(in srgb, var(--cp-gilt) 70%, transparent); color: var(--cc); }
 .cp-card.duke, .cp-mini.duke { --cc: var(--cc-duke); }
 .cp-card.assassin, .cp-mini.assassin { --cc: var(--cc-assassin); }
 .cp-card.captain, .cp-mini.captain { --cc: var(--cc-captain); }
 .cp-card.ambassador, .cp-mini.ambassador { --cc: var(--cc-ambassador); }
 .cp-card.contessa, .cp-mini.contessa { --cc: var(--cc-contessa); }
 .cp-card.back { --cc: var(--brass); min-height: 2.3rem; }
-.cp-glyph { font-style: normal; font-size: 1.15rem; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
-.cp-card b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.03em * var(--track)); text-transform: var(--caps); }
+.cp-glyph { flex: none; width: 1.6rem; height: 1.6rem; }
+.cp-card b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
 .cp-pool { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
 .cp-pick { padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .cp-pick .cp-card { min-height: 2.8rem; }
@@ -79,24 +82,33 @@ html[data-theme="office"] :is(.cp-p, .cp-act, .cp-hand, .cp-pick) { border-radiu
   html:not([data-mode="day"]) .cp-col { --cc-duke: #B58AD9; --cc-assassin: #A3A3B2; --cc-captain: #6FA5DC; --cc-ambassador: #7FC2A8; --cc-contessa: #E8806F; --bad: #E8806F; }
 }
 html[data-mode="night"] .cp-col { --cc-duke: #B58AD9; --cc-assassin: #A3A3B2; --cc-captain: #6FA5DC; --cc-ambassador: #7FC2A8; --cc-contessa: #E8806F; --bad: #E8806F; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .cp-col { --cp-back: #15213d; } }
+html[data-mode="night"] .cp-col { --cp-back: #15213d; }
 
-/* The 3D table (party-coup-3d.js): a lit room behind a transparent canvas, the seats' tags laid over it as the flat table's own tiles.
-   Its height is fixed, so nothing moves as the game does; the flat list stays for a screen reader. */
-.cp-3d { position: relative; flex: none; height: clamp(11.5rem, 34svh, 21rem); overflow: hidden; border: 1.5px solid var(--brass); border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 46%, #e8d6ae 0, #b99b6c 82%); }
+/* The 3D table (party-coup-3d.js): a candle-lit back room behind a transparent canvas (its floor drawn, the dark round it here),
+   the seats' tags laid over it as brass-edged plates of dark lacquer with the names in spaced capitals, the same by day and night
+   since the room is dark either way. Its height is fixed, so nothing moves as the game does; the flat list stays for a screen reader. */
+.cp-3d { --cp-plate: rgba(20, 14, 9, .8); --cp-letter: #f1e4c4; position: relative; flex: none; height: clamp(12.5rem, 38svh, 23rem); overflow: hidden;
+  border: 1.5px solid var(--brass); border-radius: 4px; background: #120c08; }
 .cp-3d .cp3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cp3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.cp-tag { position: absolute; left: 0; top: 0; max-width: 46%; padding: .15rem .35rem; gap: .3rem; box-sizing: border-box; white-space: nowrap; }
-.cp-tag .cp-name, .cp-tag .cp-coins { font-size: .78rem; }
-.cp-tag.out { opacity: .7; }
-.cp3-note { position: absolute; left: 0; top: 0; padding: .1rem .35rem; border: 1px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink);
-  font-size: .68rem; font-weight: 700; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); white-space: nowrap; }
+.cp-tag { position: absolute; left: 0; top: 0; max-width: 46%; padding: .16rem .45rem; gap: .4rem; box-sizing: border-box; white-space: nowrap;
+  border: 1px solid var(--cp-gilt); border-radius: 2px; background: var(--cp-plate); color: var(--cp-letter); box-shadow: inset 0 0 0 2px var(--cp-plate), inset 0 0 0 3px color-mix(in srgb, var(--cp-gilt) 35%, transparent); }
+.cp-tag .cp-name { font-size: .68rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); }
+.cp-tag .cp-coins { font-size: .78rem; color: var(--cp-gilt); }
+.cp-tag .cp-coin { background: radial-gradient(circle at 35% 35%, #fff0b8, #d9ad52 55%, #9b6c22); box-shadow: none; }
+.cp-3d .cp-p.turn, .cp-3d .cp-p.won { border-color: #f0c86a; background: var(--cp-plate); box-shadow: inset 0 0 0 2px var(--cp-plate), inset 0 0 0 3px #f0c86a, 0 0 .7rem rgba(240, 200, 106, .55); }
+.cp-3d .cp-p.target { border-color: #d2604c; box-shadow: inset 0 0 0 2px var(--cp-plate), inset 0 0 0 3px #d2604c, 0 0 .6rem rgba(210, 96, 76, .5); }
+.cp-tag.out { opacity: .6; }
+.cp3-note { position: absolute; left: 0; top: 0; padding: .12rem .45rem; border: 1px solid var(--cp-gilt); border-radius: 2px; background: var(--cp-plate); color: var(--cp-letter);
+  font-size: .64rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); white-space: nowrap; }
+.cp3-note b { color: var(--cp-gilt); }
 .cp3-note[hidden] { display: none; }
-.cp3-note.claim { border-color: var(--pa-in); }
+.cp3-note.claim { border-color: #f0c86a; color: #f0c86a; }
 .cp3-mine { position: absolute; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 6px; }
 .cp3-mine[hidden] { display: none; }
 .cp3-mine:focus-visible { outline: 2px solid var(--pa-in); }
 .cp-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .cp-3d { background: radial-gradient(ellipse at 50% 46%, #3b2a1b 0, #130e0a 84%); } }
-html[data-mode="night"] .cp-3d { background: radial-gradient(ellipse at 50% 46%, #3b2a1b 0, #130e0a 84%); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .cp-3d { background: #0b0705; } }
+html[data-mode="night"] .cp-3d { background: #0b0705; }
 @media (orientation: landscape) and (min-width: 700px) { .cp-3d { height: clamp(14rem, 52svh, 26rem); } }

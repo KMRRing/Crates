@@ -23,17 +23,12 @@ import { shuffle } from "./party-core.js";
 import { play } from "./party-coup-solo.js";
 import { wants3D, pick3D, sceneOf, signature } from "./party-coup-table.js";
 import { load3d } from "./loading.js";
+import { emblemNode, NAMES } from "./party-coup-art.js";
 
 export const CARDS = ["duke", "assassin", "captain", "ambassador", "contessa"];
 export const COPIES = 3;
 export const MUST_COUP = 10;
-export const CARD = {
-  duke: { name: "Syndic", glyph: "⚖️" },
-  assassin: { name: "Saboteur", glyph: "💣" },
-  captain: { name: "Privateer", glyph: "⚓" },
-  ambassador: { name: "Astronomer", glyph: "🔭" },
-  contessa: { name: "Kontor", glyph: "🗝️" },
-};
+export const CARD = Object.fromEntries(CARDS.map(c => [c, { name: NAMES[c] }]));
 /** The actions. `claim` is the character it needs, `blockedBy` who can stop it (`anyone`: any other player, else the
  *  target only), `cost` what it takes up front. `sub` is the line under its button. */
 export const ACTIONS = {
@@ -405,7 +400,7 @@ function box3D() {
 
 function card(c, { back = false } = {}) {
   if (back) return h("span", { class: "cp-card back", "aria-label": "A card face down" });
-  return h("span", { class: `cp-card ${c}` }, h("i", { class: "cp-glyph" }, CARD[c].glyph), h("b", {}, CARD[c].name));
+  return h("span", { class: `cp-card ${c}` }, emblemNode(c), h("b", {}, CARD[c].name));
 }
 
 function drawCoup(stage, ctx) {
@@ -431,7 +426,7 @@ function drawCoup(stage, ctx) {
     const cls = ["cp-p", u === me.uid ? "me" : "", n ? "" : "out", !over && n && u === s.turn ? "turn" : "", !over && s.act?.target === u ? "target" : "", over && s.won === u ? "won" : ""].filter(Boolean).join(" ");
     return h("li", { class: cls }, h("span", { class: "cp-name" }, name(u)),
       n ? h("span", { class: "cp-coins" }, h("i", { class: "cp-coin" }), String(s.coins[u] ?? 0)) : h("span", { class: "cp-coins" }, "out"),
-      h("span", { class: "cp-minis" }, ...Array.from({ length: n }, () => h("i", { class: "cp-mini back" })), ...up.map(c => h("i", { class: `cp-mini ${c}`, title: CARD[c].name }, CARD[c].glyph))));
+      h("span", { class: "cp-minis" }, ...Array.from({ length: n }, () => h("i", { class: "cp-mini back" })), ...up.map(c => h("i", { class: `cp-mini ${c}`, title: CARD[c].name }, emblemNode(c, "cp-mini-glyph")))));
   })));
 
   // what's happening, and what this phone can do about it
