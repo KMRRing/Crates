@@ -89,6 +89,9 @@ async function sparql(query) {
 }
 const TYPES = {
   summit: ["Q8502", "Q207326"],                              // mountain, summit
+  // an alpine group, massif or small range filed in place of its summit (Marmolada, the Tre Cime): kept only where its listed
+  // height stands at its point, so a whole range's centre is never taken for a peak (buildArea)
+  group: ["Q3777462", "Q1061151", "Q46831"],
   hut: ["Q182676"],                                          // mountain hut
   pass: ["Q133056"],                                         // mountain pass
   village: ["Q532", "Q3957", "Q70208", "Q667509", "Q747074", "Q484170", "Q262166", "Q2039348", "Q15077340"], // village, town, municipalities (CH, AT, IT, FR, DE, SI and the like)
@@ -124,7 +127,7 @@ async function names(ids) {
 }
 /** The places of an area: everything of every kind inside it, and the great summits within sight round it. */
 async function places(box, far) {
-  const rows = [...await inBox(box, Object.keys(TYPES)), ...await inBox(far, ["summit"], "FILTER(?ele >= 3800 || ?links >= 25)")];
+  const rows = [...await inBox(box, Object.keys(TYPES)), ...await inBox(far, ["summit", "group"], "FILTER(?ele >= 3800 || ?links >= 25)")];
   const seen = new Map();
   for (const b of rows) {
     const id = b.item.value.split("/").pop();
@@ -133,7 +136,7 @@ async function places(box, far) {
     seen.set(id, p);
   }
   const named = await names([...seen.keys()]);
-  return [...seen.values()].filter(p => named.has(p.id)).map(p => ({ ...p, name: named.get(p.id), kind: ["summit", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
+  return [...seen.values()].filter(p => named.has(p.id)).map(p => ({ ...p, name: named.get(p.id), kind: ["summit", "group", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
 }
 
 // ---------- an area ----------
@@ -179,6 +182,8 @@ async function buildArea(region, area) {
   const at = terrain([fine, far]);
   const found = await places(area.box, fb);
   // landmarks: the area's summits that are high or known, at their true tops; the giants round about too, for a far view
+  const peakLike = p => { if (!p.ele) return false; const g = inside(fine, p.lat, p.lon) ? fine : far; return Math.abs(summitNear(g, p.lat, p.lon, 600).h - p.ele) < 150; };
+  for (const p of found) if (p.kind === "group" && peakLike(p)) p.kind = "summit";
   const top = Math.max(...found.filter(p => p.kind === "summit" && inside(fine, p.lat, p.lon)).map(p => p.ele || 0), 1000);
   const known = found.filter(p => p.kind === "summit").filter(p => inside(fine, p.lat, p.lon)
     ? (p.ele ?? 0) >= Math.min(3000, top * 0.65) || p.links >= 5
@@ -193,7 +198,7 @@ async function buildArea(region, area) {
   landmarks.splice(0, landmarks.length, ...landmarks.filter(l => l.near).slice(0, 40), ...landmarks.filter(l => !l.near).slice(0, 30));
   log(area.id, `${landmarks.length} landmarks (${landmarks.filter(l => l.near).length} in the area)`);
   // starts: places inside the area that see at least three landmarks, spread round the compass
-  const candidates = found.filter(p => p.kind !== "summit" || p.links >= 3).filter(p => inside(fine, p.lat, p.lon, step * 2));
+  const candidates = found.filter(p => p.kind !== "group" && (p.kind !== "summit" || p.links >= 3)).filter(p => inside(fine, p.lat, p.lon, step * 2));
   const starts = [];
   for (const p of candidates) {
     const h = at(p.lat, p.lon), from = { lat: p.lat, lon: p.lon, h };
