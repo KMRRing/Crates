@@ -93,26 +93,44 @@ const TYPES = {
   village: ["Q532", "Q3957", "Q70208", "Q667509", "Q747074", "Q484170", "Q262166", "Q2039348", "Q15077340"], // village, town, municipalities (CH, AT, IT, FR, DE, SI and the like)
   viewpoint: ["Q6017969"],
 };
-async function places([w, s, e, n]) {
-  const all = Object.entries(TYPES).flatMap(([kind, qs]) => qs.map(q => `(wd:${q} "${kind}")`)).join(" ");
-  const rows = await sparql(`SELECT ?item ?label ?lat ?lon ?ele ?links ?kind WHERE {
+const LANGS = ["en", "de", "fr", "it", "sl", "es", "ja", "ne", "zh"];
+/** Items of the kinds wanted inside a box, without their names (asking for names in the same query made Wikidata time out). */
+async function inBox([w, s, e, n], kinds, extra = "") {
+  const vals = kinds.flatMap(kind => TYPES[kind].map(q => `(wd:${q} "${kind}")`)).join(" ");
+  return sparql(`SELECT ?item ?lat ?lon ?ele ?links ?kind WHERE {
     SERVICE wikibase:box { ?item wdt:P625 ?c . bd:serviceParam wikibase:cornerSouthWest "Point(${w} ${s})"^^geo:wktLiteral ; wikibase:cornerNorthEast "Point(${e} ${n})"^^geo:wktLiteral . }
-    VALUES (?type ?kind) { ${all} }
+    VALUES (?type ?kind) { ${vals} }
     ?item wdt:P31 ?type .
     OPTIONAL { ?item wdt:P2044 ?ele . }
     ?item wikibase:sitelinks ?links .
     BIND(geof:latitude(?c) AS ?lat) BIND(geof:longitude(?c) AS ?lon)
-    SERVICE wikibase:label { bd:serviceParam wikibase:language "en,de,fr,it,sl,es,ja,ne,zh". ?item rdfs:label ?label . }
+    ${extra}
   }`);
+}
+/** Names for items, two hundred at a time, in the first language each has of LANGS. */
+async function names(ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 200) {
+    const rows = await sparql(`SELECT ?item ?label WHERE { VALUES ?item { ${ids.slice(i, i + 200).map(q => `wd:${q}`).join(" ")} }
+      ?item rdfs:label ?label . FILTER(LANG(?label) IN (${LANGS.map(l => `"${l}"`).join(",")})) }`);
+    const by = new Map();
+    for (const b of rows) { const id = b.item.value.split("/").pop(); (by.get(id) || by.set(id, {}).get(id))[b.label["xml:lang"]] = b.label.value; }
+    for (const [id, ls] of by) { const l = LANGS.map(k => ls[k]).find(Boolean); if (l) out.set(id, l); }
+  }
+  return out;
+}
+/** The places of an area: everything of every kind inside it, and the great summits within sight round it. */
+async function places(box, far) {
+  const rows = [...await inBox(box, Object.keys(TYPES)), ...await inBox(far, ["summit"], "FILTER(?ele >= 3800 || ?links >= 25)")];
   const seen = new Map();
   for (const b of rows) {
-    const id = b.item.value.split("/").pop(), name = b.label?.value;
-    if (!name || /^Q\d+$/.test(name)) continue;
-    const p = seen.get(id) || { id, name, lat: +b.lat.value, lon: +b.lon.value, ele: b.ele ? +b.ele.value : null, links: +b.links.value, kinds: new Set() };
+    const id = b.item.value.split("/").pop();
+    const p = seen.get(id) || { id, lat: +b.lat.value, lon: +b.lon.value, ele: b.ele ? +b.ele.value : null, links: +b.links.value, kinds: new Set() };
     p.kinds.add(b.kind.value);
     seen.set(id, p);
   }
-  return [...seen.values()].map(p => ({ ...p, kind: ["summit", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
+  const named = await names([...seen.keys()]);
+  return [...seen.values()].filter(p => named.has(p.id)).map(p => ({ ...p, name: named.get(p.id), kind: ["summit", "pass", "hut", "viewpoint", "village"].find(k => p.kinds.has(k)) }));
 }
 
 // ---------- an area ----------
@@ -137,14 +155,15 @@ async function buildArea(region, area) {
   const fine = sampleGrid(area.box, step), far = sampleGrid(fb, FAR_STEP, 5);
   fine.fine = true;
   const at = terrain([fine, far]);
-  const found = await places(fb);
+  const found = await places(area.box, fb);
   // landmarks: the area's summits that are high or known, at their true tops; the giants round about too, for a far view
   const top = Math.max(...found.filter(p => p.kind === "summit" && inside(fine, p.lat, p.lon)).map(p => p.ele || 0), 1000);
   const known = found.filter(p => p.kind === "summit").filter(p => inside(fine, p.lat, p.lon)
-    ? (p.ele ?? 0) >= Math.min(3000, top * 0.65) || p.links >= 8
+    ? (p.ele ?? 0) >= Math.min(3000, top * 0.65) || p.links >= 5
     : (p.ele ?? 0) >= 4000 || p.links >= 30);
   const landmarks = known.map(p => { const g = inside(fine, p.lat, p.lon) ? fine : far, t = summitNear(g, p.lat, p.lon, g === fine ? 300 : 900); return { id: p.id, name: p.name, lat: R3(t.lat), lon: R3(t.lon), ele: Math.round(t.h), listed: p.ele, links: p.links, near: g === fine }; })
-    .sort((a, b) => b.links - a.links).slice(0, 60);
+    .sort((a, b) => b.links - a.links);
+  landmarks.splice(0, landmarks.length, ...landmarks.filter(l => l.near).slice(0, 40), ...landmarks.filter(l => !l.near).slice(0, 30));
   log(area.id, `${landmarks.length} landmarks (${landmarks.filter(l => l.near).length} in the area)`);
   // starts: places inside the area that see at least three landmarks, spread round the compass
   const candidates = found.filter(p => p.kind !== "summit" || p.links >= 3).filter(p => inside(fine, p.lat, p.lon, step * 2));
@@ -167,7 +186,8 @@ async function buildArea(region, area) {
   // the best forty, no two within half a kilometre
   starts.sort((a, b) => b.sees.length - a.sees.length || a.gap - b.gap);
   const kept = [];
-  for (const s of starts) if (kept.length < 40 && !kept.some(k => distanceBearing(k.lat, k.lon, s.lat, s.lon).d < 500)) kept.push(s);
+  // most of them where people stand (villages, huts, passes); summits, where a hut's view is lacking, at most fifteen
+  for (const s of starts) if (kept.length < 40 && (s.kind !== "summit" || kept.filter(k => k.kind === "summit").length < 15) && !kept.some(k => distanceBearing(k.lat, k.lon, s.lat, s.lon).d < 500)) kept.push(s);
   log(area.id, `${kept.length} starts of ${candidates.length} places`);
   const dir = `${OUT}/${region.id}`;
   mkdirSync(dir, { recursive: true });
@@ -184,7 +204,8 @@ const todo = want.includes("all") ? REGIONS.filter(r => r.kind === "mountains") 
 for (const region of todo) {
   if (region.kind !== "mountains") { log(region.id, "is not a mountain region: its builder comes later"); continue; }
   const areas = [];
-  for (const area of region.areas) {
+  const only = (process.env.AREAS || "").split(",").filter(Boolean);      // AREAS=mont-blanc builds just that one (for a trial)
+  for (const area of region.areas.filter(a => !only.length || only.includes(a.id))) {
     areas.push(await buildArea(region, area));
     tiles.clear(); byBox.clear();                                   // a region's tiles are many: keep only the area's at a time
   }
