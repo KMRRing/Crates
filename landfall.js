@@ -6,7 +6,8 @@ import {
   newVoyage, apply, moves, restore, save, forecast, conditions, sextantTruth, swellAt, sightNoise, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf,
   masteryAfter, cloudsNow, bellsBetween, shipClock, lookSun, sunStage, reckonedNoonJd, expectedCatchJd, bodyOf, maxWait, regionWords, CLOCK, MAX_WAIT, POLARIS_HR, SUN, BY_HR, EYE,
 } from "./landfall-engine.js";
-import { LEVELS, SECTIONS } from "./landfall-levels.js";
+import { LEVELS, levelById } from "./landfall-levels.js";
+import { playable, chapterOf } from "./landfall-chapters.js";
 import { STARS } from "./landfall-stars.js";
 import { FIGURES } from "./landfall-figures.js";
 import { starAltAz, sunAltAz, moonAltAz, sextantReading, sunReading, sunSemidiameter } from "./landfall-sky.js";
@@ -1168,14 +1169,15 @@ async function startLevel(id) {
   if (inProgress() && !(await sure("Leave this voyage and start another?", { yes: "New voyage" }))) return;
   begin(id); renderAll();
 }
-let menuSec = 0;                                 // the chapter the menu is showing (0: the one being sailed)
+let menuChapter = 0;                             // the chapter the menu is showing (0: the one being sailed)
 function openMenu() {
-  const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {}), sec = menuSec || L.section;
+  const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {}), here = chapterOf(S.level), ch = menuChapter || here || 1;
   body.replaceChildren();
   part(body, "play").append(action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
   const content = part(body, "content");
-  content.append(choice("Chapter", Object.entries(SECTIONS).map(([k, t]) => [k, `${k} ${t}`]), String(sec), v => { menuSec = Number(v); openMenu(); }));
-  content.append(choice("Voyage", LEVELS.filter(l => l.section === sec).map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), sec === L.section ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
+  const chapters = playable(), shown = chapters.find(c => c.n === ch) || chapters[0];
+  content.append(choice("Chapter", chapters.map(c => [String(c.n), `${c.n} ${c.name}`]), String(shown.n), v => { menuChapter = Number(v); openMenu(); }));
+  content.append(choice("Voyage", shown.levels.map((id, i) => { const l = levelById(id); return [id, `${i + 1} ${l.name}${best[id] ? ` ${"★".repeat(best[id])}` : ""}`]; }), shown.n === here ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
   const set = part(body, "settings");
   set.append(volume(v => { if (v) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], stage ? "3d" : "flat", v => { $("menuDlg").close(); setView(v); }));
@@ -1185,7 +1187,7 @@ function openMenu() {
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-$("menuBtn").addEventListener("click", () => { menuSec = 0; openMenu(); });
+$("menuBtn").addEventListener("click", () => { menuChapter = 0; openMenu(); });
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 
 // ---------- the deck in 3D ----------
