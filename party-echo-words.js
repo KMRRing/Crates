@@ -54,7 +54,7 @@ export const WORDS = [
   // what people do
   ["sleep", "睡觉"], ["dream", "梦"], ["birthday", "生日"], ["wedding", "婚礼"], ["party", "派对"], ["holiday", "假期"], ["travel", "旅行"],
   ["swimming", "游泳"], ["running", "跑步"], ["dancing", "跳舞"], ["singing", "唱歌"], ["cooking", "做饭"], ["shopping", "购物"], ["fishing", "钓鱼"],
-  ["camping", "露营"], ["karaoke", "卡拉OK"], ["game", "游戏"], ["music", "音乐"], ["film", "电影"], ["photo", "照片"], ["letter", "信"],
+  ["camping", "露营"], ["picnic", "野餐"], ["game", "游戏"], ["music", "音乐"], ["film", "电影"], ["photo", "照片"], ["letter", "信"],
   ["secret", "秘密"], ["love", "爱情"], ["war", "战争"], ["peace", "和平"], ["time", "时间"], ["history", "历史"], ["magic", "魔法"], ["luck", "运气"],
   ["fear", "恐惧"], ["laughter", "笑声"], ["kiss", "吻"], ["hug", "拥抱"], ["race", "比赛"], ["exam", "考试"], ["homework", "作业"], ["work", "工作"],
   ["news", "新闻"], ["internet", "互联网"], ["password", "密码"], ["selfie", "自拍"], ["email", "电子邮件"], ["queue", "排队"],

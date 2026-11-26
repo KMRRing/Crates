@@ -13,6 +13,9 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 
 check(WORDS.length >= 400 && WORDS.every(w => w.length === 2 && w[0] && w[1] && w[0].trim() === w[0] && w[1].trim() === w[1]), `${WORDS.length} words, each in English and Chinese`);
 check(new Set(WORDS.map(w => w[0].toLowerCase())).size === WORDS.length && new Set(WORDS.map(w => w[1])).size === WORDS.length, "no word twice, in either language");
+// every Chinese word in characters alone, so a Chinese game shows no Latin letters whatever it deals (卡拉OK made the deal below
+// fail one run in fifty; 26 Nov 2026)
+check(WORDS.every(w => /^[一-鿿]+$/.test(w[1])), "every Chinese word is written in characters alone");
 
 // ---------- clues ----------
 check(stem("swimmer") === stem("swim") && stem("swimming") === stem("swim") && stem("princess") === stem("prince") && stem("Cats") === stem("cat"), "a word's family shares its stem: swim, swimmer, swimming; prince, princess; cats, cat");
