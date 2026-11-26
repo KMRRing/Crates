@@ -1,0 +1,31 @@
+{
+ "region": "north-sea",
+ "built": "2026-11-26T23:33",
+ "areas": [
+  {
+   "id": "dover",
+   "name": "Dover Strait and the Goodwins",
+   "landmarks": 45,
+   "starts": 40
+  },
+  {
+   "id": "scilly-cornwall",
+   "name": "Scilly and Cornwall",
+   "landmarks": 65,
+   "starts": 40
+  },
+  {
+   "id": "skagen",
+   "name": "Skagen and the Kattegat",
+   "landmarks": 31,
+   "starts": 40
+  },
+  {
+   "id": "norway-approaches",
+   "name": "The Norwegian approaches",
+   "landmarks": 65,
+   "starts": 40
+  }
+ ],
+ "attribution": "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)."
+}
