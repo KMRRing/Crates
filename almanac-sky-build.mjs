@@ -102,12 +102,13 @@ export function buildLayout(entities, links) {
     pull[i] = 0.03; limit[i] = r;
   }
   const spaced = relax({ n, edges, start, anchor, pull, limit, spacing: 2.3, rest: 1.7, steps: 260, seed: SEED });
-  // centre it and scale it: the 99.5th percentile of the distances from the middle becomes RADIUS
+  // centre it and scale it: the 99.9th percentile of the distances from the middle becomes RADIUS (99.5th until 27 Nov 2026,
+  // when 4,600 things left 1.4% of them off a tall phone screen)
   const mid = [0, 0, 0];
   for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) mid[c] += spaced[3 * i + c] / n;
   const dist = [];
   for (let i = 0; i < n; i++) dist.push(Math.hypot(spaced[3 * i] - mid[0], spaced[3 * i + 1] - mid[1], spaced[3 * i + 2] - mid[2]));
-  const scale = RADIUS / [...dist].sort((a, b) => a - b)[Math.floor(0.995 * (n - 1))];
+  const scale = RADIUS / [...dist].sort((a, b) => a - b)[Math.floor(0.999 * (n - 1))];
   const xyz = new Float64Array(3 * n);
   for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) xyz[3 * i + c] = (spaced[3 * i + c] - mid[c]) * scale;
   return { ids, xyz };
