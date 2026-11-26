@@ -33,6 +33,7 @@ async function gunzip(u8) {
 const loaded = new Map();
 /** Two summits of one name in an area (the Bernese Alps have two Breithorns) are told apart by their heights. */
 export function tellApart(landmarks) {
+  for (const l of landmarks) l.name = l.name.replace(/_/g, " ");          // a label written as a page's address (Pointe_de_la_Courte_Dune)
   const count = new Map();
   for (const l of landmarks) count.set(l.name, (count.get(l.name) || 0) + 1);
   for (const l of landmarks) if (count.get(l.name) > 1) l.name = `${l.name} (${l.listed || l.ele} m)`;

@@ -1,7 +1,7 @@
 // Traverse's campaign: ten chapters, one technique each (Korbi, 27 Nov 2026, on the plan "Traverse — the plan": the campaign teaches
 // techniques, the Atlas holds the places, the mixes carry the volume). Chapters 1 to 6 are at sea and hold the built voyages by
 // their ids, so the stars won stay with them; a voyage's `section` (landfall-voyages.js) stays the group it was written in. Chapters
-// 7 and 8 are on land, lessons on the Atlas's real ground (landfall-atlas-lessons.js); 9 and 10 (ice and sand, the open Pacific)
+// 6 ends, and 7 and 8 are, lessons on the Atlas's real ground and coasts (landfall-atlas-lessons.js); 9 and 10 (ice and sand, the open Pacific)
 // are listed with `levels: []` until their levels are made, and the menu leaves an empty chapter out. Order matters: every voyage
 // needs only what its own chapter or an earlier one teaches (tests/landfall-chapters.mjs).
 import { LEVELS } from "./landfall-levels.js";
@@ -16,7 +16,7 @@ export const CHAPTERS = [
   { n: 3, name: "Lines and longitude", teaches: "Any star's line, two lines and the fix, the chronometer, the southern sky", levels: bySection(3, 4, 5) },
   { n: 4, name: "Lights and land", teaches: "Lights by their bearing and character, the land by its shape", levels: bySection(7, 11, 12) },
   { n: 5, name: "Cloud, storm and the Hanse run", teaches: "Stars through cloud and named by their neighbours, the blow and after it, the long passage", levels: bySection(6, 13, 8, 9) },
-  { n: 6, name: "Soundings and birds", teaches: "The lead and the bottom, the sounding machine, birds flying home", levels: bySection(10, 14, 15) },
+  { n: 6, name: "Soundings, birds and charts", teaches: "The lead and the bottom, the sounding machine, birds flying home, bearings off a real chart", levels: [...bySection(10, 14, 15), ...lessons(6)] },
   { n: 7, name: "Peaks and bearings", teaches: "Naming peaks, bearings and the cocked hat, angles of cut, near marks, haze", levels: lessons(7) },
   { n: 8, name: "Contours and cloud", teaches: "The altimeter and the contour, fixing under cloud", levels: lessons(8) },
   { n: 9, name: "Ice and sand", teaches: "The sun compass, the artificial horizon, the moving floor, wells", levels: [] },

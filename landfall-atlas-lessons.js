@@ -6,6 +6,16 @@
 // `level`: easy names what is in sight; medium doesn't, in thicker air; hard adds half a degree of compass error. `alti`: the
 // altimeter shows your height (and on easy the map draws its contour). `cloud`: the cloud's base, in metres; what is above is lost.
 export const LESSONS = [
+  // ---------- the end of chapter 6: bearings off a real chart ----------
+  { id: "atlas-dover", chapter: 6, name: "The Dover Strait", region: "north-sea", area: "dover", start: "sea-50.9280-1.5112", level: "easy", sees: ["South Foreland Upper Lighthouse", "Phare du cap Gris-Nez"],
+    lesson: "A chart gives bearings on what a ship can see: lights, headlands, hills. Two bearings fix you as they would on land; at sea the fix is what the next course is laid off from. Here, both shores of the strait.",
+    task: "Fix on the lights and headlands of England and France." },
+  { id: "atlas-scilly", chapter: 6, name: "Scilly from the east", region: "north-sea", area: "scilly-cornwall", start: "sea-49.9589--5.9187", level: "medium", sees: [],
+    lesson: "Scilly lies low on the horizon thirty kilometres west, and only its lights stand out; Cornwall is close behind you. Near marks on one side, far ones on the other: weigh them.",
+    task: "Fix between Scilly and Land's End, the names yours to find." },
+  { id: "atlas-bergen", chapter: 6, name: "Into Bergen", region: "north-sea", area: "norway-approaches", start: "sea-60.1493-4.9024", level: "medium", sees: ["Marstein Lighthouse"],
+    lesson: "The skerries off Bergen all look alike from the sea; the lights don't. Marstein marks the way in.",
+    task: "Fix off the skerries before you turn in." },
   // ---------- chapter 7: peaks and bearings ----------
   { id: "atlas-matterhorn", chapter: 7, name: "The Matterhorn", region: "alps", area: "pennine", start: "Q1493357", level: "easy", sees: ["Matterhorn", "Dent Blanche"],
     lesson: "A bearing is the direction to something in degrees, clockwise from north. Read one on a summit and you stand somewhere on the line running back from it; a second summit's line crosses it where you are.",

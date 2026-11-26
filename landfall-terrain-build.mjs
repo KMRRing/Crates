@@ -135,7 +135,7 @@ async function names(ids) {
       ?item rdfs:label ?label . FILTER(LANG(?label) IN (${LANGS.map(l => `"${l}"`).join(",")})) }`);
     const by = new Map();
     for (const b of rows) { const id = b.item.value.split("/").pop(); (by.get(id) || by.set(id, {}).get(id))[b.label["xml:lang"]] = b.label.value; }
-    for (const [id, ls] of by) { const l = LANGS.map(k => ls[k]).find(Boolean); if (l) out.set(id, l); }
+    for (const [id, ls] of by) { const l = LANGS.map(k => ls[k]).find(Boolean); if (l) out.set(id, l.replace(/_/g, " ")); }
   }
   return out;
 }
@@ -271,8 +271,9 @@ function coastMarks(found, fine, far, at, area, step) {
   for (const p of found) {
     const near = inside(fine, p.lat, p.lon);
     if (p.kind === "light") {
-      const ground = Math.max(0, heightIn(where(p), p.lat, p.lon));
-      marks.push({ id: p.id, name: p.name, kind: "light", lat: R3(p.lat), lon: R3(p.lon), ele: Math.round(p.focal ?? ground + 25), links: p.links, near, rank: 1000 + p.links });
+      // a harbour's pier lights are many and low, and no one names them from offshore: they rank with the hills, not the lights
+      const ground = Math.max(0, heightIn(where(p), p.lat, p.lon)), pier = /pier|jetty|jetée|harbou?r|havn|hamn|breakwater|knuckle|mole|molo/i.test(p.name);
+      marks.push({ id: p.id, name: p.name, kind: "light", lat: R3(p.lat), lon: R3(p.lon), ele: Math.round(p.focal ?? ground + 25), links: p.links, near, rank: (pier ? 0 : 1000) + p.links });
     } else if (p.kind === "cape" && near) {
       const t = summitNear(fine, p.lat, p.lon, 200);
       if (t.h > 2) marks.push({ id: p.id, name: p.name, kind: "cape", lat: R3(t.lat), lon: R3(t.lon), ele: Math.round(t.h + 2), links: p.links, near, rank: 500 + p.links });
@@ -283,7 +284,9 @@ function coastMarks(found, fine, far, at, area, step) {
     }
   }
   marks.sort((a, b) => b.rank - a.rank);
-  const landmarks = [...marks.filter(m => m.near).slice(0, 40), ...marks.filter(m => !m.near).slice(0, 25)].map(({ rank, ...m }) => m);
+  // at most 25 lights among the area's 40, so its headlands and hills get a place
+  const nearLights = marks.filter(m => m.near && m.rank >= 1000).slice(0, 25), rest = marks.filter(m => m.near && !nearLights.includes(m) && !(m.kind === "light" && m.rank >= 1000));
+  const landmarks = [...nearLights, ...rest.slice(0, 40 - nearLights.length), ...marks.filter(m => !m.near).slice(0, 25)].map(({ rank, ...m }) => m);
   log(area.id, `${landmarks.length} marks (${landmarks.filter(l => l.kind === "light").length} lights)`);
   // the lattice, every 1.5 km, and any point a lesson names
   const [w, s, e, n] = area.box, kLon = Math.cos((s + n) / 2 * Math.PI / 180), dLat = 1500 / 111320, dLon = dLat / kLon;

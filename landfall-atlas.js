@@ -59,7 +59,9 @@ function begin(p) {
   const s = pack.starts[play.start], eye = s.ele + 1.7;
   const first = seesNow(pack, play).map(i => pack.landmarks[i]).sort((a, b) => (b.links || 0) - (a.links || 0))[0];
   const fb = first && distanceBearing(s.lat, s.lon, first.lat, first.lon);
-  look = { az: fb ? Math.round(fb.b) : 0, fov: fitFov(), pitch: fb ? Math.max(-10, Math.min(25, angleTo(eye, first.ele, fb.d) - 4)) : 3 };
+  // at sea the land is a sliver on the horizon: the view starts closer in, as through binoculars, the horizon low in the picture
+  const sea = s.kind === "sea", alt = fb ? angleTo(eye, first.ele, fb.d) : 0;
+  look = { az: fb ? Math.round(fb.b) : 0, fov: sea ? Math.max(8, Math.round(fitFov() / 4)) : fitFov(), pitch: sea ? alt + 2.5 : fb ? Math.max(-10, Math.min(25, alt - 4)) : 3 };
   render();
 }
 const seed = () => Date.now() & 0x7fffffff;
@@ -187,7 +189,11 @@ function drawMapNow() {
   pack.landmarks.forEach((l, i) => {
     const p = F.toScreen(l.lat, l.lon); if (p.x < -4 || p.y < -4 || p.x > b.w + 4 || p.y > b.h + 4) return;
     const st = peakState(K, pack, i, d);
-    ctx.fillStyle = st.known ? "#2f7d4a" : st.has ? "#b08a2e" : ink; ctx.beginPath(); ctx.moveTo(p.x, p.y - 4); ctx.lineTo(p.x + 3.5, p.y + 2.5); ctx.lineTo(p.x - 3.5, p.y + 2.5); ctx.fill();
+    ctx.fillStyle = st.known ? "#2f7d4a" : st.has ? "#b08a2e" : ink; ctx.beginPath();
+    // as a chart draws them: a light a star with the magenta flare charts give it, a headland a dot, a summit a triangle
+    if (l.kind === "light") { star(ctx, p.x, p.y, 4.5); ctx.fill(); ctx.strokeStyle = "#b0357a"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(p.x + 2, p.y - 2); ctx.quadraticCurveTo(p.x + 7, p.y - 9, p.x + 4, p.y - 12); ctx.stroke(); }
+    else if (l.kind === "cape") { ctx.arc(p.x, p.y, 2.5, 0, 6.283); ctx.fill(); }
+    else { ctx.moveTo(p.x, p.y - 4); ctx.lineTo(p.x + 3.5, p.y + 2.5); ctx.lineTo(p.x - 3.5, p.y + 2.5); ctx.fill(); }
     const tw = ctx.measureText(l.name).width; names.push({ x: p.x + 5 + tw / 2, y: p.y + 7, w: tw, h: 13, rank: (l.links || 0) + l.ele / 1000, name: l.name });
   });
   ctx.lineWidth = 3; ctx.strokeStyle = night() ? "#141a1e" : "#efe5cc"; ctx.fillStyle = ink;
@@ -214,6 +220,10 @@ function render() {
   if (raf) return;
   raf = requestAnimationFrame(() => { raf = 0; drawViewNow(); drawMapNow(); words(); });
 }
+
+const star = (ctx, x, y, r) => { for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, q = k % 2 ? r * 0.42 : r; k ? ctx.lineTo(x + q * Math.cos(a), y + q * Math.sin(a)) : ctx.moveTo(x + q * Math.cos(a), y + q * Math.sin(a)); } ctx.closePath(); };
+/** What you take bearings on, in words, by the kind of region: summits in the mountains, lights and headlands on a coast. */
+const marksWord = () => (REGIONS.find(r => r.id === pack?.region)?.kind === "coast" ? "a light, a headland or a hill" : "a summit");
 
 // ---------- words and buttons ----------
 const kmOrM = m => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`);
@@ -247,8 +257,8 @@ function words() {
     return;
   }
   const n = play.bearings.length;
-  $("atTask").textContent = !n ? (L ? `${L.name}: ${L.task}` : `${play.daily ? "Today's start, " : play.test ? "Master test, " : ""}${area}. Turn to a summit you know, centre it on the line, take its bearing and name it.`)
-    : n === 1 ? (play.alti ? "One line, and your height: where the line meets your contour is where you stand." : "One line: you are somewhere on it. A second summit well round the compass crosses it.")
+  $("atTask").textContent = !n ? (L ? `${L.name}: ${L.task}` : `${play.daily ? "Today's start, " : play.test ? "Master test, " : ""}${area}. Turn to ${marksWord()} you know, centre it on the line, take its bearing and name it.`)
+    : n === 1 ? (play.alti ? "One line, and your height: where the line meets your contour is where you stand." : "One line: you are somewhere on it. A second mark well round the compass crosses it.")
     : play.mark ? "Your mark is on the map. Fix it there, or move it." : "Where the lines cross is where you stand: tap the map there.";
   btn(n ? "Bearing" : "Take bearing", pickLandmark, "go");
   if (n) btn("Undo", () => { play = dropBearing(play, n - 1); save(); });
@@ -276,7 +286,7 @@ function scored() {
 function pickLandmark() {
   const s = pack.starts[play.start], reading = compassOf(play, look.az);
   const dlg = $("atPick"), list = $("atPickList");
-  $("atPickHead").textContent = `Bearing ${String(Math.round(reading) % 360).padStart(3, "0")}°: which summit is it?`;
+  $("atPickHead").textContent = `Bearing ${String(Math.round(reading) % 360).padStart(3, "0")}°: which ${marksWord() === "a summit" ? "summit" : "mark"} is it?`;
   list.replaceChildren();
   // on Easy the names stand in the view already, so those nearest the line come first; otherwise A to Z gives nothing away
   const off = l => Math.abs(((distanceBearing(s.lat, s.lon, l.lat, l.lon).b - look.az + 540) % 360) - 180);

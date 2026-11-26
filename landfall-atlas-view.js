@@ -39,6 +39,8 @@ const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t
  * about 2950 m, lower on faces turned north (`north`, -1 to 1), and high ice clings to steeper faces than low snow does.
  */
 function ground(h, slope, north, x, night) {
+  if (h < 0.5) return night ? [16, 30, 42] : [52, 86, 112];                                  // the sea
+  if (h < 4 && slope < 0.05) return mix([52, 86, 112], [196, 184, 150], smooth(0.5, 4, h)).map(v => (night ? v * 0.45 : v));   // the shore
   const snowline = 2950 - 380 * north + 150 * Math.sin(x * 0.0007);
   let c = h < 1500 ? [58, 82, 46] : h < 2100 ? mix([58, 82, 46], [104, 120, 70], smooth(1500, 2100, h)) : mix([104, 120, 70], [124, 117, 106], smooth(2100, 2700, h));
   c = mix(c, [100, 94, 88], smooth(0.7, 0.95, slope));                                     // cliffs: bare rock

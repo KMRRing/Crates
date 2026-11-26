@@ -3,6 +3,7 @@
 import { LEVELS } from "../landfall-levels.js";
 import { CHAPTERS, ORDER, chapterOf, playable, chapterDone } from "../landfall-chapters.js";
 import { LESSONS } from "../landfall-atlas-lessons.js";
+import { REGIONS } from "../landfall-atlas-regions.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -10,7 +11,8 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 check(CHAPTERS.length === 10 && CHAPTERS.every((c, i) => c.n === i + 1 && c.name && c.teaches), "ten chapters, numbered and named, each saying what it teaches");
 const ids = new Set([...LEVELS, ...LESSONS].map(l => l.id));
 check(ORDER.length === ids.size && new Set(ORDER).size === ORDER.length && ORDER.every(id => ids.has(id)), `every one of the ${LEVELS.length} voyages and ${LESSONS.length} lessons is in exactly one chapter`);
-check(LESSONS.every(l => chapterOf(l.id) === l.chapter && (l.chapter === 7 || l.chapter === 8)), "the Atlas lessons are chapters 7 and 8");
+check(LESSONS.every(l => chapterOf(l.id) === l.chapter && [6, 7, 8].includes(l.chapter)) && LESSONS.filter(l => l.chapter === 6).every(l => REGIONS.find(r => r.id === l.region)?.kind === "coast"),
+  "the Atlas lessons end chapter 6 (on a coast) and make chapters 7 and 8");
 const all = Object.fromEntries(ORDER.map(id => [id, 3]));
 check(chapterDone(7, all) && !chapterDone(7, { ...all, "atlas-eiger": 1 }) && !chapterDone(9, all) && chapterDone(1, Object.fromEntries(CHAPTERS[0].levels.map(id => [id, 1]))),
   "a chapter is done when its voyages have a star and its lessons two; an empty one never is");

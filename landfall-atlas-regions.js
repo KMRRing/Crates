@@ -72,7 +72,7 @@ export const REGIONS = [
   { id: "new-zealand", name: "New Zealand", kind: "mountains", opens: 7, later: 8, built: false, areas: [
     A("aoraki", "Aoraki and the Southern Alps", [169.90, -43.85, 170.45, -43.35]),
   ] },
-  { id: "north-sea", name: "North Sea and Channel", kind: "coast", opens: 4, later: 6, built: false, areas: [
+  { id: "north-sea", name: "North Sea and Channel", kind: "coast", opens: 4, later: 6, built: true, areas: [
     A("dover", "Dover Strait and the Goodwins", [0.90, 50.80, 1.90, 51.35], 6),
     A("scilly-cornwall", "Scilly and Cornwall", [-6.60, 49.75, -4.90, 50.25], 6),
     A("skagen", "Skagen and the Kattegat", [10.00, 57.20, 11.20, 57.90], 6),
