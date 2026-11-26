@@ -52,14 +52,17 @@ function ground(h, slope, north, x, night) {
  * degrees wide, the middle of the picture `pitch` degrees above the horizontal. `haze` is the distance (m) at which the ground is
  * two thirds lost in the air; `sun` its bearing and height. `fine`, the area's own grid, lights the near ground smoothly; its
  * shape stays the plain lookup's, so what the picture hides is what the sight lines (landfall-terrain.js `visible`) hide: a spline's
- * overshoot hid 2% of the summits listed as seen, by up to 3.7 degrees. Returns the screen's mapping, for labels and taps.
+ * overshoot hid 2% of the summits listed as seen, by up to 3.7 degrees. `cloud`, a base in metres, wraps all ground above it in
+ * cloud. Returns the screen's mapping, for labels and taps.
  */
-export function drawView(ctx, w, hgt, at, from, { az = 0, fov = 60, pitch = 3, haze = 60000, far = 150000, sun = { az: 220, alt: 35 }, night = false, scale = 1, fine = null } = {}) {
+export function drawView(ctx, w, hgt, at, from, { az = 0, fov = 60, pitch = 3, haze = 60000, far = 150000, sun = { az: 220, alt: 35 }, night = false, scale = 1, fine = null, cloud = 0 } = {}) {
   const W = Math.max(1, Math.round(w * scale)), H = Math.max(1, Math.round(hgt * scale));
   const img = ctx.createImageData(W, H), px = new Uint32Array(img.data.buffer);
   const pxPerDeg = W / fov, horizon = H / 2 + pitch * pxPerDeg;
   const eye = (from.h ?? at(from.lat, from.lon)) + EYE;
   const skyTop = night ? [12, 18, 30] : [92, 140, 196], skyLow = night ? [30, 40, 58] : [196, 214, 228], hazeC = night ? [26, 34, 48] : [190, 206, 220];
+  const cloudC = night ? [62, 68, 80] : [214, 218, 224];
+  if (cloud) { skyTop.splice(0, 3, ...mix(skyTop, cloudC, 0.75)); skyLow.splice(0, 3, ...mix(skyLow, cloudC, 0.6)); }   // overcast: a grey sky
   const pack = c => (255 << 24) | (clamp(c[2] | 0, 0, 255) << 16) | (clamp(c[1] | 0, 0, 255) << 8) | clamp(c[0] | 0, 0, 255);
   // the sky, bright at the horizon
   for (let y = 0; y < H; y++) {
@@ -83,7 +86,9 @@ export function drawView(ctx, w, hgt, at, from, { az = 0, fov = 60, pitch = 3, h
         const nx = -hx / (2 * dd), ny = -hy / (2 * dd), nl = Math.hypot(nx, ny, 1);
         const lit = clamp((nx * sx + ny * sy + sz) / nl, 0.18, 1), slope = Math.hypot(nx, ny);
         const grain = 0.9 + 0.12 * noise(la * 9000, lo * 9000) + 0.08 * noise(la * 1500, lo * 1500);   // texture, so near slopes are not flat paint
-        const c = mix(ground(h, slope, ny / Math.max(1e-6, slope), x, night).map(v => v * (0.45 + 0.65 * lit) * grain), hazeC, 1 - Math.exp(-x / haze));
+        let c = ground(h, slope, ny / Math.max(1e-6, slope), x, night).map(v => v * (0.45 + 0.65 * lit) * grain);
+        if (cloud) c = mix(c, cloudC.map(v => v * (0.93 + 0.1 * noise(la * 400, lo * 400))), smooth(cloud - 60, cloud + 20, h));
+        c = mix(c, hazeC, 1 - Math.exp(-x / haze));
         const y0 = Math.max(0, Math.floor(y));
         // a stretch continuing the ground just painted shades smoothly into it; one rising behind a ridge keeps the ridge's edge
         if (shown && last && top - y0 > 1) for (let r = y0; r < top; r++) { const t = (r - y0) / (top - y0); px[r * W + col] = pack(mix(c, last, t)); }
@@ -140,6 +145,19 @@ export function contours(g, { every = 100, skip = 2 } = {}) {
     }
   }
   return { thin, bold };
+}
+
+/** One contour, at `level` metres, by marching squares on every sample: the line your altimeter puts you on. */
+export function contourAt(g, level) {
+  const p = new Path2D(), H = (r, q) => g.data[r * g.cols + q];
+  for (let r = 0; r < g.rows - 1; r++) for (let q = 0; q < g.cols - 1; q++) {
+    const a = H(r, q), b = H(r, q + 1), c = H(r + 1, q + 1), d = H(r + 1, q);
+    if (Math.min(a, b, c, d) > level || Math.max(a, b, c, d) < level) continue;
+    const pts = [], edge = (h1, h2, x1, y1, x2, y2) => { if ((h1 < level) !== (h2 < level)) { const t = (level - h1) / (h2 - h1); pts.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]); } };
+    edge(a, b, q, r, q + 1, r); edge(b, c, q + 1, r, q + 1, r + 1); edge(c, d, q + 1, r + 1, q, r + 1); edge(d, a, q, r + 1, q, r);
+    for (let k = 0; k + 1 < pts.length; k += 2) { p.moveTo(pts[k][0], pts[k][1]); p.lineTo(pts[k + 1][0], pts[k + 1][1]); }
+  }
+  return p;
 }
 
 /** The map's frame: grid units to screen and back, for a centre (grid units) and a zoom (screen pixels a grid unit). */

@@ -8,6 +8,7 @@ import {
 } from "./landfall-engine.js";
 import { LEVELS, levelById } from "./landfall-levels.js";
 import { playable, chapterOf } from "./landfall-chapters.js";
+import { lessonById } from "./landfall-atlas-lessons.js";
 import { STARS } from "./landfall-stars.js";
 import { FIGURES } from "./landfall-figures.js";
 import { starAltAz, sunAltAz, moonAltAz, sextantReading, sunReading, sunSemidiameter } from "./landfall-sky.js";
@@ -32,9 +33,9 @@ import { calendar } from "./landfall-sky.js";
 import { windOf } from "./landfall-look.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, toggle, action, line, onPause, volume } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, volume, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
-import { IN_FRAME } from "./suite.js";             // a partner watching's frame: it draws a copy, runs no clock and writes nothing
+import { IN_FRAME, today, arrivedForToday } from "./suite.js";             // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 
 const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -1174,15 +1175,20 @@ let menuChapter = 0;                             // the chapter the menu is show
 function openMenu() {
   const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {}), here = chapterOf(S.level), ch = menuChapter || here || 1;
   body.replaceChildren();
-  part(body, "play").append(atlasOn ? action("A new start", () => { $("menuDlg").close(); atlas?.newStart(); }, "primary")
+  part(body, "play").append(atlasOn ? action(({ lesson: "The lesson again", test: "Next fix" })[atlas?.kind()] || "A new start", () => { $("menuDlg").close(); atlas?.newStart(); }, "primary")
     : action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
+  // today's start: the Atlas's, the same for everyone (landfall-atlas.js startDaily), counted at its first fix
+  const daily = read("landfall:daily", {})[today()];
+  if (!IN_FRAME) todayPart(body, { done: daily != null, result: daily == null ? "" : daily ? "★".repeat(daily) : "no stars", play: () => setMode("atlas", "today"), playing: atlasOn && !!atlas?.isDaily() });
   const content = part(body, "content");
   if (!IN_FRAME) content.append(choice("Play", [["campaign", "Campaign"], ["atlas", "Atlas"]], atlasOn ? "atlas" : "campaign", v => { $("menuDlg").close(); setMode(v); }));
   if (atlasOn) atlas?.menuInto(content, again => { if (again) openMenu(); else $("menuDlg").close(); });
   else {
     const chapters = playable(), shown = chapters.find(c => c.n === ch) || chapters[0];
     content.append(choice("Chapter", chapters.map(c => [String(c.n), `${c.n} ${c.name}`]), String(shown.n), v => { menuChapter = Number(v); openMenu(); }));
-    content.append(choice("Voyage", shown.levels.map((id, i) => { const l = levelById(id); return [id, `${i + 1} ${l.name}${best[id] ? ` ${"★".repeat(best[id])}` : ""}`]; }), shown.n === here ? S.level : "", v => { $("menuDlg").close(); startLevel(v); }));
+    // chapters 7 and 8 are lessons on the Atlas's ground (landfall-atlas-lessons.js): choosing one opens the Atlas on it
+    content.append(choice(shown.n >= 7 ? "Lesson" : "Voyage", shown.levels.map((id, i) => { const l = levelById(id) || lessonById(id); return [id, `${i + 1} ${l.name}${best[id] ? ` ${"★".repeat(best[id])}` : ""}`]; }), shown.n === here ? S.level : "",
+      v => { $("menuDlg").close(); if (lessonById(v)) { menuChapter = shown.n; setMode("atlas", v); } else startLevel(v); }));
   }
   const set = part(body, "settings");
   set.append(volume(v => { if (v) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
@@ -1368,7 +1374,8 @@ addEventListener("pagehide", persist);
 onPause(() => { paused = true; sound.pause(); persist(); }, () => { paused = false; if (!atlasOn) sound.resume(); wake(); });
 
 // ---------- the Atlas: real places to master (landfall-atlas.js), in the voyage's place while Play is Atlas ----------
-async function setMode(m) {
+/** Campaign or Atlas; `next` opens the Atlas on a lesson (its id) or today's start ("today"). */
+async function setMode(m, next = "") {
   if (!IN_FRAME) write(KEY.mode, m);
   atlasOn = m === "atlas";
   $("app").classList.toggle("lf-atlas-on", atlasOn);
@@ -1376,7 +1383,7 @@ async function setMode(m) {
     sound.pause(); persist();
     if (stage) await setView("flat", false);       // `want` is false now the Atlas is on, so this takes the deck down
     atlas ||= await import("./landfall-atlas.js");
-    atlas.show();
+    atlas.show(next);
   } else {
     atlas?.hide();
     if (!paused) sound.resume();
@@ -1405,11 +1412,12 @@ else if (S.phase === "book") openBook();
 else if (S.phase === "end") showEnd();
 if (!IN_FRAME) { sound.bed(S.phase !== "end"); sound.day(isDay() && S.phase !== "end"); if (!read(KEY.seen, 0) && read(KEY.mode, "campaign") !== "atlas") openHelp(); }
 wake();
-if (!IN_FRAME && read(KEY.mode, "campaign") === "atlas") setMode("atlas");
+if (!IN_FRAME && arrivedForToday()) setMode("atlas", "today");
+else if (!IN_FRAME && read(KEY.mode, "campaign") === "atlas") setMode("atlas");
 
 // for tests and debugging
 window.__landfall = {
-  get stage() { return stage; }, setView,
+  get stage() { return stage; }, setView, setMode,
   get S() { return S; }, set S(v) { S = v; S.ui = { ...freshUi(), ...(S.ui || {}) }; retarget(); renderAll(); },
   get sxs() { return sxs; }, get view() { return full ? free : view; }, get cam() { return cam; }, get reveal() { return reveal; },
   go, begin, choose, setFull, openScope, closeScope, openMenu, openCodex, openNotes, learn, openAlmanac, openLog, openHelp, openBook, showEnd, renderAll, setDividers, setCourse,

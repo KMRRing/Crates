@@ -1,11 +1,14 @@
 // Traverse's campaign: ten chapters, one technique each (Korbi, 27 Nov 2026, on the plan "Traverse — the plan": the campaign teaches
 // techniques, the Atlas holds the places, the mixes carry the volume). Chapters 1 to 6 are at sea and hold the built voyages by
 // their ids, so the stars won stay with them; a voyage's `section` (landfall-voyages.js) stays the group it was written in. Chapters
-// 7 to 10 (land, ice and sand, the open Pacific) are listed with `levels: []` until their levels are made, and the menu leaves an
-// empty chapter out. Order matters: every voyage needs only what its own chapter or an earlier one teaches (tests/landfall-chapters.mjs).
+// 7 and 8 are on land, lessons on the Atlas's real ground (landfall-atlas-lessons.js); 9 and 10 (ice and sand, the open Pacific)
+// are listed with `levels: []` until their levels are made, and the menu leaves an empty chapter out. Order matters: every voyage
+// needs only what its own chapter or an earlier one teaches (tests/landfall-chapters.mjs).
 import { LEVELS } from "./landfall-levels.js";
+import { LESSONS, lessonById, PASS } from "./landfall-atlas-lessons.js";
 
 const bySection = (...ss) => ss.flatMap(s => LEVELS.filter(l => l.section === s).map(l => l.id));
+const lessons = n => LESSONS.filter(l => l.chapter === n).map(l => l.id);
 
 export const CHAPTERS = [
   { n: 1, name: "The pole star and the log", teaches: "Latitude by Polaris, dead reckoning, the compass's error", levels: bySection(1) },
@@ -14,8 +17,8 @@ export const CHAPTERS = [
   { n: 4, name: "Lights and land", teaches: "Lights by their bearing and character, the land by its shape", levels: bySection(7, 11, 12) },
   { n: 5, name: "Cloud, storm and the Hanse run", teaches: "Stars through cloud and named by their neighbours, the blow and after it, the long passage", levels: bySection(6, 13, 8, 9) },
   { n: 6, name: "Soundings and birds", teaches: "The lead and the bottom, the sounding machine, birds flying home", levels: bySection(10, 14, 15) },
-  { n: 7, name: "Peaks and bearings", teaches: "Naming peaks, resection, land transits, what hides what", levels: [] },
-  { n: 8, name: "Contours and cloud", teaches: "Contours, slope, pace counting, the altimeter, whiteout", levels: [] },
+  { n: 7, name: "Peaks and bearings", teaches: "Naming peaks, bearings and the cocked hat, angles of cut, near marks, haze", levels: lessons(7) },
+  { n: 8, name: "Contours and cloud", teaches: "The altimeter and the contour, fixing under cloud", levels: lessons(8) },
   { n: 9, name: "Ice and sand", teaches: "The sun compass, the artificial horizon, the moving floor, wells", levels: [] },
   { n: 10, name: "Without instruments", teaches: "The star compass, swells, birds, the expanded target", levels: [] },
 ];
@@ -25,5 +28,7 @@ const CHAPTER_OF = new Map(CHAPTERS.flatMap(c => c.levels.map(id => [id, c.n])))
 export const chapterOf = id => CHAPTER_OF.get(id) || 0;
 /** The chapters that have voyages to play, in order. */
 export const playable = () => CHAPTERS.filter(c => c.levels.length);
+/** Whether a chapter is done: every voyage in it sailed (a star or more), every lesson passed (two). */
+export const chapterDone = (n, best = {}) => { const c = CHAPTERS[n - 1]; return !!c?.levels.length && c.levels.every(id => (best[id] || 0) >= (lessonById(id) ? PASS : 1)); };
 /** The campaign's voyages in playing order. */
 export const ORDER = CHAPTERS.flatMap(c => c.levels);

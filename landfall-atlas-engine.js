@@ -17,15 +17,23 @@ export function rng(seed) {
 /**
  * A new play in an area: which start, and the compass's error for it (on Hard only, up to half a degree). `weight(start)` lets mastery steer toward starts that show what you know least (1 when it has no say).
  */
-export function newPlay(pack, { seed = 1, level = "medium", weight = () => 1 } = {}) {
+export function newPlay(pack, { seed = 1, level = "medium", weight = () => 1, start = -1, cloud = 0, alti = false, lesson = "", daily = "" } = {}) {
   const r = rng(seed), ws = pack.starts.map(s => Math.max(0.01, weight(s))), total = ws.reduce((a, b) => a + b, 0);
   let x = r() * total, i = 0;
   while (i < ws.length - 1 && (x -= ws[i]) > 0) i++;
+  if (start >= 0) i = start;
   // 27 Nov 2026: up to 2 degrees on Hard threw a perfect play 5 km off with far peaks; the levels differ in the air and the labels,
   // and Hard keeps only the half degree a careful hand compass errs by, which teaches what it should: near, well-spread marks
   const deviation = level === "hard" ? Math.round((r() - 0.5) * 10) / 10 : 0;
-  return { area: pack.area, region: pack.region, start: i, seed, level, deviation, bearings: [], mark: null, done: false };
+  const extra = { ...(cloud ? { cloud } : {}), ...(alti ? { alti: true } : {}), ...(lesson ? { lesson } : {}), ...(daily ? { daily } : {}) };
+  return { area: pack.area, region: pack.region, start: i, seed, level, deviation, bearings: [], mark: null, done: false, ...extra };
 }
+
+/**
+ * What the play's start sees: the pack's list, less the summits in cloud (a play's `cloud` is the cloud's base in metres; what
+ * stands above it is lost, and chapter 8 teaches fixing without it).
+ */
+export const seesNow = (pack, play) => { const s = pack.starts[play.start]; return play.cloud ? s.sees.filter(i => pack.landmarks[i].ele < play.cloud - 30) : s.sees; };
 
 /** The bearing the compass shows toward a true bearing, with the play's deviation. */
 export const compassOf = (play, trueBearing) => (trueBearing - play.deviation + 360) % 360;
@@ -93,9 +101,10 @@ export function finish(pack, play) {
   const s = pack.starts[play.start], m = play.mark;
   const err = m ? distanceBearing(s.lat, s.lon, m.lat, m.lon).d : Infinity;
   const off = (b, i) => { const l = pack.landmarks[i]; return Math.abs(((b.reading - compassOf(play, distanceBearing(s.lat, s.lon, l.lat, l.lon).b) + 540) % 360) - 180); };
+  const sees = seesNow(pack, play);
   const named = play.bearings.map(b => {
-    if (!pack.landmarks[b.named] || !s.sees.includes(b.named)) return { ...b, right: false };
-    const nearest = s.sees.reduce((a, i) => (off(b, i) < off(b, a) ? i : a), s.sees[0]);
+    if (!pack.landmarks[b.named] || !sees.includes(b.named)) return { ...b, right: false };
+    const nearest = sees.reduce((a, i) => (off(b, i) < off(b, a) ? i : a), sees[0]);
     return { ...b, right: off(b, b.named) <= 3 || nearest === b.named };
   });
   return { ...play, done: true, error: Math.round(err), stars: starsFor(err), named };

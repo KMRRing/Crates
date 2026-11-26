@@ -6,6 +6,9 @@ import { gunzipSync } from "node:zlib";
 import { grid, terrain, decode, distanceBearing } from "../landfall-terrain.js";
 import { newPlay, takeBearing, crossing, mark, finish, compassOf, starsFor } from "../landfall-atlas-engine.js";
 import { tellApart } from "../landfall-atlas-pack.js";
+import { blank, learn, areaState, peakState, tested, dayNumber, sideOf, TEST } from "../landfall-atlas-mastery.js";
+import { LESSONS } from "../landfall-atlas-lessons.js";
+import { seesNow } from "../landfall-atlas-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -46,4 +49,45 @@ else {
   check(moved > 50 && moved < 2000, `a half-degree compass error moves the fix ${Math.round(moved)} m`);
   check([1, 2, 3, 4, 5, 6, 7, 8].every(seed => Math.abs(newPlay(pack, { seed, level: "hard" }).deviation) <= 0.5 && newPlay(pack, { seed, level: "medium" }).deviation === 0), "only Hard has a compass error, of half a degree at most");
 }
+// the master test: five fixes of two stars or more in a row; a miss starts it again; once passed it stays passed
+let T = blank();
+for (const st of [3, 2, 1, 2, 2, 3, 2]) T = tested(T, "alps", st);
+check(!T.tests.alps.passed && T.tests.alps.streak === 5 - 1, "a one-star fix in the master test starts the streak again");
+T = tested(T, "alps", 2);
+check(T.tests.alps.passed && tested(T, "alps", 0).tests.alps.passed, `${TEST} in a row pass the master test, for good`);
+check(dayNumber(20261127) - dayNumber(20261126) === 1 && dayNumber(20270101) - dayNumber(20261231) === 1, "day numbers count days across a month and a year");
+
+if (existsSync(new URL("bernese.json", dir))) {
+  const P = JSON.parse(readFileSync(new URL("bernese.json", dir)));
+  const load = (k, G) => grid([G.w, G.s, G.e, G.n], G.cols, G.rows, decode(gunzipSync(readFileSync(new URL(`bernese.${k}.bin.gz`, dir))), G.cols, G.rows));
+  const pack = { ...P, region: "alps", area: "bernese", at: terrain([Object.assign(load("fine", P.fine), { fine: true }), load("far", P.far)]) };
+  const s = pack.starts[0], i = s.sees[0], l = pack.landmarks[i], tb = distanceBearing(s.lat, s.lon, l.lat, l.lon).b, d0 = dayNumber(20261127);
+  // named right: a side gained, rest one day, then two; named wrong: due again today
+  let play = finish(pack, mark(takeBearing({ ...newPlay(pack, { level: "easy" }), start: 0 }, tb, i), s.lat, s.lon));
+  let K = learn(blank(), pack, play, d0);
+  const k1 = K.peaks[`alps/bernese/${l.id}`];
+  check(k1.s === 1 << sideOf(l, s) && k1.gap === 1 && k1.due === d0 + 1, "a summit named right gains the side it was seen from, and is due again tomorrow");
+  K = learn(K, pack, play, d0 + 1);
+  check(K.peaks[`alps/bernese/${l.id}`].gap === 2 && K.fixes["alps/bernese"] === 2, "named right again, it rests two days; each fix of two stars counts toward the area");
+  const other = pack.landmarks.findIndex((x, j) => j !== i && Math.abs(((distanceBearing(s.lat, s.lon, x.lat, x.lon).b - tb + 540) % 360) - 180) > 20);
+  const wrong = finish(pack, mark(takeBearing({ ...newPlay(pack, { level: "easy" }), start: 0 }, tb, other), s.lat, s.lon));
+  K = learn(K, pack, wrong, d0 + 2);
+  check(K.peaks[`alps/bernese/${l.id}`].due === d0 + 2 && peakState(K, pack, i, d0 + 2).due, "the summit really on the line, named wrong, is due again today");
+  const A = areaState(K, pack, d0);
+  check(A.of > 20 && A.known < A.of && !A.mastered, `an area is ${A.of} summits to know, and isn't mastered after a few fixes`);
+}
+
+// every lesson's start is in its pack and sees the summits the lesson names, and enough under its cloud to fix on
+const lessonBad = [];
+for (const L of LESSONS) {
+  const f = new URL(`../landfall-atlas/${L.region}/${L.area}.json`, import.meta.url);
+  if (!existsSync(f)) continue;
+  const P = JSON.parse(readFileSync(f)), i = P.starts.findIndex(s => s.id === L.start);
+  if (i < 0) { lessonBad.push(`${L.id}: no start ${L.start || "(none given)"}`); continue; }
+  const sees = seesNow(P, { start: i, cloud: L.cloud || 0 }).map(j => P.landmarks[j].name);
+  for (const n of L.sees) if (!sees.includes(n)) lessonBad.push(`${L.id}: ${n} not in sight`);
+  if (sees.length < (L.alti ? 2 : 3)) lessonBad.push(`${L.id}: only ${sees.length} summits in sight`);
+}
+check(!lessonBad.length, `every lesson's start sees what it asks for${lessonBad.length ? `: ${lessonBad.join("; ")}` : ""}`);
+
 if (bad) { console.log(`${bad} failed`); process.exit(1); }

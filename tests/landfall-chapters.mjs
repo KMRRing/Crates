@@ -1,14 +1,21 @@
 // Traverse's campaign chapters (landfall-chapters.js): ten of them, every built voyage in exactly one, and no voyage asking for
 // something a later chapter teaches (Korbi, 27 Nov 2026: "each type of navigation could get its own chapter").
 import { LEVELS } from "../landfall-levels.js";
-import { CHAPTERS, ORDER, chapterOf, playable } from "../landfall-chapters.js";
+import { CHAPTERS, ORDER, chapterOf, playable, chapterDone } from "../landfall-chapters.js";
+import { LESSONS } from "../landfall-atlas-lessons.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 check(CHAPTERS.length === 10 && CHAPTERS.every((c, i) => c.n === i + 1 && c.name && c.teaches), "ten chapters, numbered and named, each saying what it teaches");
-const ids = new Set(LEVELS.map(l => l.id));
-check(ORDER.length === LEVELS.length && new Set(ORDER).size === ORDER.length && ORDER.every(id => ids.has(id)), `every one of the ${LEVELS.length} voyages is in exactly one chapter`);
+const ids = new Set([...LEVELS, ...LESSONS].map(l => l.id));
+check(ORDER.length === ids.size && new Set(ORDER).size === ORDER.length && ORDER.every(id => ids.has(id)), `every one of the ${LEVELS.length} voyages and ${LESSONS.length} lessons is in exactly one chapter`);
+check(LESSONS.every(l => chapterOf(l.id) === l.chapter && (l.chapter === 7 || l.chapter === 8)), "the Atlas lessons are chapters 7 and 8");
+const all = Object.fromEntries(ORDER.map(id => [id, 3]));
+check(chapterDone(7, all) && !chapterDone(7, { ...all, "atlas-eiger": 1 }) && !chapterDone(9, all) && chapterDone(1, Object.fromEntries(CHAPTERS[0].levels.map(id => [id, 1]))),
+  "a chapter is done when its voyages have a star and its lessons two; an empty one never is");
+// the land chapters: chapter 8 brings in the altimeter and cloud, which chapter 7 doesn't use
+check(LESSONS.filter(l => l.chapter === 7).every(l => !l.alti && !l.cloud) && LESSONS.some(l => l.chapter === 8 && l.alti) && LESSONS.some(l => l.chapter === 8 && l.cloud), "the altimeter and cloud come in chapter 8, not before");
 check(playable().every(c => c.levels.length) && playable()[0].n === 1, "the menu's chapters are the ones with voyages, from the first");
 
 // what each sea chapter brings in, as the voyages' own flags (a noon level is one whose watches include a noon)

@@ -10,6 +10,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { REGIONS, regionById, farBox, FAR_STEP } from "./landfall-atlas-regions.js";
+import { LESSONS } from "./landfall-atlas-lessons.js";
 import { grid, heightIn, inside, terrain, visible, distanceBearing, encode } from "./landfall-terrain.js";
 
 const UA = "Traverse-atlas-build/1 (https://github.com/KMRRing/Crates)";
@@ -182,14 +183,16 @@ async function buildArea(region, area) {
   const at = terrain([fine, far]);
   const found = await places(area.box, fb);
   // landmarks: the area's summits that are high or known, at their true tops; the giants round about too, for a far view
-  const peakLike = p => { if (!p.ele) return false; const g = inside(fine, p.lat, p.lon) ? fine : far; return Math.abs(summitNear(g, p.lat, p.lon, 600).h - p.ele) < 150; };
-  for (const p of found) if (p.kind === "group" && peakLike(p)) p.kind = "summit";
+  // a group's point is often its middle, a kilometre or so from its top (Marmolada's is 1.2 km from Punta Penia): its top is looked
+  // for within 1.5 km, and it counts only if the height found there is the one listed
+  const peakLike = p => { if (!p.ele) return false; const g = inside(fine, p.lat, p.lon) ? fine : far; return Math.abs(summitNear(g, p.lat, p.lon, 1500).h - p.ele) < 150; };
+  for (const p of found) if (p.kind === "group" && peakLike(p)) { p.kind = "summit"; p.group = true; }
   const top = Math.max(...found.filter(p => p.kind === "summit" && inside(fine, p.lat, p.lon)).map(p => p.ele || 0), 1000);
   const known = found.filter(p => p.kind === "summit").filter(p => inside(fine, p.lat, p.lon)
     ? (p.ele ?? 0) >= Math.min(3000, top * 0.65) || p.links >= 5
     : (p.ele ?? 0) >= 4000 || p.links >= 30);
   const landmarks = known.map(p => {
-    const g = inside(fine, p.lat, p.lon) ? fine : far, t = summitNear(g, p.lat, p.lon, g === fine ? 300 : 900);
+    const g = inside(fine, p.lat, p.lon) ? fine : far, t = summitNear(g, p.lat, p.lon, p.group ? 1500 : g === fine ? 300 : 900);
     let ele = Math.round(t.h);
     for (const G of [fine, far]) if (inside(G, t.lat, t.lon)) ele = Math.max(ele, burnIn(G, t.lat, t.lon, p.ele));
     return { id: p.id, name: p.name, lat: R3(t.lat), lon: R3(t.lon), ele, listed: p.ele, links: p.links, near: g === fine };
@@ -215,11 +218,13 @@ async function buildArea(region, area) {
     if (gap > 300) continue;
     starts.push({ id: p.id, name: p.name, kind: p.kind, lat: R3(p.lat), lon: R3(p.lon), ele: Math.round(h), sees, gap: Math.round(gap) });
   }
-  // the best forty, no two within half a kilometre
-  starts.sort((a, b) => b.sees.length - a.sees.length || a.gap - b.gap);
-  const kept = [];
+  // the best forty, no two within half a kilometre; first the starts the campaign's lessons are played from, whatever their rank
+  const lessonStarts = new Set(LESSONS.filter(L => L.region === region.id && L.area === area.id).map(L => L.start));
+  starts.sort((a, b) => lessonStarts.has(b.id) - lessonStarts.has(a.id) || b.sees.length - a.sees.length || a.gap - b.gap);
+  for (const id of lessonStarts) if (id && !starts.some(s => s.id === id)) log(area.id, `a lesson's start ${id} sees too little to be one`);
+  const kept = starts.filter(s => lessonStarts.has(s.id));
   // most of them where people stand (villages, huts, passes); summits, where a hut's view is lacking, at most fifteen
-  for (const s of starts) if (kept.length < 40 && (s.kind !== "summit" || kept.filter(k => k.kind === "summit").length < 15) && !kept.some(k => distanceBearing(k.lat, k.lon, s.lat, s.lon).d < 500)) kept.push(s);
+  for (const s of starts) if (!kept.includes(s) && kept.length < 40 && (s.kind !== "summit" || kept.filter(k => k.kind === "summit").length < 15) && !kept.some(k => distanceBearing(k.lat, k.lon, s.lat, s.lon).d < 500)) kept.push(s);
   log(area.id, `${kept.length} starts of ${candidates.length} places`);
   const dir = `${OUT}/${region.id}`;
   mkdirSync(dir, { recursive: true });
