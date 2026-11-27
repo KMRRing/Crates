@@ -1,7 +1,9 @@
-// Monte zero, Schafkopf's strongest computer player (Korbi, 25 Nov 2026: "add the latest/strongest version … as Monte zero"):
-// the engine trained in the lab (KMRRing/Dandan, lab/schafkopf), generation 3 with its bids searched at 1,024 deals, level with
-// the Hard players over 20,000 paired seat-deals there (+0.008 ± 0.038 tariffs a deal). Nothing in it is a Schafkopf rule of
-// thumb: it plays by this game's own rules (trumps-games.js) and a policy net learned from its own games (trumps-monte-net.js).
+// Monte zero, Schafkopf's strongest computer player (Korbi, 25 Nov 2026: "add the latest/strongest version … as Monte zero"; 27 Nov:
+// "replace currently deployed Monte with our most recent/strongest"): the lab's M1 (KMRRing/Dandan, lab/schafkopf), its bids
+// searched at 1,024 deals, +0.06 ± 0.025 tariffs a deal over the engine it replaces at mixed tables, and no later engine (M2, M3,
+// the 180,000-deal net) better than it. Nothing in it is a Schafkopf rule of thumb: it plays by this game's own rules
+// (trumps-games.js) and a policy net learned from its own games (trumps-monte-net.js), which also sees what the seat knows of who
+// can be the Sauspiel's partner and two small nets' beliefs over who holds the called ace.
 //   A decision is searched over 256 deals of the cards the seat can't see (1,024 for a bid): each deal a world consistent with
 // everything played so far (dealt at random and kept only if the deal replays legally, a short walk where that is rare), each
 // legal move played out to the end of the hand: a tree for the first moves (UCT), the policy net's top move after. A move's worth
@@ -9,7 +11,7 @@
 // Ported from the lab's search (dandan-think.js, its game path) and adapter (sk-rules.js, sk-view.js, sk-net.js, sk-monte.js)
 // line for line, so it chooses as the lab engine does from the same position; tests/trumps-monte.mjs checks it plays.
 import { rules as codex } from "./trumps-rules.js";
-import { GAMES } from "./trumps-games.js";
+import { GAMES, sFollow } from "./trumps-games.js";
 import { cid } from "./trumps-cards.js";
 import { seeded, mix } from "./seats.js";
 import { NET } from "./trumps-monte-net.js";
@@ -159,20 +161,93 @@ function rawView(v, x) {
   at(v.step === "bid" ? 0 : 1); next("phase");
   return x;
 }
+// the partner facts (lab sk-view.js partnerView, M1): who can be the partner on the public record and to the seat itself, whether
+// the record leaves one seat, and whether the declarer is still to play to this trick, and last
+const PART_SIZE = 11, idOf = k => k + 1 + Math.floor(k / 8);
+const played = v => [...v.tricks.map(t => t.cards), v.trick];
+const followOf = (c, id) => { const k = sFollow(c, id); return k === "T" ? 4 : k; };
+/** Which absolute seats can be the partner on the public record of `v` (the declarer never), and who, once the ace has fallen. */
+function publicPartner(v) {
+  const vc = v.contract, c = vc && { type: vc.type, trump: vc.trump, ace: vc.ace, declarer: vc.declarer };
+  if (!c || c.type !== "sau") return null;
+  const ace = cid(c.ace, "A"), can = SEATS.map(p => p !== c.declarer), all = played(v).flat();
+  const ofCalled = id => id !== ace && followOf(c, id) === c.ace;
+  for (const t of played(v)) {
+    for (let i = 0; i < t.length; i++) {
+      const { seat: p, card: x } = t[i];
+      if (x === ace) return { can: can.map((_, q) => q === p), fell: true };
+      if (!can[p]) continue;
+      const trick = t.slice(0, i), ok = hand => { const hands = []; hands[p] = hand; return S.legal({ contract: c, hands, trick }, p).includes(x); };
+      // a lead from the called suit is the partner's only when it holds four of it (running away): give it up to two more of the
+      // called suit that it may have held then (not played before this, nor by another seat)
+      const spare = () => {
+        const before = new Set(all.slice(0, all.findIndex(k => k.card === x)).map(k => k.card));
+        return [...Array(C).keys()].map(idOf).filter(id => ofCalled(id) && id !== x && !before.has(id) && !all.some(k => k.card === id && k.seat !== p)).slice(0, 2);
+      };
+      if (!ok([x, ace]) && !(ofCalled(x) && !trick.length && ok([x, ace, ...spare()]))) can[p] = false;
+    }
+  }
+  return { can, fell: false };
+}
+function partnerView(v, x) {
+  const rel = p => (p - v.seat + 4) % 4, c = v.contract;
+  if (!c || v.step === "bid") return x;
+  const pub = publicPartner(v);
+  if (pub) {
+    const own = pub.fell ? pub.can : v.hand.includes(cid(c.ace, "A")) ? SEATS.map(p => p === v.seat) : pub.can.map((k, p) => k && p !== v.seat);
+    pub.can.forEach((k, p) => { if (k) x[rel(p)] = 1; });
+    own.forEach((k, p) => { if (k) x[4 + rel(p)] = 1; });
+    x[8] = pub.can.filter(Boolean).length === 1 ? 1 : 0;
+  }
+  const d = rel(c.declarer), after = 3 - v.trick.length;
+  if (d >= 1 && d <= after) x[9] = 1;
+  if (d >= 1 && d === after) x[10] = 1;
+  return x;
+}
+
 const f32 = b64 => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Float32Array(u.buffer); };
 let net = null;
-function netOf() {
-  if (net) return net;
-  const layers = NET.layers.map(l => ({ n: l.n, k: l.k, w: f32(l.w), b: f32(l.b) }));
+function prepare(j) {
+  const layers = j.layers.map(l => ({ n: l.n, k: l.k, w: f32(l.w), b: f32(l.b) }));
   const f = layers[0], wt = new Float32Array(f.n * f.k);   // the first layer by input: the view is mostly zeros
   for (let o = 0; o < f.n; o++) for (let i = 0; i < f.k; i++) wt[i * f.n + o] = f.w[o * f.k + i];
   f.wt = wt;
-  return (net = { n_in: NET.n_in, layers });
+  return { n_in: j.n_in, layers };
 }
+function netOf() {
+  if (net) return net;
+  return (net = { ...prepare(NET), part: NET.inputs === "raw+part", beliefs: NET.beliefs ? { own: prepare(NET.beliefs.own), public: prepare(NET.beliefs.public) } : null });
+}
+/** A belief net's probabilities over the four relative seats holding the called ace, masked by what is exact (zeros when the mask is
+ *  empty: outside a Sauspiel's play); the public net sees no hand and no own mask. */
+function belief(N, raw, q, pub) {
+  const x = new Float32Array(N.n_in);
+  x.set(raw); x.set(q, RAW_SIZE);
+  if (pub) { x.fill(0, 0, C); x.fill(0, RAW_SIZE + 4, RAW_SIZE + 8); }
+  const z = run(N, x), m = pub ? q.subarray(0, 4) : q.subarray(4, 8), out = new Float32Array(4);
+  let top = -Infinity, t = 0;
+  for (let r = 0; r < 4; r++) if (m[r] > 0 && z[r] > top) top = z[r];
+  if (top === -Infinity) return out;
+  for (let r = 0; r < 4; r++) if (m[r] > 0) { out[r] = Math.exp(z[r] - top); t += out[r]; }
+  for (let r = 0; r < 4; r++) out[r] /= t;
+  return out;
+}
+/** The policy's outputs for a seat's view: the raw view, and for M1 the partner facts (as packed: × 255, rounded, ÷ 255) and the
+ *  own and public beliefs. */
 function forward(v) {
-  const N = netOf();
-  let x = new Float32Array(N.n_in);
+  const N = netOf(), x = new Float32Array(N.n_in);
   rawView(v, x.subarray(0, RAW_SIZE));
+  if (N.part) {
+    const q = x.subarray(RAW_SIZE, RAW_SIZE + PART_SIZE), raw = x.subarray(0, RAW_SIZE);
+    partnerView(v, q);
+    for (let k = 0; k < PART_SIZE; k++) q[k] = Math.round(255 * q[k]) / 255;
+    x.set(belief(N.beliefs.own, raw, q, false), RAW_SIZE + PART_SIZE);
+    x.set(belief(N.beliefs.public, raw, q, true), RAW_SIZE + PART_SIZE + 4);
+  }
+  return run(N, x);
+}
+/** The layers over an input vector: ReLU between, the last linear. */
+function run(N, x) {
   N.layers.forEach((l, li) => {
     const y = new Float32Array(l.n), last = li === N.layers.length - 1;
     if (li === 0) {
@@ -184,6 +259,8 @@ function forward(v) {
   });
   return x;
 }
+/** The policy's outputs for the seat in a state as the engine keeps it (tests: the same as the lab's net on the same view). */
+export const monteNetOutputs = (s, seat) => forward(view(s, seat));
 /** The play-out's move: the policy's top legal move (greedy; the lab's arm that beat sampled play-outs). */
 function rollout(c, who) {
   const ms = options(c, who);
