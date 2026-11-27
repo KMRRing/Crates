@@ -18,6 +18,7 @@ import { createTrumps3d, plateOf as plate3 } from "./trumps-3d.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { sure } from "./sure.js";
 import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
@@ -314,7 +315,8 @@ function fullScreen(on) {
   } catch { /* a browser without it: the layout alone */ }
 }
 
-/** The contract and the scores, along the top. */
+const sign = n => `${n > 0 ? "+" : ""}${n}`;                     // a score, signed (the coach's signed() is for a worth in tariffs)
+/** The contract and the scores, along the top (Schafkopf's is the total, carried from match to match). */
 function drawInfo(s) {
   const g = GAMES[s.game];
   let contract = "";
@@ -334,7 +336,7 @@ function drawInfo(s) {
     items = [{ k: "Us", v: s.scores[mine] }, { k: "Them", v: s.scores[1 - mine] }];
     tail = `to ${s.opts.target}`;
   } else {
-    items = [{ k: "You", v: `${s.scores[me()] > 0 ? "+" : ""}${s.scores[me()]}` }];
+    items = [{ k: "You", v: sign(s.scores[me()]) }];
     title = `<small>Deal</small><b>${s.handNo}/${s.opts.deals}</b>`;
   }
   $("info").innerHTML = plateHtml({ lead: contract ? `<span class="tr-contract">${contract}</span>` : "", title, items, tail });
@@ -649,7 +651,9 @@ $("controls").addEventListener("click", async e => {
 
 // ---------- the end ----------
 function onOver(v) {
-  if (v.seat == null || IN_FRAME) return;
+  // page is still being made when the page opens on a game already over: that one was counted when it ended (this was an
+  // error in the console on every such load, which happened to keep it from being counted twice)
+  if (v.seat == null || IN_FRAME || !page) return;
   const won = v.state.winners.includes(v.seat);
   if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(recordKey(), { played: 0, won: 0 });
@@ -664,18 +668,27 @@ function showEnd(v) {
   $("endHead").textContent = won ? "You win" : `${s.winners.map(nameOf).join(" and ")} ${s.winners.length > 1 ? "win" : "wins"}`;
   const rows = g.teams === "fixed"
     ? [0, 1].map(t => `<li class="${s.winners.includes(t) ? "won" : ""}${teamOf(me()) === t ? " me" : ""}"><span class="nm">${esc(nameOf(t))} and ${esc(nameOf(t + 2))}</span><b>${s.scores[t]}</b></li>`)
-    : [0, 1, 2, 3].sort((a, b) => s.scores[b] - s.scores[a]).map(i => `<li class="${s.winners.includes(i) ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm">${esc(nameOf(i))}</span><b>${s.scores[i] > 0 ? "+" : ""}${s.scores[i]}</b></li>`);
-  $("endBody").innerHTML = `<ol class="tr-standings">${rows.join("")}</ol><p class="tr-end-note">${g.name}, ${s.handNo} ${s.handNo === 1 ? "hand" : "hands"}.</p>`;
+    : [0, 1, 2, 3].sort((a, b) => s.scores[b] - s.scores[a]).map(i => {
+      const run = s.start && s.start.some(Boolean) ? ` <small>${sign(s.scores[i] - s.start[i])} this game</small>` : "";   // a total carried in: what this one added
+      return `<li class="${s.winners.includes(i) ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm">${esc(nameOf(i))}</span><b>${sign(s.scores[i])}${run}</b></li>`;
+    });
+  const carries = s.game === "schafkopf" ? " The totals carry on into the next game; the menu resets them." : "";
+  $("endBody").innerHTML = `<ol class="tr-standings">${rows.join("")}</ol><p class="tr-end-note">${g.name}, ${s.handNo} ${s.handNo === 1 ? "hand" : "hands"}.${carries}</p>`;
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }
-function newGame() {
+function newGame({ fresh = false } = {}) {
   $("endDlg").open && $("endDlg").close();
   advice = said = null;                                          // the coach's words were the last game's
   lesson = lessonNext; lessonNext = null;
-  page.deal({ game: opts.game, ...opts[opts.game] }, 4);
+  page.deal({ game: opts.game, ...opts[opts.game], ...(fresh ? { fresh: true } : {}) }, 4);
 }
-$("endAgain").addEventListener("click", newGame);
+/** Schafkopf's total back to nothing: a new game from zero for every seat (the one in play is left). */
+async function resetTotal() {
+  $("menuDlg").close();
+  if (await sure("Set everyone's total back to zero and deal a new game?", { yes: "Reset" })) newGame({ fresh: true });
+}
+$("endAgain").addEventListener("click", () => newGame());
 $("endTable").addEventListener("click", () => $("endDlg").close());
 
 // ---------- rules, menu ----------
@@ -726,7 +739,7 @@ function openMenu() {
   body.replaceChildren();
   levelNow();   // this game's ramp, read before the shared level row is made (Korbi, 22 Nov 2026: no row while it was his turn to play first)
   const play = part(body, "play");
-  if (page.host) play.append(action("New game", newGame, "primary"));
+  if (page.host) play.append(action("New game", () => newGame(), "primary"));
   page.menu(play);
   const cp = progressOf("trumps", COURSE), schafkopf = tileNow() === "schafkopf";
   if (schafkopf) {
@@ -745,6 +758,12 @@ function openMenu() {
       draw();
     }));
     else set.append(line(`Coach: ${coach() === "off" ? "off" : "on"}, as the host set it for the table.`));
+  }
+  // the running total: shown with its reset, which only whoever deals (solo, or the table's host) can do
+  const st = V?.state;
+  if (schafkopf && st?.game === "schafkopf") {
+    set.append(line(`Your total: ${sign(st.scores[me()])}, carried from game to game.`));
+    if (page.host && st.scores.some(Boolean)) set.append(action("Reset the total", resetTotal));
   }
   const r = read(recordKey(), { played: 0, won: 0 });
   const rushBests = schafkopf ? bestsLine(rush.bests()) : "", about = part(body, "about");

@@ -113,6 +113,31 @@ for (const game of ["jass", "belote", "schafkopf"]) {
   check(ok && G.state.step === "over" && G.state.winners.length >= 1, `${game}: a whole game of computer players, every move legal, the state whole through the database (${G.state.handNo} hands)`);
 }
 check(rules.seats.min === 4 && rules.seats.max === 4 && typeof trumpsBot === "function", "four at the table");
+// Schafkopf's total runs on from match to match, each seat's own, until a fresh start; a match is won on what it added
+// (Korbi, 27 Nov 2026)
+{
+  const playOut = G => {
+    for (let i = 0; i < 6000 && G.state.step !== "over"; i++) {
+      const at = rules.wakeAt(G.state);
+      if (at != null) { G = applyWake(rules, G, at) || G; continue; }
+      const seat = rules.toMove(G.state);
+      G = applyMove(rules, G, seat, botMove(rules, G, seat, "easy"), T + i).G;
+    }
+    return G;
+  };
+  const one = playOut(newRecord(rules, { seats: 4, options: { game: "schafkopf", deals: 2 }, seed: 7, now: T }));
+  const two = newRecord(rules, { seats: 4, options: { game: "schafkopf", deals: 2 }, prev: one, seed: 8, now: T });
+  check(one.state.scores.some(Boolean) && JSON.stringify(two.state.scores) === JSON.stringify(one.state.scores) && JSON.stringify(two.state.start) === JSON.stringify(one.state.scores),
+    `schafkopf: the next game starts from the last one's totals (${one.state.scores.join(" ")})`);
+  const fresh = newRecord(rules, { seats: 4, options: { game: "schafkopf", deals: 2, fresh: true }, prev: one, seed: 8, now: T });
+  check(fresh.state.scores.every(v => v === 0) && fresh.state.start.every(v => v === 0) && !("fresh" in fresh.state.opts), "schafkopf: a fresh start sets every total back to zero");
+  const jassAfter = newRecord(rules, { seats: 4, options: { game: "jass" }, prev: one, seed: 8, now: T });
+  check(jassAfter.state.scores.length === 2 && jassAfter.state.scores.every(v => v === 0), "jass carries nothing over");
+  const done = playOut(two), back = rules.restore(roundTrip(structuredClone(done.state)));
+  const added = done.state.scores.map((v, i) => v - done.state.start[i]), top = Math.max(...added);
+  check(done.state.winners.every(w => added[w] === top) && JSON.stringify(back.start) === JSON.stringify(done.state.start),
+    "schafkopf: a match carried into is won on what it added, and where it began survives the database");
+}
 // Schafkopf: a trick taken stays on the table until all four have seen it, in any order (Korbi, 12 Nov 2026), and the wait
 // survives the database; Jass's still goes by the clock
 {

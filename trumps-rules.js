@@ -30,10 +30,18 @@ export const rules = {
   id: "trumps",
   seats: { min: 4, max: 4 },
 
-  deal({ options = {}, rng }) {
+  deal({ options = {}, rng, prev = null }) {
     const g = GAMES[options.game] || GAMES.jass;
     const s = { seats: 4, game: g.id, opts: { ...g.defaults, ...options, game: g.id }, dealer: Math.floor(rng() * 4), handNo: 0,
       scores: g.teams === "fixed" ? [0, 0] : [0, 0, 0, 0], history: [] };
+    // Schafkopf's total runs on from match to match, each seat's own, as a card table's does (Korbi, 27 Nov 2026), until
+    // a new game asks for a fresh start (`fresh`: the menu's reset); `start` is where this match began, so it is won on
+    // what it added, not on what came before
+    if (g.id === "schafkopf") {
+      const carried = !options.fresh && prev?.game === "schafkopf" ? SEATS.map(i => prev.scores?.[i] || 0) : [0, 0, 0, 0];
+      s.scores = carried.slice(); s.start = carried.slice();
+      delete s.opts.fresh;
+    }
     newHand(s, rng);
     s.say = `${g.name}${g.sub ? ` (${g.sub})` : ""}: {s${s.dealer}} deals.`;
     return s;
@@ -138,6 +146,7 @@ export const rules = {
     s.bidlog = list(s.bidlog);
     s.history = list(s.history).map(list);
     s.scores = Array.from({ length: gameOf(s).teams === "fixed" ? 2 : 4 }, (_, i) => s.scores?.[i] || 0);
+    if (s.game === "schafkopf") s.start = SEATS.map(i => s.start?.[i] || 0);
     if (s.dealt) s.dealt = [0, 1, 2, 3].map(i => list(s.dealt[i]));
     if (s.weis) s.weis = [0, 1, 2, 3].map(i => list(s.weis[i]));
     if (s.stock) s.stock = list(s.stock);

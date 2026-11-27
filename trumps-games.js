@@ -366,10 +366,11 @@ const schafkopf = {
     s.scores = s.scores.map((v, i) => v + delta[i]);
     return { pts, tricks, won, schneider, schwarz, laufende: counted, amount, delta, side };
   },
+  /** The match's winners: whoever it added most to (the total carries on from the matches before: `start`). */
   done(s) {
     if (s.handNo < s.opts.deals) return null;
-    const top = Math.max(...s.scores);
-    return s.scores.map((v, i) => (v === top ? i : -1)).filter(i => i >= 0);
+    const won = s.scores.map((v, i) => v - (s.start?.[i] || 0)), top = Math.max(...won);
+    return won.map((v, i) => (v === top ? i : -1)).filter(i => i >= 0);
   },
 };
 
