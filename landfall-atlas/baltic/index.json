@@ -1,0 +1,25 @@
+{
+ "region": "baltic",
+ "built": "2026-11-26T23:58",
+ "areas": [
+  {
+   "id": "oresund",
+   "name": "Øresund",
+   "landmarks": 65,
+   "starts": 40
+  },
+  {
+   "id": "stockholm",
+   "name": "Stockholm archipelago",
+   "landmarks": 54,
+   "starts": 40
+  },
+  {
+   "id": "gulf-of-finland",
+   "name": "Gulf of Finland",
+   "landmarks": 65,
+   "starts": 40
+  }
+ ],
+ "attribution": "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)."
+}

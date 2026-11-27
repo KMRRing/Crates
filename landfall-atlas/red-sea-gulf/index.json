@@ -1,0 +1,25 @@
+{
+ "region": "red-sea-gulf",
+ "built": "2026-11-27T00:02",
+ "areas": [
+  {
+   "id": "gubal",
+   "name": "Strait of Gubal",
+   "landmarks": 28,
+   "starts": 40
+  },
+  {
+   "id": "bab-el-mandeb",
+   "name": "Bab-el-Mandeb",
+   "landmarks": 26,
+   "starts": 18
+  },
+  {
+   "id": "hormuz",
+   "name": "Hormuz",
+   "landmarks": 8,
+   "starts": 40
+  }
+ ],
+ "attribution": "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)."
+}

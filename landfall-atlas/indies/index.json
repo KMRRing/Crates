@@ -1,0 +1,31 @@
+{
+ "region": "indies",
+ "built": "2026-11-27T00:03",
+ "areas": [
+  {
+   "id": "malacca",
+   "name": "Malacca and Singapore",
+   "landmarks": 15,
+   "starts": 40
+  },
+  {
+   "id": "sunda",
+   "name": "Sunda Strait",
+   "landmarks": 10,
+   "starts": 40
+  },
+  {
+   "id": "torres",
+   "name": "Torres Strait",
+   "landmarks": 7,
+   "starts": 40
+  },
+  {
+   "id": "barrier-reef",
+   "name": "Great Barrier Reef",
+   "landmarks": 11,
+   "starts": 40
+  }
+ ],
+ "attribution": "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)."
+}

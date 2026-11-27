@@ -1,0 +1,43 @@
+{
+ "region": "mediterranean",
+ "built": "2026-11-27T00:01",
+ "areas": [
+  {
+   "id": "gibraltar",
+   "name": "Gibraltar",
+   "landmarks": 59,
+   "starts": 40
+  },
+  {
+   "id": "bosporus",
+   "name": "Bosporus and Dardanelles",
+   "landmarks": 55,
+   "starts": 40
+  },
+  {
+   "id": "aegean",
+   "name": "The Aegean",
+   "landmarks": 65,
+   "starts": 40
+  },
+  {
+   "id": "messina",
+   "name": "Messina",
+   "landmarks": 35,
+   "starts": 40
+  },
+  {
+   "id": "valletta",
+   "name": "Valletta",
+   "landmarks": 24,
+   "starts": 21
+  },
+  {
+   "id": "venice",
+   "name": "Venice lagoon",
+   "landmarks": 33,
+   "starts": 40
+  }
+ ],
+ "attribution": "Produced using Copernicus WorldDEM-90 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Places from Wikidata (CC0)."
+}
