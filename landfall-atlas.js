@@ -40,6 +40,9 @@ async function builtRegions() {
 /** The built regions the campaign has opened: a region opens when its chapter is done (the Alps: chapter 7). */
 const openRegions = async () => (await builtRegions()).filter(R => chapterDone(R.opens, read(KEY.campaign, {})));
 const where = () => read(KEY.where, { region: "alps", area: "" });
+/** The plan's mixes, the volume once the campaign has taught the tools: the open regions of a kind, all of them, or none chosen. */
+const MIXES = [["", "One region"], ["sea", "All seafaring"], ["mountains", "All mountains"], ["all", "Everything"]];
+const mixOf = (regions, mix) => { const r = !mix ? null : mix === "all" ? regions : regions.filter(x => (mix === "sea" ? x.kind === "coast" : x.kind === mix)); return r?.length ? r : null; };
 /** The first lesson not yet passed, in the campaign's order (the way into the Atlas before any region is open). */
 const nextLesson = () => LESSONS.find(l => (read(KEY.campaign, {})[l.id] || 0) < PASS) || LESSONS[0];
 
@@ -73,8 +76,10 @@ export async function startPlay({ fresh = false } = {}) {
   const regions = await openRegions();
   if (!(await builtRegions()).length) { $("atTask").textContent = "The Atlas's terrain is still being prepared."; return; }
   if (!regions.length) return startLesson(nextLesson().id);
-  const w = where(), R = regions.find(r => r.id === w.region) || regions[0];
-  const areaId = saved?.region === R.id && (!w.area || saved.area === w.area) ? saved.area : (w.area || R.areas[Math.floor(Math.random() * R.areas.length)].id);
+  const w = where(), pool = mixOf(regions, w.mix);
+  // a mix (all seafaring, all mountains, everything) draws its region afresh each start; a saved start in it is picked up
+  const R = pool ? (saved && pool.find(r => r.id === saved.region)) || pool[Math.floor(Math.random() * pool.length)] : regions.find(r => r.id === w.region) || regions[0];
+  const areaId = saved?.region === R.id && (pool || !w.area || saved.area === w.area) ? saved.area : (!pool && w.area) || R.areas[Math.floor(Math.random() * R.areas.length)].id;
   if (!(await loadPack(R.id, areaId))) return;
   // a play saved on an older build of the pack points at starts that may have moved: it is begun again
   if (saved && saved.area === areaId && saved.region === R.id && (saved.built || "") === pack.built) return begin(saved);
@@ -350,13 +355,17 @@ export async function menuInto(content, close) {
   // the land chapters' lessons, here as in the campaign's list: the way in before the Alps are open, and back to them after
   const L = play?.lesson && lessonById(play.lesson), ch = L?.chapter || (regions.length ? 0 : nextLesson().chapter);
   if (ch) {
-    content.append(choice("Chapter", [7, 8].map(n => [String(n), `${n} ${CHAPTERS[n - 1].name}`]), String(ch), v => { close(); startLesson(LESSONS.find(x => x.chapter === Number(v)).id); }));
+    content.append(choice("Chapter", [6, 7, 8].map(n => [String(n), `${n} ${CHAPTERS[n - 1].name}`]), String(ch), v => { close(); startLesson(LESSONS.find(x => x.chapter === Number(v)).id); }));
     content.append(choice("Lesson", LESSONS.filter(x => x.chapter === ch).map((x, i) => [x.id, `${i + 1} ${x.name}${best[x.id] ? ` ${"★".repeat(best[x.id])}` : ""}`]), L?.id || "", v => { close(); startLesson(v); }));
   }
   if (!all.length) { content.append(line("The Atlas's terrain is still being prepared.")); return; }
   if (!regions.length) { content.append(line("The Alps open here once chapter 7, Peaks and bearings, is done.")); return; }
   const w = where(), R = regions.find(r => r.id === w.region) || regions[0], K = know();
   const areaOf = a => K.areas?.[`${R.id}/${a.id}`];
+  const kinds = new Set(regions.map(r => r.kind));
+  if (kinds.size > 1 || regions.length > 1) content.append(choice("Mix", MIXES.filter(([m]) => !m || m === "all" || [...kinds].includes(m === "sea" ? "coast" : m)), w.mix || "",
+    v => { write(KEY.where, { ...w, mix: v }); close(); startPlay({ fresh: true }); }));
+  if (mixOf(regions, w.mix)) { const shut = all.filter(r => !regions.includes(r)); if (shut.length) content.append(line(`Still to open: ${shut.map(r => `${r.name} (chapter ${r.opens})`).join(", ")}.`)); return; }
   content.append(choice("Region", regions.map(r => [r.id, r.name]), R.id, v => { write(KEY.where, { region: v, area: "" }); close(true); }));
   content.append(choice("Area", [["", "Anywhere"], ...R.areas.map(a => { const st = areaOf(a); return [a.id, `${a.name}${st?.mastered ? " ✓" : st ? ` ${st.known}/${st.of}` : ""}`]; })], w.area || "",
     v => { write(KEY.where, { region: R.id, area: v }); close(); startPlay({ fresh: true }); }));
