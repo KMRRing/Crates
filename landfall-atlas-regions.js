@@ -78,12 +78,12 @@ export const REGIONS = [
     A("skagen", "Skagen and the Kattegat", [10.00, 57.20, 11.20, 57.90], 6),
     A("norway-approaches", "The Norwegian approaches", [4.40, 59.90, 5.60, 60.60], 6),
   ] },
-  { id: "baltic", name: "The Baltic", kind: "coast", opens: 4, later: 6, built: false, areas: [
+  { id: "baltic", name: "The Baltic", kind: "coast", opens: 4, later: 6, built: true, areas: [
     A("oresund", "Øresund", [12.40, 55.50, 13.00, 56.15], 6),
     A("stockholm", "Stockholm archipelago", [18.40, 59.15, 19.40, 59.60], 6),
     A("gulf-of-finland", "Gulf of Finland", [24.30, 59.35, 25.60, 60.30], 9),
   ] },
-  { id: "mediterranean", name: "Mediterranean", kind: "coast", opens: 4, later: 6, built: false, areas: [
+  { id: "mediterranean", name: "Mediterranean", kind: "coast", opens: 4, later: 6, built: true, areas: [
     A("gibraltar", "Gibraltar", [-5.80, 35.75, -5.10, 36.25], 6),
     A("bosporus", "Bosporus and Dardanelles", [26.20, 40.00, 29.20, 41.30], 15),
     A("aegean", "The Aegean", [24.60, 36.90, 25.80, 37.60], 9),
@@ -91,18 +91,18 @@ export const REGIONS = [
     A("valletta", "Valletta", [14.35, 35.80, 14.65, 36.00]),
     A("venice", "Venice lagoon", [12.20, 45.25, 12.60, 45.55]),
   ] },
-  { id: "red-sea-gulf", name: "Red Sea and Gulf", kind: "coast", opens: 4, later: 6, built: false, areas: [
+  { id: "red-sea-gulf", name: "Red Sea and Gulf", kind: "coast", opens: 4, later: 6, built: true, areas: [
     A("gubal", "Strait of Gubal", [33.60, 27.40, 34.10, 27.95]),
     A("bab-el-mandeb", "Bab-el-Mandeb", [43.15, 12.45, 43.60, 12.85]),
     A("hormuz", "Hormuz", [55.90, 26.10, 56.80, 26.80], 6),
   ] },
-  { id: "indies", name: "The Indies and the Reef", kind: "coast", opens: 4, later: 6, built: false, areas: [
+  { id: "indies", name: "The Indies and the Reef", kind: "coast", opens: 4, later: 6, built: true, areas: [
     A("malacca", "Malacca and Singapore", [103.40, 1.10, 104.50, 1.60], 6),
     A("sunda", "Sunda Strait", [105.40, -6.40, 106.10, -5.60], 6),
     A("torres", "Torres Strait", [141.90, -10.80, 142.60, -10.30]),
     A("barrier-reef", "Great Barrier Reef", [145.00, -16.00, 146.00, -15.20], 6),
   ] },
-  { id: "capes", name: "The great capes", kind: "coast", opens: 4, later: 6, built: false, areas: [
+  { id: "capes", name: "The great capes", kind: "coast", opens: 4, later: 6, built: true, areas: [
     A("good-hope", "Good Hope", [18.20, -34.45, 18.60, -33.85]),
     A("horn", "The Horn and Magellan", [-68.50, -56.10, -66.80, -54.90], 9),
   ] },
